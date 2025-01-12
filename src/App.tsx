@@ -9,6 +9,7 @@ import { WalletDetails } from './components/WalletDetails';
 import { useAtomValue } from 'jotai';
 import { marketAddressAtom } from './atoms/market';
 import { JotaiDevTools } from './components/JotaiDevTools';
+import { ToastProvider } from './components/ToastProvider';
 
 function App() {
   const marketAddress = useAtomValue(marketAddressAtom);
@@ -27,6 +28,7 @@ function App() {
           </div>
         </main>
         <JotaiDevTools />
+        <ToastProvider />
       </div>
     </WalletContextProvider>
   );

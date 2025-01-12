@@ -18,6 +18,16 @@ Build a production ready frontend for trading on a decentralised solana exchange
   - Global state atoms
   - Development tools integration
   - Dark theme devtools UI
+- Notifications: Sonner
+  - Custom themed toasts
+  - Rich colors support
+  - Type-safe notifications hook
+  - Transaction-specific toasts
+  - Explorer integration
+- Environment: Zod
+  - Runtime environment validation
+  - Type-safe env variables
+  - Detailed error messages
 - Blockchain: Solana Web3.js
 - UI Components: Shadcn UI
 
@@ -30,11 +40,16 @@ src/
 ├── components/
 │   ├── ConnectWallet.tsx  # Wallet connection button component
 │   ├── JotaiDevTools.tsx  # Development-only state debugging tools
+│   ├── ToastProvider.tsx  # Global toast notification provider
 │   └── WalletDetails.tsx  # Displays wallet balance and address
 ├── contexts/
 │   └── WalletContext.tsx  # Solana wallet provider and configuration
+├── hooks/
+│   └── useNotification.ts # Custom hook for toast notifications
 ├── utils/
-│   └── market.ts          # Market address utilities and validation
+│   ├── env.ts            # Environment validation and configuration
+│   ├── explorer.ts       # Solana explorer URL utilities
+│   └── market.ts         # Market address utilities and validation
 ├── index.css             # Tailwind CSS v4 imports and theme configuration
 └── App.tsx               # Main application component
 ```
@@ -65,6 +80,30 @@ src/
 - Production build exclusion
 - Real-time state inspection
 - Custom positioning
+
+### Environment Configuration
+
+- Runtime environment validation
+- Type-safe environment variables
+- Detailed error messages for missing/invalid vars
+- Default values for optional variables
+- Cluster-aware configuration
+- Example environment file
+
+### Notifications
+
+- Global toast provider
+- Dark theme integration
+- Custom styled toasts
+- Type-safe notification hook
+- Multiple notification types (success, error, info, warning, loading)
+- Configurable durations
+- Transaction-specific toasts:
+  - Multi-state handling (initiated, processing, confirmed, failed)
+  - Automatic explorer links
+  - Custom transaction names
+  - Environment-aware URLs
+  - Error message handling
 
 ### Styling Setup
 
