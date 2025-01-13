@@ -5,6 +5,7 @@
 
 import { atom } from 'jotai';
 import { getMarketAddressFromUrl } from '../utils/market';
+import { MarketAccount } from '@/solana/fermiClient';
 
 /**
  * Global atom for current market address
@@ -12,4 +13,7 @@ import { getMarketAddressFromUrl } from '../utils/market';
  */
 export const marketAddressAtom = atom<string>(getMarketAddressFromUrl());
 
+export const marketAccountAtom = atom<MarketAccount | null>(null);
+
 marketAddressAtom.debugLabel = 'marketAddress';
+marketAccountAtom.debugLabel = 'marketAccount';

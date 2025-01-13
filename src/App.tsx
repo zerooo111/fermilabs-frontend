@@ -3,18 +3,67 @@
  * Main application component with wallet context integration
  */
 
-import { WalletContextProvider } from './contexts/WalletContext';
 import { ConnectWallet } from './components/ConnectWallet';
 import { WalletDetails } from './components/WalletDetails';
-import { useAtomValue } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { marketAddressAtom } from './atoms/market';
 import { JotaiDevTools } from './components/JotaiDevTools';
 import { ToastProvider } from './components/ToastProvider';
 import { ErrorPage } from './components/ErrorPage';
 import { isValidSolanaAddress } from './utils/market';
+import { useAnchorWallet } from '@solana/wallet-adapter-react';
+import { fermiClientAtom } from './atoms/fermiClient';
+import { useEffect } from 'react';
+import { FermiClient } from './solana/fermiClient';
+import { AnchorProvider } from '@coral-xyz/anchor';
+import { Connection, PublicKey } from '@solana/web3.js';
+import { clusterApiUrl } from '@solana/web3.js';
+import { marketAccountAtom } from './atoms/market';
 
 function App() {
+  const [client, setClient] = useAtom(fermiClientAtom);
+  const [marketAccount, setMarketAccount] = useAtom(marketAccountAtom);
   const marketAddress = useAtomValue(marketAddressAtom);
+  const wallet = useAnchorWallet();
+
+  /* Initialise client */
+  useEffect(() => {
+    if (wallet) {
+      const connection = new Connection(clusterApiUrl('devnet'));
+      const provider = new AnchorProvider(connection, wallet, AnchorProvider.defaultOptions());
+      setClient(new FermiClient(provider, new PublicKey(marketAddress)));
+      console.log('Client initialised');
+      console.log('setting up orderbook listeners');
+      console.log('setting up event heap listeners');
+    } else {
+      setClient(null);
+      console.log('Failed to initialise client :: Wallet not connected');
+    }
+
+    return () => {
+      console.log('Cleaning up client');
+      setClient(null);
+    };
+  }, [wallet]);
+
+  /* Initialise market */
+  useEffect(() => {
+    if (client) {
+      (async () => {
+        const marketAccount = await client.deserializeMarketAccount(new PublicKey(marketAddress));
+        setMarketAccount(marketAccount);
+        console.log('Got market account', marketAccount);
+      })();
+    } else {
+      console.log('Failed to get market account :: Client not initialised');
+      setMarketAccount(null);
+    }
+
+    return () => {
+      console.log('Cleaning up market account');
+      setMarketAccount(null);
+    };
+  }, [client, marketAddress]);
 
   if (!isValidSolanaAddress(marketAddress)) {
     return (
@@ -30,22 +79,22 @@ function App() {
   }
 
   return (
-    <WalletContextProvider>
-      <div className="min-h-screen bg-gray-900 text-white p-4">
-        <nav className="flex justify-between items-center mb-8">
-          <WalletDetails />
-          <ConnectWallet />
-        </nav>
-        <main>
-          <h1 className="text-3xl font-bold">Fermi Labs DEX</h1>
-          <div className="mt-4 text-gray-400">
-            Market: <span className="font-mono">{marketAddress}</span>
-          </div>
-        </main>
-        <JotaiDevTools />
-        <ToastProvider />
-      </div>
-    </WalletContextProvider>
+    <div className="min-h-screen bg-gray-900 text-white p-4">
+      <nav className="flex justify-between items-center mb-8">
+        <WalletDetails />
+        <ConnectWallet />
+      </nav>
+      {client && <div>Client loaded</div>}
+      {marketAccount && <div>Market account loaded</div>}
+      <main>
+        <h1 className="text-3xl font-bold">Fermi Labs DEX</h1>
+        <div className="mt-4 text-gray-400">
+          Market: <span className="font-mono">{marketAddress}</span>
+        </div>
+      </main>
+      <JotaiDevTools />
+      <ToastProvider />
+    </div>
   );
 }
 
