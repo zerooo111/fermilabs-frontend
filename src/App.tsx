@@ -7,7 +7,7 @@ import { ConnectWallet } from './components/ConnectWallet';
 import { WalletDetails } from './components/WalletDetails';
 import { useAtom, useAtomValue } from 'jotai';
 import { marketAddressAtom } from './atoms/market';
-import { JotaiDevTools } from './components/JotaiDevTools';
+
 import { ToastProvider } from './components/ToastProvider';
 import { ErrorPage } from './components/ErrorPage';
 import { isValidSolanaAddress } from './utils/market';
@@ -32,16 +32,11 @@ function App() {
       const connection = new Connection(clusterApiUrl('devnet'));
       const provider = new AnchorProvider(connection, wallet, AnchorProvider.defaultOptions());
       setClient(new FermiClient(provider, new PublicKey(marketAddress)));
-      console.log('Client initialised');
-      console.log('setting up orderbook listeners');
-      console.log('setting up event heap listeners');
     } else {
       setClient(null);
-      console.log('Failed to initialise client :: Wallet not connected');
     }
 
     return () => {
-      console.log('Cleaning up client');
       setClient(null);
     };
   }, [wallet]);
@@ -52,15 +47,12 @@ function App() {
       (async () => {
         const marketAccount = await client.deserializeMarketAccount(new PublicKey(marketAddress));
         setMarketAccount(marketAccount);
-        console.log('Got market account', marketAccount);
       })();
     } else {
-      console.log('Failed to get market account :: Client not initialised');
       setMarketAccount(null);
     }
 
     return () => {
-      console.log('Cleaning up market account');
       setMarketAccount(null);
     };
   }, [client, marketAddress]);
@@ -92,7 +84,6 @@ function App() {
           Market: <span className="font-mono">{marketAddress}</span>
         </div>
       </main>
-      <JotaiDevTools />
       <ToastProvider />
     </div>
   );

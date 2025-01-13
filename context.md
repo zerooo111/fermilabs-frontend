@@ -12,7 +12,11 @@ Build a production ready frontend for trading on a decentralised solana exchange
   - Native CSS cascade layers support
   - Built-in import support
   - Automatic source detection
-- Data Fetch/Sync: React Query
+- Data Fetch/Sync: TanStack React Query v5
+  - Global query client configuration
+  - Development tools integration
+  - Optimized caching and refetching
+  - Type-safe queries and mutations
 - State Management: Jotai
   - URL-based market address handling
   - Global state atoms
@@ -36,23 +40,86 @@ Build a production ready frontend for trading on a decentralised solana exchange
 ```
 src/
 ├── atoms/
-│   └── market.ts           # Jotai atoms for market state
+│   ├── market.ts           # Jotai atoms for market state
+│   └── fermiClient.ts      # Global fermi client state
 ├── components/
 │   ├── ConnectWallet.tsx  # Wallet connection button component
-│   ├── JotaiDevTools.tsx  # Development-only state debugging tools
 │   ├── ToastProvider.tsx  # Global toast notification provider
+│   ├── ErrorPage.tsx      # Error display component
 │   └── WalletDetails.tsx  # Displays wallet balance and address
 ├── contexts/
-│   └── WalletContext.tsx  # Solana wallet provider and configuration
+│   ├── WalletContext.tsx  # Solana wallet provider and configuration
+│   └── QueryProvider.tsx  # React Query provider with devtools
 ├── hooks/
-│   └── useNotification.ts # Custom hook for toast notifications
+│   ├── useNotification.ts # Custom hook for toast notifications
+│   ├── useBids.ts        # Hook for orderbook bids data
+│   ├── useAsks.ts        # Hook for orderbook asks data
+│   ├── useEventHeap.ts   # Hook for event heap data
+│
+├── solana/
+│   ├── fermiClient.ts    # Solana client implementation
+│   ├── parsers.ts        # Account data parsing utilities
+│   ├── constants.ts      # Solana-related constants
+│   └── utils/
+│       ├── rpc.ts        # RPC utility functions
+│       └── helpers.ts    # General Solana helpers
 ├── utils/
-│   ├── env.ts            # Environment validation and configuration
-│   ├── explorer.ts       # Solana explorer URL utilities
-│   └── market.ts         # Market address utilities and validation
-├── index.css             # Tailwind CSS v4 imports and theme configuration
-└── App.tsx               # Main application component
+│   ├── env.ts           # Environment validation and configuration
+│   ├── explorer.ts      # Solana explorer URL utilities
+│   └── market.ts        # Market address utilities and validation
+├── index.css            # Tailwind CSS v4 imports and theme configuration
+└── App.tsx             # Main application component
 ```
+
+### Development Environment
+
+- Vite development server:
+  - Port 3000
+  - Host mode enabled
+  - Path aliases (@/ for src directory)
+  - Node polyfills integration
+  - SWC for fast refresh
+
+### Data Fetching Setup
+
+- TanStack React Query v5 integration
+- Global query client configuration:
+  - 1-minute stale time
+  - 5-minute garbage collection
+  - 2 retries on failure
+  - Window focus refetching enabled
+- Development tools with query explorer
+- Production-optimized builds (devtools excluded)
+- Modular market data hooks:
+  - Individual hooks for bids, asks, and event heap
+  - Conditional fetching based on client/market availability
+  - Optimized refetch intervals:
+    - Orderbook (bids/asks): 10 seconds
+    - Event heap: 1 second
+  - Type-safe query responses with error handling
+  - Enhanced orderbook parsing:
+    - Price and quantity parsing
+    - Timestamp tracking
+    - Client order ID support
+  - Combined hook for full market data
+  - Optimized for component-level data requirements
+
+### Code Organization
+
+- Modular hook structure:
+  - Separate files for each data type
+  - Clear separation of concerns
+  - Improved maintainability
+  - Better code splitting
+- Enhanced type safety:
+  - Full TypeScript integration
+  - Proper error handling
+  - Null safety checks
+  - Type-safe parsers
+- Clean logging:
+  - Removed debug console logs
+  - Production-ready error handling
+  - Clear error messages
 
 ## Features Implemented
 

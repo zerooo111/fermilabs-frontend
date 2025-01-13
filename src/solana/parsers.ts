@@ -10,6 +10,8 @@ export const parseBookSideAccount = (client: FermiClient, acc: BookSideAccount) 
       key: node.key.toString(),
       price: new BN(node.key).shrn(64).toString(),
       quantity: node.quantity.toString(),
+      timestamp: node.timestamp.toString(),
+      clientOrderId: node.clientOrderId.toString(),
     }));
 
   return nodes;
