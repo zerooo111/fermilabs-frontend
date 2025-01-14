@@ -4,7 +4,6 @@ import { useAnchorWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { fermiClientAtom } from '@/atoms/fermiClient';
 import { marketAccountAtom, marketAddressAtom } from '@/atoms/market';
-import { OpenOrdersAccount } from '@/solana/fermiClient';
 
 /**
  * Custom hook for fetching open orders account data
@@ -22,7 +21,7 @@ export function useOpenOrdersAccount() {
       'openOrdersAccount',
       { marketAddress, walletAddress: wallet?.publicKey?.toString() },
     ],
-    queryFn: async (): Promise<{ account: OpenOrdersAccount; publicKey: string } | null> => {
+    queryFn: async () => {
       if (!client || !marketAccount || !wallet?.publicKey) return null;
 
       const openOrdersAccounts = await client.findOpenOrdersForMarket(
@@ -35,12 +34,9 @@ export function useOpenOrdersAccount() {
       const accountData = await client.deserializeOpenOrderAccount(openOrdersAccounts[0]);
       if (!accountData) throw new Error('Failed to deserialize open orders account');
 
-      return {
-        account: accountData,
-        publicKey: openOrdersAccounts[0].toString(),
-      };
+      return accountData;
     },
     enabled: !!client && !!marketAccount && !!wallet?.publicKey,
-    refetchInterval: 10000, // Refetch every 10 seconds
+    refetchInterval: 100000, // Refetch every 10 seconds
   });
 }

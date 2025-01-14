@@ -3,7 +3,7 @@ import { useAtomValue } from 'jotai';
 import { fermiClientAtom } from '@/atoms/fermiClient';
 import { marketAccountAtom } from '@/atoms/market';
 import { PublicKey } from '@solana/web3.js';
-import { EventHeapAccount } from '@/solana/fermiClient';
+import { parseEventHeap } from '@/solana/parsers';
 
 /**
  * Custom hook for fetching event heap data
@@ -16,9 +16,14 @@ export function useEventHeap() {
 
   return useQuery({
     queryKey: ['eventHeap', marketAccount?.eventHeap.toString()],
-    queryFn: async (): Promise<EventHeapAccount | null> => {
+    queryFn: async () => {
       if (!client || !marketAccount) return null;
-      return client.deserializeEventHeapAccount(new PublicKey(marketAccount.eventHeap));
+      const eventHeap = await client.deserializeEventHeapAccount(
+        new PublicKey(marketAccount.eventHeap)
+      );
+      if (!eventHeap) throw new Error('Failed to deserialize event heap account');
+      const parsed = parseEventHeap(client, eventHeap);
+      return parsed;
     },
     enabled: !!client && !!marketAccount,
     refetchInterval: 1000, // Refetch every second for more real-time event updates
