@@ -83,11 +83,6 @@ function App() {
         <div className="mt-4 text-gray-400">
           Market: <span className="font-mono">{marketAddress}</span>
         </div>
-        {client && marketAccount && (
-          <div className="mt-8">
-            <OrderbookDisplay />
-          </div>
-        )}
       </main>
       <ToastProvider />
     </div>
