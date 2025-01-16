@@ -3,25 +3,27 @@
  * Main application component with wallet context integration
  */
 
-import { useAtom, useAtomValue } from 'jotai';
-import { marketAddressAtom } from './atoms/market';
-import { ErrorPage } from './components/ErrorPage';
-import { isValidSolanaAddress } from './utils/market';
-import { fermiClientAtom } from './atoms/fermiClient';
-import { useEffect } from 'react';
-import { FermiClient } from './solana/fermiClient';
-import { AnchorProvider } from '@coral-xyz/anchor';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { clusterApiUrl } from '@solana/web3.js';
-import { marketAccountAtom } from './atoms/market';
+import React, { useEffect } from 'react';
 import TradePanel from './components/TradePanel';
-import EmptyWallet from './solana/utils/emptyWallet';
 import Orderbook from './components/Orderbook';
+import OpenOrdersTable from './components/OpenOrdersTable';
+import { useAtom } from 'jotai';
+import { fermiClientAtom } from './atoms/fermiClient';
+import { marketAccountAtom, marketAddressAtom } from './atoms/market';
+import { isValidSolanaAddress } from './utils/market';
+import { PublicKey } from '@solana/web3.js';
+import { clusterApiUrl, Keypair } from '@solana/web3.js';
+import { FermiClient } from './solana/fermiClient';
+import { Connection } from '@solana/web3.js';
+import { AnchorProvider } from '@coral-xyz/anchor';
+import EmptyWallet from './solana/utils/emptyWallet';
+import { ErrorPage } from './components/ErrorPage';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/Tabs';
 
-function App() {
+const App = () => {
   const [client, setClient] = useAtom(fermiClientAtom);
   const [marketAccount, setMarketAccount] = useAtom(marketAccountAtom);
-  const marketAddress = useAtomValue(marketAddressAtom);
+  const [marketAddress] = useAtom(marketAddressAtom);
 
   /* Initialise client */
   useEffect(() => {
@@ -36,7 +38,7 @@ function App() {
     return () => {
       setClient(null);
     };
-  }, []);
+  }, [marketAddress, setClient]);
 
   /* Initialise market */
   useEffect(() => {
@@ -72,11 +74,39 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen p-4 flex flex-col gap-4 items-center justify-center">
-      <TradePanel client={client} marketAccount={marketAccount} marketAddress={marketAddress} />
-      <Orderbook />
+    <div className="min-h-screen bg-zinc-50 p-4">
+      <div className="container mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {client && marketAccount && marketAddress && (
+            <>
+              <TradePanel
+                client={client}
+                marketAddress={marketAddress}
+                marketAccount={marketAccount}
+              />
+              <Orderbook />
+            </>
+          )}
+        </div>
+
+        {/* Open Orders Section */}
+        <div className="mt-8">
+          <Tabs defaultValue="open-orders">
+            <TabsList>
+              <TabsTrigger value="open-orders">Open Orders</TabsTrigger>
+              <TabsTrigger value="settle-funds">Settle Funds</TabsTrigger>
+            </TabsList>
+            <TabsContent value="open-orders">
+              <OpenOrdersTable />
+            </TabsContent>
+            <TabsContent value="settle-funds">
+              <OpenOrdersTable />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   );
-}
+};
 
 export default App;

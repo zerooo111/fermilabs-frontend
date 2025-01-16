@@ -104,7 +104,7 @@ const Orderbook: React.FC<OrderbookProps> = ({ className, maxRows = 8 }) => {
     <div
       className={cn('w-full max-w-sm bg-zinc-100 border border-zinc-300 rounded-lg p-1', className)}
     >
-      <div className="bg-white flex flex-col gap-2 border border-zinc-300 rounded-md shadow-lg p-4">
+      <div className="h-full bg-white flex flex-col gap-2 border border-zinc-300 rounded-md shadow-lg p-4">
         <h6 className="heading">Orderbook</h6>
 
         {/* Header */}
