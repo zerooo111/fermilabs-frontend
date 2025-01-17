@@ -3,60 +3,21 @@
  * Main application component with wallet context integration
  */
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import TradePanel from './components/TradePanel';
 import Orderbook from './components/Orderbook';
 import OpenOrdersTable from './components/OpenOrdersTable';
-import { useAtom } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { fermiClientAtom } from './atoms/fermiClient';
-import { marketAccountAtom, marketAddressAtom } from './atoms/market';
-import { isValidSolanaAddress } from './utils/market';
-import { PublicKey } from '@solana/web3.js';
-import { clusterApiUrl, Keypair } from '@solana/web3.js';
-import { FermiClient } from './solana/fermiClient';
-import { Connection } from '@solana/web3.js';
-import { AnchorProvider } from '@coral-xyz/anchor';
-import EmptyWallet from './solana/utils/emptyWallet';
-import { ErrorPage } from './components/ErrorPage';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/Tabs';
+import { useMarket } from '@/hooks/useMarket';
+import { ErrorPage } from './components/ErrorPage';
 
 const App = () => {
-  const [client, setClient] = useAtom(fermiClientAtom);
-  const [marketAccount, setMarketAccount] = useAtom(marketAccountAtom);
-  const [marketAddress] = useAtom(marketAddressAtom);
+  const client = useAtomValue(fermiClientAtom);
+  const { marketAccount, marketAddress, error, isLoading } = useMarket();
 
-  /* Initialise client */
-  useEffect(() => {
-    const connection = new Connection(clusterApiUrl('devnet'));
-    const provider = new AnchorProvider(
-      connection,
-      new EmptyWallet(new Keypair()),
-      AnchorProvider.defaultOptions()
-    );
-    setClient(new FermiClient(provider, new PublicKey(marketAddress)));
-
-    return () => {
-      setClient(null);
-    };
-  }, [marketAddress, setClient]);
-
-  /* Initialise market */
-  useEffect(() => {
-    if (client) {
-      (async () => {
-        const marketAccount = await client.deserializeMarketAccount(new PublicKey(marketAddress));
-        setMarketAccount(marketAccount);
-      })();
-    } else {
-      setMarketAccount(null);
-    }
-
-    return () => {
-      setMarketAccount(null);
-    };
-  }, [client, marketAddress, setMarketAccount]);
-
-  if (!isValidSolanaAddress(marketAddress)) {
+  if (error) {
     return (
       <ErrorPage
         title="Invalid Market"
@@ -69,24 +30,16 @@ const App = () => {
     );
   }
 
-  if (!client || !marketAddress || !marketAccount) {
-    return 'Something is missing bro';
+  if (isLoading || !client || !marketAddress || !marketAccount) {
+    return <div className="min-h-screen grid place-items-center">Loading market data...</div>;
   }
 
   return (
     <div className="min-h-screen bg-zinc-50 p-4">
       <div className="container mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {client && marketAccount && marketAddress && (
-            <>
-              <TradePanel
-                client={client}
-                marketAddress={marketAddress}
-                marketAccount={marketAccount}
-              />
-              <Orderbook />
-            </>
-          )}
+          <TradePanel client={client} marketAddress={marketAddress} marketAccount={marketAccount} />
+          <Orderbook />
         </div>
 
         {/* Open Orders Section */}

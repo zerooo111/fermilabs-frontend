@@ -34,6 +34,11 @@ Build a production ready frontend for trading on a decentralised solana exchange
   - Detailed error messages
 - Blockchain: Solana Web3.js
 - UI Components: Shadcn UI
+- Animations: Framer Motion
+  - Smooth component transitions
+  - Spring physics animations
+  - Gesture-based interactions
+  - AnimatePresence for exit animations
 
 ## Project Structure
 
@@ -43,32 +48,38 @@ src/
 │   ├── market.ts           # Jotai atoms for market state
 │   └── fermiClient.ts      # Global fermi client state
 ├── components/
-│   ├── ConnectWallet.tsx  # Wallet connection button component
-│   ├── ToastProvider.tsx  # Global toast notification provider
-│   ├── ErrorPage.tsx      # Error display component
-│   └── WalletDetails.tsx  # Displays wallet balance and address
+│   ├── ConnectWallet.tsx   # Wallet connection button component
+│   ├── ToastProvider.tsx   # Global toast notification provider
+│   ├── ErrorPage.tsx       # Error display component
+│   ├── WalletDetails.tsx   # Displays wallet balance and address
+│   ├── Orderbook.tsx       # Real-time orderbook display
+│   ├── TradePanel.tsx      # Trading interface component
+│   ├── OpenOrdersTable/    # Open orders management
+│   │   ├── index.tsx       # Main table component
+│   │   └── columns.tsx     # Column definitions
+│   └── ui/                 # Shadcn UI components
 ├── contexts/
-│   ├── WalletContext.tsx  # Solana wallet provider and configuration
-│   └── QueryProvider.tsx  # React Query provider with devtools
+│   ├── WalletContext.tsx   # Solana wallet provider and configuration
+│   └── QueryProvider.tsx   # React Query provider with devtools
 ├── hooks/
-│   ├── useNotification.ts # Custom hook for toast notifications
-│   ├── useBids.ts        # Hook for orderbook bids data
-│   ├── useAsks.ts        # Hook for orderbook asks data
-│   ├── useEventHeap.ts   # Hook for event heap data
-│
+│   ├── useNotification.ts  # Custom hook for toast notifications
+│   ├── useBids.ts         # Hook for orderbook bids data
+│   ├── useAsks.ts         # Hook for orderbook asks data
+│   ├── useEventHeap.ts    # Hook for event heap data
+│   └── useMarket.ts       # Market management and navigation
 ├── solana/
-│   ├── fermiClient.ts    # Solana client implementation
-│   ├── parsers.ts        # Account data parsing utilities
-│   ├── constants.ts      # Solana-related constants
+│   ├── fermiClient.ts     # Solana client implementation
+│   ├── parsers.ts         # Account data parsing utilities
+│   ├── constants.ts       # Solana-related constants
 │   └── utils/
-│       ├── rpc.ts        # RPC utility functions
-│       └── helpers.ts    # General Solana helpers
+│       ├── rpc.ts         # RPC utility functions
+│       └── helpers.ts     # General Solana helpers
 ├── utils/
-│   ├── env.ts           # Environment validation and configuration
-│   ├── explorer.ts      # Solana explorer URL utilities
-│   └── market.ts        # Market address utilities and validation
-├── index.css            # Tailwind CSS v4 imports and theme configuration
-└── App.tsx             # Main application component
+│   ├── env.ts            # Environment validation and configuration
+│   ├── explorer.ts       # Solana explorer URL utilities
+│   └── market.ts         # Market address utilities and validation
+├── index.css             # Tailwind CSS v4 imports and theme configuration
+└── App.tsx              # Main application component
 ```
 
 ### Development Environment
@@ -132,13 +143,26 @@ src/
 - SOL balance display with auto-refresh (10s interval)
 - Truncated wallet address display
 
-### Market Handling
+### Market Management
 
-- URL-based market address (?market=xyz)
+- URL-based market navigation (?market=xyz)
 - Default market fallback
-- Solana address validation
-- Global market state with Jotai
+- Market switching functionality
 - Automatic URL synchronization
+- Market account deserialization
+- Error handling and recovery
+- Loading states
+
+### Trading Interface
+
+- Real-time orderbook display
+- Trade panel for order placement
+- Open orders management:
+  - Paginated orders table
+  - Order cancellation
+  - Order finalization
+  - Animated transitions
+  - Responsive design
 
 ### Development Tools
 
@@ -172,18 +196,26 @@ src/
   - Environment-aware URLs
   - Error message handling
 
-### Styling Setup
+### Styling and Animations
 
-- Tailwind CSS v4 Beta integration with Vite
-- CSS-first configuration in index.css
+- Tailwind CSS v4 Beta integration
+- CSS-first configuration
 - Native CSS variables for theming
-- No JavaScript configuration needed
+- Framer Motion animations:
+  - Smooth component transitions
+  - Spring physics for natural feel
+  - Gesture-based interactions
+  - Exit animations with AnimatePresence
+  - Staggered animations for lists
+  - Hover and tap effects
 
 ## Next Steps
 
-- [ ] Setup theme customization in index.css
-- [ ] Setup Shadcn UI components
-- [ ] Implement trading interface
-- [ ] Add Solana token integration
-- [ ] Setup React Query for market data
-- [x] Implement Jotai for global state management
+- [ ] Implement market pair selection
+- [ ] Add trade history view
+- [ ] Implement order book depth visualization
+- [ ] Add price charts integration
+- [ ] Implement token balance display
+- [ ] Add order type selection (limit, market, etc.)
+- [ ] Implement order size presets
+- [ ] Add market statistics panel
