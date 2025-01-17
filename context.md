@@ -209,6 +209,33 @@ src/
   - Staggered animations for lists
   - Hover and tap effects
 
+### Fermi Client Integration
+
+- Global client provider architecture:
+  - Centralized client initialization
+  - Automatic wallet connection handling
+  - Fallback to empty wallet when disconnected
+  - Devnet RPC configuration
+  - Program ID integration
+  - Loading state management
+- Client state management:
+  - Jotai atom for global access
+  - Reactive wallet updates
+  - Clean unmount handling
+  - Type-safe client instance
+- Provider features:
+  - Blocks child rendering until client is ready
+  - Graceful loading states
+  - Error boundary protection
+  - Connection status monitoring
+  - Debug logging in development
+- Connection management:
+  - Automatic RPC endpoint configuration
+  - AnchorProvider integration
+  - Default options handling
+  - Wallet adapter compatibility
+  - Connection persistence
+
 ## Next Steps
 
 - [ ] Implement market pair selection

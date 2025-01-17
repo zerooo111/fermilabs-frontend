@@ -5,11 +5,13 @@ import { NumericFormat } from 'react-number-format';
 import Input from './ui/Input';
 import Button from './ui/Button';
 import { BN } from '@coral-xyz/anchor';
-import { FermiClient, MarketAccount } from '@/solana/fermiClient';
+import { MarketAccount } from '@/solana/fermiClient';
 import { OrderType, SelfTradeBehavior, Side } from '@/solana/constants';
 import { useOpenOrdersAccount } from '@/hooks/useOpenOrdersAccount';
 import { PublicKey } from '@solana/web3.js';
 import { checkOrCreateAssociatedTokenAccount } from '@/solana/utils/helpers';
+import { useAtomValue } from 'jotai';
+import { fermiClientAtom } from '@/atoms/fermiClient';
 
 type TradeFormState = {
   price: string;
@@ -18,12 +20,12 @@ type TradeFormState = {
 };
 
 type Props = {
-  client: FermiClient;
   marketAddress: string;
   marketAccount: MarketAccount;
 };
 
-const TradePanel = ({ client, marketAddress, marketAccount }: Props) => {
+const TradePanel = ({ marketAddress, marketAccount }: Props) => {
+  const client = useAtomValue(fermiClientAtom);
   const [isProcessing, setIsProcessing] = useState(false);
   const { data: openOrdersData } = useOpenOrdersAccount();
 
@@ -34,6 +36,7 @@ const TradePanel = ({ client, marketAddress, marketAccount }: Props) => {
   });
 
   const placeLimitOrder = async (orderSide: 'buy' | 'sell', formValues: TradeFormState) => {
+    if (!client) return;
     try {
       setIsProcessing(true);
       if (!openOrdersData) throw new Error('OpenOrders Account not found for this wallet');

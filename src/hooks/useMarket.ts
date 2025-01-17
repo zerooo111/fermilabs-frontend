@@ -1,11 +1,28 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useAtom } from 'jotai';
-import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PublicKey } from '@solana/web3.js';
 import { marketAccountAtom, marketAddressAtom } from '@/atoms/market';
 import { fermiClientAtom } from '@/atoms/fermiClient';
 import { isValidSolanaAddress } from '@/utils/market';
-import { config } from '@/solana/constants';
+
+/**
+ * Get market address from URL search params
+ */
+const getMarketFromUrl = (): string | null => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('market');
+};
+
+/**
+ * Update URL with new market address without page reload
+ */
+const updateUrlMarket = (marketAddress: string) => {
+  const newUrl = new URL(window.location.href);
+  newUrl.searchParams.set('market', marketAddress);
+  window.history.pushState({}, '', newUrl);
+};
+
+const DEFAULT_MARKET_ADDRESS = 'FERMcWxbQqXVx1rEHyGG7W1kGaVdtcZsGEE6ZB8P7rSr';
 
 /**
  * Hook to manage market state and navigation
@@ -13,30 +30,31 @@ import { config } from '@/solana/constants';
  * and market switching functionality
  */
 export function useMarket() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [client] = useAtom(fermiClientAtom);
   const [marketAccount, setMarketAccount] = useAtom(marketAccountAtom);
   const [marketAddress, setMarketAddress] = useAtom(marketAddressAtom);
 
-  // Get market address from URL or use default
-  useEffect(() => {
-    const urlMarket = searchParams.get('market');
+  // Handle URL changes
+  const handleUrlChange = useCallback(() => {
+    const urlMarket = getMarketFromUrl();
 
-    if (!urlMarket) {
-      // No market in URL, add default market
-      setSearchParams({ market: config.devnet.defaultMarket });
-      setMarketAddress(config.devnet.defaultMarket);
-    } else if (isValidSolanaAddress(urlMarket)) {
-      // Valid market address in URL
-      setMarketAddress(urlMarket);
-    } else {
-      // Invalid market address, redirect to default
-      navigate('/', { replace: true });
-      setSearchParams({ market: config.devnet.defaultMarket });
-      setMarketAddress(config.devnet.defaultMarket);
-    }
-  }, [searchParams, setSearchParams, navigate, setMarketAddress]);
+    const targetMarket =
+      urlMarket && isValidSolanaAddress(urlMarket) ? urlMarket : DEFAULT_MARKET_ADDRESS;
+
+    updateUrlMarket(targetMarket);
+    setMarketAddress(targetMarket);
+  }, [setMarketAddress]);
+
+  // Listen for popstate (browser back/forward) events
+  useEffect(() => {
+    window.addEventListener('popstate', handleUrlChange);
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, [handleUrlChange]);
+
+  // Initial URL check
+  useEffect(() => {
+    handleUrlChange();
+  }, [handleUrlChange]);
 
   // Deserialize market account when we have a valid market address
   useEffect(() => {
@@ -50,9 +68,8 @@ export function useMarket() {
         console.error('Failed to load market:', error);
         setMarketAccount(null);
         // If market deserialization fails, redirect to default market
-        navigate('/', { replace: true });
-        setSearchParams({ market: config.devnet.defaultMarket });
-        setMarketAddress(config.devnet.defaultMarket);
+        updateUrlMarket(DEFAULT_MARKET_ADDRESS);
+        setMarketAddress(DEFAULT_MARKET_ADDRESS);
       }
     };
 
@@ -61,19 +78,19 @@ export function useMarket() {
     return () => {
       setMarketAccount(null);
     };
-  }, [client, marketAddress, setMarketAccount, navigate, setSearchParams, setMarketAddress]);
+  }, [client, marketAddress, setMarketAccount, setMarketAddress]);
 
   /**
    * Switch to a different market
    * @param newMarketAddress The address of the market to switch to
    */
-  const switchMarket = (newMarketAddress: string) => {
+  const switchMarket = useCallback((newMarketAddress: string) => {
     if (!isValidSolanaAddress(newMarketAddress)) {
       console.error('Invalid market address');
       return;
     }
-    setSearchParams({ market: newMarketAddress });
-  };
+    updateUrlMarket(newMarketAddress);
+  }, []);
 
   return {
     marketAddress,
