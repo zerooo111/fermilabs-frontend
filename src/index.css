@@ -18,4 +18,12 @@
   .heading {
     @apply text-xl font-extrabold;
   }
+
+  .card-outer {
+    @apply bg-zinc-100 border border-zinc-300 rounded-lg p-1;
+  }
+
+  .card-inner {
+    @apply bg-white border border-zinc-300 rounded-md h-full w-full shadow-lg overflow-hidden;
+  }
 }

@@ -139,9 +139,22 @@ src/
 - Multi-wallet support (Phantom, Solflare, Coinbase, Trust)
 - Auto-connect functionality
 - Devnet configuration (ready for mainnet switch)
-- Wallet connection status display
+- Enhanced wallet connection UI:
+  - Clean dropdown menu for wallet actions
+  - Copy address functionality with feedback
+  - Wallet switching support
+  - Disconnect option
+  - Visual connection status indicator
+  - Truncated address display
 - SOL balance display with auto-refresh (10s interval)
-- Truncated wallet address display
+- Test token airdrop functionality:
+  - Support for both base and quote tokens
+  - Amount customization
+  - Visual feedback during airdrop
+  - Error handling
+  - Success notifications
+  - Popover-based UI
+  - Token mint address display
 
 ### Market Management
 
@@ -235,6 +248,30 @@ src/
   - Default options handling
   - Wallet adapter compatibility
   - Connection persistence
+
+### UI Components
+
+- Custom Button component:
+  - Loading state support
+  - Multiple variants (default, outline, ghost)
+  - Size variations
+  - Icon support
+  - Disabled state handling
+- Popover component:
+  - Radix UI integration
+  - Custom styling
+  - Card-like appearance
+  - Flexible positioning
+- DropdownMenu component:
+  - Accessible menu items
+  - Icon support
+  - Custom styling
+  - Hover states
+- Input component:
+  - Number formatting support
+  - Validation
+  - Custom styling
+  - Error state handling
 
 ## Next Steps
 

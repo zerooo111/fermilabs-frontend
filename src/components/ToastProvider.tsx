@@ -6,5 +6,5 @@
 import { Toaster } from 'sonner';
 
 export function ToastProvider() {
-  return <Toaster position="bottom-center" theme="dark" richColors />;
+  return <Toaster position="bottom-center" theme="light" style={{ fontFamily: 'Geist Mono' }} />;
 }

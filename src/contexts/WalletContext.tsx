@@ -8,12 +8,7 @@ import { useMemo } from 'react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import {
-  PhantomWalletAdapter,
-  SolflareWalletAdapter,
-  CoinbaseWalletAdapter,
-  TrustWalletAdapter,
-} from '@solana/wallet-adapter-wallets';
+import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
 
 // Import wallet adapter CSS
@@ -31,15 +26,7 @@ export function WalletContextProvider({ children }: WalletContextProviderProps) 
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
 
   // Initialize supported wallet adapters
-  const wallets = useMemo(
-    () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-      new CoinbaseWalletAdapter(),
-      new TrustWalletAdapter(),
-    ],
-    []
-  );
+  const wallets = useMemo(() => [new PhantomWalletAdapter(), new SolflareWalletAdapter()], []);
 
   return (
     <ConnectionProvider endpoint={endpoint}>

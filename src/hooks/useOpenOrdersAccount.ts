@@ -41,12 +41,22 @@ export function useOpenOrdersAccount() {
       const accountData = await client.deserializeOpenOrderAccount(address);
       if (!accountData) throw new Error('Failed to deserialize open orders account');
 
+      const openOrders = accountData.openOrders
+        .filter(o => o.isFree === 0)
+        .map(o => ({
+          slNo: o.clientId.toString(),
+          side: o.sideAndTree === 0 ? 'buy' : 'sell',
+          price: o.lockedPrice.toString(),
+          id: o.id.toString(),
+        }));
+
       return {
         account: accountData,
         publicKey: address,
+        openOrders,
       };
     },
     enabled: !!client && !!marketAccount && !!wallet?.publicKey,
-    refetchInterval: 100000, // Refetch every 10 seconds
+    refetchInterval: 1000 * 60,
   });
 }

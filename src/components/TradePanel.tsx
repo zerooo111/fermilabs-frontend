@@ -56,8 +56,6 @@ const TradePanel = ({ marketAddress, marketAccount }: Props) => {
       };
 
       // Get appropriate token account based on order side
-
-      // Get appropriate token account based on order side
       const userTokenAccount = new PublicKey(
         await checkOrCreateAssociatedTokenAccount(
           client.provider,
@@ -100,85 +98,83 @@ const TradePanel = ({ marketAddress, marketAccount }: Props) => {
   };
 
   return (
-    <div className="w-full max-w-sm bg-zinc-100 border border-zinc-300 rounded-lg p-1">
-      <div className="bg-white flex flex-col gap-2 border border-zinc-300 rounded-md shadow-lg p-4">
-        <h6 className="heading">Place Order</h6>
-        <Tabs defaultValue={formState.orderType} onValueChange={handleOrderTypeChange}>
-          <TabsList className="w-full">
-            <TabsTrigger className="w-full" value="limit">
-              Limit{' '}
-            </TabsTrigger>
-            <TabsTrigger disabled className="w-full" value="market">
-              Market{' '}
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="limit">
-            <div className="flex flex-col gap-4 pt-2">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="price">Price</Label>
-                <NumericFormat
-                  id="price"
-                  name="price"
-                  customInput={Input}
-                  // value={formState.price.toString()}
-                  onValueChange={values => setFormState(prev => ({ ...prev, price: values.value }))}
-                  min={0}
-                  placeholder="Enter price"
-                  required
-                  allowedDecimalSeparators={['.']}
-                  thousandSeparator=","
-                  allowNegative={false}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="quantity">Quantity</Label>
-                <NumericFormat
-                  id="quantity"
-                  name="quantity"
-                  customInput={Input}
-                  // value={formState.price.toString()}
-                  onValueChange={values =>
-                    setFormState(prev => ({ ...prev, quantity: values.value }))
-                  }
-                  min={0}
-                  placeholder="Enter quantity"
-                  required
-                  allowedDecimalSeparators={['.']}
-                  thousandSeparator=","
-                  allowNegative={false}
-                />
-              </div>
-              <div className="flex justify-between items-center gap-2 text-sm font-semibold">
-                <span>TOTAL COST</span>
-                <span className="h-[1px] flex-1 bg-zinc-300"></span>
-                <span>
-                  {new BN(formState?.price ?? 0).mul(new BN(formState?.quantity ?? 0)).toString()}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  disabled={isProcessing}
-                  onClick={handleBuyLimit}
-                  variant={'success'}
-                  className="w-full"
-                >
-                  Buy
-                </Button>
-                <Button
-                  disabled={isProcessing}
-                  onClick={handleSellLimit}
-                  variant={'destructive'}
-                  className="w-full"
-                >
-                  {' '}
-                  Sell
-                </Button>
-              </div>
+    <div className="flex flex-col gap-2 p-4">
+      <h6 className="heading">Place Order</h6>
+      <Tabs defaultValue={formState.orderType} onValueChange={handleOrderTypeChange}>
+        <TabsList className="w-full">
+          <TabsTrigger className="w-full" value="limit">
+            Limit{' '}
+          </TabsTrigger>
+          <TabsTrigger disabled className="w-full" value="market">
+            Market{' '}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="limit">
+          <div className="flex flex-col gap-4 pt-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="price">Price</Label>
+              <NumericFormat
+                id="price"
+                name="price"
+                customInput={Input}
+                // value={formState.price.toString()}
+                onValueChange={values => setFormState(prev => ({ ...prev, price: values.value }))}
+                min={0}
+                placeholder="Enter price"
+                required
+                allowedDecimalSeparators={['.']}
+                thousandSeparator=","
+                allowNegative={false}
+              />
             </div>
-          </TabsContent>
-          <TabsContent value="market">Market Contet</TabsContent>
-        </Tabs>
-      </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="quantity">Quantity</Label>
+              <NumericFormat
+                id="quantity"
+                name="quantity"
+                customInput={Input}
+                // value={formState.price.toString()}
+                onValueChange={values =>
+                  setFormState(prev => ({ ...prev, quantity: values.value }))
+                }
+                min={0}
+                placeholder="Enter quantity"
+                required
+                allowedDecimalSeparators={['.']}
+                thousandSeparator=","
+                allowNegative={false}
+              />
+            </div>
+            <div className="flex justify-between items-center gap-2 text-sm font-semibold">
+              <span>TOTAL COST</span>
+              <span className="h-[1px] flex-1 bg-zinc-300"></span>
+              <span>
+                {new BN(formState?.price ?? 0).mul(new BN(formState?.quantity ?? 0)).toString()}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                disabled={isProcessing}
+                onClick={handleBuyLimit}
+                variant={'success'}
+                className="w-full"
+              >
+                Buy
+              </Button>
+              <Button
+                disabled={isProcessing}
+                onClick={handleSellLimit}
+                variant={'destructive'}
+                className="w-full"
+              >
+                {' '}
+                Sell
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+        <TabsContent value="market">Market Contet</TabsContent>
+      </Tabs>
     </div>
   );
 };
