@@ -1,5 +1,6 @@
 import AirdropPopover from './AirdropPopover';
 import { ConnectWallet } from './ConnectWallet';
+import Setting from './Setting';
 
 const Header = () => {
   return (
@@ -9,6 +10,7 @@ const Header = () => {
           <span className="text-lg font-bold">Fermi</span>
         </div>
         <div className="flex items-center gap-2">
+          <Setting />
           <AirdropPopover />
           <ConnectWallet />
         </div>
