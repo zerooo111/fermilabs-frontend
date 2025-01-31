@@ -12,6 +12,7 @@ import { PublicKey } from '@solana/web3.js';
 import { checkOrCreateAssociatedTokenAccount } from '@/solana/utils/helpers';
 import { useAtomValue } from 'jotai';
 import { fermiClientAtom } from '@/atoms/fermiClient';
+import MarketSelector from './MarketSelector';
 
 type TradeFormState = {
   price: string;
@@ -99,6 +100,9 @@ const TradePanel = ({ marketAddress, marketAccount }: Props) => {
 
   return (
     <div className="flex flex-col gap-2 p-4">
+      {/* DropDown components for market select */}
+      <MarketSelector />
+
       <h6 className="heading">Place Order</h6>
       <Tabs defaultValue={formState.orderType} onValueChange={handleOrderTypeChange}>
         <TabsList className="w-full">

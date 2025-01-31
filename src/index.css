@@ -26,4 +26,12 @@
   .card-inner {
     @apply bg-white border border-zinc-300 rounded-md h-full w-full shadow-lg overflow-hidden;
   }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Hides scrollbar in Chrome, Safari */
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none; /* Hides scrollbar in IE/Edge */
+    scrollbar-width: none; /* Hides scrollbar in Firefox */
+  }
 }
