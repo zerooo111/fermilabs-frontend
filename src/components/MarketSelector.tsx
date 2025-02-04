@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Button from './ui/Button';
 import {
   DropdownMenu,
@@ -10,7 +10,9 @@ import {
 import { ChevronDown, Search } from 'lucide-react';
 
 const MarketSelector = () => {
+  const inputRef = useRef(null);
   const [selectedMarket, setSelectedMarket] = useState('JUP/USDC');
+  const [searchQuery, setSearchQuery] = useState('');
   const dummyMarket = [
     'SOL/USDC',
     'WETH/USDC',
@@ -26,6 +28,12 @@ const MarketSelector = () => {
     'PYTH/USDC',
     'DRIFT/USDC',
   ];
+  const filteredMarkets = dummyMarket.filter(market =>
+    market.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const handleSearchChange = (e: any) => {
+    setSearchQuery(e.target.value);
+  };
   return (
     <div className="">
       <DropdownMenu>
@@ -37,7 +45,7 @@ const MarketSelector = () => {
             </Button>
           </div>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56">
+        <DropdownMenuContent className="w-56" onCloseAutoFocus={e => e.preventDefault()}>
           <DropdownMenuGroup>
             <div className="mb-0.5">
               <div className="flex justify-around items-center rounded-lg gap-1.5 h-10 border-2 border-orange-600">
@@ -47,17 +55,32 @@ const MarketSelector = () => {
                 <input
                   type="text"
                   placeholder="Search"
+                  ref={inputRef}
+                  value={searchQuery}
                   autoFocus={true}
+                  onChange={handleSearchChange}
+                  onClick={e => e.stopPropagation()} // Prevents click from closing the dropdown
+                  onKeyDown={e => e.stopPropagation()} // Prevents keypress from affecting dropdown focus
                   className="w-full focus:outline-none"
                 />
               </div>
             </div>
             <div className="max-h-80 overflow-y-auto hide-scrollbar">
-              {dummyMarket.map((value, index) => (
-                <DropdownMenuItem key={index} className="" onClick={() => setSelectedMarket(value)}>
-                  {value}
-                </DropdownMenuItem>
-              ))}
+              {filteredMarkets.length > 0 ? (
+                filteredMarkets.map((market, index) => (
+                  <DropdownMenuItem
+                    key={index}
+                    onClick={() => {
+                      setSelectedMarket(market);
+                      setSearchQuery('');
+                    }}
+                  >
+                    {market}
+                  </DropdownMenuItem>
+                ))
+              ) : (
+                <div className="p-2 text-center text-gray-500">No markets found</div>
+              )}
             </div>
           </DropdownMenuGroup>
         </DropdownMenuContent>
