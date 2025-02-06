@@ -2,6 +2,7 @@ import { useOpenOrdersAccount } from '@/hooks/useOpenOrdersAccount';
 import { CreateOpenOrdersAccountForm } from './CreateOpenOrdersAccountForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import OpenOrdersTable from './openOrders/OpenOrdersTable';
+import SettleFundsTable from './openOrders/SettleFundsTable';
 
 const AccountSection = () => {
   const { data, isPending, error } = useOpenOrdersAccount();
@@ -32,7 +33,9 @@ const AccountSection = () => {
         <TabsContent value="open-orders">
           <OpenOrdersTable />
         </TabsContent>
-        <TabsContent value="settle-fund">Settle funds section</TabsContent>
+        <TabsContent value="settle-fund">
+          <SettleFundsTable />
+        </TabsContent>
       </Tabs>
     </div>
   );
