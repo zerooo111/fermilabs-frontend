@@ -22,7 +22,7 @@ const updateUrlMarket = (marketAddress: string) => {
   window.history.pushState({}, '', newUrl);
 };
 
-const DEFAULT_MARKET_ADDRESS = 'FERMcWxbQqXVx1rEHyGG7W1kGaVdtcZsGEE6ZB8P7rSr';
+const DEFAULT_MARKET_ADDRESS = 'GnDethiMd2Z1ANCeSAcP7fxRWXL64FM6dNJowho6Knxt';
 
 /**
  * Hook to manage market state and navigation

@@ -10,6 +10,7 @@ import { fermiClientAtom } from './atoms/fermiClient';
 import TradePanel from './components/TradePanel';
 import AccountSection from './components/AccountSection';
 import Header from './components/Header';
+import Orderbook from './components/Orderbook';
 
 const App = () => {
   const { marketAccount, marketAddress, error, isLoading } = useMarket();
@@ -55,8 +56,8 @@ const App = () => {
           </div>
         </div>
         {/* Orderbook column */}
-        <div className="card-outer basis-1/4">
-          <div className="card-inner">Orderbook</div>
+        <div className=" basis-1/4">
+          <Orderbook />
         </div>
       </div>
     </main>

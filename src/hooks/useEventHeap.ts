@@ -26,6 +26,6 @@ export function useEventHeap() {
       return parsed;
     },
     enabled: !!client && !!marketAccount,
-    refetchInterval: 1000, // Refetch every second for more real-time event updates
+    refetchInterval: 1000 * 10000, // Refetch every second for more real-time event updates
   });
 }

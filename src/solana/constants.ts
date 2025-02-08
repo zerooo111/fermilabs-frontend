@@ -5,7 +5,7 @@ export const RPC_URL = {
 // config -> network ( devnet / mainnet ) -> programId / rpcUrl , commitment , etc...
 export const config = {
   devnet: {
-    programId: 'DrgsHv79i7B9YBW5jNcgQmXWHvur3MbRGKrbCauBm79z',
+    programId: '3LaFxgsYSc27YuEhY7CwkfGyvpcAinmiHcAA5qE399ob',
     rpcUrl: 'https://api.devnet.solana.com',
     commitment: 'confirmed',
     wsUrl: 'wss://api.devnet.solana.com',

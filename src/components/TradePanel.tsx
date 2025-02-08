@@ -13,6 +13,7 @@ import { checkOrCreateAssociatedTokenAccount } from '@/solana/utils/helpers';
 import { useAtomValue } from 'jotai';
 import { fermiClientAtom } from '@/atoms/fermiClient';
 import MarketSelector from './MarketSelector';
+// import { useWallet } from '@solana/wallet-adapter-react';
 
 type TradeFormState = {
   price: string;
@@ -29,12 +30,32 @@ const TradePanel = ({ marketAddress, marketAccount }: Props) => {
   const client = useAtomValue(fermiClientAtom);
   const [isProcessing, setIsProcessing] = useState(false);
   const { data: openOrdersData } = useOpenOrdersAccount();
+  // const { signMessage, publicKey, signTransaction } = useWallet();
 
   const [formState, setFormState] = useState<TradeFormState>({
     price: '',
     quantity: '',
     orderType: 'limit',
   });
+
+  const signOrderIntent = async () => {
+    // try {
+    //   const placeReponse = await fetch('http://localhost:8080/place_order', {
+    //     method: 'POST',
+    //     headers: {
+    //       'Access-Control-Allow-Origin': '*',
+    //       'Content-Type': 'application/json',
+    //     },
+    //     body: JSON.stringify({ intent: oi, signature }),
+    //   });
+    //   if (!placeReponse.ok) {
+    //     throw new Error('Failed to place order');
+    //   }
+    // } catch (error) {
+    //   console.error('Error placing order:', error);
+    //   throw error;
+    // }
+  };
 
   const placeLimitOrder = async (orderSide: 'buy' | 'sell', formValues: TradeFormState) => {
     if (!client) return;
@@ -65,7 +86,7 @@ const TradePanel = ({ marketAddress, marketAccount }: Props) => {
         )
       );
 
-      const [ix, signers] = await client.placeOrderIx(
+      await client.placeOrderIx(
         openOrdersData.publicKey,
         new PublicKey(marketAddress),
         marketAccount,
@@ -75,9 +96,11 @@ const TradePanel = ({ marketAddress, marketAccount }: Props) => {
         [] // remainingAccounts
       );
 
-      await client.sendAndConfirmTransaction([ix], {
-        additionalSigners: signers,
-      });
+      // Sign the transaction and log it to the console
+
+      // await client.sendAndConfirmTransaction([ix], {
+      // additionalSigners: signers,
+      // });
     } catch (error) {
       console.error('Error placing limit order:', error);
       throw error;
@@ -157,6 +180,14 @@ const TradePanel = ({ marketAddress, marketAccount }: Props) => {
               </span>
             </div>
             <div className="flex gap-2">
+              <Button
+                disabled={isProcessing}
+                onClick={signOrderIntent}
+                variant={'success'}
+                className="w-full"
+              >
+                Sign Order Intent
+              </Button>
               <Button
                 disabled={isProcessing}
                 onClick={handleBuyLimit}
