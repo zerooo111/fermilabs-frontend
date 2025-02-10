@@ -42,7 +42,7 @@ const App = () => {
           <div className="flex h-full gap-2">
             <div className="basis-1/3 card-outer">
               <div className="card-inner">
-                <TradePanel marketAddress={marketAddress} marketAccount={marketAccount} />
+                <TradePanel />
               </div>
             </div>
             <div className="basis-2/3 card-outer">

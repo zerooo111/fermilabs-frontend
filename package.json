@@ -29,6 +29,7 @@
     "@solana/web3.js": "^1.98.0",
     "@tailwindcss/vite": "^4.0.0-beta.9",
     "@tanstack/react-query": "^5.64.0",
+    "axios": "^1.7.9",
     "borsh": "^2.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

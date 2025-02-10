@@ -5,15 +5,12 @@ import { NumericFormat } from 'react-number-format';
 import Input from './ui/Input';
 import Button from './ui/Button';
 import { BN } from '@coral-xyz/anchor';
-import { MarketAccount } from '@/solana/fermiClient';
-import { OrderType, SelfTradeBehavior, Side } from '@/solana/constants';
-import { useOpenOrdersAccount } from '@/hooks/useOpenOrdersAccount';
-import { PublicKey } from '@solana/web3.js';
-import { checkOrCreateAssociatedTokenAccount } from '@/solana/utils/helpers';
 import { useAtomValue } from 'jotai';
 import { fermiClientAtom } from '@/atoms/fermiClient';
 import MarketSelector from './MarketSelector';
-// import { useWallet } from '@solana/wallet-adapter-react';
+import axios from 'axios';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { toast } from 'sonner';
 
 type TradeFormState = {
   price: string;
@@ -21,15 +18,10 @@ type TradeFormState = {
   orderType: 'limit' | 'market';
 };
 
-type Props = {
-  marketAddress: string;
-  marketAccount: MarketAccount;
-};
-
-const TradePanel = ({ marketAddress, marketAccount }: Props) => {
+const TradePanel = () => {
   const client = useAtomValue(fermiClientAtom);
   const [isProcessing, setIsProcessing] = useState(false);
-  const { data: openOrdersData } = useOpenOrdersAccount();
+  const { signMessage } = useWallet();
   // const { signMessage, publicKey, signTransaction } = useWallet();
 
   const [formState, setFormState] = useState<TradeFormState>({
@@ -38,83 +30,54 @@ const TradePanel = ({ marketAddress, marketAccount }: Props) => {
     orderType: 'limit',
   });
 
-  const signOrderIntent = async () => {
-    // try {
-    //   const placeReponse = await fetch('http://localhost:8080/place_order', {
-    //     method: 'POST',
-    //     headers: {
-    //       'Access-Control-Allow-Origin': '*',
-    //       'Content-Type': 'application/json',
-    //     },
-    //     body: JSON.stringify({ intent: oi, signature }),
-    //   });
-    //   if (!placeReponse.ok) {
-    //     throw new Error('Failed to place order');
-    //   }
-    // } catch (error) {
-    //   console.error('Error placing order:', error);
-    //   throw error;
-    // }
-  };
-
-  const placeLimitOrder = async (orderSide: 'buy' | 'sell', formValues: TradeFormState) => {
-    if (!client) return;
+  const placeSignedOrderIntent = async (orderSide: 'Buy' | 'Sell', formValues: TradeFormState) => {
+    if (!client || !signMessage) return;
     try {
       setIsProcessing(true);
-      if (!openOrdersData) throw new Error('OpenOrders Account not found for this wallet');
 
-      const side = orderSide === 'buy' ? Side.Bid : Side.Ask;
-      // Build the order args
-      const orderArgs = {
-        side,
-        priceLots: new BN(formValues.price),
-        maxBaseLots: new BN(formState.quantity),
-        maxQuoteLotsIncludingFees: new BN(formState.quantity).mul(new BN(formState.price)),
-        clientOrderId: new BN((openOrdersData?.account.openOrders.length ?? 0) + 1),
-        orderType: OrderType.Limit,
-        expiryTimestamp: new BN(Math.floor(Date.now() / 1000) + 3600),
-        selfTradeBehavior: SelfTradeBehavior.DecrementTake,
-        limit: 5,
+      // Build the order intent json
+      const orderIntent = {
+        price: Number(formValues.price),
+        quantity: Number(formValues.quantity),
+        order_id: Date.now() + Number(formValues.price),
+        side: orderSide,
+        owner: client.walletPk.toBase58(),
+        expiry: Math.floor(Date.now() / 1000) + 60 * 60,
       };
 
-      // Get appropriate token account based on order side
-      const userTokenAccount = new PublicKey(
-        await checkOrCreateAssociatedTokenAccount(
-          client.provider,
-          side === Side.Bid ? marketAccount.quoteMint : marketAccount.baseMint,
-          client.walletPk
-        )
-      );
+      // Build the message to be signed
+      const orderMessage = new TextEncoder().encode(JSON.stringify(orderIntent, null, 2));
+      // Add the prefix to the message
+      const prefix = new TextEncoder().encode('FRM_DEX_ORDER:');
+      const fullMessage = new Uint8Array(prefix.length + orderMessage.length);
 
-      await client.placeOrderIx(
-        openOrdersData.publicKey,
-        new PublicKey(marketAddress),
-        marketAccount,
-        userTokenAccount,
-        null, // openOrdersAdmin
-        orderArgs,
-        [] // remainingAccounts
-      );
+      fullMessage.set(prefix);
+      fullMessage.set(orderMessage, prefix.length);
 
-      // Sign the transaction and log it to the console
+      // Sign the message
+      const signatureBytes = await signMessage(fullMessage);
+      const hexSignature = Buffer.from(signatureBytes).toString('hex');
 
-      // await client.sendAndConfirmTransaction([ix], {
-      // additionalSigners: signers,
-      // });
+      const body = {
+        intent: orderIntent,
+        signature: hexSignature,
+      };
+
+      const response = await axios.post('http://localhost:8080/place_order', body);
+      console.log({ response });
+
+      toast.success(`${orderSide} order placed successfully`);
+      setFormState({
+        price: '',
+        quantity: '',
+        orderType: 'limit',
+      });
     } catch (error) {
-      console.error('Error placing limit order:', error);
+      console.error('Error placing signed order intent:', error);
       throw error;
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleBuyLimit = () => {
-    return placeLimitOrder('buy', formState);
-  };
-
-  const handleSellLimit = () => {
-    return placeLimitOrder('sell', formState);
   };
 
   const handleOrderTypeChange = (value: string) => {
@@ -144,7 +107,7 @@ const TradePanel = ({ marketAddress, marketAccount }: Props) => {
                 id="price"
                 name="price"
                 customInput={Input}
-                // value={formState.price.toString()}
+                value={formState.price.toString()}
                 onValueChange={values => setFormState(prev => ({ ...prev, price: values.value }))}
                 min={0}
                 placeholder="Enter price"
@@ -160,7 +123,7 @@ const TradePanel = ({ marketAddress, marketAccount }: Props) => {
                 id="quantity"
                 name="quantity"
                 customInput={Input}
-                // value={formState.price.toString()}
+                value={formState.quantity.toString()}
                 onValueChange={values =>
                   setFormState(prev => ({ ...prev, quantity: values.value }))
                 }
@@ -180,25 +143,18 @@ const TradePanel = ({ marketAddress, marketAccount }: Props) => {
               </span>
             </div>
             <div className="flex gap-2">
+              {/* <SignedOrderIntent /> */}
               <Button
-                disabled={isProcessing}
-                onClick={signOrderIntent}
-                variant={'success'}
-                className="w-full"
-              >
-                Sign Order Intent
-              </Button>
-              <Button
-                disabled={isProcessing}
-                onClick={handleBuyLimit}
+                disabled={isProcessing || !formState.price || !formState.quantity || !signMessage}
+                onClick={() => placeSignedOrderIntent('Buy', formState)}
                 variant={'success'}
                 className="w-full"
               >
                 Buy
               </Button>
               <Button
-                disabled={isProcessing}
-                onClick={handleSellLimit}
+                disabled={isProcessing || !formState.price || !formState.quantity || !signMessage}
+                onClick={() => placeSignedOrderIntent('Sell', formState)}
                 variant={'destructive'}
                 className="w-full"
               >
