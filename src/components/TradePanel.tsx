@@ -22,7 +22,6 @@ const TradePanel = () => {
   const client = useAtomValue(fermiClientAtom);
   const [isProcessing, setIsProcessing] = useState(false);
   const { signMessage } = useWallet();
-  // const { signMessage, publicKey, signTransaction } = useWallet();
 
   const [formState, setFormState] = useState<TradeFormState>({
     price: '',
@@ -58,6 +57,7 @@ const TradePanel = () => {
       const signatureBytes = await signMessage(fullMessage);
       const hexSignature = Buffer.from(signatureBytes).toString('hex');
 
+      // Send signed message to sequencer
       const body = {
         intent: orderIntent,
         signature: hexSignature,
@@ -66,6 +66,7 @@ const TradePanel = () => {
       const response = await axios.post('http://localhost:8080/place_order', body);
       console.log({ response });
 
+      // Toast and reset form state
       toast.success(`${orderSide} order placed successfully`);
       setFormState({
         price: '',

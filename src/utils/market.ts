@@ -3,8 +3,8 @@
  * Utilities for handling market address from URL parameters
  */
 
+import { config } from '@/solana/constants';
 import { PublicKey } from '@solana/web3.js';
-import { env } from './env';
 
 /**
  * Validates if a string is a valid Solana address
@@ -32,8 +32,8 @@ export const getMarketAddressFromUrl = (): string => {
 
   // If no valid market address in URL, update URL with default
   const newUrl = new URL(window.location.href);
-  newUrl.searchParams.set('market', env.VITE_DEFAULT_MARKET_ADDRESS);
+  newUrl.searchParams.set('market', config.devnet.defaultMarketAddress);
   window.history.replaceState({}, '', newUrl.toString());
 
-  return env.VITE_DEFAULT_MARKET_ADDRESS;
+  return config.devnet.defaultMarketAddress;
 };
