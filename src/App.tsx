@@ -10,6 +10,9 @@ import { fermiClientAtom } from './atoms/fermiClient';
 import TradePanel from './components/TradePanel';
 import AccountSection from './components/AccountSection';
 import Header from './components/Header';
+import { Routes, Route } from 'react-router-dom';
+import LiquidityVaults from './components/LiquidityVaults';
+// import LiquidityVaults from './components/LiquidityVaults';
 
 const App = () => {
   const { marketAccount, marketAddress, error, isLoading } = useMarket();
@@ -33,33 +36,42 @@ const App = () => {
   }
 
   return (
-    <main className="flex flex-col max-w-[2160px] container mx-auto min-h-screen p-4 gap-4">
-      <Header />
-      <div className="flex gap-2 h-full  flex-1">
-        {/* Trading column */}
-        <div className="flex flex-col gap-2 basis-3/4">
-          <div className="flex h-full gap-2">
-            <div className="basis-1/3 card-outer">
-              <div className="card-inner">
-                <TradePanel marketAddress={marketAddress} marketAccount={marketAccount} />
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <main className="flex flex-col max-w-[2160px] container mx-auto min-h-screen p-4 gap-4">
+            <Header />
+            <div className="flex gap-2 h-full flex-1">
+              {/* Trading column */}
+              <div className="flex flex-col gap-2 basis-3/4">
+                <div className="flex h-full gap-2">
+                  <div className="basis-1/3 card-outer">
+                    <div className="card-inner">
+                      <TradePanel marketAddress={marketAddress} marketAccount={marketAccount} />
+                    </div>
+                  </div>
+                  <div className="basis-2/3 card-outer">
+                    <div className="card-inner">Trading Chart</div>
+                  </div>
+                </div>
+                <div className="basis-3/3 card-outer">
+                  <div className="card-inner">
+                    <AccountSection />
+                  </div>
+                </div>
+              </div>
+              {/* Orderbook column */}
+              <div className="card-outer basis-1/4">
+                <div className="card-inner">Orderbook</div>
               </div>
             </div>
-            <div className="basis-2/3 card-outer">
-              <div className="card-inner">Trading Chart</div>
-            </div>
-          </div>
-          <div className="basis-3/3 card-outer">
-            <div className="card-inner">
-              <AccountSection />
-            </div>
-          </div>
-        </div>
-        {/* Orderbook column */}
-        <div className="card-outer basis-1/4">
-          <div className="card-inner">Orderbook</div>
-        </div>
-      </div>
-    </main>
+            {/* Add more routes as needed */}
+          </main>
+        }
+      />
+      <Route path="/liquidity-vaults" element={<LiquidityVaults />} />
+    </Routes>
   );
 };
 
