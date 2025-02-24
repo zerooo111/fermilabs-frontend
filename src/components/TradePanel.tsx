@@ -63,7 +63,7 @@ const TradePanel = () => {
         signature: hexSignature,
       };
 
-      const response = await axios.post('http://localhost:8080/place_order', body);
+      const response = await axios.post('http://54.80.177.213:8080/place_order', body);
       console.log({ response });
 
       // Toast and reset form state
