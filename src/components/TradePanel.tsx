@@ -8,10 +8,12 @@ import { BN } from '@coral-xyz/anchor';
 import { useAtomValue } from 'jotai';
 import { fermiClientAtom } from '@/atoms/fermiClient';
 import MarketSelector from './MarketSelector';
-import axios from 'axios';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { toast } from 'sonner';
-
+import { OrderIntent, OrderSide } from '@/solana/OrderIntent';
+import { PublicKey } from '@solana/web3.js';
+import { createHash } from 'crypto';
+import axios from 'axios';
 type TradeFormState = {
   price: string;
   quantity: string;
@@ -29,37 +31,59 @@ const TradePanel = () => {
     orderType: 'limit',
   });
 
+  const encodeMessageWithPrefix = (orderIntent: OrderIntent) => {
+    const serializedData = OrderIntent.serialize(orderIntent);
+    const prefix = Buffer.from('FRM_DEX_ORDER');
+    const fullMessage = Buffer.concat([prefix, serializedData]);
+    return new Uint8Array(fullMessage);
+  };
+
   const placeSignedOrderIntent = async (orderSide: 'Buy' | 'Sell', formValues: TradeFormState) => {
     if (!client || !signMessage) return;
     try {
       setIsProcessing(true);
 
       // Build the order intent json
-      const orderIntent = {
-        price: Number(formValues.price),
-        quantity: Number(formValues.quantity),
-        order_id: Date.now() + Number(formValues.price),
-        side: orderSide,
-        owner: client.walletPk.toBase58(),
-        expiry: Math.floor(Date.now() / 1000) + 60 * 60,
-      };
+      const orderIntent = new OrderIntent(
+        new BN(332),
+        client.walletPk,
+        OrderSide.BUY,
+        new BN(formValues.price),
+        new BN(formValues.quantity),
+        new BN(Date.now() + 60 * 60 * 1000),
+        new PublicKey('GLYuRh9avWERYZXHNTfz1Cdo3craUF65Ct5EUDLHeVAA'),
+        new PublicKey('3ZKxAAeMb2KVspkioJy8R1jfpnvSc2WF7hwihgQPxzyJ')
+      );
 
-      // Build the message to be signed
-      const orderMessage = new TextEncoder().encode(JSON.stringify(orderIntent, null, 2));
-      // Add the prefix to the message
-      const prefix = new TextEncoder().encode('FRM_DEX_ORDER:');
-      const fullMessage = new Uint8Array(prefix.length + orderMessage.length);
+      // Get borsh encoded message
+      const encodedMessage = encodeMessageWithPrefix(orderIntent);
+      // Create SHA256 hash of the encoded message
+      const hash = createHash('sha256').update(Buffer.from(encodedMessage)).digest();
+      // Hex encode the hash
+      const hexHash = Buffer.from(hash).toString('hex');
+      console.log({ hash, hexHash });
+      const hexHashTextEncoded = new TextEncoder().encode(JSON.stringify(hash));
+      console.log({
+        textEncodedHash: hexHashTextEncoded,
+        textEncodedHashHex: Buffer.from(hexHashTextEncoded).toString('hex'),
+      });
 
-      fullMessage.set(prefix);
-      fullMessage.set(orderMessage, prefix.length);
-
-      // Sign the message
-      const signatureBytes = await signMessage(fullMessage);
+      // Sign the hex encoded hash
+      const signatureBytes = await signMessage(hexHashTextEncoded);
       const hexSignature = Buffer.from(signatureBytes).toString('hex');
 
       // Send signed message to sequencer
       const body = {
-        intent: orderIntent,
+        intent: {
+          order_id: orderIntent.order_id.toNumber(),
+          owner: orderIntent.owner.toBase58(),
+          side: orderIntent.side,
+          price: orderIntent.price.toNumber(),
+          quantity: orderIntent.quantity.toNumber(),
+          expiry: orderIntent.expiry.toNumber(),
+          base_mint: orderIntent.base_mint.toBase58(),
+          quote_mint: orderIntent.quote_mint.toBase58(),
+        },
         signature: hexSignature,
       };
 
