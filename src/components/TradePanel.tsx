@@ -45,14 +45,14 @@ const TradePanel = () => {
 
       // Build the order intent json
       const orderIntent = new OrderIntent(
-        new BN(332),
-        client.walletPk,
-        OrderSide.BUY,
-        new BN(formValues.price),
-        new BN(formValues.quantity),
-        new BN(Date.now() + 60 * 60 * 1000),
-        new PublicKey('GLYuRh9avWERYZXHNTfz1Cdo3craUF65Ct5EUDLHeVAA'),
-        new PublicKey('3ZKxAAeMb2KVspkioJy8R1jfpnvSc2WF7hwihgQPxzyJ')
+        new BN(332), // order_id
+        client.walletPk, // owner
+        OrderSide.BUY, // side
+        new BN(formValues.price), // price
+        new BN(formValues.quantity), // quantity
+        new BN(Date.now() + 60 * 60 * 1000), // expiry
+        new PublicKey('GLYuRh9avWERYZXHNTfz1Cdo3craUF65Ct5EUDLHeVAA'), // base_mint
+        new PublicKey('3ZKxAAeMb2KVspkioJy8R1jfpnvSc2WF7hwihgQPxzyJ') // quote_mint
       );
 
       // Get borsh encoded message
@@ -62,11 +62,15 @@ const TradePanel = () => {
       // Hex encode the hash
       const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
 
-      // Re-encode the hash as a text string
-      const sha256Hash_hex_textEncoded = new TextEncoder().encode(sha256Hash_hex);
       // Sign the hex encoded hash
-      const signatureBytes = await signMessage(sha256Hash_hex_textEncoded);
+      const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
       const hexSignature = Buffer.from(signatureBytes).toString('hex');
+
+      console.log({
+        hexSignature,
+        signatureByteshex: Buffer.from(signatureBytes).toString('hex'),
+        signatureBytesUint: signatureBytes,
+      });
 
       // Send signed message to sequencer
       const body = {
