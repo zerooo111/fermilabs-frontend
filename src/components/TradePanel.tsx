@@ -58,18 +58,14 @@ const TradePanel = () => {
       // Get borsh encoded message
       const encodedMessage = encodeMessageWithPrefix(orderIntent);
       // Create SHA256 hash of the encoded message
-      const hash = createHash('sha256').update(Buffer.from(encodedMessage)).digest();
+      const sha256Hash = createHash('sha256').update(Buffer.from(encodedMessage)).digest();
       // Hex encode the hash
-      const hexHash = Buffer.from(hash).toString('hex');
-      console.log({ hash, hexHash });
-      const hexHashTextEncoded = new TextEncoder().encode(JSON.stringify(hash));
-      console.log({
-        textEncodedHash: hexHashTextEncoded,
-        textEncodedHashHex: Buffer.from(hexHashTextEncoded).toString('hex'),
-      });
+      const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
 
+      // Re-encode the hash as a text string
+      const sha256Hash_hex_textEncoded = new TextEncoder().encode(sha256Hash_hex);
       // Sign the hex encoded hash
-      const signatureBytes = await signMessage(hexHashTextEncoded);
+      const signatureBytes = await signMessage(sha256Hash_hex_textEncoded);
       const hexSignature = Buffer.from(signatureBytes).toString('hex');
 
       // Send signed message to sequencer
@@ -98,7 +94,7 @@ const TradePanel = () => {
         orderType: 'limit',
       });
     } catch (error) {
-      console.error('Error placing signed order intent:', error);
+      console.error('Error placing signed order intent:', error?.response?.data);
       throw error;
     } finally {
       setIsProcessing(false);
