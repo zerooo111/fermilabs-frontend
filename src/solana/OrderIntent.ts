@@ -2,16 +2,11 @@ import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import * as borsh from '@coral-xyz/borsh';
 
-export enum OrderSide {
-  BUY = 'Buy',
-  SELL = 'Sell',
-}
-
 export class OrderIntent {
   constructor(
     public readonly order_id: BN,
     public readonly owner: PublicKey,
-    public readonly side: OrderSide,
+    public readonly side: 'Buy' | 'Sell',
     public readonly price: BN,
     public readonly quantity: BN,
     public readonly expiry: BN,
@@ -37,17 +32,23 @@ export class OrderIntent {
 
   static serialize(orderIntent: OrderIntent) {
     const buffer = Buffer.alloc(OrderIntent.layout().span);
-    OrderIntent.layout().encode(orderIntent, buffer);
+    const sideValue = orderIntent.side === 'Buy' ? 0 : 1;
+    const serializable = {
+      ...orderIntent,
+      side: sideValue,
+    };
+    OrderIntent.layout().encode(serializable, buffer);
     console.log('DESERIALISED', JSON.stringify(this.deserialize(buffer), null, 2));
     return buffer;
   }
 
   static deserialize(buffer: Buffer): OrderIntent {
     const decoded = OrderIntent.layout().decode(buffer);
+    // Convert the numeric side back to string
 
-    console.log(new BN(decoded.quantity).toString());
-
-    return decoded;
+    return {
+      ...decoded,
+    } as OrderIntent;
   }
 
   toJSON() {

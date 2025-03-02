@@ -10,7 +10,7 @@ import { fermiClientAtom } from '@/atoms/fermiClient';
 import MarketSelector from './MarketSelector';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { toast } from 'sonner';
-import { OrderIntent, OrderSide } from '@/solana/OrderIntent';
+import { OrderIntent } from '@/solana/OrderIntent';
 import { PublicKey } from '@solana/web3.js';
 import { createHash } from 'crypto';
 import axios from 'axios';
