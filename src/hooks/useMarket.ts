@@ -4,6 +4,7 @@ import { PublicKey } from '@solana/web3.js';
 import { marketAccountAtom, marketAddressAtom } from '@/atoms/market';
 import { fermiClientAtom } from '@/atoms/fermiClient';
 import { isValidSolanaAddress } from '@/utils/market';
+import { config } from '@/solana/constants';
 
 /**
  * Get market address from URL search params
@@ -22,8 +23,6 @@ const updateUrlMarket = (marketAddress: string) => {
   window.history.pushState({}, '', newUrl);
 };
 
-const DEFAULT_MARKET_ADDRESS = 'FERMcWxbQqXVx1rEHyGG7W1kGaVdtcZsGEE6ZB8P7rSr';
-
 /**
  * Hook to manage market state and navigation
  * Handles market address from URL, market account deserialization,
@@ -39,7 +38,7 @@ export function useMarket() {
     const urlMarket = getMarketFromUrl();
 
     const targetMarket =
-      urlMarket && isValidSolanaAddress(urlMarket) ? urlMarket : DEFAULT_MARKET_ADDRESS;
+      urlMarket && isValidSolanaAddress(urlMarket) ? urlMarket : config.devnet.defaultMarketAddress;
 
     updateUrlMarket(targetMarket);
     setMarketAddress(targetMarket);
@@ -68,8 +67,8 @@ export function useMarket() {
         console.error('Failed to load market:', error);
         setMarketAccount(null);
         // If market deserialization fails, redirect to default market
-        updateUrlMarket(DEFAULT_MARKET_ADDRESS);
-        setMarketAddress(DEFAULT_MARKET_ADDRESS);
+        updateUrlMarket(config.devnet.defaultMarketAddress);
+        setMarketAddress(config.devnet.defaultMarketAddress);
       }
     };
 

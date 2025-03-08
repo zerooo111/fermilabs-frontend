@@ -5,6 +5,16 @@ import { PublicKey } from '@solana/web3.js';
 import { fermiClientAtom } from '@/atoms/fermiClient';
 import { marketAccountAtom, marketAddressAtom } from '@/atoms/market';
 import { openOrdersAccountAddressAtom } from '@/atoms/openOrdersAccount';
+import { useEventHeap } from '@/hooks/useEventHeap';
+
+interface OpenOrderItem {
+  slNo: string;
+  side: 0 | 1;
+  price: string;
+  id: string;
+  finalisable: boolean;
+  clientOrderId: string;
+}
 
 /**
  * Custom hook for fetching open orders account data
@@ -19,6 +29,7 @@ export function useOpenOrdersAccount() {
     openOrdersAccountAddressAtom
   );
   const wallet = useAnchorWallet();
+  const { data: eventHeapData } = useEventHeap();
 
   return useQuery({
     queryKey: [
@@ -41,14 +52,30 @@ export function useOpenOrdersAccount() {
       const accountData = await client.deserializeOpenOrderAccount(address);
       if (!accountData) throw new Error('Failed to deserialize open orders account');
 
-      const openOrders = accountData.openOrders
+      const openOrders: OpenOrderItem[] = accountData.openOrders
         .filter(o => o.isFree === 0)
-        .map(o => ({
-          slNo: o.clientId.toString(),
-          side: o.sideAndTree === 0 ? 'buy' : 'sell',
-          price: o.lockedPrice.toString(),
-          id: o.id.toString(),
-        }));
+        .map(o => {
+          const order = {
+            slNo: o.clientId.toString(),
+            side: o.sideAndTree,
+            price: o.lockedPrice.toString(),
+            id: o.id.toString(),
+            clientOrderId: o.clientId.toString(),
+            finalisable: false,
+          };
+
+          // Check if order can be finalised
+          if (eventHeapData?.fillEvents) {
+            const match = eventHeapData.fillEvents.find(
+              (event: any) =>
+                event.makerClientOrderId.toString() === order.clientOrderId ||
+                event.takerClientOrderId.toString() === order.clientOrderId
+            );
+            order.finalisable = !!match;
+          }
+
+          return order;
+        });
 
       return {
         account: accountData,
@@ -57,6 +84,6 @@ export function useOpenOrdersAccount() {
       };
     },
     enabled: !!client && !!marketAccount && !!wallet?.publicKey,
-    refetchInterval: 1000 * 60,
+    refetchInterval: 1000 * 60 * 60,
   });
 }

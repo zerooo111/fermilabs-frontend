@@ -39,7 +39,7 @@ export async function sendTransaction(
 
   const payer = provider.wallet;
 
-  if (opts?.prioritizationFee !== null && opts.prioritizationFee !== 0) {
+  if (opts?.prioritizationFee && opts.prioritizationFee !== 0) {
     ixs = [createComputeBudgetIx(opts.prioritizationFee), ...ixs];
   }
 

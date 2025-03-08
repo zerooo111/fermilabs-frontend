@@ -16,7 +16,7 @@ type TokenType = 'base' | 'quote';
 const AirdropPopover = () => {
   const marketAccount = useAtomValue(marketAccountAtom);
   const client = useAtomValue(fermiClientAtom);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedToken, setSelectedToken] = useState<TokenType>('base');
   const [amount, setAmount] = useState('10');
   const [isOpen, setIsOpen] = useState(false);

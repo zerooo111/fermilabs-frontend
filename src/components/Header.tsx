@@ -1,4 +1,4 @@
-import AirdropPopover from './AirdropPopover';
+// import AirdropPopover from './AirdropPopover';
 import { ConnectWallet } from './ConnectWallet';
 import Setting from './Setting';
 
@@ -11,7 +11,7 @@ const Header = () => {
         </div>
         <div className="flex items-center gap-2">
           <Setting />
-          <AirdropPopover />
+          {/* <AirdropPopover /> */}
           <ConnectWallet />
         </div>
       </div>

@@ -24,6 +24,6 @@ export function useAsks() {
       return parseBookSideAccount(client, bookSideAccount as BookSideAccount);
     },
     enabled: !!client && !!marketAccount,
-    refetchInterval: 10000, // Refetch every 10 seconds
+    refetchInterval: 10000 * 10000, // Refetch every 10 seconds
   });
 }

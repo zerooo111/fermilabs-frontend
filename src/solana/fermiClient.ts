@@ -158,7 +158,6 @@ export class FermiClient {
       return await this.program.account.market.fetch(publicKey);
     } catch (error) {
       console.error('Error in deserializeMarketAccount:', error);
-
       return null;
     }
   }

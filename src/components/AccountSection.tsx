@@ -3,9 +3,20 @@ import { CreateOpenOrdersAccountForm } from './CreateOpenOrdersAccountForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import OpenOrdersTable from './openOrders/OpenOrdersTable';
 import SettleFundsTable from './openOrders/SettleFundsTable';
+import { useAnchorWallet } from '@solana/wallet-adapter-react';
+import { ConnectWallet } from './ConnectWallet';
 
 const AccountSection = () => {
   const { data, isPending, error } = useOpenOrdersAccount();
+  const connectedWallet = useAnchorWallet();
+
+  if (!connectedWallet) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <ConnectWallet />
+      </div>
+    );
+  }
 
   /* Data is not yet loaded */
   if (isPending) {

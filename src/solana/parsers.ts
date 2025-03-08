@@ -70,9 +70,6 @@ export const parseEventHeap = (client: FermiClient, eventHeap: EventHeapAccount 
       }
     });
   }
-  console.log('fillEvents', fillEvents);
-  console.log('outEvents', outEvents);
-  console.log('fillDirectEvents', fillDirectEvents);
 
   return { fillEvents, outEvents, fillDirectEvents };
 };
