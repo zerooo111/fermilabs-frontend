@@ -7,7 +7,6 @@ import Button from './ui/Button';
 import { BN } from '@coral-xyz/anchor';
 import { useAtomValue } from 'jotai';
 import { fermiClientAtom } from '@/atoms/fermiClient';
-import MarketSelector from './MarketSelector';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { toast } from 'sonner';
 import { OrderIntent } from '@/solana/OrderIntent';
@@ -111,9 +110,6 @@ const TradePanel = () => {
 
   return (
     <div className="flex flex-col gap-2 p-4">
-      {/* DropDown components for market select */}
-      <MarketSelector />
-
       <h6 className="heading">Place Order</h6>
       <Tabs defaultValue={formState.orderType} onValueChange={handleOrderTypeChange}>
         <TabsList className="w-full">

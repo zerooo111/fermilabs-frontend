@@ -1,8 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap');
 @import 'tailwindcss';
 
 :root {
-  font-family: 'Geist Mono', monospace;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -10,9 +9,24 @@
   font-feature-settings: 'ss01', 'ss02', 'cv01', 'cv02', 'cv03', 'cv04';
 }
 
+@theme {
+  /* Fonts */
+  --font-sans: 'Geist';
+  --font-mono: 'Geist Mono';
+
+  /* Theme colors */
+  --color-primary: #347367;
+  --color-primary-light: #a3d9ba;
+  --color-primary-dark: #113030;
+
+  --color-secondary: #dfb670;
+  --color-secondary-light: #f2e8c9;
+  --color-secondary-dark: #c99e53;
+}
+
 @layer base {
   body {
-    @apply bg-zinc-50 text-zinc-900;
+    @apply bg-white text-zinc-900;
   }
 
   .heading {

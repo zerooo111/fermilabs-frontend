@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import OpenOrdersTable from './openOrders/OpenOrdersTable';
 import SettleFundsTable from './openOrders/SettleFundsTable';
 import { useAnchorWallet } from '@solana/wallet-adapter-react';
-import { ConnectWallet } from './ConnectWallet';
+import { ConnectWallet } from './shared/ConnectWallet';
 
 const AccountSection = () => {
   const { data, isPending, error } = useOpenOrdersAccount();

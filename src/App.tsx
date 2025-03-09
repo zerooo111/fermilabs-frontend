@@ -3,49 +3,26 @@
  * Main application component with wallet context integration
  */
 import React from 'react';
-import { useMarket } from '@/hooks/useMarket';
-import { useAtomValue } from 'jotai';
-import { fermiClientAtom } from './atoms/fermiClient';
-import Header from './components/Header';
-import TradePanel from './components/TradePanel';
-import AccountSection from './components/AccountSection';
-import Header from './components/Header';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { VaultPage } from './components/vault/VaultPage';
+import { HomePage } from './components/home/HomePage';
+import { Layout } from './components/layout/Layout';
 
 const App = () => {
-  const { marketAccount, marketAddress, isLoading } = useMarket();
-  const client = useAtomValue(fermiClientAtom);
+  const TradePage = () => {
+    return <div>This is a trade page</div>;
+  };
 
-  if (isLoading || !marketAddress || !marketAccount || !client) {
-    return <div className="min-h-screen grid place-items-center">Loading market data...</div>;
-  }
   return (
-    <main className="flex flex-col max-w-[2160px] container mx-auto min-h-screen p-4 gap-4">
-      <Header />
-      <div className="flex gap-2 h-full  flex-1">
-        {/* Trading column */}
-        <div className="flex flex-col gap-2 basis-3/4">
-          <div className="flex h-full gap-2">
-            <div className="basis-1/3 card-outer">
-              <div className="card-inner">
-                <TradePanel marketAddress={marketAddress} marketAccount={marketAccount} />
-              </div>
-            </div>
-            <div className="basis-2/3 card-outer">
-              <div className="card-inner">Trading Chart</div>
-            </div>
-          </div>
-          <div className="basis-3/3 card-outer">
-            <div className="card-inner">
-              <AccountSection />
-            </div>
-          </div>
-        </div>
-        {/* Orderbook column */}
-        <div className="card-outer basis-1/4">
-          <div className="card-inner">Orderbook</div>
-        </div>
-      </div>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/trade" element={<TradePage />} />
+          <Route path="/vault" element={<VaultPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 };
 
