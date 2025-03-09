@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { VaultPage } from './components/vault/VaultPage';
 import { HomePage } from './components/home/HomePage';
 import { Layout } from './components/layout/Layout';
+import { VaultAdminPage } from './components/vault/VaultAdminPage';
 
 const App = () => {
   const TradePage = () => {
@@ -18,6 +19,7 @@ const App = () => {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/vault-admin" element={<VaultAdminPage />} />
           <Route path="/trade" element={<TradePage />} />
           <Route path="/vault" element={<VaultPage />} />
         </Route>

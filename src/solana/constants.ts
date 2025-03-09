@@ -10,6 +10,7 @@ export const config = {
     commitment: 'confirmed',
     wsUrl: 'wss://api.devnet.solana.com',
     defaultMarketAddress: 'GnDethiMd2Z1ANCeSAcP7fxRWXL64FM6dNJowho6Knxt',
+    vaultProgramId: '2AcUsdsFXdUfKm5pd7JLQqNAKhgsZZz7e8Pc7E6Dowbx',
   },
 };
 

@@ -1,6 +1,13 @@
 import * as spl from '@solana/spl-token';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { Connection, PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js';
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+} from '@solana/web3.js';
 
 import * as anchor from '@coral-xyz/anchor';
 import { BN } from '@coral-xyz/anchor';
@@ -86,37 +93,48 @@ export async function createAssociatedTokenAccountIdempotentInstruction(
 
 export const createMint = async (
   provider: anchor.AnchorProvider,
-  mint: anchor.web3.Keypair,
   decimal: number
-): Promise<void> => {
-  // const programId = getDevPgmId();
-  const tx = new anchor.web3.Transaction();
-  tx.add(
-    anchor.web3.SystemProgram.createAccount({
-      programId: spl.TOKEN_PROGRAM_ID,
-      // programId: programId,
-      fromPubkey: provider.wallet.publicKey,
-      newAccountPubkey: mint.publicKey,
-      space: spl.MintLayout.span,
-      lamports: await provider.connection.getMinimumBalanceForRentExemption(spl.MintLayout.span),
-    })
-  );
-  tx.add(
-    spl.createInitializeMintInstruction(
-      mint.publicKey,
-      decimal,
-      provider.wallet.publicKey,
-      provider.wallet.publicKey
-    )
-  );
-  await provider.sendAndConfirm(tx, [mint]);
+): Promise<{ signature: string; mintAddress: PublicKey }> => {
+  try {
+    // Token Mints are accounts which hold data ABOUT a specific token
+    // Token Mints DO NOT hold tokens themselves
+    const tokenMint = Keypair.generate();
+
+    // amount of SOL required fro the account to not be deallocated
+    const lamports = await spl.getMinimumBalanceForRentExemptMint(provider.connection);
+
+    // `spl.createMint` function creates a transaction with the following two instruction: `createAccount` and `createInitializeMintInstruction`.
+    const transaction = new Transaction().add(
+      SystemProgram.createAccount({
+        fromPubkey: provider.wallet.publicKey,
+        newAccountPubkey: tokenMint.publicKey,
+        space: spl.MINT_SIZE,
+        lamports,
+        programId: spl.TOKEN_PROGRAM_ID,
+      }),
+      spl.createInitializeMintInstruction(
+        tokenMint.publicKey,
+        decimal,
+        provider.wallet.publicKey,
+        null,
+        spl.TOKEN_PROGRAM_ID
+      )
+    );
+
+    // prompts user to sign the transaction and submit it to the network
+    const signature = await provider.sendAndConfirm(transaction, [tokenMint]);
+    return { signature, mintAddress: tokenMint.publicKey };
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
 };
 
 export const checkOrCreateAssociatedTokenAccount = async (
   provider: anchor.AnchorProvider,
   mint: anchor.web3.PublicKey,
   owner: anchor.web3.PublicKey
-): Promise<string> => {
+): Promise<PublicKey> => {
   // Find the ATA for the given mint and owner
   const ata = await spl.getAssociatedTokenAddress(mint, owner, true);
 
@@ -133,7 +151,7 @@ export const checkOrCreateAssociatedTokenAccount = async (
     console.log('Associated Token Account already exists.');
   }
 
-  return ata.toBase58();
+  return ata;
 };
 
 export async function checkMintOfATA(
