@@ -5,6 +5,10 @@
 @plugin 'tailwindcss-animate';
 
 :root {
+  --font-geist: 'Geist', sans-serif;
+  --font-geist-mono: 'Geist Mono', monospace;
+  --font-sans: var(--font-geist);
+  --font-mono: var(--font-geist-mono);
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.147 0.004 49.25);
