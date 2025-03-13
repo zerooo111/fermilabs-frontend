@@ -1,30 +1,33 @@
 import { useState } from 'react';
-import { useVaultProgram } from '../useVaultProgram';
 import { PublicKey } from '@solana/web3.js';
-import Input from '@/components/ui/Input';
-import Button from '@/components/ui/Button';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import ReactJson from 'react-json-view';
+import { useVaultClient } from '../useVaultProgram';
 
 export function InitVaultFlow() {
   const [error, setError] = useState('');
-  const { createVault } = useVaultProgram();
-  const [isLoading, setIsLoading] = useState(false);
+  const vaultClient = useVaultClient();
+  // const [isLoading, setIsLoading] = useState(false);
   const [txn, setTxn] = useState('');
   const [vaultData, setVaultData] = useState<object>({});
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     try {
+      if (!vaultClient) throw new Error('Vault client not found');
       setError('');
       setTxn('');
       e.preventDefault();
       setIsLoading(true);
+      // @ts-expect-error : e.target.tokenMintAddress is not defined
       const tokenMintAddress = e.target.tokenMintAddress.value;
       const tokenMint = new PublicKey(tokenMintAddress);
-      const { txid, ...rest } = await createVault(tokenMint);
+      const { txid, ...rest } = await vaultClient.createVault(tokenMint);
       setTxn(txid);
       setVaultData(rest);
     } catch (err) {
       console.error(err);
+      // @ts-expect-error : err is not defined
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -40,9 +43,7 @@ export function InitVaultFlow() {
           name="tokenMintAddress"
           placeholder="Token Mint Address"
         />
-        <Button type="submit" loading={isLoading}>
-          Init Vault
-        </Button>
+        <Button type="submit">Init Vault</Button>
       </form>
       {txn && (
         <a

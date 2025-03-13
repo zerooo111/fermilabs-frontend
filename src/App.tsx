@@ -2,18 +2,14 @@
  * App.tsx
  * Main application component with wallet context integration
  */
-import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { VaultPage } from './components/vault/VaultPage';
 import { HomePage } from './components/home/HomePage';
 import { Layout } from './components/layout/Layout';
 import { VaultAdminPage } from './components/vault/VaultAdminPage';
+import TradePage from './components/trade/TradePage';
 
 const App = () => {
-  const TradePage = () => {
-    return <div>This is a trade page</div>;
-  };
-
   return (
     <BrowserRouter>
       <Routes>

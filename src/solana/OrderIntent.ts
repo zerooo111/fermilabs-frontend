@@ -2,6 +2,35 @@ import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import * as borsh from '@coral-xyz/borsh';
 
+export class CancelOrderIntent {
+  constructor(
+    public readonly order_id: BN,
+    public readonly owner: PublicKey
+  ) {}
+
+  static layout() {
+    return borsh.struct([borsh.u64('order_id'), borsh.publicKey('owner')]);
+  }
+
+  static serialize(cancelOrderIntent: CancelOrderIntent) {
+    const buffer = Buffer.alloc(CancelOrderIntent.layout().span);
+    CancelOrderIntent.layout().encode(cancelOrderIntent, buffer);
+    return buffer;
+  }
+
+  static deserialize(buffer: Buffer): CancelOrderIntent {
+    const decoded = CancelOrderIntent.layout().decode(buffer);
+    return decoded;
+  }
+
+  toJSON() {
+    return {
+      order_id: Number(this.order_id),
+      owner: this.owner.toBase58(),
+    };
+  }
+}
+
 export class OrderIntent {
   constructor(
     public readonly order_id: BN,

@@ -1,16 +1,16 @@
 import { useState } from 'react';
-import { useVaultProgram } from '../useVaultProgram';
 import { useAnchorWallet } from '@solana/wallet-adapter-react';
 import { createMint } from '@/solana/utils/helpers';
 import Copyable from '@/components/shared/Copyable';
-import Button from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { PublicKey } from '@solana/web3.js';
+import { useVaultClient } from '../useVaultProgram';
 
 export function CreateTokenMintFlow() {
   const [tokenMint, setTokenMint] = useState<PublicKey | null>(null);
   const [tokenMintTx, setTokenMintTx] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const { vaultClient } = useVaultProgram();
+  const vaultClient = useVaultClient();
   const wallet = useAnchorWallet();
 
   const handleCreateMint = async () => {

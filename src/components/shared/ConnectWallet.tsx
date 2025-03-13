@@ -13,8 +13,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/DropdownMenu';
-import Button from '@/components/ui/Button';
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 
 const LABELS = {
   'copy-address': 'Copy address',
@@ -63,7 +63,6 @@ export function ConnectWallet() {
         }
       }}
       disabled={connecting}
-      loading={connecting}
     >
       {connected && <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />}
       {buttonContent}

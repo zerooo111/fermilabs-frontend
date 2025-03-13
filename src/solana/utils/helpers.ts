@@ -140,7 +140,6 @@ export const checkOrCreateAssociatedTokenAccount = async (
 
   // Check if the ATA already exists
   const accountInfo = await provider.connection.getAccountInfo(ata);
-
   if (accountInfo == null) {
     // ATA does not exist, create it
     console.log('Creating Associated Token Account for user...');
@@ -188,12 +187,13 @@ export const createAssociatedTokenAccount = async (
 export const mintTo = async (
   provider: anchor.AnchorProvider,
   mint: anchor.web3.PublicKey,
-  ta: anchor.web3.PublicKey,
+  ata: anchor.web3.PublicKey,
   amount: bigint
-): Promise<void> => {
+): Promise<string> => {
   const tx = new anchor.web3.Transaction();
-  tx.add(spl.createMintToInstruction(mint, ta, provider.wallet.publicKey, amount, []));
-  await provider.sendAndConfirm(tx, []);
+  tx.add(spl.createMintToInstruction(mint, ata, provider.wallet.publicKey, amount, []));
+  const signature = await provider.sendAndConfirm(tx, []);
+  return signature;
 };
 
 export const fetchTokenBalance = async (

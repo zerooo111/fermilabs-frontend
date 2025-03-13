@@ -1,18 +1,5 @@
-import { ArrowUpRight, ExternalLink, KeyRound, Loader2, Lock } from 'lucide-react';
-import Input from '../ui/Input';
-import { useVaultProgram } from './useVaultProgram';
-import { Keypair } from '@solana/web3.js';
-import { toast } from 'sonner';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '../ui/Dialog';
-import Button from '../ui/Button';
-import { useState } from 'react';
+import { ArrowUpRight, ExternalLink, KeyRound, Lock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 export function VaultFilters() {
   return (
@@ -111,61 +98,6 @@ export function VaultCard({
   );
 }
 
-export function CreateVaultButton() {
-  const { createVault } = useVaultProgram();
-  const [tokenMint, setTokenMint] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleCreateVault = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    try {
-      setIsLoading(true);
-      const mint = Keypair.generate();
-      const tokenMintPK = mint.publicKey;
-      
-      const vault = await createVault(tokenMintPK);
-      
-      toast.success('Vault created successfully');
-    } catch (error) {
-      console.error(error);
-      toast.error(error?.message ?? 'Failed to create vault');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <Dialog defaultOpen={true}>
-      <DialogTrigger className="bg-lime-400 text-lime-900 hover:brightness-110 duration-100 cursor-pointer font-semibold  px-4 py-2 rounded-xl flex items-center justify-center gap-2">
-        <Lock className="w-4 h-4" />
-        Create Vault
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Vault</DialogTitle>
-          <DialogDescription>Initialize a vault for the given token mint</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleCreateVault} className="flex flex-col gap-3">
-          <Input
-            id="tokenMint"
-            placeholder="Token Mint Public Key"
-            value={tokenMint}
-            onChange={e => setTokenMint(e.target.value)}
-          />
-          <Button type="submit" disabled={!tokenMint || isLoading} onClick={handleCreateVault}>
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Creating Vault
-              </>
-            ) : (
-              'Create Vault'
-            )}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 export function VaultPage() {
   return (
     <div className="flex-1 bg-zinc-100">
@@ -180,7 +112,6 @@ export function VaultPage() {
             </a>
           </div>
         </div>
-        <CreateVaultButton />
         <VaultFilters />
         <div className="grid grid-cols-3 gap-3 mt-6">
           <VaultCard

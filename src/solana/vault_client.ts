@@ -88,9 +88,12 @@ export class LiquidityVaultClient {
    * @param vaultState - The vault state account address
    * @returns {Promise<[PublicKey, number]>} - The user state PDA address and bump seed
    */
-  async getUserStatePDA(userAta: PublicKey, vaultState: PublicKey): Promise<[PublicKey, number]> {
+  async getUserStatePDA(
+    userAta: PublicKey,
+    vaultStatePda: PublicKey
+  ): Promise<[PublicKey, number]> {
     return PublicKey.findProgramAddress(
-      [Buffer.from('user_state'), vaultState.toBuffer(), userAta.toBuffer()],
+      [Buffer.from('user_state'), vaultStatePda.toBuffer(), userAta.toBuffer()],
       this.programId
     );
   }
@@ -125,7 +128,8 @@ export class LiquidityVaultClient {
       payer: this.walletPk.toBase58(),
     });
 
-    const whitelistedProgram = new PublicKey('6M1y4LyDza134J7WudXsQsWq2urwDxnbdvDV8ReoSrTc');
+    const whitelistedProgram = new PublicKey('8bHSuk6dpjquTw44vwr3sLukDSMLNkQLTcttGtC5pJtb');
+
     const ix = await this.program.methods
       .initialize(whitelistedProgram)
       .accounts({
@@ -199,20 +203,20 @@ export class LiquidityVaultClient {
    * Deducts tokens from user's personal state and transfers them to the recipient
    * Can only be called by the whitelisted program
    * @param amount - Amount of tokens to withdraw
-   * @param vault - The vault state account address
+   * @param tokenMint - The token mint address
    * @param recipientTokenAccount - The token account of the recipient
    * @param user - The user's wallet address
    * @returns {Promise<string>} - Transaction signature
    */
   async withdraw(
     amount: number | BN,
-    vault: PublicKey,
+    tokenMint: PublicKey,
     recipientTokenAccount: PublicKey,
     user: PublicKey
   ) {
-    const [vaultState] = await this.getVaultStatePDA(vault);
+    const [vaultState] = await this.getVaultStatePDA(tokenMint);
     const [vaultAuthority] = await this.getVaultAuthorityPDA(vaultState);
-    const [userState] = await this.getUserStatePDA(user, vault);
+    const [userState] = await this.getUserStatePDA(user, vaultState);
     const [vaultTokenAccount] = await this.getVaultTokenAccountPDA(vaultState);
 
     console.log({
@@ -297,9 +301,8 @@ export class LiquidityVaultClient {
    * @param vault - The vault state account address
    * @returns {Promise<any>} - User state account data
    */
-  async getUserState(userAta: PublicKey, vault: PublicKey) {
-    const [userState] = await this.getUserStatePDA(userAta, vault);
+  async getUserState(userAta: PublicKey, vaultStatePda: PublicKey) {
+    const [userState] = await this.getUserStatePDA(userAta, vaultStatePda);
     return await this.program.account.userState.fetch(userState);
   }
-
 }

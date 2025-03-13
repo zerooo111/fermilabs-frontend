@@ -1,13 +1,13 @@
 import { config } from '@/solana/constants';
 import { LiquidityVaultClient } from '@/solana/vault_client';
-import { AnchorProvider, BN } from '@coral-xyz/anchor';
+import { AnchorProvider } from '@coral-xyz/anchor';
 import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { toast } from 'sonner';
 import { ExternalLink } from 'lucide-react';
 
-export function useVaultProgram() {
+export function useVaultClient() {
   const { connection } = useConnection();
   const wallet = useAnchorWallet();
 
@@ -45,43 +45,5 @@ export function useVaultProgram() {
     });
   }, [provider]);
 
-  const createVault = useCallback(
-    async (tokenMint: PublicKey) => {
-      if (!vaultClient) throw new Error('Vault client not found');
-
-      const result = await vaultClient.createVault(tokenMint);
-
-      return result;
-    },
-    [vaultClient]
-  );
-
-  const depositTokenToVault = useCallback(
-    async ({ amount, vault, user }: { amount: number | BN; vault: PublicKey; user: PublicKey }) => {
-      if (!vaultClient) throw new Error('Vault client not found');
-
-      return await vaultClient.deposit(vault, new BN(amount), user);
-    },
-    [vaultClient]
-  );
-
-  const withdrawTokenFromVault = useCallback(
-    async ({
-      amount,
-      vault,
-      recipientPublicKey,
-      user,
-    }: {
-      amount: number | BN;
-      vault: PublicKey;
-      recipientPublicKey: PublicKey;
-      user: PublicKey;
-    }) => {
-      if (!vaultClient) throw new Error('Vault client not found');
-      return await vaultClient.withdraw(vault, new BN(amount), recipientPublicKey, user);
-    },
-    [vaultClient]
-  );
-
-  return { vaultClient, createVault, depositTokenToVault, withdrawTokenFromVault };
+  return vaultClient;
 }

@@ -1,15 +1,16 @@
 import React from 'react';
-import Input from '@/components/ui/Input';
-import Button from '@/components/ui/Button';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useAnchorWallet } from '@solana/wallet-adapter-react';
-import { useVaultProgram } from '../useVaultProgram';
+import { useVaultClient } from '../useVaultProgram';
 import { checkOrCreateAssociatedTokenAccount } from '@/solana/utils/helpers';
 import ReactJson from 'react-json-view';
 import { toast } from 'sonner';
+import { PublicKey } from '@solana/web3.js';
 
 export function GetVaultAndUserState() {
   const [userState, setUserState] = React.useState<object>({});
-  const { vaultClient } = useVaultProgram();
+  const vaultClient = useVaultClient();
   const wallet = useAnchorWallet();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -35,15 +36,16 @@ export function GetVaultAndUserState() {
 
       console.log('got user ata', userAta);
 
-      const userState = await vaultClient.getUserState(userAta, tokenMint).catch(err => {
+      const vaultState = await vaultClient.getVaultState(tokenMint);
+      const [vaultStatePda] = await vaultClient.getVaultStatePDA(tokenMint);
+      const [vaultTokenAccount] = await vaultClient.getVaultTokenAccountPDA(vaultStatePda);
+
+      const userState = await vaultClient.getUserState(userAta, vaultStatePda).catch(err => {
         toast.error('User state not found');
         console.error(err);
         return {};
       });
 
-      const vaultState = await vaultClient.getVaultState(tokenMint);
-      const [vaultStatePda] = await vaultClient.getVaultStatePDA(tokenMint);
-      const [vaultTokenAccount] = await vaultClient.getVaultTokenAccountPDA(vaultStatePda);
       setUserState({
         userState,
         vaultState,
