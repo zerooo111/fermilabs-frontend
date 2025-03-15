@@ -39,6 +39,7 @@ export class OrderIntent {
     public readonly price: BN,
     public readonly quantity: BN,
     public readonly expiry: BN,
+
     public readonly base_mint: PublicKey,
     public readonly quote_mint: PublicKey
   ) {}

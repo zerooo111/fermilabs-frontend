@@ -1,5 +1,4 @@
 import { Link, useLocation } from 'react-router-dom';
-import Setting from '../Setting';
 import { ConnectWallet } from './ConnectWallet';
 import { cn } from '@/lib/utils';
 
@@ -34,8 +33,6 @@ const Header = () => {
           </Link>
         </div>
         <div className="flex items-center gap-1.5">
-          <Setting />
-          {/* <AirdropPopover /> */}
           <ConnectWallet />
         </div>
       </div>

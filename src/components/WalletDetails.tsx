@@ -42,16 +42,15 @@ export function WalletDetails() {
   if (!publicKey) return null;
 
   return (
-    <div className="flex flex-col gap-2 bg-gray-800 rounded-lg p-4 text-sm">
+    <div className="flex flex-col gap-2   text-xs">
       <div className="flex items-center gap-2">
-        <span className="text-gray-400">Address:</span>
-        <span className="font-mono">
-          {`${publicKey.toString().slice(0, 4)}...${publicKey.toString().slice(-4)}`}
-        </span>
+        <span className="font-medium">Address:</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-gray-400">Balance:</span>
-        <span>{balance !== null ? `${balance.toFixed(4)} SOL` : 'Loading...'}</span>
+        <span className="font-medium">Balance:</span>
+        <span className="tabular-nums">
+          {balance !== null ? `${balance.toFixed(4)} SOL` : 'Loading...'}
+        </span>
       </div>
     </div>
   );
