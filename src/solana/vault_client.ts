@@ -233,8 +233,8 @@ export class LiquidityVaultClient {
         userState,
         vaultAuthority,
         vaultTokenAccount,
-        recipientTokenAccount,
-        caller: this.programId,
+        userTokenAccount: recipientTokenAccount,
+        user,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .instruction();

@@ -122,42 +122,43 @@ export type FermiVault = {
           name: 'vaultState';
           isMut: true;
           isSigner: false;
-          docs: ['The vault state'];
+          docs: ["The vault's state account"];
         },
         {
           name: 'userState';
           isMut: true;
           isSigner: false;
-          docs: ['The user’s personal state from which we deduct tokens'];
-        },
-        {
-          name: 'vaultAuthority';
-          isMut: false;
-          isSigner: false;
-          docs: ['The PDA that signs on behalf of the vault for the token transfer'];
+          docs: ["The user's state account, tracking their deposits"];
         },
         {
           name: 'vaultTokenAccount';
           isMut: true;
           isSigner: false;
-          docs: ['The vault’s token account from which the tokens are taken'];
+          docs: ["The vault's token account holding the tokens"];
         },
         {
-          name: 'recipientTokenAccount';
+          name: 'userTokenAccount';
           isMut: true;
           isSigner: false;
-          docs: ['The token account of the recipient (provided by the whitelisted program)'];
+          docs: ["The user's token account to receive the withdrawn tokens"];
         },
         {
-          name: 'caller';
+          name: 'vaultAuthority';
           isMut: false;
           isSigner: false;
-          docs: ['The caller must match the whitelisted program stored in vault_state'];
+          docs: ['The vault authority PDA, used to sign the token transfer'];
         },
         {
           name: 'tokenProgram';
           isMut: false;
           isSigner: false;
+          docs: ['The SPL Token program'];
+        },
+        {
+          name: 'user';
+          isMut: false;
+          isSigner: true;
+          docs: ['The user initiating the withdrawal, must be the signer'];
         },
       ];
       args: [
@@ -207,7 +208,7 @@ export type FermiVault = {
         {
           name: 'caller';
           isMut: false;
-          isSigner: false;
+          isSigner: true;
           docs: ['The caller must match the whitelisted program stored in vault_state'];
         },
         {
@@ -304,6 +305,11 @@ export type FermiVault = {
       code: 6005;
       name: 'ApprovalFailed';
       msg: 'Approval failed.';
+    },
+    {
+      code: 6006;
+      name: 'UnauthorizedCaller';
+      msg: 'Unauthorized caller.';
     },
   ];
 };
@@ -432,42 +438,43 @@ export const IDL: FermiVault = {
           name: 'vaultState',
           isMut: true,
           isSigner: false,
-          docs: ['The vault state'],
+          docs: ["The vault's state account"],
         },
         {
           name: 'userState',
           isMut: true,
           isSigner: false,
-          docs: ['The user’s personal state from which we deduct tokens'],
-        },
-        {
-          name: 'vaultAuthority',
-          isMut: false,
-          isSigner: false,
-          docs: ['The PDA that signs on behalf of the vault for the token transfer'],
+          docs: ["The user's state account, tracking their deposits"],
         },
         {
           name: 'vaultTokenAccount',
           isMut: true,
           isSigner: false,
-          docs: ['The vault’s token account from which the tokens are taken'],
+          docs: ["The vault's token account holding the tokens"],
         },
         {
-          name: 'recipientTokenAccount',
+          name: 'userTokenAccount',
           isMut: true,
           isSigner: false,
-          docs: ['The token account of the recipient (provided by the whitelisted program)'],
+          docs: ["The user's token account to receive the withdrawn tokens"],
         },
         {
-          name: 'caller',
+          name: 'vaultAuthority',
           isMut: false,
           isSigner: false,
-          docs: ['The caller must match the whitelisted program stored in vault_state'],
+          docs: ['The vault authority PDA, used to sign the token transfer'],
         },
         {
           name: 'tokenProgram',
           isMut: false,
           isSigner: false,
+          docs: ['The SPL Token program'],
+        },
+        {
+          name: 'user',
+          isMut: false,
+          isSigner: true,
+          docs: ['The user initiating the withdrawal, must be the signer'],
         },
       ],
       args: [
@@ -517,7 +524,7 @@ export const IDL: FermiVault = {
         {
           name: 'caller',
           isMut: false,
-          isSigner: false,
+          isSigner: true,
           docs: ['The caller must match the whitelisted program stored in vault_state'],
         },
         {
@@ -614,6 +621,11 @@ export const IDL: FermiVault = {
       code: 6005,
       name: 'ApprovalFailed',
       msg: 'Approval failed.',
+    },
+    {
+      code: 6006,
+      name: 'UnauthorizedCaller',
+      msg: 'Unauthorized caller.',
     },
   ],
 };

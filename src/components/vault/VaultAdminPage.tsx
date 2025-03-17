@@ -3,8 +3,6 @@ import { GetVaultAndUserState } from './admin/GetVaultAndUserState';
 import InitVaultFlow from './admin/InitVault';
 import CreateTokenMintFlow from './admin/CreateTokenMint';
 import MintTokens from './admin/MintTokens';
-import DepositTokens from './admin/DepositTokens';
-import WithdrawTokens from './admin/WithdrawTokens';
 import Notepad from './admin/Notepad';
 
 export function VaultAdminPage() {
@@ -20,8 +18,8 @@ export function VaultAdminPage() {
             <MintTokens />
             <InitVaultFlow />
             <GetVaultAndUserState />
-            <DepositTokens />
-            <WithdrawTokens />
+            {/* <DepositTokens /> */}
+            {/* <WithdrawTokens /> */}
           </>
         ) : (
           <div className="text-zinc-500">Connect your wallet to continue</div>
