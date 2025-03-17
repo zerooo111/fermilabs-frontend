@@ -20,7 +20,8 @@ export function useVaultClient() {
 
   const vaultClient = useMemo(() => {
     if (!provider) return;
-
+    
+    console.log('Creating vault client');
     return new LiquidityVaultClient(provider, new PublicKey(config.devnet.vaultProgramId), {
       postSendTxCallback: ({ txid }) => {
         console.log('--------------------------------');

@@ -1,3 +1,5 @@
+import { PublicKey } from '@solana/web3.js';
+
 export const RPC_URL = {
   devnet: 'https://api.devnet.solana.com',
 };
@@ -10,9 +12,13 @@ export const config = {
     commitment: 'confirmed',
     wsUrl: 'wss://api.devnet.solana.com',
     defaultMarketAddress: 'GnDethiMd2Z1ANCeSAcP7fxRWXL64FM6dNJowho6Knxt',
-    vaultProgramId: '2AcUsdsFXdUfKm5pd7JLQqNAKhgsZZz7e8Pc7E6Dowbx',
+    vaultProgramId: 'CVB232NjzFcJUAcaEsbqTTAwGah37MYor57Vy97CCEx2',
+    fermiAuthority: '8bHSuk6dpjquTw44vwr3sLukDSMLNkQLTcttGtC5pJtb',
   },
 };
+
+export const baseMint = new PublicKey('C76ZBodamZSgSNacHRh5r5Z6yUHoNzQzPFuv6sbkWVP3');
+export const quoteMint = new PublicKey('BoeLKGVE3LcLgqptbdKgUG9Qn22KbqfEUKKH52uR44dm');
 
 export const Side = {
   Bid: { bid: {} },

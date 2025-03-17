@@ -41,9 +41,7 @@ export function CreateTokenMintFlow() {
     <div className="border border-zinc-300 bg-white p-6 rounded-xl flex flex-col gap-3">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl">Create Token Mint</h1>
-        <Button loading={isLoading} onClick={handleCreateMint}>
-          Create Mint
-        </Button>
+        <Button onClick={handleCreateMint}>Create Mint</Button>
       </div>
       {tokenMint && (
         <Copyable textToCopy={tokenMint.toBase58()} className="flex gap-2 hover:text-blue-500">

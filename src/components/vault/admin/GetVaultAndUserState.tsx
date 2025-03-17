@@ -36,15 +36,17 @@ export function GetVaultAndUserState() {
 
       console.log('got user ata', userAta);
 
-      const vaultState = await vaultClient.getVaultState(tokenMint);
       const [vaultStatePda] = await vaultClient.getVaultStatePDA(tokenMint);
+      const vaultState = await vaultClient.getVaultState(vaultStatePda);
       const [vaultTokenAccount] = await vaultClient.getVaultTokenAccountPDA(vaultStatePda);
 
-      const userState = await vaultClient.getUserState(userAta, vaultStatePda).catch(err => {
-        toast.error('User state not found');
-        console.error(err);
-        return {};
-      });
+      const userState = await vaultClient
+        .getUserState(vaultClient.walletPk, vaultStatePda)
+        .catch(err => {
+          toast.error('User state not found');
+          console.error(err);
+          return {};
+        });
 
       setUserState({
         userState,

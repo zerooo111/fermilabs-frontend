@@ -18,7 +18,6 @@ export function InitVaultFlow() {
       setError('');
       setTxn('');
       e.preventDefault();
-      setIsLoading(true);
       // @ts-expect-error : e.target.tokenMintAddress is not defined
       const tokenMintAddress = e.target.tokenMintAddress.value;
       const tokenMint = new PublicKey(tokenMintAddress);
@@ -29,8 +28,6 @@ export function InitVaultFlow() {
       console.error(err);
       // @ts-expect-error : err is not defined
       setError(err.message);
-    } finally {
-      setIsLoading(false);
     }
   };
 

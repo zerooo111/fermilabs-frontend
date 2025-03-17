@@ -1,24 +1,21 @@
-import { NumericFormat } from 'react-number-format';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { useState } from 'react';
 import { OrderIntent } from '@/solana/OrderIntent';
 import { createHash } from 'crypto';
 import { BN } from '@coral-xyz/anchor';
-import { PublicKey } from '@solana/web3.js';
 import { ExternalLinkIcon } from 'lucide-react';
 import { submitOrderToSequencer } from '@/lib/sequencer';
 import { toast } from 'sonner';
-
-const baseMint = new PublicKey('7FbEsK64Kw7QSYQYCQzqAQi3VaRXB13ByeGmQR8h1UEY');
-const quoteMint = new PublicKey('9fphGByX9kNVy6fLxjh8DdjevfvZtf2nLXvDQZtMiVvm');
+import { useWallet } from '@solana/wallet-adapter-react';
+import { quoteMint } from '@/solana/constants';
+import { baseMint } from '@/solana/constants';
+import { NumberInput } from '../ui/number-input';
 
 export default function TradePanel() {
   const [formState, setFormState] = useState({
-    price: '',
-    size: '',
+    price: 0,
+    size: 0,
     orderType: 'limit',
   });
 
@@ -122,49 +119,33 @@ export default function TradePanel() {
         </TabsList>
       </Tabs>
       <div className="flex flex-col p-3 gap-3 flex-1">
-        <div className="relative">
-          <Label>Price</Label>
-          <NumericFormat
-            id="price"
-            name="price"
-            className="tabular-nums"
-            customInput={Input}
-            value={formState.price.toString()}
-            onValueChange={values => setFormState(prev => ({ ...prev, price: values.value }))}
-            min={0}
-            placeholder="Enter price"
-            required
-            allowedDecimalSeparators={['.']}
-            thousandSeparator=","
-            allowNegative={false}
-          />
-          <span className="absolute text-gray-500 right-2.5 text-xs font-medium bottom-2.5 ">
-            {' '}
-            QUOTE{' '}
-          </span>
-        </div>
+        <NumberInput
+          id="price"
+          name="price"
+          label="Price"
+          value={formState.price.toString()}
+          onValueChange={values =>
+            setFormState(prev => ({ ...prev, price: values.floatValue ?? 0 }))
+          }
+          min={0}
+          placeholder="Enter price"
+          required
+          unit="QUOTE"
+        />
 
-        <div className="relative ">
-          <Label>Size</Label>
-          <NumericFormat
-            id="size"
-            name="size"
-            className="tabular-nums"
-            customInput={Input}
-            value={formState.size.toString()}
-            onValueChange={values => setFormState(prev => ({ ...prev, size: values.value }))}
-            min={0}
-            placeholder="Enter size"
-            required
-            allowedDecimalSeparators={['.']}
-            thousandSeparator=","
-            allowNegative={false}
-          />
-          <span className="absolute text-gray-500 right-2.5 text-xs font-medium bottom-2.5 ">
-            {' '}
-            BASE{' '}
-          </span>
-        </div>
+        <NumberInput
+          id="size"
+          name="size"
+          label="Size"
+          value={formState.size.toString()}
+          onValueChange={values =>
+            setFormState(prev => ({ ...prev, size: values.floatValue ?? 0 }))
+          }
+          min={0}
+          placeholder="Enter size"
+          required
+          unit="BASE"
+        />
 
         <div className="grid grid-cols-2 gap-2 ">
           <Button

@@ -83,7 +83,7 @@ export function MintTokens() {
         vaultClient.provider,
         new PublicKey(tokenAddress),
         recipientAta,
-        BigInt(tokenAmount)
+        BigInt(tokenAmount * 10 ** 9)
       );
 
       setMintTx(mintTx);

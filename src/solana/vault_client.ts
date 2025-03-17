@@ -7,7 +7,7 @@ import {
   Commitment,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { getAccount, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { FermiVault, IDL } from './fermi_vault';
 import { sendTransaction } from './utils/rpc';
 
@@ -289,9 +289,8 @@ export class LiquidityVaultClient {
    * @param tokenMint - The token mint address
    * @returns {Promise<any>} - Vault state account data
    */
-  async getVaultState(tokenMint: PublicKey) {
-    const [vaultState] = await this.getVaultStatePDA(tokenMint);
-    return await this.program.account.vaultState.fetch(vaultState);
+  async getVaultState(vaultStatePda: PublicKey) {
+    return await this.program.account.vaultState.fetch(vaultStatePda);
   }
 
   /**
@@ -301,8 +300,13 @@ export class LiquidityVaultClient {
    * @param vault - The vault state account address
    * @returns {Promise<any>} - User state account data
    */
-  async getUserState(userAta: PublicKey, vaultStatePda: PublicKey) {
-    const [userState] = await this.getUserStatePDA(userAta, vaultStatePda);
+  async getUserState(user: PublicKey, vaultStatePda: PublicKey) {
+    const [userState] = await this.getUserStatePDA(user, vaultStatePda);
     return await this.program.account.userState.fetch(userState);
+  }
+
+  async getVaultTokenAccount(vaultStatePda: PublicKey) {
+    const [vaultTokenAccountPda] = await this.getVaultTokenAccountPDA(vaultStatePda);
+    return await getAccount(this.provider.connection, vaultTokenAccountPda);
   }
 }

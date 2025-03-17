@@ -1,147 +1,206 @@
-import { ArrowUpRight, ExternalLink, KeyRound, Lock } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { baseMint, quoteMint } from '@/solana/constants';
+import { SelectContent, SelectItem, SelectTrigger, Select, SelectValue } from '../ui/select';
+import { useVaultClient } from './useVaultProgram';
+import { useCallback, useEffect, useState } from 'react';
+import { PublicKey } from '@solana/web3.js';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { Button } from '../ui/button';
+import { checkOrCreateAssociatedTokenAccount, fetchTokenBalance } from '@/solana/utils/helpers';
+import { BN } from '@coral-xyz/anchor';
+import { NumberInput } from '../ui/number-input';
+import { LockKeyhole, LockKeyholeOpen } from 'lucide-react';
 
-export function VaultFilters() {
+const shortenAddress = (address: string) => {
+  return address.slice(0, 4) + '...' + address.slice(-4);
+};
+
+export default function VaultPage() {
+  const selectedToken = baseMint.toBase58();
+  const selectedTokenName = 'USDC';
+  const vaultClient = useVaultClient();
+  const { publicKey } = useWallet();
+  const [amountDeposited, setAmountDeposited] = useState<number>(0);
+  const [depositAmount, setDepositAmount] = useState<number>(0);
+  const [withdrawAmount, setWithdrawAmount] = useState<number>(0);
+  const [tvl, setTvl] = useState<number>(0);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+
+  const depositTokens = async () => {
+    if (!vaultClient) {
+      throw new Error('VAULT_CLIENT_NOT_FOUND');
+    }
+
+    const amount = new BN(depositAmount).mul(new BN(10 ** 9));
+    const ata = await checkOrCreateAssociatedTokenAccount(
+      vaultClient.provider,
+      new PublicKey(selectedToken),
+      vaultClient.walletPk
+    );
+
+    await vaultClient.deposit(amount, new PublicKey(selectedToken), ata, vaultClient.walletPk);
+
+    setDepositAmount(0);
+    getData();
+  };
+
+  const withdrawTokens = async () => {
+    if (!vaultClient) {
+      throw new Error('VAULT_CLIENT_NOT_FOUND');
+    }
+
+    const amount = new BN(withdrawAmount).mul(new BN(10 ** 9));
+    const ata = await checkOrCreateAssociatedTokenAccount(
+      vaultClient.provider,
+      new PublicKey(selectedToken),
+      vaultClient.walletPk
+    );
+
+    await vaultClient.withdraw(amount, new PublicKey(selectedToken), ata, vaultClient.walletPk);
+
+    setWithdrawAmount(0);
+
+    getData();
+  };
+
+  const getData = useCallback(async () => {
+    try {
+      if (!vaultClient) {
+        return;
+      }
+
+      const tokenMint = new PublicKey(selectedToken);
+      const [vaultStatePda] = await vaultClient.getVaultStatePDA(tokenMint);
+
+      vaultClient.getVaultTokenAccount(vaultStatePda).then(vaultTokenAccount => {
+        console.log('vaultTokenAccount', vaultTokenAccount);
+        const tvl = Number(vaultTokenAccount.amount) / 10 ** 9;
+        setTvl(tvl);
+      });
+
+      await fetchTokenBalance(
+        vaultClient.walletPk,
+        tokenMint,
+        vaultClient.provider.connection
+      ).then(balance => setWalletBalance(new BN(balance).div(new BN(10 ** 9)).toNumber()));
+
+      await vaultClient?.getUserState(vaultClient.walletPk, vaultStatePda).then(userState => {
+        const userDeposit = new BN(userState?.amountDeposited).div(new BN(10 ** 9));
+        setAmountDeposited(userDeposit.toNumber());
+      });
+    } catch (error) {
+      // Most of the times Account does not exist error which is fine
+    }
+  }, [selectedToken, vaultClient]);
+
+  useEffect(() => {
+    getData();
+  }, [getData]);
+
   return (
-    <div className="flex items-center justify-between mt-3">
-      <Input
-        disabled={false}
-        className="max-w-[500px] !bg-white"
-        placeholder="Search vaults by name, address."
-      />
-    </div>
-  );
-}
-
-export function VaultCard({
-  name,
-  tvl,
-  apr,
-  link,
-  address,
-}: {
-  name: string;
-  tvl: number;
-  apr: number;
-  link: string;
-  address: string;
-}) {
-  return (
-    <div className="hover:ring-zinc-400 ring-1 ring-zinc-300 rounded-2xl shadow-lg flex flex-col gap-3  hover:scale-101 transition-all duration-300 bg-white p-4">
-      <div className="flex items-center justify-between border-zinc-300 ">
-        <h1 className="text-lg font-semibold text-zinc-900 ">{name}</h1>
-        <span className="text-xs font-mono bg-lime-300 text-emerald-900 px-2 py-1 ring ring-lime-600 rounded-md font-bold">
-          {apr}% APR
-        </span>
-      </div>
-      <div className="bg-zinc-50 border border-zinc-200 rounded-2xl overflow-hidden">
-        <div className="flex flex-col gap-1 p-3">
-          <div className="flex items-center  justify-between gap-3 ">
-            <span className="text-sm text-zinc-600 whitespace-nowrap">Total Value Locked </span>
-            <span className="h-0.5 rounded-full w-full bg-zinc-300" />
-            <span className="text-zinc-700 font-mono  font-bold">${tvl}</span>
+    <div className="flex flex-col gap-4">
+      <div className="bg-neutral-100 p-3">
+        <div className="container max-w-screen-lg mx-auto py-10 flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-4xl font-semibold">Liquidity Vault</h1>
+            <div>
+              <Select defaultValue={selectedToken}>
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Select token" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={baseMint.toBase58()}>
+                    {shortenAddress(baseMint.toBase58())}
+                  </SelectItem>
+                  <SelectItem value={quoteMint.toBase58()}>
+                    {shortenAddress(quoteMint.toBase58())}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="flex items-center  justify-between gap-3 ">
-            <span className="text-sm text-zinc-600 whitespace-nowrap">Annual Percentage Rate</span>
-            <span className="h-0.5 rounded-full w-full bg-zinc-300" />
-            <span className="text-zinc-700 font-mono  font-bold">${apr}%</span>
-          </div>
+          {publicKey ? (
+            <div className="grid grid-cols-2 max-md:grid-cols-1 divide-x divide-y gap-4 bg-white rounded-lg border">
+              {/* Left Panel */}
+              <div className="flex flex-col justify-between">
+                <div className="flex flex-col p-5">
+                  <span className="text-sm text-neutral-500 font-medium">Vault TVL</span>
+                  <div className="text-3xl tabular-nums font-mono font-semibold">
+                    {tvl}
+                    <span className="text-base pl-1 text-neutral-500 font-medium">
+                      {selectedTokenName}
+                    </span>
+                  </div>
+                </div>
+                <hr />
+                <div className="flex flex-col p-5">
+                  <span className="text-sm text-neutral-500 font-medium">
+                    Your Deposited Amount
+                  </span>
+                  <div className="text-3xl tabular-nums font-mono font-semibold">
+                    {amountDeposited}
+                    <span className="text-base pl-1 text-neutral-500 font-medium">
+                      {selectedTokenName}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-          <div className="flex items-center  justify-between gap-3 ">
-            <span className="text-sm text-zinc-600 whitespace-nowrap">Deposit Token</span>
-            <span className="h-0.5 rounded-full w-full bg-zinc-300" />
-            <span className="text-zinc-700 font-mono  font-bold">USDC</span>
-          </div>
-        </div>
-        <div className="flex flex-col rounded-t-xl  gap-1 bg-zinc-200 p-3 rounded-">
-          <div className="flex font-mono items-center text-xs  justify-between gap-3 ">
-            <span className=" text-zinc-600 whitespace-nowrap font-medium">Vault Address</span>
-            <span className="h-0.5 rounded-full w-full bg-blue-500" />
-            <a
-              href={`https://solscan.io/address/${address}`}
-              className="text-zinc-500  hover:text-blue-500 font-mono font-bold flex items-center gap-1 group"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              0x1234...7890
-              <ArrowUpRight className="w-0 group-hover:w-5 h-5 scale-0 group-hover:scale-100 opacity-0 group-hover:opacity-100 transition-all duration-300" />
-            </a>
-          </div>
-
-          <div className="flex font-mono  items-center text-xs  justify-between gap-3 ">
-            <span className="text-zinc-600 font-medium whitespace-nowrap">Website</span>
-            <span className="h-0.5 rounded-full w-full bg-blue-500" />
-            <a
-              href={link}
-              className="text-zinc-500  hover:text-blue-500 font-mono font-bold flex items-center gap-1 group"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {link}
-              <ArrowUpRight className="w-0 group-hover:w-5 h-5 scale-0 group-hover:scale-100 opacity-0 group-hover:opacity-100 transition-all duration-300" />
-            </a>
-          </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <button className="bg-lime-400 text-lime-900 hover:brightness-110 duration-100 cursor-pointer font-semibold  px-4 py-2 rounded-xl flex items-center justify-center gap-2">
-          <Lock className="w-4 h-4" />
-          Deposit
-        </button>
-        <button className="bg-zinc-900 hover:bg-zinc-800 duration-100 cursor-pointer font-semibold text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2">
-          <KeyRound className="w-4 h-4" />
-          Withdraw
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function VaultPage() {
-  return (
-    <div className="flex-1 bg-zinc-100">
-      <div className="flex flex-col p-6 container mx-auto">
-        <div className="mt-6">
-          <h1 className="text-4xl font-bold font-mono ">$1239510.00</h1>
-          <div className="text-lg text-zinc-500 font-medium flex items-center gap-1">
-            Locked Capital.{' '}
-            <a className="text-blue-500 flex items-center gap-1">
-              Learn More
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          </div>
-        </div>
-        <VaultFilters />
-        <div className="grid grid-cols-3 gap-3 mt-6">
-          <VaultCard
-            name="Marginfyi"
-            link="https://marginfyi.com"
-            tvl={35134}
-            apr={7.6}
-            address="0x1234...7890"
-          />
-          <VaultCard
-            name="Kamino Finance"
-            link="https://kamino.finance"
-            tvl={13414}
-            apr={2.1}
-            address="0x1234...7890"
-          />
-          <VaultCard
-            address="0x1234...7890"
-            name="Drift Protocol"
-            link="https://driftprotocol.com"
-            tvl={13436453}
-            apr={10.6}
-          />
-          <VaultCard
-            name="Orca-Lp"
-            link="https://orca.so"
-            tvl={1000000}
-            apr={256.3}
-            address="0x1234...7890"
-          />
+              {/* Right Panel */}
+              <div className="flex flex-col p-5">
+                <div className="flex italic items-center gap-2.5 mb-2.5">
+                  <span className="font-medium">Wallet Balance</span>
+                  <hr className="flex-1" />
+                  <span className="tabular-nums font-mono font-semibold">
+                    {`${walletBalance} ${selectedTokenName}`}
+                  </span>
+                </div>
+                <div className="flex items-end gap-2.5">
+                  <NumberInput
+                    className="flex-1"
+                    id="depositAmount"
+                    name="depositAmount"
+                    label="Deposit Amount"
+                    unit={selectedTokenName}
+                    value={depositAmount.toString()}
+                    onValueChange={values => setDepositAmount(values.floatValue ?? 0)}
+                  />
+                  <Button
+                    className="w-36"
+                    onClick={depositTokens}
+                    disabled={depositAmount === 0 || depositAmount > walletBalance}
+                  >
+                    Deposit
+                    <LockKeyhole className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex items-end gap-2.5">
+                  <NumberInput
+                    className="flex-1"
+                    id="withdrawAmount"
+                    name="withdrawAmount"
+                    label="Withdraw Amount"
+                    unit={selectedTokenName}
+                    value={withdrawAmount.toString()}
+                    onValueChange={values => setWithdrawAmount(values.floatValue ?? 0)}
+                  />
+                  <Button
+                    className="w-36"
+                    onClick={withdrawTokens}
+                    disabled={withdrawAmount === 0 || withdrawAmount > amountDeposited}
+                  >
+                    Withdraw
+                    <LockKeyholeOpen className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex p-4 bg-white rounded-lg border">
+              <p>Wallet not connected</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
