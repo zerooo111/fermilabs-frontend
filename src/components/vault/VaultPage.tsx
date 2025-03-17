@@ -3,7 +3,6 @@ import { SelectContent, SelectItem, SelectTrigger, Select, SelectValue } from '.
 import { useVaultClient } from './useVaultProgram';
 import { useCallback, useEffect, useState } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Button } from '../ui/button';
 import { checkOrCreateAssociatedTokenAccount, fetchTokenBalance } from '@/solana/utils/helpers';
@@ -11,13 +10,21 @@ import { BN } from '@coral-xyz/anchor';
 import { NumberInput } from '../ui/number-input';
 import { LockKeyhole, LockKeyholeOpen } from 'lucide-react';
 
-const shortenAddress = (address: string) => {
-  return address.slice(0, 4) + '...' + address.slice(-4);
-};
+const tokens = [
+  {
+    publicKey: baseMint,
+    name: 'USDC',
+  },
+  {
+    publicKey: quoteMint,
+    name: 'SOL',
+  },
+];
 
 export default function VaultPage() {
-  const selectedToken = baseMint.toBase58();
-  const selectedTokenName = 'USDC';
+  const [selectedToken, setSelectedToken] = useState<{ publicKey: PublicKey; name: string }>(
+    tokens[0]
+  );
   const vaultClient = useVaultClient();
   const { publicKey } = useWallet();
   const [amountDeposited, setAmountDeposited] = useState<number>(0);
@@ -34,11 +41,16 @@ export default function VaultPage() {
     const amount = new BN(depositAmount).mul(new BN(10 ** 9));
     const ata = await checkOrCreateAssociatedTokenAccount(
       vaultClient.provider,
-      new PublicKey(selectedToken),
+      new PublicKey(selectedToken.publicKey),
       vaultClient.walletPk
     );
 
-    await vaultClient.deposit(amount, new PublicKey(selectedToken), ata, vaultClient.walletPk);
+    await vaultClient.deposit(
+      amount,
+      new PublicKey(selectedToken.publicKey),
+      ata,
+      vaultClient.walletPk
+    );
 
     setDepositAmount(0);
     getData();
@@ -52,11 +64,16 @@ export default function VaultPage() {
     const amount = new BN(withdrawAmount).mul(new BN(10 ** 9));
     const ata = await checkOrCreateAssociatedTokenAccount(
       vaultClient.provider,
-      new PublicKey(selectedToken),
+      new PublicKey(selectedToken.publicKey),
       vaultClient.walletPk
     );
 
-    await vaultClient.withdraw(amount, new PublicKey(selectedToken), ata, vaultClient.walletPk);
+    await vaultClient.withdraw(
+      amount,
+      new PublicKey(selectedToken.publicKey),
+      ata,
+      vaultClient.walletPk
+    );
 
     setWithdrawAmount(0);
 
@@ -69,11 +86,16 @@ export default function VaultPage() {
         return;
       }
 
-      const tokenMint = new PublicKey(selectedToken);
+      setDepositAmount(0);
+      setWithdrawAmount(0);
+      setTvl(0);
+      setWalletBalance(0);
+      setAmountDeposited(0);
+
+      const tokenMint = new PublicKey(selectedToken.publicKey);
       const [vaultStatePda] = await vaultClient.getVaultStatePDA(tokenMint);
 
       vaultClient.getVaultTokenAccount(vaultStatePda).then(vaultTokenAccount => {
-        console.log('vaultTokenAccount', vaultTokenAccount);
         const tvl = Number(vaultTokenAccount.amount) / 10 ** 9;
         setTvl(tvl);
       });
@@ -89,7 +111,7 @@ export default function VaultPage() {
         setAmountDeposited(userDeposit.toNumber());
       });
     } catch (error) {
-      // Most of the times Account does not exist error which is fine
+      console.error(error);
     }
   }, [selectedToken, vaultClient]);
 
@@ -102,19 +124,25 @@ export default function VaultPage() {
       <div className="bg-neutral-100 p-3">
         <div className="container max-w-screen-lg mx-auto py-10 flex flex-col gap-4">
           <div className="flex justify-between items-center">
-            <h1 className="text-4xl font-semibold">Liquidity Vault</h1>
+            <h1 className="text-4xl font-semibold">{selectedToken.name} Vault</h1>
             <div>
-              <Select defaultValue={selectedToken}>
+              <Select
+                defaultValue={selectedToken.publicKey.toBase58()}
+                onValueChange={value => {
+                  setSelectedToken(
+                    tokens.find(token => token.publicKey.toBase58() === value) ?? tokens[0]
+                  );
+                }}
+              >
                 <SelectTrigger className="bg-white">
                   <SelectValue placeholder="Select token" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={baseMint.toBase58()}>
-                    {shortenAddress(baseMint.toBase58())}
-                  </SelectItem>
-                  <SelectItem value={quoteMint.toBase58()}>
-                    {shortenAddress(quoteMint.toBase58())}
-                  </SelectItem>
+                  {tokens.map(token => (
+                    <SelectItem key={token.publicKey.toBase58()} value={token.publicKey.toBase58()}>
+                      {token.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -129,7 +157,7 @@ export default function VaultPage() {
                   <div className="text-3xl tabular-nums font-mono font-semibold">
                     {tvl}
                     <span className="text-base pl-1 text-neutral-500 font-medium">
-                      {selectedTokenName}
+                      {selectedToken?.name}
                     </span>
                   </div>
                 </div>
@@ -141,7 +169,7 @@ export default function VaultPage() {
                   <div className="text-3xl tabular-nums font-mono font-semibold">
                     {amountDeposited}
                     <span className="text-base pl-1 text-neutral-500 font-medium">
-                      {selectedTokenName}
+                      {selectedToken?.name}
                     </span>
                   </div>
                 </div>
@@ -153,7 +181,7 @@ export default function VaultPage() {
                   <span className="font-medium">Wallet Balance</span>
                   <hr className="flex-1" />
                   <span className="tabular-nums font-mono font-semibold">
-                    {`${walletBalance} ${selectedTokenName}`}
+                    {`${walletBalance} ${selectedToken?.name}`}
                   </span>
                 </div>
                 <div className="flex items-end gap-2.5">
@@ -162,7 +190,7 @@ export default function VaultPage() {
                     id="depositAmount"
                     name="depositAmount"
                     label="Deposit Amount"
-                    unit={selectedTokenName}
+                    unit={selectedToken?.name}
                     value={depositAmount.toString()}
                     onValueChange={values => setDepositAmount(values.floatValue ?? 0)}
                   />
@@ -181,7 +209,7 @@ export default function VaultPage() {
                     id="withdrawAmount"
                     name="withdrawAmount"
                     label="Withdraw Amount"
-                    unit={selectedTokenName}
+                    unit={selectedToken?.name}
                     value={withdrawAmount.toString()}
                     onValueChange={values => setWithdrawAmount(values.floatValue ?? 0)}
                   />
