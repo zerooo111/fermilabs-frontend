@@ -17,9 +17,32 @@ export default function Orderbook() {
         lastUpdated: new Date(),
       };
 
-    // First sort the buys and sells by price
-    const sortedBuys = orderbook.buys.sort((a: Order, b: Order) => a.price - b.price);
-    const sortedSells = orderbook.sells.sort((a: Order, b: Order) => a.price - b.price);
+    // Aggregate buys by price
+    const aggregatedBuys = orderbook.buys.reduce(
+      (acc, order) => {
+        acc[order.price] = (acc[order.price] || 0) + order.quantity;
+        return acc;
+      },
+      {} as Record<number, number>
+    );
+
+    // Aggregate sells by price
+    const aggregatedSells = orderbook.sells.reduce(
+      (acc, order) => {
+        acc[order.price] = (acc[order.price] || 0) + order.quantity;
+        return acc;
+      },
+      {} as Record<number, number>
+    );
+
+    // Convert aggregated data back to arrays
+    const sortedBuys = Object.entries(aggregatedBuys)
+      .map(([price, quantity]) => ({ price: Number(price), quantity }))
+      .sort((a, b) => b.price - a.price); // Sort buys in descending order
+
+    const sortedSells = Object.entries(aggregatedSells)
+      .map(([price, quantity]) => ({ price: Number(price), quantity }))
+      .sort((a, b) => a.price - b.price); // Sort sells in ascending order
 
     const buys = [
       ...sortedBuys.slice(0, orderbookRows),
@@ -31,6 +54,7 @@ export default function Orderbook() {
     ];
 
     const spread = Math.abs((buys[0]?.price || 0) - (sells[0]?.price || 0));
+    console.log(buys, sells);
     return {
       buys,
       sells,
@@ -50,7 +74,7 @@ export default function Orderbook() {
         <span className="text-right">Total</span>
       </div>
       <div className="flex flex-col justify-between  flex-1/3">
-        <div className="flex flex-col-reverse">
+        <div className="flex flex-col">
           {/* Buy orders */}
           {processedOrderbook?.buys.map((order, index) =>
             order ? (
@@ -61,7 +85,7 @@ export default function Orderbook() {
                 side="Buy"
               />
             ) : (
-              <span key={`buy-order-placeholder-${index}`} className="h-6" />
+              <div key={`buy-order-placeholder-${index}`} className="h-6" />
             )
           )}
         </div>
