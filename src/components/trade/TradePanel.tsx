@@ -8,8 +8,7 @@ import { ExternalLinkIcon } from 'lucide-react';
 import { submitOrderToSequencer } from '@/lib/sequencer';
 import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { quoteMint } from '@/solana/constants';
-import { baseMint } from '@/solana/constants';
+import { baseMint, quoteMint } from '@/solana/constants';
 import { NumberInput } from '../ui/number-input';
 
 export default function TradePanel() {

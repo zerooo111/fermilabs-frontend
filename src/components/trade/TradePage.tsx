@@ -20,7 +20,7 @@ export default function TradePage() {
       });
       return orderbook;
     },
-    refetchInterval: 1000,
+    refetchInterval: 100000000,
   });
 
   return (
