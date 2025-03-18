@@ -65,8 +65,8 @@ export default function TradePanel() {
         orderId,
         publicKey,
         'Sell',
-        new BN(formState.price),
-        new BN(formState.size),
+        new BN(formState.price).mul(new BN(10 ** 9)),
+        new BN(formState.size).mul(new BN(10 ** 9)),
         new BN(Date.now() + 60 * 60 * 1000),
         baseMint,
         quoteMint
@@ -90,8 +90,8 @@ export default function TradePanel() {
         orderId,
         publicKey,
         'Buy',
-        new BN(formState.price),
-        new BN(formState.size),
+        new BN(formState.price).mul(new BN(10 ** 9)),
+        new BN(formState.size).mul(new BN(10 ** 9)),
         new BN(Date.now() + 60 * 60 * 1000),
         baseMint,
         quoteMint

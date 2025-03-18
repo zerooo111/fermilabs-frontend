@@ -97,8 +97,12 @@ export default function MyOrders() {
                 <TableCell>
                   <Badge variant={order.side === 'Buy' ? 'success' : 'danger'}>{order.side}</Badge>
                 </TableCell>
-                <TableCell className="font-mono">{order.price.toPrecision(4)}</TableCell>
-                <TableCell className="font-mono">{order.quantity.toPrecision(4)}</TableCell>
+                <TableCell className="font-mono">
+                  {Number(order.price / 10 ** 9).toPrecision(4)}
+                </TableCell>
+                <TableCell className="font-mono">
+                  {Number(order.quantity / 10 ** 9).toPrecision(4)}
+                </TableCell>
                 <TableCell className="font-mono">
                   {new Date(order.expiry).toLocaleString()}
                 </TableCell>

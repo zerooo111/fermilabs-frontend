@@ -54,7 +54,7 @@ export default function Orderbook() {
     ];
 
     const spread = Math.abs((buys[0]?.price || 0) - (sells[0]?.price || 0));
-    console.log(buys, sells);
+
     return {
       buys,
       sells,
@@ -74,25 +74,27 @@ export default function Orderbook() {
         <span className="text-right">Total</span>
       </div>
       <div className="flex flex-col justify-between  flex-1/3">
-        <div className="flex flex-col">
+        <div className="flex flex-col justify-end">
           {/* Buy orders */}
-          {processedOrderbook?.buys.map((order, index) =>
-            order ? (
-              <OrderbookRow
-                key={`buy-order-${order.order_id}`}
-                price={order.price}
-                size={order.quantity}
-                side="Buy"
-              />
-            ) : (
-              <div key={`buy-order-placeholder-${index}`} className="h-6" />
-            )
-          )}
+          {processedOrderbook?.buys
+            .reverse()
+            .map((order, index) =>
+              order ? (
+                <OrderbookRow
+                  key={`buy-order-${order.order_id}`}
+                  price={order.price / 10 ** 9}
+                  size={order.quantity / 10 ** 9}
+                  side="Buy"
+                />
+              ) : (
+                <div key={`buy-order-placeholder-${index}`} className="h-6" />
+              )
+            )}
         </div>
         <div className="flex text-sm bg-neutral-100 px-3 py-1.5 justify-between">
           <span>Spread</span>
           <span className="tabular-nums font-mono font-medium">
-            {processedOrderbook?.spread.toFixed(4)}
+            {Number(processedOrderbook?.spread / 10 ** 9).toFixed(4)}
           </span>
         </div>
         <div className="flex flex-col">
@@ -101,8 +103,8 @@ export default function Orderbook() {
             order ? (
               <OrderbookRow
                 key={`sell-order-${order.order_id}`}
-                price={order?.price}
-                size={order?.quantity}
+                price={order?.price / 10 ** 9}
+                size={order?.quantity / 10 ** 9}
                 side="Sell"
               />
             ) : (
