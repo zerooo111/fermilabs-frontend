@@ -17,32 +17,28 @@ export default function Orderbook() {
         lastUpdated: new Date(),
       };
 
-    // Aggregate buys by price
-    const aggregatedBuys = orderbook.buys.reduce(
-      (acc, order) => {
-        acc[order.price] = (acc[order.price] || 0) + order.quantity;
-        return acc;
-      },
-      {} as Record<number, number>
-    );
+    // // Aggregate buys by price
+    // const aggregatedBuys = orderbook.buys.reduce(
+    //   (acc, order) => {
+    //     acc[order.price] = (acc[order.price] || 0) + order.quantity;
+    //     return acc;
+    //   },
+    //   {} as Record<number, number>
+    // );
 
-    // Aggregate sells by price
-    const aggregatedSells = orderbook.sells.reduce(
-      (acc, order) => {
-        acc[order.price] = (acc[order.price] || 0) + order.quantity;
-        return acc;
-      },
-      {} as Record<number, number>
-    );
+    // // Aggregate sells by price
+    // const aggregatedSells = orderbook.sells.reduce(
+    //   (acc, order) => {
+    //     acc[order.price] = (acc[order.price] || 0) + order.quantity;
+    //     return acc;
+    //   },
+    //   {} as Record<number, number>
+    // );
 
     // Convert aggregated data back to arrays
-    const sortedBuys = Object.entries(aggregatedBuys)
-      .map(([price, quantity]) => ({ price: Number(price), quantity }))
-      .sort((a, b) => b.price - a.price); // Sort buys in descending order
+    const sortedBuys = orderbook.buys.sort((a, b) => b.price - a.price); // Sort buys in descending order
 
-    const sortedSells = Object.entries(aggregatedSells)
-      .map(([price, quantity]) => ({ price: Number(price), quantity }))
-      .sort((a, b) => a.price - b.price); // Sort sells in ascending order
+    const sortedSells = orderbook.sells.sort((a, b) => a.price - b.price); // Sort sells in ascending order
 
     const buys = [
       ...sortedBuys.slice(0, orderbookRows),
