@@ -1,54 +1,40 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import CandlestickChart from './CandlestickChart';
-import { fetchCandles, getTimeRangeForInterval, OHLCVData, TimeInterval } from '@/lib/chart';
+import { fetchCandles, getTimeRangeForInterval, TimeInterval } from '@/lib/chart';
 import { baseMint, quoteMint } from '@/solana/constants';
 import { BN } from '@coral-xyz/anchor';
 
 export default function ChartContainer() {
-  const [data, setData] = useState<OHLCVData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [timeInterval] = useState<TimeInterval>('1h');
+  const [timeInterval] = useState<TimeInterval>('1m');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { startTime, endTime } = getTimeRangeForInterval(timeInterval);
-        const candleData = await fetchCandles({
-          interval: timeInterval,
-          startTime,
-          endTime,
-          baseMint: baseMint.toBase58(),
-          quoteMint: quoteMint.toBase58(),
-        });
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['candlesticks', timeInterval, baseMint.toBase58(), quoteMint.toBase58()],
+    queryFn: async () => {
+      const { startTime, endTime } = getTimeRangeForInterval(timeInterval);
+      const candleData = await fetchCandles({
+        interval: timeInterval,
+        startTime,
+        endTime,
+        baseMint: baseMint.toBase58(),
+        quoteMint: quoteMint.toBase58(),
+      });
 
-
-        setData(candleData.map((item)=>({
-          ...item,
-          open: new BN(item.open).div(new BN(10**9)).toNumber(),
-          high: new BN(item.high).div(new BN(10**9)).toNumber(),
-          low: new BN(item.low).div(new BN(10**9)).toNumber(),
-          close: new BN(item.close).div(new BN(10**9)).toNumber(),
-        })));
-      } catch (err) {
-        console.error('Error fetching candle data:', err);
-        setError('Failed to fetch chart data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [timeInterval]);
-
-  useEffect(() => {
-    console.log(data);
-  }, [data]);
+      return candleData.map(item => ({
+        ...item,
+        open: new BN(item.open).div(new BN(10 ** 9)).toNumber(),
+        high: new BN(item.high).div(new BN(10 ** 9)).toNumber(),
+        low: new BN(item.low).div(new BN(10 ** 9)).toNumber(),
+        close: new BN(item.close).div(new BN(10 ** 9)).toNumber(),
+      }));
+    },
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
 
   if (error) {
     return (
       <div className="w-full h-full flex items-center justify-center">
-        <span className="text-red-500">{error}</span>
+        <span className="text-red-500">Failed to fetch chart data</span>
       </div>
     );
   }
@@ -63,7 +49,7 @@ export default function ChartContainer() {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <CandlestickChart className="flex-1" data={data} />
+      <CandlestickChart className="flex-1" data={data || []} />
     </div>
   );
 }
