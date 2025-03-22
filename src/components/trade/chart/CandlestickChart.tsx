@@ -172,7 +172,6 @@ export default function CandlestickChart({
 
     candlestickSeries.setData(transformedData);
     chart.timeScale().fitContent();
-
     return () => {
       chart.remove();
       chartRef.current = null;

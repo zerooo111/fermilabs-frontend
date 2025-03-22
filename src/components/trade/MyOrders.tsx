@@ -1,7 +1,7 @@
 import orderbookAtom from '@/atoms/orderbook';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -21,14 +21,17 @@ import { toast } from 'sonner';
 export default function MyOrders() {
   const orderbook = useAtomValue(orderbookAtom);
   const { publicKey, signMessage } = useWallet();
+  const [cancellingOrders, setCancellingOrders] = useState<Set<number>>(new Set());
 
   const myOrders = useMemo(() => {
     if (!orderbook || !publicKey) return [];
     // Concatenate buys and sells
     const allOrders = [...orderbook.buys, ...orderbook.sells];
 
-    return allOrders.filter(order => order.owner === publicKey?.toBase58());
-  }, [orderbook, publicKey]);
+    return allOrders
+      .filter(order => order.owner === publicKey?.toBase58())
+      .filter(order => !cancellingOrders.has(order.order_id));
+  }, [orderbook, publicKey, cancellingOrders]);
 
   if (!publicKey) {
     return (
@@ -51,6 +54,9 @@ export default function MyOrders() {
     try {
       if (!signMessage) return;
 
+      // Optimistically update UI
+      setCancellingOrders(prev => new Set(prev).add(orderId));
+
       const message = `FRM_DEX_CANCEL:${new BN(orderId).toString()},${publicKey.toBase58()}`;
       const sha256Hash = createHash('sha256').update(Buffer.from(message)).digest();
       // Hex encode the hash
@@ -71,6 +77,12 @@ export default function MyOrders() {
       toast.success('Order cancelled');
     } catch (error) {
       console.error(error);
+      // Rollback optimistic update
+      setCancellingOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+      });
       toast.error('Failed to cancel order');
     }
   };
@@ -108,8 +120,13 @@ export default function MyOrders() {
                 </TableCell>
                 <TableCell className="text-right font-mono">
                   <div className="flex gap-1.5 justify-end">
-                    <Button onClick={() => cancelOrder(order.order_id)} variant="outline" size="sm">
-                      Cancel
+                    <Button
+                      onClick={() => cancelOrder(order.order_id)}
+                      variant="outline"
+                      size="sm"
+                      disabled={cancellingOrders.has(order.order_id)}
+                    >
+                      {cancellingOrders.has(order.order_id) ? 'Cancelling...' : 'Cancel'}
                     </Button>
                   </div>
                 </TableCell>

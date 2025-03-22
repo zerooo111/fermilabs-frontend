@@ -36,16 +36,36 @@ export default function ChartContainer() {
         quoteMint: quoteMint.toBase58(),
       });
 
-      return candleData.map(item => ({
-        ...item,
-        time: item.time,
-        open: new BN(item.open).div(new BN(10 ** 9)).toNumber(),
-        high: new BN(item.high).div(new BN(10 ** 9)).toNumber(),
-        low: new BN(item.low).div(new BN(10 ** 9)).toNumber(),
-        close: new BN(item.close).div(new BN(10 ** 9)).toNumber(),
-      }));
+      return candleData.map(item => {
+        const time = item.time;
+
+        if (
+          item.high === 0 &&
+          item.low === 0 &&
+          item.close === 0 &&
+          item.volume === 0 &&
+          item.open === 0
+        ) {
+          return { time };
+        }
+
+        const open = new BN(item.open).div(new BN(10 ** 9)).toNumber();
+        const high = new BN(item.high).div(new BN(10 ** 9)).toNumber();
+        const low = new BN(item.low).div(new BN(10 ** 9)).toNumber();
+        const close = new BN(item.close).div(new BN(10 ** 9)).toNumber();
+        const volume = new BN(item.volume).div(new BN(10 ** 9)).toNumber();
+
+        return {
+          time,
+          open,
+          high,
+          low,
+          close,
+          volume,
+        };
+      });
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 500, // Refetch every 30 seconds
   });
 
   if (error) {
@@ -70,7 +90,7 @@ export default function ChartContainer() {
                     : 'text-[#ef4444]'
                 }
               >
-                ${data[data.length - 1].close.toFixed(2)}
+                ${data?.[data.length - 1]?.close?.toFixed(2)}
               </span>
             </div>
           )}

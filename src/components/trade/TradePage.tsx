@@ -36,7 +36,7 @@ export default function TradePage() {
       });
       return orderbook;
     },
-    refetchInterval: 500000000,
+    refetchInterval: 500,
   });
 
   return (
