@@ -42,13 +42,15 @@ export default function TradePage() {
   return (
     <div className="flex flex-col gap-1.5 px-3 min-h-[calc(100vh-60px)]">
       <div className="flex gap-1.5 rounded-lg">
-        <div className="flex-1 border border-border rounded-lg">
+        <div className="flex-1 border border-border rounded-lg overflow-hidden">
           <ChartContainer />
         </div>
         <Orderbook />
         <TradePanel />
       </div>
-      <div className="flex-1 border border-border rounded-lg p-3">{/* <MyOrders /> */}</div>
+      <div className="flex-1 border border-border rounded-lg p-3">
+        <MyOrders />
+      </div>
     </div>
   );
 }
