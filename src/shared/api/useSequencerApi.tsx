@@ -5,8 +5,8 @@
  */
 import { useCallback } from 'react';
 import axios, { AxiosResponse } from 'axios';
-import { useSelectedServer } from '../../entities/server';
-import { tryCatch } from '../lib/try-catch';
+import { useSelectedServer } from '@/entities/server';
+import { tryCatch } from '@/shared/lib/try-catch';
 import { Market, Orderbook, Order } from './sequencer';
 
 export function useSequencerApi() {

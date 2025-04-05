@@ -3,7 +3,7 @@
  * Defines lazy-loaded route components for code splitting
  */
 import { lazy, Suspense } from 'react';
-import { ErrorBoundary } from '../../shared/ui/ErrorBoundary';
+import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
 // Loading component for Suspense fallback
 const LoadingPage = () => (
@@ -13,9 +13,9 @@ const LoadingPage = () => (
 );
 
 // Lazy-loaded page components
-export const TradePage = lazy(() => import('../../pages/trade'));
-export const VaultPage = lazy(() => import('../../pages/vault'));
-export const VaultAdminPage = lazy(() => import('../../pages/vault-admin'));
+export const TradePage = lazy(() => import('@/pages/trade'));
+export const VaultPage = lazy(() => import('@/pages/vault'));
+export const VaultAdminPage = lazy(() => import('@/pages/vault-admin'));
 
 // Wrapper components with Suspense and ErrorBoundary
 export const LazyTradePage = () => (

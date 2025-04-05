@@ -15,7 +15,7 @@ import {
   BusinessDay,
 } from 'lightweight-charts';
 import { useEffect, useRef, memo, useMemo } from 'react';
-import { OHLCVData, TimeInterval } from '../lib/chart';
+import { OHLCVData, TimeInterval } from '@/features/chart/lib/chart';
 
 interface ChartComponentProps {
   data: OHLCVData[];

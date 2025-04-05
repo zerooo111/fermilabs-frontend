@@ -4,19 +4,13 @@
  */
 import { useState, useCallback, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CandlestickChart } from './CandlestickChart';
-import { fetchCandles, getTimeRangeForInterval, TimeInterval } from '../lib/chart';
-import { baseMint, quoteMint } from '../../../shared/config/constants';
+import { CandlestickChart } from '@/features/chart/ui/CandlestickChart';
+import { fetchCandles, getTimeRangeForInterval, TimeInterval } from '@/features/chart/lib/chart';
+import { baseMint, quoteMint } from '@/shared/config/constants';
 import { BN } from '@coral-xyz/anchor';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../shared/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { useAtomValue } from 'jotai';
-import { selectedMarketAtom } from '../../../entities/market';
+import { selectedMarketAtom } from '@/entities/market';
 
 const INTERVALS: { label: string; value: TimeInterval }[] = [
   { label: '1M', value: '1m' },

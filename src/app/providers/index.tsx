@@ -2,7 +2,7 @@
  * AppProviders.tsx
  * Combines all application providers in one component
  */
-import { WalletContextProvider } from '../../entities/wallet';
+import { WalletContextProvider } from '@/entities/wallet';
 import { QueryProvider } from './QueryProvider';
 import { ToastProvider } from './ToastProvider';
 

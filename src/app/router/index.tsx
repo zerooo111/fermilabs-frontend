@@ -3,7 +3,7 @@
  * Main application router configuration with code splitting
  */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Layout } from '../../shared/ui/layout/Layout';
+import { Layout } from '@/shared/ui/layout/Layout';
 import { LazyTradePage, LazyVaultPage, LazyVaultAdminPage } from './LazyRoutes';
 
 export const AppRouter = () => {
