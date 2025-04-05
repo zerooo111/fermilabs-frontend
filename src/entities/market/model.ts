@@ -3,8 +3,10 @@
  * Defines market-related state and operations
  */
 import { atom, useAtom } from 'jotai';
-import { useSequencerApi } from '../../shared/api/useSequencerApi';
-import { useCallback } from 'react';
+import { useSequencerApi } from '@/shared/api/useSequencerApi';
+import { useCallback, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSelectedServer } from '@/entities/server';
 
 // Market types
 export interface Market {
@@ -27,17 +29,47 @@ export const selectedMarketAtom = atom<Market | null>(null);
 export const useMarkets = () => {
   const [markets, setMarkets] = useAtom(marketsAtom);
   const { getMarkets } = useSequencerApi();
+  const { selectedServer } = useSelectedServer();
+  const queryClient = useQueryClient();
 
+  // Create a wrapper function that matches the expected return type
+  const fetchMarketsWrapper = useCallback(async () => {
+    const marketsData = await getMarkets();
+    return marketsData;
+  }, [getMarkets]);
+
+  // Use React Query to fetch and cache markets data
+  const { data, isLoading, error } = useQuery<Market[]>({
+    queryKey: ['markets', selectedServer.url],
+    queryFn: fetchMarketsWrapper,
+    staleTime: Infinity, // Don't mark as stale automatically
+  });
+
+  // Update Jotai state when data changes
+  useEffect(() => {
+    if (data) {
+      setMarkets(data);
+    }
+  }, [data, setMarkets]);
+
+  // Manual fetch function that can be called when needed
   const fetchMarkets = useCallback(async () => {
-    const fetchedMarkets = await getMarkets();
-    setMarkets(fetchedMarkets);
-    return fetchedMarkets;
-  }, [getMarkets, setMarkets]);
+    const result = await queryClient.fetchQuery<Market[]>({
+      queryKey: ['markets', selectedServer.url],
+      queryFn: fetchMarketsWrapper,
+    });
+    if (result) {
+      setMarkets(result);
+    }
+    return result;
+  }, [fetchMarketsWrapper, queryClient, selectedServer.url, setMarkets]);
 
   return {
     markets,
     setMarkets,
     fetchMarkets,
+    isLoading,
+    error,
   };
 };
 

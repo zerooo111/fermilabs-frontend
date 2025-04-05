@@ -19,7 +19,7 @@ import { useMarkets, useSelectedMarket } from '../../entities/market';
 function TradePage() {
   const navigate = useNavigate();
   const params = useParams();
-  const { setMarkets, fetchMarkets } = useMarkets();
+  const { markets } = useMarkets();
   const { selectedMarket, setSelectedMarket } = useSelectedMarket();
   const [, setOrderbook] = useAtom(orderbookAtom);
   const lastUpdateTimeRef = useRef<number>(0);
@@ -28,30 +28,34 @@ function TradePage() {
   useEffect(() => {
     const loadMarketsAndSetSelected = async () => {
       try {
-        const fetchedMarkets = await fetchMarkets();
+        // Markets are already loaded via React Query in the useMarkets hook
+        // We just need to handle the market selection based on URL
 
         // If we have a market ID in the URL
         if (params.id) {
           const marketId = params.id;
-          const market = fetchedMarkets.find((m: any) => m.uuid === marketId);
+          const market = markets.find(m => m.uuid === marketId);
 
           if (market) {
             setSelectedMarket(market);
+          } else if (markets.length > 0) {
+            // Invalid market ID but we have markets, redirect to first market
+            navigate(`/trade/${markets[0].uuid}`);
           } else {
-            // Invalid market ID, redirect to /trade
+            // Invalid market ID and no markets yet, redirect to /trade
             navigate('/trade');
           }
-        } else if (fetchedMarkets.length > 0 && !selectedMarket) {
+        } else if (markets.length > 0 && !selectedMarket) {
           // No market ID in URL, select first market as default
-          setSelectedMarket(fetchedMarkets[0]);
+          setSelectedMarket(markets[0]);
         }
       } catch (error) {
-        console.error('Error loading markets:', error);
+        console.error('Error handling market selection:', error);
       }
     };
 
     loadMarketsAndSetSelected();
-  }, [params.id, fetchMarkets, setMarkets, setSelectedMarket, navigate, selectedMarket]);
+  }, [params.id, markets, setSelectedMarket, navigate, selectedMarket]);
 
   // Update URL when market is selected
   useEffect(() => {
@@ -82,17 +86,18 @@ function TradePage() {
       }
 
       try {
-        const response = await fetchOrderbook(selectedMarket.uuid);
-        const orderbook = response.data.data;
+        // fetchOrderbook returns the orderbook data directly
+        const orderbookData = await fetchOrderbook(selectedMarket.uuid);
 
         // Check if this response is still relevant
         if (fetchStartTime > lastUpdateTimeRef.current) {
           lastUpdateTimeRef.current = fetchStartTime;
 
-          const filteredBuys = orderbook.buys.filter(
+          // Filter the orderbook data by market ID
+          const filteredBuys = orderbookData.buys.filter(
             (it: any) => it.market_id === selectedMarket.uuid
           );
-          const filteredSells = orderbook.sells.filter(
+          const filteredSells = orderbookData.sells.filter(
             (it: any) => it.market_id === selectedMarket.uuid
           );
 
@@ -107,7 +112,7 @@ function TradePage() {
             lastUpdated: new Date(),
           });
         }
-        return orderbook;
+        return orderbookData;
       } catch (error) {
         if (signal?.aborted) {
           return null;

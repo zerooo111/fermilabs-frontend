@@ -3,16 +3,11 @@
  */
 import { PublicKey } from '@solana/web3.js';
 
-export const RPC_URL = {
-  devnet: 'https://api.devnet.solana.com',
-};
-
 // config -> network ( devnet / mainnet ) -> programId / rpcUrl , commitment , etc...
 export const config = {
   devnet: {
     sequencerApiUrl: 'http://54.196.30.137:8082',
-    graphApiUrl: 'http://18.132.52.205',
-    programId: '3LaFxgsYSc27YuEhY7CwkfGyvpcAinmiHcAA5qE399ob',
+    graphApiUrl: 'https://18.132.52.205',
     rpcUrl: 'https://api.devnet.solana.com',
     commitment: 'confirmed',
     wsUrl: 'wss://api.devnet.solana.com',
