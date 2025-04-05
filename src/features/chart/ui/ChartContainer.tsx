@@ -1,7 +1,8 @@
 /**
  * Chart container component
+ * Optimized with memoization for better performance
  */
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CandlestickChart } from './CandlestickChart';
 import { fetchCandles, getTimeRangeForInterval, TimeInterval } from '../lib/chart';
@@ -26,9 +27,14 @@ const INTERVALS: { label: string; value: TimeInterval }[] = [
   { label: '1D', value: '1d' },
 ];
 
-export function ChartContainer() {
+function ChartContainerComponent() {
   const selectedMarket = useAtomValue(selectedMarketAtom);
   const [timeInterval, setTimeInterval] = useState<TimeInterval>('1d');
+
+  // Memoize the interval change handler
+  const handleIntervalChange = useCallback((value: string) => {
+    setTimeInterval(value as TimeInterval);
+  }, []);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['candlesticks', timeInterval, baseMint.toBase58(), quoteMint.toBase58()],
@@ -101,10 +107,7 @@ export function ChartContainer() {
             </div>
           )}
         </div>
-        <Select
-          value={timeInterval}
-          onValueChange={value => setTimeInterval(value as TimeInterval)}
-        >
+        <Select value={timeInterval} onValueChange={handleIntervalChange}>
           <SelectTrigger className="w-[80px] h-7">
             <SelectValue placeholder="Interval" />
           </SelectTrigger>
@@ -129,3 +132,6 @@ export function ChartContainer() {
     </div>
   );
 }
+
+// Export a memoized version of the component to prevent unnecessary re-renders
+export const ChartContainer = memo(ChartContainerComponent);

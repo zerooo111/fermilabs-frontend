@@ -1,5 +1,6 @@
 /**
  * Candlestick chart component
+ * Optimized with memoization for better performance
  */
 import {
   createChart,
@@ -13,7 +14,7 @@ import {
   TickMarkFormatter,
   BusinessDay,
 } from 'lightweight-charts';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo, useMemo } from 'react';
 import { OHLCVData, TimeInterval } from '../lib/chart';
 
 interface ChartComponentProps {
@@ -69,7 +70,7 @@ const getTimeScaleOptions = (interval: TimeInterval): Partial<TimeScaleOptions> 
   };
 };
 
-export function CandlestickChart({
+function CandlestickChartComponent({
   data,
   interval,
   colors: {
@@ -87,9 +88,9 @@ export function CandlestickChart({
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
 
-  // Handle resize
-  useEffect(() => {
-    const handleResize = () => {
+  // Memoize the resize handler for better performance
+  const handleResize = useMemo(
+    () => () => {
       if (chartContainerRef.current && chartRef.current) {
         const { clientWidth, clientHeight } = chartContainerRef.current;
         chartRef.current.applyOptions({
@@ -97,11 +98,15 @@ export function CandlestickChart({
           height: clientHeight,
         });
       }
-    };
+    },
+    []
+  );
 
+  // Handle resize
+  useEffect(() => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [handleResize]);
 
   // Create and update chart
   useEffect(() => {
@@ -194,3 +199,6 @@ export function CandlestickChart({
 
   return <div ref={chartContainerRef} className={`w-full h-full min-h-[400px] ${className}`} />;
 }
+
+// Export a memoized version of the component to prevent unnecessary re-renders
+export const CandlestickChart = memo(CandlestickChartComponent);

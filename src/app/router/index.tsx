@@ -1,12 +1,10 @@
 /**
  * AppRouter.tsx
- * Main application router configuration
+ * Main application router configuration with code splitting
  */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from '../../shared/ui/layout/Layout';
-import { TradePage } from '../../pages/trade';
-import { VaultPage } from '../../pages/vault';
-import { VaultAdminPage } from '../../pages/vault-admin';
+import { LazyTradePage, LazyVaultPage, LazyVaultAdminPage } from './LazyRoutes';
 
 export const AppRouter = () => {
   return (
@@ -14,10 +12,10 @@ export const AppRouter = () => {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate replace to="/trade" />} />
-          <Route path="/vault-admin" element={<VaultAdminPage />} />
-          <Route path="/trade" element={<TradePage />} />
-          <Route path="/trade/:id" element={<TradePage />} />
-          <Route path="/vault" element={<VaultPage />} />
+          <Route path="/vault-admin" element={<LazyVaultAdminPage />} />
+          <Route path="/trade" element={<LazyTradePage />} />
+          <Route path="/trade/:id" element={<LazyTradePage />} />
+          <Route path="/vault" element={<LazyVaultPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

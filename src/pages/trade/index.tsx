@@ -16,7 +16,7 @@ import { useSequencerApi } from '../../shared/api/useSequencerApi';
 import { orderbookAtom } from '../../entities/orderbook';
 import { useMarkets, useSelectedMarket } from '../../entities/market';
 
-export function TradePage() {
+function TradePage() {
   const navigate = useNavigate();
   const params = useParams();
   const { setMarkets, fetchMarkets } = useMarkets();
@@ -139,3 +139,5 @@ export function TradePage() {
     </div>
   );
 }
+
+export default TradePage;

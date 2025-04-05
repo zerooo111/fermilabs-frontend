@@ -14,7 +14,7 @@ import {
   Notepad,
 } from '../../features/vault-deposit';
 
-export function VaultAdminPage() {
+function VaultAdminPage() {
   const wallet = useAnchorWallet();
 
   const createMarket = async () => {
@@ -51,3 +51,5 @@ export function VaultAdminPage() {
     </div>
   );
 }
+
+export default VaultAdminPage;

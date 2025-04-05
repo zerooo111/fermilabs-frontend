@@ -36,7 +36,7 @@ const tokens = [
   },
 ];
 
-export function VaultPage() {
+function VaultPage() {
   const [selectedToken, setSelectedToken] = useState<{ publicKey: PublicKey; name: string }>(
     tokens[0]
   );
@@ -249,3 +249,5 @@ export function VaultPage() {
     </div>
   );
 }
+
+export default VaultPage;
