@@ -47,8 +47,8 @@ export function Orderbook() {
               order ? (
                 <OrderbookRow
                   key={`buy-${order.price}`}
-                  price={order.price / 10 ** 9}
-                  size={order.quantity / 10 ** 9}
+                  price={order.price}
+                  size={order.quantity}
                   total={formatPrice(order.total)}
                   depth={order.depth}
                   side="Buy"
@@ -70,8 +70,8 @@ export function Orderbook() {
             order ? (
               <OrderbookRow
                 key={`sell-${order.price}`}
-                price={order.price / 10 ** 9}
-                size={order.quantity / 10 ** 9}
+                price={order.price}
+                size={order.quantity}
                 total={formatPrice(order.total)}
                 depth={order.depth}
                 side="Sell"

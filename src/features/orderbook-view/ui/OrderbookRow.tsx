@@ -3,6 +3,7 @@
  * Displays a single row in the orderbook
  */
 import { cn } from '../../../shared/lib/utils';
+import { formatPrice, formatQuantity } from '../lib/processOrderbook';
 
 type OrderbookRowProps = {
   price: number;
@@ -31,8 +32,8 @@ export function OrderbookRow({ price, size, total, depth, side }: OrderbookRowPr
           side === 'Buy' ? 'text-green-600' : 'text-red-600'
         )}
       >
-        <span className="text-left col-span-2">{price.toFixed(4)}</span>
-        <span className="text-right col-span-3">{size.toFixed(4)}</span>
+        <span className="text-left col-span-2">{formatPrice(price)}</span>
+        <span className="text-right col-span-3">{formatQuantity(size)}</span>
         <span className="text-right col-span-3">{total}</span>
       </div>
     </div>

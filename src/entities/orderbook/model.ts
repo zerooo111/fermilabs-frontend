@@ -3,7 +3,7 @@
  * Defines orderbook-related state and operations
  */
 import { atom, useAtom, useAtomValue } from 'jotai';
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { selectedMarketAtom } from '../market';
 import { useQuery } from '@tanstack/react-query';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
@@ -38,6 +38,16 @@ export const useOrderbook = () => {
   const lastUpdateTimeRef = useRef<number>(0);
   const { fetchOrderbook } = useSequencerApi();
 
+  // Clear orderbook when market changes
+  useEffect(() => {
+    setOrderbook({
+      buys: [],
+      sells: [],
+      lastUpdated: new Date(),
+    });
+    lastUpdateTimeRef.current = 0; // Reset the update time
+  }, [selectedMarket?.uuid, setOrderbook]);
+
   const loadOrderbook = useCallback(async () => {
     if (!selectedMarket || !setOrderbook || !fetchOrderbook) return null;
 
@@ -56,10 +66,13 @@ export const useOrderbook = () => {
       lastUpdateTimeRef.current = fetchStartTime;
 
       const filteredBuys = orderbook.buys.filter(
-        (it: OrderbookItem) => it.market_id === selectedMarket.uuid
+        (it: OrderbookItem) =>
+          it.base_mint === selectedMarket.base_mint && it.quote_mint === selectedMarket.quote_mint
       );
+
       const filteredSells = orderbook.sells.filter(
-        (it: OrderbookItem) => it.market_id === selectedMarket.uuid
+        (it: OrderbookItem) =>
+          it.base_mint === selectedMarket.base_mint && it.quote_mint === selectedMarket.quote_mint
       );
 
       setOrderbook({
@@ -76,8 +89,10 @@ export const useOrderbook = () => {
     return useQuery({
       queryKey: ['orderbook', selectedMarket?.uuid],
       queryFn: loadOrderbook,
-      refetchInterval: 10000,
+      refetchInterval: 1000,
       enabled: !!selectedMarket,
+      staleTime: 0,
+      gcTime: 0,
     });
   };
 

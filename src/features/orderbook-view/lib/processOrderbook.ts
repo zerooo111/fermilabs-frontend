@@ -28,8 +28,11 @@ const aggregateOrders = (
   const aggregated = new Map<number, number>();
 
   orders.forEach(order => {
-    const existing = aggregated.get(order.price) || 0;
-    aggregated.set(order.price, existing + order.quantity);
+    // Normalize price and quantity before aggregation
+    const normalizedPrice = order.price;
+    const normalizedQuantity = order.quantity;
+    const existing = aggregated.get(normalizedPrice) || 0;
+    aggregated.set(normalizedPrice, existing + normalizedQuantity);
   });
 
   let runningQuantity = 0;
@@ -55,6 +58,7 @@ export const processOrderbook = (
   orderbook: Orderbook | null,
   maxRows: number = DEFAULT_ORDERBOOK_ROWS
 ): ProcessedOrderbook => {
+  console.log('orderbook', orderbook);
   if (!orderbook || !orderbook.buys || !orderbook.sells) {
     return {
       buys: Array(maxRows).fill(null),
@@ -68,7 +72,8 @@ export const processOrderbook = (
   // Process buys and sells
   const buys = aggregateOrders(orderbook.buys, (a, b) => b - a, maxRows); // Descending
   const sells = aggregateOrders(orderbook.sells, (a, b) => a - b, maxRows); // Ascending
-
+  console.log('buys', buys);
+  console.log('sells', sells);
   // Calculate max depth based on cumulative quantity
   const maxDepth = Math.max(
     buys.length > 0 ? buys[buys.length - 1].total : 0,
@@ -91,6 +96,8 @@ export const processOrderbook = (
 
   const spread = Math.abs((filledBuys[0]?.price || 0) - (filledSells[0]?.price || 0));
 
+  console.log('filledBuys', filledBuys);
+
   return {
     buys: filledBuys,
     sells: filledSells,
@@ -101,5 +108,19 @@ export const processOrderbook = (
 };
 
 export const formatPrice = (price: number): string => {
-  return (price / 10 ** PRICE_DECIMALS).toFixed(DISPLAY_DECIMALS);
+  // Handle potential NaN or invalid values
+  if (!price || isNaN(price)) return '0.0000';
+
+  // Format with consistent decimal places
+  const normalizedPrice = price / Math.pow(10, PRICE_DECIMALS);
+  return normalizedPrice.toFixed(DISPLAY_DECIMALS);
+};
+
+export const formatQuantity = (quantity: number): string => {
+  // Handle potential NaN or invalid values
+  if (!quantity || isNaN(quantity)) return '0.0000';
+
+  // Format with consistent decimal places
+  const normalizedQuantity = quantity / Math.pow(10, PRICE_DECIMALS);
+  return normalizedQuantity.toFixed(DISPLAY_DECIMALS);
 };

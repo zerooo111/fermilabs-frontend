@@ -13,13 +13,14 @@ import {
   MintTokens,
   Notepad,
 } from '../../features/vault-deposit';
+import { config } from '@/shared/config/constants';
 
 function VaultAdminPage() {
   const wallet = useAnchorWallet();
 
   const createMarket = async () => {
     try {
-      const response = await axios.post('http://54.196.30.137:8082/markets', {
+      const response = await axios.post(`${config.devnet.globalSequencerApiUrl}/markets`, {
         base_mint: 'fnUTeVwrsGgTHHLnr5x6ayDTJiuJbr9vNxi3SHoF5Gg',
         quote_mint: 'Hf9KLE7pbHruArPXSVPn7sZ5iKt8Xxjmg2fCTzWUjEz8',
         name: 'TEST/USDC',
