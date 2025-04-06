@@ -197,15 +197,13 @@ export function TradePanel() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-nowrap">Base ({selectedMarket?.baseTokenName || 'BASE'})</span>
-              <span className="tabular-nums">{balancesLoading ? '...' : balances.baseBalance}</span>
+              <span className="tabular-nums">{balancesLoading ? '0' : balances.baseBalance}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-nowrap">
                 Quote ({selectedMarket?.quoteTokenName || 'QUOTE'})
               </span>
-              <span className="tabular-nums">
-                {balancesLoading ? '...' : balances.quoteBalance}
-              </span>
+              <span className="tabular-nums">{balancesLoading ? '0' : balances.quoteBalance}</span>
             </div>
           </div>
 

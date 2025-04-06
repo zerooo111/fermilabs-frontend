@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchTokenBalance } from '@/shared/lib/solana/helpers';
 import { useSelectedMarket } from '@/entities/market';
 import { useCallback } from 'react';
+import { BN } from '@coral-xyz/anchor';
 
 export function useMarketTokenBalances() {
   const { connection } = useConnection();
@@ -30,13 +31,19 @@ export function useMarketTokenBalances() {
         fetchTokenBalance(publicKey, quoteMintPubkey, connection),
       ]);
 
+      console.log('baseBalanceStr', baseBalanceStr);
+      console.log('quoteBalanceStr', quoteBalanceStr);
+
       // Convert to human-readable format using the market's decimals
-      const baseBalance = (
-        Number(baseBalanceStr) / Math.pow(10, selectedMarket.base_decimals)
-      ).toFixed(4);
-      const quoteBalance = (
-        Number(quoteBalanceStr) / Math.pow(10, selectedMarket.quote_decimals)
-      ).toFixed(4);
+      const baseBalance = new BN(baseBalanceStr)
+        .div(new BN(10).pow(new BN(selectedMarket.base_decimals)))
+        .toString();
+      const quoteBalance = new BN(quoteBalanceStr)
+        .div(new BN(10).pow(new BN(selectedMarket.quote_decimals)))
+        .toString();
+
+      console.log('baseBalance', baseBalance);
+      console.log('quoteBalance', quoteBalance);
 
       return { baseBalance, quoteBalance };
     } catch (error) {

@@ -211,8 +211,15 @@ export const fetchTokenBalance = async (
       false
     );
     const account = await spl.getAccount(connection, associatedTokenAddress);
-    return account?.amount.toString();
+    // Handle BigInt amount properly
+    const amount = account?.amount?.toString() || '0';
+    return amount;
   } catch (error) {
+    // If the error is TokenAccountNotFoundError, return 0 silently
+    if (error instanceof spl.TokenAccountNotFoundError) {
+      return '0';
+    }
+    // Log other unexpected errors but still return 0
     console.error('Error in fetchTokenBalance:', error);
     return '0';
   }
