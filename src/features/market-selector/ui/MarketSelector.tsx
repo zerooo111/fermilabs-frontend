@@ -3,6 +3,7 @@
  * Allows users to select a market from a dropdown
  * Pure UI component that receives all data as props
  */
+import { memo, useMemo, useCallback } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { Loader2 } from 'lucide-react';
 import { marketsAtom } from '@/entities/market';
@@ -14,42 +15,64 @@ interface MarketSelectorProps {
   isLoading: boolean;
 }
 
-export function MarketSelector({
-  selectedMarketId,
-  onMarketSelect,
-  isLoading,
-}: MarketSelectorProps) {
+function MarketSelectorBase({ selectedMarketId, onMarketSelect, isLoading }: MarketSelectorProps) {
   const markets = useAtomValue(marketsAtom);
+
+  // Memoize the market items to prevent unnecessary recalculation
+  const marketItems = useMemo(() => {
+    if (markets.length === 0) {
+      return (
+        <SelectItem value="no-markets" disabled>
+          No markets available
+        </SelectItem>
+      );
+    }
+
+    return markets.map(market => (
+      <SelectItem key={market.uuid} value={market.uuid}>
+        {market.name}
+      </SelectItem>
+    ));
+  }, [markets]);
+
+  // Memoize the loading content
+  const loadingContent = useMemo(
+    () => (
+      <div className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span>Loading...</span>
+      </div>
+    ),
+    []
+  );
+
+  // Memoize the value change handler
+  const handleValueChange = useCallback(
+    (value: string) => {
+      onMarketSelect(value);
+    },
+    [onMarketSelect]
+  );
 
   return (
     <Select
       value={selectedMarketId || ''}
-      onValueChange={onMarketSelect}
+      onValueChange={handleValueChange}
       disabled={isLoading || markets.length === 0}
     >
       <SelectTrigger className="w-[180px]">
-        {isLoading ? (
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Loading...</span>
-          </div>
-        ) : (
-          <SelectValue placeholder="Select a market" />
-        )}
+        {isLoading ? loadingContent : <SelectValue placeholder="Select a market" />}
       </SelectTrigger>
-      <SelectContent>
-        {markets.length === 0 ? (
-          <SelectItem value="no-markets" disabled>
-            No markets available
-          </SelectItem>
-        ) : (
-          markets.map(market => (
-            <SelectItem key={market.uuid} value={market.uuid}>
-              {market.name}
-            </SelectItem>
-          ))
-        )}
-      </SelectContent>
+      <SelectContent>{marketItems}</SelectContent>
     </Select>
   );
 }
+
+// Export memoized version with explicit equality check
+export const MarketSelector = memo(MarketSelectorBase, (prev, next) => {
+  return (
+    prev.selectedMarketId === next.selectedMarketId &&
+    prev.isLoading === next.isLoading &&
+    prev.onMarketSelect === next.onMarketSelect
+  );
+});

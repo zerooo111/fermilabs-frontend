@@ -7,7 +7,7 @@ import { tryCatch } from '@/shared/lib/try-catch';
 import axios, { AxiosResponse } from 'axios';
 import { atom, useAtom } from 'jotai';
 import { config } from '@/shared/config/constants';
-import { useCallback } from 'react';
+import { useCallback, useRef, useMemo } from 'react';
 
 // Market types
 export interface Market {
@@ -28,8 +28,8 @@ export interface EnhancedMarket extends Market {
   quoteTokenName: string;
 }
 
-// Helper function to enhance a market with token names
-export function enhanceMarket(market: Market): EnhancedMarket {
+// Memoized market enhancement to avoid unnecessary object creation
+const memoizedEnhanceMarket = (market: Market): EnhancedMarket => {
   if (!market) return null as unknown as EnhancedMarket;
 
   // Parse the market name to get base and quote token names
@@ -41,13 +41,13 @@ export function enhanceMarket(market: Market): EnhancedMarket {
     baseTokenName: baseTokenName || 'BASE',
     quoteTokenName: quoteTokenName || 'QUOTE',
   };
-}
+};
 
 // Market state atoms - separate atoms for different concerns
 export const marketsAtom = atom<Market[]>([]);
 export const selectedMarketIdAtom = atom<string | null>(null);
 
-// Derived atom for the selected market object
+// Derived atom for the selected market object with memoization
 export const selectedMarketAtom = atom(get => {
   const marketId = get(selectedMarketIdAtom);
   const markets = get(marketsAtom);
@@ -55,7 +55,7 @@ export const selectedMarketAtom = atom(get => {
   if (!marketId || markets.length === 0) return null;
 
   const market = markets.find(m => m.uuid === marketId);
-  return market ? enhanceMarket(market) : null;
+  return market ? memoizedEnhanceMarket(market) : null;
 });
 
 /**
@@ -66,56 +66,77 @@ export const useSelectedMarket = () => {
   const [selectedMarketId, setSelectedMarketId] = useAtom(selectedMarketIdAtom);
   const [selectedMarket] = useAtom(selectedMarketAtom);
   const [markets, setMarkets] = useAtom(marketsAtom);
+  const marketsLoadedRef = useRef(false);
+  const marketsHashRef = useRef('');
 
-  console.log('[useSelectedMarket] Current state:', {
-    selectedMarketId,
-    hasSelectedMarket: !!selectedMarket,
-    marketsCount: markets.length,
-  });
-
+  // Memoize the market loading function
   const loadMarkets = useCallback(async (): Promise<Market[]> => {
-    const { data, error } = await tryCatch<AxiosResponse<any>>(
-      axios.get(`${config.devnet.globalSequencerApiUrl}/markets`)
-    );
-
-    if (error) {
-      throw error;
+    // Skip if markets are already loaded
+    if (marketsLoadedRef.current && markets.length > 0) {
+      return markets;
     }
 
-    // Extract and return the array of markets
-    const markets = data.data.data || [];
+    try {
+      const { data, error } = await tryCatch<AxiosResponse<any>>(
+        axios.get(`${config.devnet.globalSequencerApiUrl}/markets`)
+      );
 
-    setMarkets(markets);
+      if (error) throw error;
 
-    return markets;
-  }, [setMarkets]);
+      // Extract markets from response
+      const newMarkets = data.data.data || [];
 
-  // Function to set a market by its ID
+      // Quick hash comparison using market IDs
+      const newHash = newMarkets.map((m: Market) => m.uuid).join(',');
+
+      // Only update if markets have actually changed
+      if (newHash !== marketsHashRef.current) {
+        marketsHashRef.current = newHash;
+        setMarkets(newMarkets);
+      }
+
+      marketsLoadedRef.current = true;
+      return newMarkets;
+    } catch (error) {
+      console.error('Failed to load markets:', error);
+      return markets; // Return existing markets on error
+    }
+  }, [markets, setMarkets]);
+
+  // Memoize the market selection function
   const selectMarket = useCallback(
     (marketOrId: Market | string | null) => {
       if (marketOrId === null) {
-        console.log('[useSelectedMarket] Clearing selected market');
-        setSelectedMarketId(null);
+        if (selectedMarketId !== null) {
+          setSelectedMarketId(null);
+        }
         return;
       }
 
       const marketId = typeof marketOrId === 'string' ? marketOrId : marketOrId.uuid;
-      console.log('[useSelectedMarket] Selecting market by ID:', marketId);
-      setSelectedMarketId(marketId);
+
+      // Only update if the market ID has changed
+      if (marketId !== selectedMarketId) {
+        setSelectedMarketId(marketId);
+      }
     },
-    [setSelectedMarketId]
+    [selectedMarketId, setSelectedMarketId]
   );
 
-  return {
-    selectedMarket,
-    selectedMarketId,
-    selectMarket,
-    loadMarkets,
-  };
+  // Memoize the return object to prevent unnecessary rerenders
+  return useMemo(
+    () => ({
+      selectedMarket,
+      selectedMarketId,
+      selectMarket,
+      loadMarkets,
+    }),
+    [selectedMarket, selectedMarketId, selectMarket, loadMarkets]
+  );
 };
 
 // Export market model
 export const MarketModel = {
   useSelectedMarket,
-  enhanceMarket,
+  enhanceMarket: memoizedEnhanceMarket,
 };
