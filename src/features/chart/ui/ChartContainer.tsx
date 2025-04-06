@@ -70,7 +70,7 @@ function ChartContainerComponent() {
         };
       });
     },
-    refetchInterval: 10000, // Refetch every 10 seconds
+    refetchInterval: 1000, // Refetch every 10 seconds
     enabled: !!selectedMarket,
   });
 

@@ -2,30 +2,23 @@
  * My orders component
  * Displays the user's active orders
  */
-import { orderbookAtom } from '../../../entities/orderbook';
+import { orderbookAtom } from '@/entities/orderbook';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
 import { useMemo, useState } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../../shared/ui/table';
-import { Button } from '../../../shared/ui/button';
-import { Badge } from '../../../shared/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
+import { Button } from '@/shared/ui/button';
+import { Badge } from '@/shared/ui/badge';
 import { createHash } from 'crypto';
 import { BN } from '@coral-xyz/anchor';
-
-import { submitCancelOrderToSequencer } from '../../../shared/api/sequencer';
 import { toast } from 'sonner';
+import { useSequencerApi } from '@/shared/api/useSequencerApi';
 
 export function MyOrders() {
   const orderbook = useAtomValue(orderbookAtom);
   const { publicKey, signMessage } = useWallet();
   const [cancellingOrders, setCancellingOrders] = useState<Set<number>>(new Set());
+  const { submitCancelOrderToSequencer } = useSequencerApi();
 
   const myOrders = useMemo(() => {
     if (!orderbook || !publicKey) return [];

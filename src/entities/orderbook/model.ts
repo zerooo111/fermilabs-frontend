@@ -3,10 +3,10 @@
  * Defines orderbook-related state and operations
  */
 import { atom, useAtom, useAtomValue } from 'jotai';
-import { fetchOrderbook } from '../../shared/api/sequencer';
 import { useCallback, useRef } from 'react';
 import { selectedMarketAtom } from '../market';
 import { useQuery } from '@tanstack/react-query';
+import { useSequencerApi } from '@/shared/api/useSequencerApi';
 
 // Orderbook types
 export interface OrderbookItem {
@@ -36,9 +36,10 @@ export const useOrderbook = () => {
   const [orderbook, setOrderbook] = useAtom(orderbookAtom);
   const selectedMarket = useAtomValue(selectedMarketAtom);
   const lastUpdateTimeRef = useRef<number>(0);
+  const { fetchOrderbook } = useSequencerApi();
 
-  const fetchOrderbookData = useCallback(async () => {
-    if (!selectedMarket) return null;
+  const loadOrderbook = useCallback(async () => {
+    if (!selectedMarket || !setOrderbook || !fetchOrderbook) return null;
 
     const currentTime = Date.now();
     const fetchStartTime = currentTime;
@@ -68,13 +69,13 @@ export const useOrderbook = () => {
       });
     }
     return orderbook;
-  }, [selectedMarket, setOrderbook]);
+  }, [selectedMarket, setOrderbook, fetchOrderbook]);
 
   // Setup query for orderbook data
   const useOrderbookQuery = () => {
     return useQuery({
       queryKey: ['orderbook', selectedMarket?.uuid],
-      queryFn: fetchOrderbookData,
+      queryFn: loadOrderbook,
       refetchInterval: 10000,
       enabled: !!selectedMarket,
     });
@@ -83,12 +84,7 @@ export const useOrderbook = () => {
   return {
     orderbook,
     setOrderbook,
-    fetchOrderbookData,
+    loadOrderbook,
     useOrderbookQuery,
   };
-};
-
-// Export orderbook model
-export const OrderbookModel = {
-  useOrderbook,
 };

@@ -1,0 +1,67 @@
+/**
+ * useMarketTokenBalances.ts
+ * Custom hook to fetch token balances for the selected market's base and quote tokens
+ */
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { PublicKey } from '@solana/web3.js';
+import { useQuery } from '@tanstack/react-query';
+import { fetchTokenBalance } from '@/shared/lib/solana/helpers';
+import { useSelectedMarket } from '@/entities/market';
+import { useCallback } from 'react';
+
+export function useMarketTokenBalances() {
+  const { connection } = useConnection();
+  const { publicKey, connected } = useWallet();
+  const { selectedMarket } = useSelectedMarket();
+
+  const fetchBalances = useCallback(async () => {
+    if (!publicKey || !connected || !connection || !selectedMarket) {
+      return { baseBalance: '0', quoteBalance: '0' };
+    }
+
+    try {
+      // Convert string mints to PublicKey objects
+      const baseMintPubkey = new PublicKey(selectedMarket.base_mint);
+      const quoteMintPubkey = new PublicKey(selectedMarket.quote_mint);
+
+      // Fetch balances in parallel
+      const [baseBalanceStr, quoteBalanceStr] = await Promise.all([
+        fetchTokenBalance(publicKey, baseMintPubkey, connection),
+        fetchTokenBalance(publicKey, quoteMintPubkey, connection),
+      ]);
+
+      // Convert to human-readable format using the market's decimals
+      const baseBalance = (
+        Number(baseBalanceStr) / Math.pow(10, selectedMarket.base_decimals)
+      ).toFixed(4);
+      const quoteBalance = (
+        Number(quoteBalanceStr) / Math.pow(10, selectedMarket.quote_decimals)
+      ).toFixed(4);
+
+      return { baseBalance, quoteBalance };
+    } catch (error) {
+      console.error('Error fetching market token balances:', error);
+      return { baseBalance: '0', quoteBalance: '0' };
+    }
+  }, [publicKey, connected, connection, selectedMarket]);
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: [
+      'marketTokenBalances',
+      publicKey?.toString(),
+      selectedMarket?.base_mint,
+      selectedMarket?.quote_mint,
+    ],
+    queryFn: fetchBalances,
+    enabled: !!publicKey && connected && !!selectedMarket,
+    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 10000, // Consider data stale after 10 seconds
+  });
+
+  return {
+    balances: data || { baseBalance: '0', quoteBalance: '0' },
+    isLoading,
+    error,
+    refetch,
+  };
+}

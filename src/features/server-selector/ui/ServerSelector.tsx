@@ -11,8 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../shared/ui/select';
-import { useSelectedServer, Server } from '../../../entities/server';
+import { useSelectedServer } from '../../../entities/server';
 import { cn } from '../../../shared/lib/utils';
+import { Server } from '@/types';
 
 interface ServerWithHealth extends Server {
   status: 'healthy' | 'unhealthy' | 'checking';

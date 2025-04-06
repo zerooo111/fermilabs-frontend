@@ -7,6 +7,8 @@ import { useCallback } from 'react';
 import axios, { AxiosResponse } from 'axios';
 import { useSelectedServer } from '@/entities/server';
 import { tryCatch } from '@/shared/lib/try-catch';
+import { config } from '../config/constants';
+import { PlaceOrderResponse } from '@/types';
 
 export interface Market {
   uuid: string;
@@ -54,50 +56,17 @@ export function useSequencerApi() {
     return healthCheck;
   }, [baseUrl]);
 
-  const getMarkets = useCallback(async (): Promise<Market[]> => {
-    const { data, error } = await tryCatch<AxiosResponse<any>>(axios.get(`${baseUrl}/markets`));
-
-    if (error) {
-      throw error;
-    }
-
-    // Extract and return the array of markets
-    return data.data.data || [];
-  }, [baseUrl]);
-
   const submitOrderToSequencer = useCallback(
     async (body: any) => {
-      const { data, error } = await tryCatch(axios.post(`${baseUrl}/orders`, body));
-
-      if (error) {
-        throw error;
-      }
-
-      return data.data;
-    },
-    [baseUrl]
-  );
-
-  const fetchOrderbook = useCallback(
-    async (marketId: string): Promise<Orderbook> => {
-      const { data, error } = await tryCatch<AxiosResponse<any>>(
-        axios.get(`${baseUrl}/markets/${marketId}/orderbook`)
+      const { data, error } = await tryCatch<AxiosResponse<PlaceOrderResponse>>(
+        axios.post(`${baseUrl}/orders`, body)
       );
 
       if (error) {
         throw error;
       }
 
-      // Extract the orderbook data from the response
-      const responseData = data.data.data;
-
-      // Create a properly structured Orderbook object
-      const orderbook: Orderbook = {
-        buys: responseData.buys || [],
-        sells: responseData.sells || [],
-      };
-
-      return orderbook;
+      return data.data.data.receipt;
     },
     [baseUrl]
   );
@@ -117,9 +86,30 @@ export function useSequencerApi() {
     [baseUrl]
   );
 
+  const fetchOrderbook = useCallback(async (marketId: string): Promise<Orderbook> => {
+    const { data, error } = await tryCatch<AxiosResponse<any>>(
+      axios.get(`${config.devnet.globalSequencerApiUrl}/markets/${marketId}/orderbook`)
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    // Extract the orderbook data from the response
+    const responseData = data.data.data;
+
+    // Create a properly structured Orderbook object
+    const orderbook: Orderbook = {
+      buys: responseData.buys || [],
+      sells: responseData.sells || [],
+    };
+
+    return orderbook;
+  }, []);
+
   return {
     ping,
-    getMarkets,
+
     submitOrderToSequencer,
     fetchOrderbook,
     submitCancelOrderToSequencer,

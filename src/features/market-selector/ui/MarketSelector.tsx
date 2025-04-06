@@ -1,42 +1,54 @@
 /**
  * Market selector component
  * Allows users to select a market from a dropdown
+ * Pure UI component that receives all data as props
  */
-import { useNavigate } from 'react-router-dom';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../shared/ui/select';
-import { useMarkets, useSelectedMarket } from '../../../entities/market';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
+import { Loader2 } from 'lucide-react';
+import { marketsAtom } from '@/entities/market';
+import { useAtomValue } from 'jotai';
 
-export function MarketSelector() {
-  const navigate = useNavigate();
-  const { markets } = useMarkets();
-  const { selectedMarket, setSelectedMarket } = useSelectedMarket();
+interface MarketSelectorProps {
+  selectedMarketId: string | null;
+  onMarketSelect: (marketId: string) => void;
+  isLoading: boolean;
+}
+
+export function MarketSelector({
+  selectedMarketId,
+  onMarketSelect,
+  isLoading,
+}: MarketSelectorProps) {
+  const markets = useAtomValue(marketsAtom);
 
   return (
     <Select
-      value={selectedMarket?.uuid || ''}
-      onValueChange={value => {
-        const market = markets.find(m => m.uuid === value);
-        if (market) {
-          setSelectedMarket(market);
-          navigate(`/trade/${market.uuid}`);
-        }
-      }}
+      value={selectedMarketId || ''}
+      onValueChange={onMarketSelect}
+      disabled={isLoading || markets.length === 0}
     >
       <SelectTrigger className="w-[180px]">
-        <SelectValue placeholder="Select a market" />
+        {isLoading ? (
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Loading...</span>
+          </div>
+        ) : (
+          <SelectValue placeholder="Select a market" />
+        )}
       </SelectTrigger>
       <SelectContent>
-        {markets.map(market => (
-          <SelectItem key={market.uuid} value={market.uuid}>
-            {market.name}
+        {markets.length === 0 ? (
+          <SelectItem value="no-markets" disabled>
+            No markets available
           </SelectItem>
-        ))}
+        ) : (
+          markets.map(market => (
+            <SelectItem key={market.uuid} value={market.uuid}>
+              {market.name}
+            </SelectItem>
+          ))
+        )}
       </SelectContent>
     </Select>
   );

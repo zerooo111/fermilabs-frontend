@@ -1,12 +1,13 @@
 /**
  * Market entity model
  * Defines market-related state and operations
+ * Completely refactored to avoid circular dependencies
  */
+import { tryCatch } from '@/shared/lib/try-catch';
+import axios, { AxiosResponse } from 'axios';
 import { atom, useAtom } from 'jotai';
-import { useSequencerApi } from '@/shared/api/useSequencerApi';
-import { useCallback, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSelectedServer } from '@/entities/server';
+import { config } from '@/shared/config/constants';
+import { useCallback } from 'react';
 
 // Market types
 export interface Market {
@@ -21,82 +22,100 @@ export interface Market {
   [key: string]: any;
 }
 
-// Market state atoms
+// Enhanced market type with parsed token names
+export interface EnhancedMarket extends Market {
+  baseTokenName: string;
+  quoteTokenName: string;
+}
+
+// Helper function to enhance a market with token names
+export function enhanceMarket(market: Market): EnhancedMarket {
+  if (!market) return null as unknown as EnhancedMarket;
+
+  // Parse the market name to get base and quote token names
+  const [baseTokenName, quoteTokenName] = market.name.split('/').map((s: string) => s.trim());
+
+  // Create enhanced market with token names
+  return {
+    ...market,
+    baseTokenName: baseTokenName || 'BASE',
+    quoteTokenName: quoteTokenName || 'QUOTE',
+  };
+}
+
+// Market state atoms - separate atoms for different concerns
 export const marketsAtom = atom<Market[]>([]);
-export const selectedMarketAtom = atom<Market | null>(null);
+export const selectedMarketIdAtom = atom<string | null>(null);
 
-// Market hooks
-export const useMarkets = () => {
+// Derived atom for the selected market object
+export const selectedMarketAtom = atom(get => {
+  const marketId = get(selectedMarketIdAtom);
+  const markets = get(marketsAtom);
+
+  if (!marketId || markets.length === 0) return null;
+
+  const market = markets.find(m => m.uuid === marketId);
+  return market ? enhanceMarket(market) : null;
+});
+
+/**
+ * Hook to manage the selected market
+ * This is a simple hook that just manages the selected market ID
+ */
+export const useSelectedMarket = () => {
+  const [selectedMarketId, setSelectedMarketId] = useAtom(selectedMarketIdAtom);
+  const [selectedMarket] = useAtom(selectedMarketAtom);
   const [markets, setMarkets] = useAtom(marketsAtom);
-  const { getMarkets } = useSequencerApi();
-  const { selectedServer } = useSelectedServer();
-  const queryClient = useQueryClient();
 
-  // Create a wrapper function that matches the expected return type
-  const fetchMarketsWrapper = useCallback(async () => {
-    const marketsData = await getMarkets();
-    return marketsData;
-  }, [getMarkets]);
-
-  // Use React Query to fetch and cache markets data
-  const { data, isLoading, error } = useQuery<Market[]>({
-    queryKey: ['markets', selectedServer.url],
-    queryFn: fetchMarketsWrapper,
-    staleTime: Infinity, // Don't mark as stale automatically
+  console.log('[useSelectedMarket] Current state:', {
+    selectedMarketId,
+    hasSelectedMarket: !!selectedMarket,
+    marketsCount: markets.length,
   });
 
-  // Update Jotai state when data changes
-  useEffect(() => {
-    if (data) {
-      setMarkets(data);
+  const loadMarkets = useCallback(async (): Promise<Market[]> => {
+    const { data, error } = await tryCatch<AxiosResponse<any>>(
+      axios.get(`${config.devnet.globalSequencerApiUrl}/markets`)
+    );
+
+    if (error) {
+      throw error;
     }
-  }, [data, setMarkets]);
 
-  // Manual fetch function that can be called when needed
-  const fetchMarkets = useCallback(async () => {
-    const result = await queryClient.fetchQuery<Market[]>({
-      queryKey: ['markets', selectedServer.url],
-      queryFn: fetchMarketsWrapper,
-    });
-    if (result) {
-      setMarkets(result);
-    }
-    return result;
-  }, [fetchMarketsWrapper, queryClient, selectedServer.url, setMarkets]);
+    // Extract and return the array of markets
+    const markets = data.data.data || [];
 
-  return {
-    markets,
-    setMarkets,
-    fetchMarkets,
-    isLoading,
-    error,
-  };
-};
+    setMarkets(markets);
 
-export const useSelectedMarket = () => {
-  const [selectedMarket, setSelectedMarket] = useAtom(selectedMarketAtom);
-  const { markets } = useMarkets();
+    return markets;
+  }, [setMarkets]);
 
-  const selectMarketById = useCallback(
-    (marketId: string) => {
-      const market = markets.find(m => m.uuid === marketId);
-      if (market) {
-        setSelectedMarket(market);
+  // Function to set a market by its ID
+  const selectMarket = useCallback(
+    (marketOrId: Market | string | null) => {
+      if (marketOrId === null) {
+        console.log('[useSelectedMarket] Clearing selected market');
+        setSelectedMarketId(null);
+        return;
       }
-      return market;
+
+      const marketId = typeof marketOrId === 'string' ? marketOrId : marketOrId.uuid;
+      console.log('[useSelectedMarket] Selecting market by ID:', marketId);
+      setSelectedMarketId(marketId);
     },
-    [markets, setSelectedMarket]
+    [setSelectedMarketId]
   );
 
   return {
     selectedMarket,
-    setSelectedMarket,
-    selectMarketById,
+    selectedMarketId,
+    selectMarket,
+    loadMarkets,
   };
 };
 
 // Export market model
 export const MarketModel = {
-  useMarkets,
   useSelectedMarket,
+  enhanceMarket,
 };

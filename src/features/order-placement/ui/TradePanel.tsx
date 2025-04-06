@@ -2,18 +2,21 @@
  * Trade panel component
  * Allows users to place buy and sell orders
  */
-import { Button } from '../../../shared/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '../../../shared/ui/tabs';
+import { Button } from '@/shared/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { useState } from 'react';
-import { OrderIntent } from '../lib/OrderIntent';
+import { OrderIntent } from '@/features/order-placement/lib/OrderIntent';
+import { useMarketTokenBalances } from '@/features/order-placement/lib/useMarketTokenBalances';
 import { createHash } from 'crypto';
 import { BN } from '@coral-xyz/anchor';
-import { ExternalLinkIcon } from 'lucide-react';
-import { submitOrderToSequencer } from '../../../shared/api/sequencer';
+import { ExternalLinkIcon, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { baseMint, marketId, quoteMint } from '../../../shared/config/constants';
-import { NumberInput } from '../../../shared/ui/number-input';
+import { PublicKey } from '@solana/web3.js';
+import { baseMint, quoteMint } from '@/shared/config/constants';
+import { NumberInput } from '@/shared/ui/number-input';
+import { useSequencerApi } from '@/shared/api/useSequencerApi';
+import { useSelectedMarket } from '@/entities/market';
 
 export function TradePanel() {
   const [formState, setFormState] = useState({
@@ -21,6 +24,13 @@ export function TradePanel() {
     size: 0,
     orderType: 'limit',
   });
+  const { submitOrderToSequencer } = useSequencerApi();
+  const { selectedMarket } = useSelectedMarket();
+  const {
+    balances,
+    isLoading: balancesLoading,
+    refetch: refetchBalances,
+  } = useMarketTokenBalances();
 
   const { signMessage, publicKey } = useWallet();
 
@@ -49,20 +59,24 @@ export function TradePanel() {
         price: intent.price.toNumber(),
         quantity: intent.quantity.toNumber(),
         expiry: intent.expiry.toNumber(),
-        market_id: marketId,
+        base_mint: intent.base_mint.toBase58(),
+        quote_mint: intent.quote_mint.toBase58(),
       },
       signature: hexSignature,
     };
 
-    const response = await submitOrderToSequencer(body);
+    const receipt = await submitOrderToSequencer(body);
 
-    return response;
+    return receipt;
   };
 
   const placeSellOrder = async () => {
     try {
       if (!publicKey) throw new Error('Wallet not connected!');
       const orderId = new BN(Math.floor(Math.random() * 10000000));
+
+      const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
+      const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;
 
       const intent = new OrderIntent(
         orderId,
@@ -71,8 +85,8 @@ export function TradePanel() {
         new BN(formState.price).mul(new BN(10 ** 9)),
         new BN(formState.size).mul(new BN(10 ** 9)),
         new BN(Date.now() + 60 * 60 * 1000),
-        baseMint,
-        quoteMint
+        baseMintPubkey,
+        quoteMintPubkey
       );
 
       const response = await placeOrderIntent(intent);
@@ -89,6 +103,9 @@ export function TradePanel() {
       if (!publicKey) throw new Error('Wallet not connected!');
       const orderId = new BN(Math.floor(Math.random() * 10000000));
 
+      const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
+      const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;
+
       const intent = new OrderIntent(
         orderId,
         publicKey,
@@ -96,8 +113,8 @@ export function TradePanel() {
         new BN(formState.price).mul(new BN(10 ** 9)),
         new BN(formState.size).mul(new BN(10 ** 9)),
         new BN(Date.now() + 60 * 60 * 1000),
-        baseMint,
-        quoteMint
+        baseMintPubkey,
+        quoteMintPubkey
       );
       const response = await placeOrderIntent(intent);
       console.log('Order placed', { response });
@@ -132,7 +149,7 @@ export function TradePanel() {
           min={0}
           placeholder="Enter price"
           required
-          unit="QUOTE"
+          unit={selectedMarket?.quoteTokenName}
         />
 
         <NumberInput
@@ -146,7 +163,7 @@ export function TradePanel() {
           min={0}
           placeholder="Enter size"
           required
-          unit="BASE"
+          unit={selectedMarket?.baseTokenName}
         />
 
         <div className="grid grid-cols-2 gap-2 ">
@@ -166,6 +183,33 @@ export function TradePanel() {
           </Button>
         </div>
         <div className="bg-gray-100 font-medium rounded-sm p-2 text-xs space-y-1 mt-auto">
+          {/* Wallet Balances Section */}
+          <div className="mb-2 pb-2 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-nowrap font-semibold">Your Balances</span>
+              <button
+                onClick={() => refetchBalances()}
+                className="text-blue-600 hover:text-blue-800 transition-colors"
+                title="Refresh balances"
+              >
+                <RefreshCw className="size-3" />
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-nowrap">Base ({selectedMarket?.baseTokenName || 'BASE'})</span>
+              <span className="tabular-nums">{balancesLoading ? '...' : balances.baseBalance}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-nowrap">
+                Quote ({selectedMarket?.quoteTokenName || 'QUOTE'})
+              </span>
+              <span className="tabular-nums">
+                {balancesLoading ? '...' : balances.quoteBalance}
+              </span>
+            </div>
+          </div>
+
+          {/* Order Info Section */}
           <div className="flex items-center justify-between">
             <span>Order Value</span>
             <span className="tabular-nums">
@@ -179,24 +223,28 @@ export function TradePanel() {
           <div className="flex items-center justify-between">
             <span className="text-nowrap">Base Token</span>
             <a
-              href={`https://solscan.io/token/${baseMint.toBase58()}`}
+              href={`https://solscan.io/token/${selectedMarket?.base_mint || baseMint.toBase58()}`}
               className="group tabular-nums inline-flex items-center gap-1 font-normal text-neutral-600 hover:text-blue-600 transition-colors"
               target="_blank"
-              title={baseMint.toBase58()}
+              title={selectedMarket?.base_mint || baseMint.toBase58()}
             >
-              {`${baseMint.toBase58().slice(0, 8)}...${baseMint.toBase58().slice(-8)}`}
+              {selectedMarket?.base_mint
+                ? `${selectedMarket.base_mint.slice(0, 8)}...${selectedMarket.base_mint.slice(-8)}`
+                : `${baseMint.toBase58().slice(0, 8)}...${baseMint.toBase58().slice(-8)}`}
               <ExternalLinkIcon className="size-0 group-hover:size-3 transition-all" />
             </a>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-nowrap">Quote Token</span>
             <a
-              href={`https://solscan.io/token/${quoteMint.toBase58()}`}
+              href={`https://solscan.io/token/${selectedMarket?.quote_mint || quoteMint.toBase58()}`}
               className="group tabular-nums inline-flex items-center gap-1 font-normal text-neutral-600 hover:text-blue-600 transition-colors"
               target="_blank"
-              title={quoteMint.toBase58()}
+              title={selectedMarket?.quote_mint || quoteMint.toBase58()}
             >
-              {`${quoteMint.toBase58().slice(0, 8)}...${quoteMint.toBase58().slice(-8)}`}
+              {selectedMarket?.quote_mint
+                ? `${selectedMarket.quote_mint.slice(0, 8)}...${selectedMarket.quote_mint.slice(-8)}`
+                : `${quoteMint.toBase58().slice(0, 8)}...${quoteMint.toBase58().slice(-8)}`}
               <ExternalLinkIcon className="size-0 group-hover:size-3 transition-all" />
             </a>
           </div>

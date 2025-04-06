@@ -3,12 +3,7 @@
  * Defines server-related state and operations
  */
 import { atom, useAtom } from 'jotai';
-
-export interface Server {
-  label: string;
-  url: string;
-  latency: number | null;
-}
+import { Server } from '@/types';
 
 export const servers: Server[] = [
   {

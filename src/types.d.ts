@@ -37,3 +37,29 @@ type GetOrderbookResponse = {
   data: Orderbook;
   message: string;
 };
+
+type OrderReceipt = {
+  merkle_root: string;
+  order_id: number;
+  owner: string;
+  sequencer_id: string;
+  sequencer_signature: string;
+  timestamp_ms: number;
+};
+
+type PlaceOrderResponse = {
+  code: 200;
+  data: {
+    base_mint: string;
+    order_id: bigint;
+    quote_mint: string;
+    receipt: OrderReceipt;
+  };
+  message: string;
+};
+
+export interface Server {
+  label: string;
+  url: string;
+  latency: number | null;
+}
