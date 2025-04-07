@@ -56,7 +56,7 @@ export class LiquidityVaultClient {
         ...opts,
       });
     } catch (e) {
-      console.log('Error sending transaction', e);
+      console.error('Error sending transaction', e);
       throw e;
     }
   }
@@ -124,13 +124,6 @@ export class LiquidityVaultClient {
     const [vaultAuthority] = await this.getVaultAuthorityPDA(vaultState);
     const [vaultTokenAccount] = await this.getVaultTokenAccountPDA(vaultState);
 
-    console.log({
-      vaultState: vaultState.toBase58(),
-      vaultAuthority: vaultAuthority.toBase58(),
-      vaultTokenAccount: vaultTokenAccount.toBase58(),
-      payer: this.walletPk.toBase58(),
-    });
-
     const whitelistedProgram = new PublicKey('8bHSuk6dpjquTw44vwr3sLukDSMLNkQLTcttGtC5pJtb');
 
     const ix = await this.program.methods
@@ -177,13 +170,6 @@ export class LiquidityVaultClient {
     const [userState] = await this.getUserStatePDA(user, vaultState);
     const [vaultTokenAccount] = await this.getVaultTokenAccountPDA(vaultState);
 
-    console.log({
-      vaultState: vaultState.toBase58(),
-      userState: userState.toBase58(),
-      vaultTokenAccount: vaultTokenAccount.toBase58(),
-      payer: this.walletPk.toBase58(),
-    });
-
     const ix = await this.program.methods
       .deposit(user, new BN(amount))
       .accounts({
@@ -221,13 +207,6 @@ export class LiquidityVaultClient {
     const [vaultAuthority] = await this.getVaultAuthorityPDA(vaultState);
     const [userState] = await this.getUserStatePDA(user, vaultState);
     const [vaultTokenAccount] = await this.getVaultTokenAccountPDA(vaultState);
-
-    console.log({
-      vaultState: vaultState.toBase58(),
-      vaultAuthority: vaultAuthority.toBase58(),
-      vaultTokenAccount: vaultTokenAccount.toBase58(),
-      payer: this.walletPk.toBase58(),
-    });
 
     const ix = await this.program.methods
       .withdraw(user, new BN(amount))

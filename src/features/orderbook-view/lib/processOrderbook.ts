@@ -58,7 +58,6 @@ export const processOrderbook = (
   orderbook: Orderbook | null,
   maxRows: number = DEFAULT_ORDERBOOK_ROWS
 ): ProcessedOrderbook => {
-  console.log('orderbook', orderbook);
   if (!orderbook || !orderbook.buys || !orderbook.sells) {
     return {
       buys: Array(maxRows).fill(null),
@@ -72,8 +71,6 @@ export const processOrderbook = (
   // Process buys and sells
   const buys = aggregateOrders(orderbook.buys, (a, b) => b - a, maxRows); // Descending
   const sells = aggregateOrders(orderbook.sells, (a, b) => a - b, maxRows); // Ascending
-  console.log('buys', buys);
-  console.log('sells', sells);
   // Calculate max depth based on cumulative quantity
   const maxDepth = Math.max(
     buys.length > 0 ? buys[buys.length - 1].total : 0,
@@ -95,8 +92,6 @@ export const processOrderbook = (
   const filledSells = [...sells, ...Array(Math.max(0, maxRows - sells.length)).fill(null)];
 
   const spread = Math.abs((filledBuys[0]?.price || 0) - (filledSells[0]?.price || 0));
-
-  console.log('filledBuys', filledBuys);
 
   return {
     buys: filledBuys,

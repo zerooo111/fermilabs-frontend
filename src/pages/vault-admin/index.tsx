@@ -25,6 +25,7 @@ function VaultAdminPage() {
         quote_mint: 'Hf9KLE7pbHruArPXSVPn7sZ5iKt8Xxjmg2fCTzWUjEz8',
         name: 'TEST/USDC',
       });
+
       console.log(response);
     } catch (error) {
       console.error(error);

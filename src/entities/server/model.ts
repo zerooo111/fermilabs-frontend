@@ -18,7 +18,7 @@ export const servers: Server[] = [
   },
   {
     label: 'US | East',
-    url: 'http://54.196.30.137:8084',
+    url: 'https://54.80.177.213:8085',
     latency: null,
   },
 ];

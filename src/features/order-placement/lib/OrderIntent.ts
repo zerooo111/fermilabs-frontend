@@ -8,21 +8,35 @@ import * as borsh from '@coral-xyz/borsh';
 export class CancelOrderIntent {
   constructor(
     public readonly order_id: BN,
-    public readonly owner: PublicKey
+    public readonly owner: PublicKey,
+    public readonly market_id: string
   ) {}
 
   static layout() {
-    return borsh.struct([borsh.u64('order_id'), borsh.publicKey('owner')]);
+    return borsh.struct([
+      borsh.u64('order_id'),
+      borsh.publicKey('owner'),
+      borsh.array(borsh.u8(), 16, 'market_id'),
+    ]);
   }
 
   static serialize(cancelOrderIntent: CancelOrderIntent) {
-    const buffer = Buffer.alloc(CancelOrderIntent.layout().span);
-    CancelOrderIntent.layout().encode(cancelOrderIntent, buffer);
-    return buffer;
+    // Truncate or pad market_id to 16 bytes
+    const marketIdBytes = Buffer.from(cancelOrderIntent.market_id);
+
+    const data = {
+      order_id: cancelOrderIntent.order_id,
+      owner: cancelOrderIntent.owner,
+      market_id: marketIdBytes,
+    };
+    const buffer = Buffer.alloc(1024); // Fixed size: 8 (u64) + 32 (pubkey) + 16 (market_id)
+    const encodedLength = CancelOrderIntent.layout().encode(data, buffer);
+    return buffer.slice(0, encodedLength);
   }
 
   static deserialize(buffer: Buffer): CancelOrderIntent {
     const decoded = CancelOrderIntent.layout().decode(buffer);
+    console.log('Decoded', decoded);
     return decoded;
   }
 
@@ -30,6 +44,7 @@ export class CancelOrderIntent {
     return {
       order_id: Number(this.order_id),
       owner: this.owner.toBase58(),
+      market_id: this.market_id,
     };
   }
 }
@@ -70,7 +85,6 @@ export class OrderIntent {
       side: sideValue,
     };
     OrderIntent.layout().encode(serializable, buffer);
-    console.log('DESERIALISED', JSON.stringify(this.deserialize(buffer), null, 2));
     return buffer;
   }
 

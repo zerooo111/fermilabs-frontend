@@ -24,14 +24,8 @@ export function useVaultClient() {
   const vaultClient = useMemo(() => {
     if (!provider) return;
 
-    console.log('Creating vault client');
     return new LiquidityVaultClient(provider, new PublicKey(config.devnet.vaultProgramId), {
       postSendTxCallback: ({ txid }) => {
-        console.log('--------------------------------');
-        console.log('txid:', txid);
-        console.log('Solana Explorer:', `https://explorer.solana.com/tx/${txid}?cluster=devnet`);
-        console.log('--------------------------------');
-
         toast.custom(() => (
           <div className="bg-white border border-zinc-300 shadow-2xl p-3 rounded-xl flex flex-col gap-2 text-xs">
             <p className="font-semibold">Transaction sent successfully</p>

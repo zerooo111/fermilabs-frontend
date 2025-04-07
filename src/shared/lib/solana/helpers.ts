@@ -145,12 +145,7 @@ export const checkOrCreateAssociatedTokenAccount = async (
   const accountInfo = await provider.connection.getAccountInfo(ata);
   if (accountInfo == null) {
     // ATA does not exist, create it
-    console.log('Creating Associated Token Account for user...');
     await createAssociatedTokenAccount(provider, mint, ata, owner);
-    console.log('Associated Token Account created successfully.');
-  } else {
-    // ATA already exists
-    console.log('Associated Token Account already exists.');
   }
 
   return ata;

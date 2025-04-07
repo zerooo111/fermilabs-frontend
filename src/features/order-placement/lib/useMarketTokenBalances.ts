@@ -31,9 +31,6 @@ export function useMarketTokenBalances() {
         fetchTokenBalance(publicKey, quoteMintPubkey, connection),
       ]);
 
-      console.log('baseBalanceStr', baseBalanceStr);
-      console.log('quoteBalanceStr', quoteBalanceStr);
-
       // Convert to human-readable format using the market's decimals
       const baseBalance = new BN(baseBalanceStr)
         .div(new BN(10).pow(new BN(selectedMarket.base_decimals)))
@@ -41,9 +38,6 @@ export function useMarketTokenBalances() {
       const quoteBalance = new BN(quoteBalanceStr)
         .div(new BN(10).pow(new BN(selectedMarket.quote_decimals)))
         .toString();
-
-      console.log('baseBalance', baseBalance);
-      console.log('quoteBalance', quoteBalance);
 
       return { baseBalance, quoteBalance };
     } catch (error) {

@@ -34,8 +34,6 @@ export function GetVaultAndUserState() {
         wallet.publicKey
       );
 
-      console.log('got user ata', userAta);
-
       const [vaultStatePda] = await vaultClient.getVaultStatePDA(tokenMint);
       const vaultState = await vaultClient.getVaultState(vaultStatePda);
       const [vaultTokenAccount] = await vaultClient.getVaultTokenAccountPDA(vaultStatePda);
