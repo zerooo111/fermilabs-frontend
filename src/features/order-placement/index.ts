@@ -4,4 +4,4 @@
  */
 export { TradePanel } from './ui/TradePanel';
 export { MyOrders } from './ui/MyOrders';
-export { OrderIntent, CancelOrderIntent } from './lib/OrderIntent';
+export { OrderIntent } from './lib/OrderIntent';

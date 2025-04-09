@@ -1,13 +1,26 @@
 /**
  * Chart utilities
+ * Updated to match the graph API documentation
  */
 import { config } from '@/shared/config/constants';
 import axios from 'axios';
 
+// Time intervals as defined in the API documentation
 export type TimeInterval = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
 
+// Map API interval values to human-readable format required by the API
+export const intervalToApiFormat = {
+  '1m': '1 minute',
+  '5m': '5 minutes',
+  '15m': '15 minutes',
+  '1h': '1 hour',
+  '4h': '4 hours',
+  '1d': '1 day',
+};
+
+// OHLCV data structure
 export interface OHLCVData {
-  time: number;
+  time: number; // Unix timestamp in seconds
   open: number;
   high: number;
   low: number;
@@ -15,13 +28,29 @@ export interface OHLCVData {
   volume: number;
 }
 
-export interface CandleParams {
-  interval: TimeInterval;
-  startTime: number;
-  endTime: number;
-  marketId: string;
+// Extended OHLCV data that allows for partial data
+export interface ExtendedOHLCVData {
+  time: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
+  volume?: number;
 }
 
+// Parameters for fetching candle data
+export interface CandleParams {
+  interval: string; // Using the API format (e.g., '1 hour', '15 minutes')
+  startTime: number; // Unix timestamp in seconds
+  endTime: number; // Unix timestamp in seconds
+  marketId: string; // Market identifier
+}
+
+/**
+ * Fetch candle data from the Graph API
+ * @param params Parameters for the API request
+ * @returns Array of OHLCV data
+ */
 export async function fetchCandles(params: CandleParams): Promise<OHLCVData[]> {
   try {
     const response = await axios.get(`${config.devnet.graphApiUrl}/candles`, { params });
@@ -32,6 +61,11 @@ export async function fetchCandles(params: CandleParams): Promise<OHLCVData[]> {
   }
 }
 
+/**
+ * Calculate the appropriate time range for a given interval
+ * @param interval The time interval
+ * @returns Object containing startTime and endTime in Unix seconds
+ */
 export function getTimeRangeForInterval(interval: TimeInterval): {
   startTime: number;
   endTime: number;

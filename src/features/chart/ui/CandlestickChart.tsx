@@ -13,12 +13,16 @@ import {
   TimeScaleOptions,
   TickMarkFormatter,
   BusinessDay,
+  HistogramData,
+  HistogramSeries,
+  DeepPartial,
+  ChartOptions,
 } from 'lightweight-charts';
 import { useEffect, useRef, memo, useMemo } from 'react';
-import { OHLCVData, TimeInterval } from '@/features/chart/lib/chart';
+import { ExtendedOHLCVData, TimeInterval } from '@/features/chart/lib/chart';
 
 interface ChartComponentProps {
-  data: OHLCVData[];
+  data: ExtendedOHLCVData[];
   interval: TimeInterval;
   colors?: {
     backgroundColor?: string;
@@ -87,6 +91,7 @@ function CandlestickChartComponent({
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
 
   // Memoize the resize handler for better performance
   const handleResize = useMemo(
@@ -114,7 +119,8 @@ function CandlestickChartComponent({
 
     const { clientWidth, clientHeight } = chartContainerRef.current;
 
-    const chart = createChart(chartContainerRef.current, {
+    // Chart options with volume panel
+    const chartOptions: DeepPartial<ChartOptions> = {
       layout: {
         background: { type: ColorType.Solid, color: backgroundColor },
         textColor,
@@ -134,7 +140,7 @@ function CandlestickChartComponent({
         borderVisible: false,
         scaleMargins: {
           top: 0.1,
-          bottom: 0.1,
+          bottom: 0.3, // Leave space for volume chart at bottom
         },
       },
       crosshair: {
@@ -152,7 +158,9 @@ function CandlestickChartComponent({
       },
       width: clientWidth,
       height: clientHeight,
-    });
+    };
+
+    const chart = createChart(chartContainerRef.current, chartOptions);
 
     chartRef.current = chart;
 
@@ -169,21 +177,73 @@ function CandlestickChartComponent({
 
     seriesRef.current = candlestickSeries;
 
+    // Create volume histogram series with separate scale
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      color: 'rgba(148, 163, 184, 0.5)',
+      priceFormat: {
+        type: 'volume',
+      },
+      priceScaleId: 'volume', // Separate scale for volume
+    }) as ISeriesApi<'Histogram'>;
+
+    // Configure volume price scale
+    chart.priceScale('volume').applyOptions({
+      scaleMargins: {
+        top: 0.8, // Position volume at the bottom 20% of the chart
+        bottom: 0,
+      },
+      borderVisible: false,
+    });
+
+    volumeSeriesRef.current = volumeSeries;
+
     // Transform data to match candlestick format
-    const transformedData: CandlestickData<Time>[] = data.map(item => ({
-      time: item.time as Time,
-      open: item.open,
-      high: item.high,
-      low: item.low,
-      close: item.close,
-    }));
+    const transformedData: CandlestickData<Time>[] = [];
+    const volumeData: HistogramData<Time>[] = [];
+
+    data.forEach(item => {
+      // Skip items without complete data
+      if (
+        item.open === undefined ||
+        item.high === undefined ||
+        item.low === undefined ||
+        item.close === undefined
+      ) {
+        return;
+      }
+
+      const time = item.time as Time;
+
+      // Add candlestick data
+      transformedData.push({
+        time,
+        open: item.open,
+        high: item.high,
+        low: item.low,
+        close: item.close,
+      });
+
+      // Add volume data with color based on price movement
+      if (item.volume !== undefined) {
+        const isUp = (item.close || 0) >= (item.open || 0);
+        volumeData.push({
+          time,
+          value: item.volume,
+          color: isUp ? upColor + '80' : downColor + '80', // Add transparency
+        });
+      }
+    });
 
     candlestickSeries.setData(transformedData);
+    volumeSeries.setData(volumeData);
+
     chart.timeScale().fitContent();
+
     return () => {
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      volumeSeriesRef.current = null;
     };
   }, [
     data,

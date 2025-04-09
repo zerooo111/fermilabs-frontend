@@ -9,9 +9,10 @@ import { OrderIntent } from '@/features/order-placement/lib/OrderIntent';
 import { useMarketTokenBalances } from '@/features/order-placement/lib/useMarketTokenBalances';
 import { createHash } from 'crypto';
 import { BN } from '@coral-xyz/anchor';
-import { ExternalLinkIcon, RefreshCw } from 'lucide-react';
+import { ExternalLinkIcon, RefreshCw, Loader2, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey } from '@solana/web3.js';
 import { baseMint, quoteMint } from '@/shared/config/constants';
 import { NumberInput } from '@/shared/ui/number-input';
@@ -24,6 +25,8 @@ export function TradePanel() {
     size: 0,
     orderType: 'limit',
   });
+  const [isBuying, setIsBuying] = useState(false);
+  const [isSelling, setIsSelling] = useState(false);
   const { submitOrderToSequencer } = useSequencerApi();
   const { selectedMarket } = useSelectedMarket();
   const {
@@ -32,7 +35,8 @@ export function TradePanel() {
     refetch: refetchBalances,
   } = useMarketTokenBalances();
 
-  const { signMessage, publicKey } = useWallet();
+  const { signMessage, publicKey, connected } = useWallet();
+  const { setVisible } = useWalletModal();
 
   const placeOrderIntent = async (intent: OrderIntent) => {
     if (!signMessage) throw new Error('Wallet not connected!');
@@ -71,7 +75,13 @@ export function TradePanel() {
   };
 
   const placeSellOrder = async () => {
+    if (!connected) {
+      setVisible(true);
+      return;
+    }
+
     try {
+      setIsSelling(true);
       if (!publicKey) throw new Error('Wallet not connected!');
       const orderId = new BN(Math.floor(Math.random() * 10000000));
 
@@ -95,11 +105,19 @@ export function TradePanel() {
     } catch (error) {
       console.error(error);
       toast.error('Failed to place order');
+    } finally {
+      setIsSelling(false);
     }
   };
 
   const placeBuyOrder = async () => {
+    if (!connected) {
+      setVisible(true);
+      return;
+    }
+
     try {
+      setIsBuying(true);
       if (!publicKey) throw new Error('Wallet not connected!');
       const orderId = new BN(Math.floor(Math.random() * 10000000));
 
@@ -122,6 +140,8 @@ export function TradePanel() {
     } catch (error) {
       console.error(error);
       toast.error('Failed to place order');
+    } finally {
+      setIsBuying(false);
     }
   };
 
@@ -166,22 +186,47 @@ export function TradePanel() {
           unit={selectedMarket?.baseTokenName}
         />
 
-        <div className="grid grid-cols-2 gap-2 ">
+        {!connected ? (
           <Button
-            variant="default"
-            disabled={!formState.price || !formState.size}
-            onClick={placeBuyOrder}
+            variant="outline"
+            className="w-full flex items-center justify-center gap-2"
+            onClick={() => setVisible(true)}
           >
-            Buy
+            <Wallet className="size-4" />
+            Connect Wallet to Trade
           </Button>
-          <Button
-            variant="default"
-            disabled={!formState.price || !formState.size}
-            onClick={placeSellOrder}
-          >
-            Sell
-          </Button>
-        </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="default"
+              disabled={!formState.price || !formState.size || isBuying}
+              onClick={placeBuyOrder}
+            >
+              {isBuying ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Buying...
+                </>
+              ) : (
+                'Buy'
+              )}
+            </Button>
+            <Button
+              variant="default"
+              disabled={!formState.price || !formState.size || isSelling}
+              onClick={placeSellOrder}
+            >
+              {isSelling ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Selling...
+                </>
+              ) : (
+                'Sell'
+              )}
+            </Button>
+          </div>
+        )}
         <div className="bg-gray-100 font-medium rounded-sm p-2 text-xs space-y-1 mt-auto">
           {/* Wallet Balances Section */}
           <div className="mb-2 pb-2 border-b border-gray-200">
@@ -191,20 +236,33 @@ export function TradePanel() {
                 onClick={() => refetchBalances()}
                 className="text-blue-600 hover:text-blue-800 transition-colors"
                 title="Refresh balances"
+                disabled={!connected}
               >
-                <RefreshCw className="size-3" />
+                <RefreshCw className={`size-3 ${balancesLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-nowrap">Base ({selectedMarket?.baseTokenName || 'BASE'})</span>
-              <span className="tabular-nums">{balancesLoading ? '0' : balances.baseBalance}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-nowrap">
-                Quote ({selectedMarket?.quoteTokenName || 'QUOTE'})
-              </span>
-              <span className="tabular-nums">{balancesLoading ? '0' : balances.quoteBalance}</span>
-            </div>
+            {!connected ? (
+              <div className="text-xs text-gray-500 italic">Connect wallet to view balances</div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-nowrap">
+                    Base ({selectedMarket?.baseTokenName || 'BASE'})
+                  </span>
+                  <span className="tabular-nums">
+                    {balancesLoading ? '0' : balances.baseBalance}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-nowrap">
+                    Quote ({selectedMarket?.quoteTokenName || 'QUOTE'})
+                  </span>
+                  <span className="tabular-nums">
+                    {balancesLoading ? '0' : balances.quoteBalance}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Order Info Section */}
