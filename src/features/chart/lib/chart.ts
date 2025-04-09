@@ -26,6 +26,8 @@ export interface OHLCVData {
   low: number;
   close: number;
   volume: number;
+  isGapFilled?: boolean;
+  gapFillMethod?: string;
 }
 
 // Extended OHLCV data that allows for partial data
@@ -36,6 +38,8 @@ export interface ExtendedOHLCVData {
   low?: number;
   close?: number;
   volume?: number;
+  isGapFilled?: boolean;
+  gapFillMethod?: string;
 }
 
 // Parameters for fetching candle data
@@ -51,14 +55,83 @@ export interface CandleParams {
  * @param params Parameters for the API request
  * @returns Array of OHLCV data
  */
-export async function fetchCandles(params: CandleParams): Promise<OHLCVData[]> {
+/**
+ * Fetch candle data with fallback to larger timeframes if needed
+ * @param params Parameters for the API request
+ * @param attemptFallback Whether to attempt fallback to larger timeframes
+ * @returns Array of OHLCV data
+ */
+export async function fetchCandles(
+  params: CandleParams,
+  attemptFallback: boolean = false
+): Promise<OHLCVData[]> {
   try {
     const response = await axios.get(`${config.devnet.graphApiUrl}/candles`, { params });
+
+    // Validate the response data
+    if (!Array.isArray(response.data)) {
+      console.error('Invalid response data format:', response.data);
+      throw new Error('Invalid response data format: expected an array');
+    }
+
+    // Check if we have any data
+    if (response.data.length === 0 || response.data.length < 2) {
+      console.warn(`No or insufficient candle data returned for interval: ${params.interval}`);
+
+      // If fallback is enabled and we're not already at the largest timeframe, try a larger one
+      if (attemptFallback && params.interval !== '1 day') {
+        const nextLargerInterval = getNextLargerInterval(params.interval);
+        if (nextLargerInterval) {
+          console.log(`Attempting fallback to larger interval: ${nextLargerInterval}`);
+          return fetchCandles(
+            { ...params, interval: nextLargerInterval },
+            true // Continue attempting fallbacks if needed
+          );
+        }
+      }
+    }
+
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
+    // Type assertion for better error handling
     console.error('Error fetching candle data:', error);
-    throw error;
+
+    // Add more detailed error information
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('Error response data:', error.response.data);
+      console.error('Error response status:', error.response.status);
+      console.error('Error response headers:', error.response.headers);
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('Error request:', error.request);
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('Error message:', error.message || 'Unknown error');
+    }
+
+    // Create a more user-friendly error message
+    const errorMessage =
+      error.response?.data?.message || error.message || 'Failed to fetch chart data';
+    throw new Error(`Chart data error: ${errorMessage}`);
   }
+}
+
+/**
+ * Get the next larger interval for fallback
+ * @param interval The current interval in API format
+ * @returns The next larger interval in API format, or null if already at largest
+ */
+function getNextLargerInterval(interval: string): string | null {
+  const intervalOrder = ['1 minute', '5 minutes', '15 minutes', '1 hour', '4 hours', '1 day'];
+
+  const currentIndex = intervalOrder.indexOf(interval);
+  if (currentIndex === -1 || currentIndex === intervalOrder.length - 1) {
+    return null; // Not found or already at largest interval
+  }
+
+  return intervalOrder[currentIndex + 1];
 }
 
 /**

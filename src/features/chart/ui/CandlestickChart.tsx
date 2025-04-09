@@ -24,6 +24,7 @@ import { ExtendedOHLCVData, TimeInterval } from '@/features/chart/lib/chart';
 interface ChartComponentProps {
   data: ExtendedOHLCVData[];
   interval: TimeInterval;
+  onLoadMoreData?: (startTime: number, endTime: number) => Promise<void>;
   colors?: {
     backgroundColor?: string;
     upColor?: string;
@@ -115,136 +116,244 @@ function CandlestickChartComponent({
 
   // Create and update chart
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    try {
+      if (!chartContainerRef.current) return;
 
-    const { clientWidth, clientHeight } = chartContainerRef.current;
+      const { clientWidth, clientHeight } = chartContainerRef.current;
 
-    // Chart options with volume panel
-    const chartOptions: DeepPartial<ChartOptions> = {
-      layout: {
-        background: { type: ColorType.Solid, color: backgroundColor },
-        textColor,
-        fontFamily: 'Geist Mono, sans-serif',
-      },
-      grid: {
-        vertLines: { color: gridColor },
-        horzLines: { color: gridColor },
-      },
-      timeScale: {
-        borderColor: gridColor,
-        timeVisible: true,
-        secondsVisible: false,
-        ...getTimeScaleOptions(interval),
-      },
-      rightPriceScale: {
+      // Chart options with volume panel
+      const chartOptions: DeepPartial<ChartOptions> = {
+        layout: {
+          background: { type: ColorType.Solid, color: backgroundColor },
+          textColor,
+          fontFamily: 'Geist Mono, sans-serif',
+        },
+        grid: {
+          vertLines: { color: gridColor },
+          horzLines: { color: gridColor },
+        },
+        timeScale: {
+          borderColor: gridColor,
+          timeVisible: true,
+          secondsVisible: false,
+          ...getTimeScaleOptions(interval),
+        },
+        rightPriceScale: {
+          borderVisible: false,
+          scaleMargins: {
+            top: 0.1,
+            bottom: 0.3, // Leave space for volume chart at bottom
+          },
+        },
+        crosshair: {
+          mode: 1,
+          vertLine: {
+            width: 1,
+            color: 'rgba(148, 163, 184, 0.4)',
+            style: 3,
+          },
+          horzLine: {
+            width: 1,
+            color: 'rgba(148, 163, 184, 0.4)',
+            style: 3,
+          },
+        },
+        width: clientWidth,
+        height: clientHeight,
+      };
+
+      const chart = createChart(chartContainerRef.current, chartOptions);
+
+      chartRef.current = chart;
+
+      // Create candlestick series
+      const candlestickSeries = chart.addSeries(CandlestickSeries, {
+        upColor,
+        downColor,
         borderVisible: false,
+        wickUpColor,
+        wickDownColor,
+        borderUpColor: upColor,
+        borderDownColor: downColor,
+      }) as ISeriesApi<'Candlestick'>;
+
+      seriesRef.current = candlestickSeries;
+
+      // Create volume histogram series with separate scale
+      const volumeSeries = chart.addSeries(HistogramSeries, {
+        color: 'rgba(148, 163, 184, 0.5)',
+        priceFormat: {
+          type: 'volume',
+        },
+        priceScaleId: 'volume', // Separate scale for volume
+      }) as ISeriesApi<'Histogram'>;
+
+      // Configure volume price scale
+      chart.priceScale('volume').applyOptions({
         scaleMargins: {
-          top: 0.1,
-          bottom: 0.3, // Leave space for volume chart at bottom
+          top: 0.8, // Position volume at the bottom 20% of the chart
+          bottom: 0,
         },
-      },
-      crosshair: {
-        mode: 1,
-        vertLine: {
-          width: 1,
-          color: 'rgba(148, 163, 184, 0.4)',
-          style: 3,
-        },
-        horzLine: {
-          width: 1,
-          color: 'rgba(148, 163, 184, 0.4)',
-          style: 3,
-        },
-      },
-      width: clientWidth,
-      height: clientHeight,
-    };
-
-    const chart = createChart(chartContainerRef.current, chartOptions);
-
-    chartRef.current = chart;
-
-    // Create candlestick series
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor,
-      downColor,
-      borderVisible: false,
-      wickUpColor,
-      wickDownColor,
-      borderUpColor: upColor,
-      borderDownColor: downColor,
-    }) as ISeriesApi<'Candlestick'>;
-
-    seriesRef.current = candlestickSeries;
-
-    // Create volume histogram series with separate scale
-    const volumeSeries = chart.addSeries(HistogramSeries, {
-      color: 'rgba(148, 163, 184, 0.5)',
-      priceFormat: {
-        type: 'volume',
-      },
-      priceScaleId: 'volume', // Separate scale for volume
-    }) as ISeriesApi<'Histogram'>;
-
-    // Configure volume price scale
-    chart.priceScale('volume').applyOptions({
-      scaleMargins: {
-        top: 0.8, // Position volume at the bottom 20% of the chart
-        bottom: 0,
-      },
-      borderVisible: false,
-    });
-
-    volumeSeriesRef.current = volumeSeries;
-
-    // Transform data to match candlestick format
-    const transformedData: CandlestickData<Time>[] = [];
-    const volumeData: HistogramData<Time>[] = [];
-
-    data.forEach(item => {
-      // Skip items without complete data
-      if (
-        item.open === undefined ||
-        item.high === undefined ||
-        item.low === undefined ||
-        item.close === undefined
-      ) {
-        return;
-      }
-
-      const time = item.time as Time;
-
-      // Add candlestick data
-      transformedData.push({
-        time,
-        open: item.open,
-        high: item.high,
-        low: item.low,
-        close: item.close,
+        borderVisible: false,
       });
 
-      // Add volume data with color based on price movement
-      if (item.volume !== undefined) {
-        const isUp = (item.close || 0) >= (item.open || 0);
-        volumeData.push({
+      volumeSeriesRef.current = volumeSeries;
+
+      // Transform data to match candlestick format
+      const transformedData: CandlestickData<Time>[] = [];
+      const volumeData: HistogramData<Time>[] = [];
+
+      data.forEach(item => {
+        // Skip items without complete data
+        if (
+          item.open === undefined ||
+          item.high === undefined ||
+          item.low === undefined ||
+          item.close === undefined
+        ) {
+          return;
+        }
+
+        // Ensure time is properly formatted for lightweight-charts
+        // For Unix timestamps (seconds), convert to the format expected by the chart
+        const timeValue = typeof item.time === 'number' ? item.time : Number(item.time);
+
+        // Validate that time is a valid number
+        if (isNaN(timeValue)) {
+          console.error('Invalid time value:', item.time);
+          return; // Skip this item
+        }
+
+        // Cast to Time type as required by lightweight-charts
+        const time = timeValue as Time;
+
+        // Handle gap-filled candles differently
+        if (item.isGapFilled) {
+          // For gap-filled candles, we'll use a special appearance
+          // We'll make them more transparent and use a neutral color
+          transformedData.push({
+            time,
+            open: item.open,
+            high: item.high,
+            low: item.low,
+            close: item.close,
+          });
+
+          // Skip adding volume for gap-filled candles
+          return;
+        }
+
+        // Add regular candlestick data
+        transformedData.push({
           time,
-          value: item.volume,
-          color: isUp ? upColor + '80' : downColor + '80', // Add transparency
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close,
+        });
+
+        // Add volume data with color based on price movement
+        if (item.volume !== undefined) {
+          const isUp = (item.close || 0) >= (item.open || 0);
+          volumeData.push({
+            time,
+            value: item.volume,
+            color: isUp ? upColor + '80' : downColor + '80', // Add transparency
+          });
+        }
+      });
+
+      // Filter out any invalid data points (NaN, undefined, etc.)
+      const validTransformedData = transformedData.filter(item => {
+        // Check if all required properties are valid numbers
+        return (
+          item.time !== undefined &&
+          !isNaN(Number(item.time)) &&
+          item.open !== undefined &&
+          !isNaN(item.open) &&
+          item.high !== undefined &&
+          !isNaN(item.high) &&
+          item.low !== undefined &&
+          !isNaN(item.low) &&
+          item.close !== undefined &&
+          !isNaN(item.close) &&
+          // Ensure high is the highest value
+          item.high >= Math.max(item.open, item.close, item.low) &&
+          // Ensure low is the lowest value
+          item.low <= Math.min(item.open, item.close, item.high)
+        );
+      });
+
+      const validVolumeData = volumeData.filter(item => {
+        return (
+          item.time !== undefined &&
+          !isNaN(Number(item.time)) &&
+          item.value !== undefined &&
+          !isNaN(item.value)
+        );
+      });
+
+      // Sort data by time to ensure it's in chronological order
+      validTransformedData.sort((a, b) => {
+        const timeA = typeof a.time === 'number' ? a.time : Number(a.time);
+        const timeB = typeof b.time === 'number' ? b.time : Number(b.time);
+        return timeA - timeB;
+      });
+
+      validVolumeData.sort((a, b) => {
+        const timeA = typeof a.time === 'number' ? a.time : Number(a.time);
+        const timeB = typeof b.time === 'number' ? b.time : Number(b.time);
+        return timeA - timeB;
+      });
+
+      // Log any filtered out data points
+      if (transformedData.length !== validTransformedData.length) {
+        console.warn(
+          `Filtered out ${transformedData.length - validTransformedData.length} invalid candlestick data points`
+        );
+      }
+
+      if (volumeData.length !== validVolumeData.length) {
+        console.warn(
+          `Filtered out ${volumeData.length - validVolumeData.length} invalid volume data points`
+        );
+      }
+
+      try {
+        // Set the data with error handling
+        candlestickSeries.setData(validTransformedData);
+        volumeSeries.setData(validVolumeData);
+
+        // Fit content with error handling
+        chart.timeScale().fitContent();
+      } catch (error) {
+        console.error('Error setting chart data:', error);
+        console.error('Data that caused the error:', {
+          validDataLength: validTransformedData.length,
+          validVolumeLength: validVolumeData.length,
+          firstCandlestick: validTransformedData.length > 0 ? validTransformedData[0] : null,
+          lastCandlestick:
+            validTransformedData.length > 0
+              ? validTransformedData[validTransformedData.length - 1]
+              : null,
         });
       }
-    });
 
-    candlestickSeries.setData(transformedData);
-    volumeSeries.setData(volumeData);
-
-    chart.timeScale().fitContent();
-
-    return () => {
-      chart.remove();
-      chartRef.current = null;
-      seriesRef.current = null;
-      volumeSeriesRef.current = null;
-    };
+      return () => {
+        try {
+          if (chartRef.current) {
+            chartRef.current.remove();
+            chartRef.current = null;
+            seriesRef.current = null;
+            volumeSeriesRef.current = null;
+          }
+        } catch (cleanupError) {
+          console.error('Error during chart cleanup:', cleanupError);
+        }
+      };
+    } catch (chartError) {
+      console.error('Error creating or updating chart:', chartError);
+    }
   }, [
     data,
     interval,
