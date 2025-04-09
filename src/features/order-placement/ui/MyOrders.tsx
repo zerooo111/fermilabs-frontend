@@ -13,15 +13,15 @@ import { createHash } from 'crypto';
 import { BN } from '@coral-xyz/anchor';
 import { toast } from 'sonner';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
-import { selectedMarketIdAtom } from '@/entities/market/model';
-import { CancelOrderIntent } from '../lib/OrderIntent';
+import { selectedMarketAtom } from '@/entities/market/model';
 
 export function MyOrders() {
   const orderbook = useAtomValue(orderbookAtom);
   const { publicKey, signMessage } = useWallet();
   const [cancellingOrders, setCancellingOrders] = useState<Set<number>>(new Set());
   const { submitCancelOrderToSequencer } = useSequencerApi();
-  const selectedMarketId = useAtomValue(selectedMarketIdAtom);
+  const selectedMarket = useAtomValue(selectedMarketAtom);
+
   const myOrders = useMemo(() => {
     if (!orderbook || !publicKey) return [];
     // Concatenate buys and sells
@@ -51,44 +51,30 @@ export function MyOrders() {
 
   const cancelOrder = async (orderId: number) => {
     try {
-      if (!signMessage || !selectedMarketId) return;
+      if (!signMessage) return;
 
       // Optimistically update UI
       setCancellingOrders(prev => new Set(prev).add(orderId));
 
-      // 1.Create a CancelOrderData with order ID, owner public key, and market ID
-      // 2.Serialize using Borsh serialization
-      // 3. Create the signing message by:
-      // - Prepending the domain prefix FRM_DEX_CANCEL:
-      // - Appending the Borsh-serialized cancel data
-      // - Computing the SHA-256 hash of this combined data
-      // - Converting the hash to a hex string
-      // - Converting the hex string to UTF-8 bytes
-      // - Sign these UTF-8 bytes with an ed25519 private key
-      // - Convert the signature to a hex string
-      // Include the hex-encoded signature in the request
-      const cancelIntent = new CancelOrderIntent(new BN(orderId), publicKey, selectedMarketId);
-      const serializedCancelIntent = CancelOrderIntent.serialize(cancelIntent);
-      console.log('Serialized cancel intent', serializedCancelIntent);
-      const prefix = Buffer.from('FRM_DEX_CANCEL:');
-      const encodedMessage = Buffer.concat([prefix, serializedCancelIntent]);
-      console.log('Encoded message', encodedMessage);
-      const decodedMessage = CancelOrderIntent.deserialize(encodedMessage);
-      console.log('Decoded message', decodedMessage);
-      const sha256Hash = createHash('sha256').update(new Uint8Array(encodedMessage)).digest();
-      console.log('SHA256 hash', sha256Hash);
-      const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
-      console.log('SHA256 hash hex', sha256Hash_hex);
+      const message = `FRM_DEX_CANCEL:${new BN(orderId).toString()},${publicKey.toBase58()}`;
 
+      console.log('Message', message);
+
+      const sha256Hash = createHash('sha256').update(Buffer.from(message)).digest();
+      // Hex encode the hash
+      const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
+
+      // Sign the hex encoded hash
       const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
-      console.log('Signature bytes', signatureBytes);
       const hexSignature = Buffer.from(signatureBytes).toString('hex');
+
       console.log('Hex signature', hexSignature);
 
       const body = {
         order_id: new BN(orderId).toNumber(),
         owner: publicKey.toBase58(),
-        market_id: selectedMarketId,
+        base_mint: selectedMarket?.base_mint,
+        quote_mint: selectedMarket?.quote_mint,
         signature: hexSignature,
       };
 

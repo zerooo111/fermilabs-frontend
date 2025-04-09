@@ -74,7 +74,7 @@ export function useSequencerApi() {
   const submitCancelOrderToSequencer = useCallback(
     async (body: any) => {
       const { data, error } = await tryCatch<AxiosResponse<Order>>(
-        axios.post(`${baseUrl}/cancel_order`, body)
+        axios.post(`${baseUrl}/orders/cancel`, body)
       );
 
       if (error) {
