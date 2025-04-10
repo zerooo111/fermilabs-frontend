@@ -323,9 +323,6 @@ function CandlestickChartComponent({
         // Set the data with error handling
         candlestickSeries.setData(validTransformedData);
         volumeSeries.setData(validVolumeData);
-
-        // Fit content with error handling
-        chart.timeScale().fitContent();
       } catch (error) {
         console.error('Error setting chart data:', error);
         console.error('Data that caused the error:', {
