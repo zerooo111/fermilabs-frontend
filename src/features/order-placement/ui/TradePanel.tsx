@@ -83,7 +83,11 @@ export function TradePanel() {
     try {
       setIsSelling(true);
       if (!publicKey) throw new Error('Wallet not connected!');
-      const orderId = new BN(Math.floor(Math.random() * 10000000));
+      const orderId = new BN(
+        formState.price.toString() +
+          formState.size.toString() +
+          Math.floor(Math.random() * 10000000)
+      );
 
       const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
       const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;
@@ -119,7 +123,11 @@ export function TradePanel() {
     try {
       setIsBuying(true);
       if (!publicKey) throw new Error('Wallet not connected!');
-      const orderId = new BN(Math.floor(Math.random() * 10000000));
+      const orderId = new BN(
+        formState.price.toString() +
+          formState.size.toString() +
+          Math.floor(Math.random() * 10000000)
+      );
 
       const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
       const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;

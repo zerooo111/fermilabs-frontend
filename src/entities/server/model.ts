@@ -6,16 +6,16 @@ import { atom, useAtom } from 'jotai';
 import { Server } from '@/types';
 
 export const servers: Server[] = [
-  {
-    label: 'Asia | Mumbai',
-    url: 'http://13.203.79.139:8084',
-    latency: null,
-  },
-  {
-    label: 'EU | London',
-    url: 'http://13.40.62.197:8084',
-    latency: null,
-  },
+  // {
+  //   label: 'Asia | Mumbai',
+  //   url: 'http://13.203.79.139:8084',
+  //   latency: null,
+  // },
+  // {
+  //   label: 'EU | London',
+  //   url: 'http://13.40.62.197:8084',
+  //   latency: null,
+  // },
   {
     label: 'US | East',
     url: 'https://54.80.177.213:8085',

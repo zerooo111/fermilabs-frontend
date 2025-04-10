@@ -12,6 +12,7 @@ export const AppRouter = () => {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate replace to="/trade" />} />
+
           <Route path="/vault-admin" element={<LazyVaultAdminPage />} />
           <Route path="/trade" element={<LazyTradePage />} />
           <Route path="/trade/:id" element={<LazyTradePage />} />
