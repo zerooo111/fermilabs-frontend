@@ -5,7 +5,6 @@
 import { atom, useAtom, useAtomValue } from 'jotai';
 import { useCallback, useRef, useEffect } from 'react';
 import { selectedMarketAtom } from '../market';
-import { useQuery } from '@tanstack/react-query';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
 
 // Orderbook types
@@ -49,6 +48,7 @@ export const useOrderbook = () => {
   }, [selectedMarket?.uuid, setOrderbook]);
 
   const loadOrderbook = useCallback(async () => {
+    console.log('loadOrderbook', selectedMarket);
     if (!selectedMarket || !setOrderbook || !fetchOrderbook) return null;
 
     const currentTime = Date.now();
@@ -84,22 +84,9 @@ export const useOrderbook = () => {
     return orderbook;
   }, [selectedMarket, setOrderbook, fetchOrderbook]);
 
-  // Setup query for orderbook data
-  const useOrderbookQuery = () => {
-    return useQuery({
-      queryKey: ['orderbook', selectedMarket?.uuid],
-      queryFn: loadOrderbook,
-      refetchInterval: 1000,
-      enabled: !!selectedMarket,
-      staleTime: 0,
-      gcTime: 0,
-    });
-  };
-
   return {
     orderbook,
     setOrderbook,
     loadOrderbook,
-    useOrderbookQuery,
   };
 };

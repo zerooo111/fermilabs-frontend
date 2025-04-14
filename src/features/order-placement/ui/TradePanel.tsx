@@ -18,6 +18,8 @@ import { baseMint, quoteMint } from '@/shared/config/constants';
 import { NumberInput } from '@/shared/ui/number-input';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { useSelectedMarket } from '@/entities/market';
+import { useSetAtom } from 'jotai';
+import { addOrderReceiptAtom } from '@/entities/order-receipt';
 
 export function TradePanel() {
   const [formState, setFormState] = useState({
@@ -37,6 +39,8 @@ export function TradePanel() {
 
   const { signMessage, publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
+
+  const addOrderReceipt = useSetAtom(addOrderReceiptAtom);
 
   const placeOrderIntent = async (intent: OrderIntent) => {
     if (!signMessage) throw new Error('Wallet not connected!');
@@ -70,6 +74,15 @@ export function TradePanel() {
     };
 
     const receipt = await submitOrderToSequencer(body);
+
+    // Save the receipt
+    addOrderReceipt({
+      orderId: intent.order_id.toNumber(),
+      timestamp: Date.now(),
+      status: 'submitted',
+      signature: hexSignature,
+      txHash: receipt?.txHash,
+    });
 
     return receipt;
   };

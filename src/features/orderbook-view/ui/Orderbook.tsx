@@ -7,15 +7,24 @@ import { OrderbookRow } from './OrderbookRow';
 import { isEqual } from 'lodash';
 import { processOrderbook, formatPrice } from '../lib/processOrderbook';
 import { useOrderbook } from '@/entities/orderbook';
+import { useQuery } from '@tanstack/react-query';
+import { useAtomValue } from 'jotai';
+import { selectedMarketAtom } from '@/entities/market';
 
 const orderbookRows = 10;
 
 export function Orderbook() {
-  const { orderbook, useOrderbookQuery } = useOrderbook();
+  const { orderbook, loadOrderbook } = useOrderbook();
   const lastProcessedRef = useRef<ReturnType<typeof processOrderbook> | null>(null);
-
+  const selectedMarket = useAtomValue(selectedMarketAtom);
   // Setup orderbook polling
-  useOrderbookQuery();
+
+  useQuery({
+    queryKey: ['orderbook', selectedMarket?.uuid],
+    queryFn: loadOrderbook,
+    refetchInterval: 1000,
+    enabled: !!selectedMarket,
+  });
 
   const processedOrderbook = useMemo(() => {
     const processed = processOrderbook(orderbook, orderbookRows);

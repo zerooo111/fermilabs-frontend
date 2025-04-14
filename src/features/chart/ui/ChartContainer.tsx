@@ -48,7 +48,7 @@ function ChartContainerComponent() {
     };
   }, [selectedMarket]);
 
-  const { data, isLoading, error, refetch } = useQuery<ExtendedOHLCVData[]>({
+  const { data, error, refetch } = useQuery<ExtendedOHLCVData[]>({
     queryKey: ['candlesticks', timeInterval, selectedMarket?.uuid],
     queryFn: async () => {
       try {
@@ -237,14 +237,6 @@ function ChartContainerComponent() {
       {renderChartHeader()}
 
       <div className="flex-1 relative min-h-[400px]">
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
-            <div className="flex flex-col items-center gap-2">
-              <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-              <span className="text-muted-foreground">Loading chart data...</span>
-            </div>
-          </div>
-        )}
         <CandlestickChart
           className="h-full"
           data={data || []}

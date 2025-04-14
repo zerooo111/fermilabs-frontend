@@ -8,19 +8,34 @@ import { Server } from '@/types';
 export const servers: Server[] = [
   // {
   //   label: 'Asia | Mumbai',
-  //   url: 'http://13.203.79.139:8084',
-  //   latency: null,
-  // },
-  // {
-  //   label: 'EU | London',
-  //   url: 'http://13.40.62.197:8084',
+  //   url: 'https://13.203.79.139:8084',
   //   latency: null,
   // },
   {
-    label: 'US | East',
-    url: 'https://54.80.177.213:8085',
+    label: 'EU | London',
+    url: 'http://13.40.62.197:8084',
     latency: null,
   },
+  {
+    label: 'US | East',
+    url: 'https://54.196.30.137:8085',
+    latency: null,
+  },
+  // {
+  //   label: 'Asia | Tokyo',
+  //   url: 'https://57.180.19.124:8080',
+  //   latency: null,
+  // },
+  // {
+  //   label: 'ME | Dubai',
+  //   url: 'http://3.29.35.226:8080',
+  //   latency: null,
+  // },
+  // {
+  //   label: 'Asia | Singapore',
+  //   url: 'http://13.212.90.103:8080',
+  //   latency: null,
+  // },
 ];
 
 // Default to the first server

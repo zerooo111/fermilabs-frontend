@@ -5,7 +5,7 @@
 import { orderbookAtom } from '@/entities/orderbook';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
 import { Badge } from '@/shared/ui/badge';
@@ -14,6 +14,9 @@ import { BN } from '@coral-xyz/anchor';
 import { toast } from 'sonner';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { selectedMarketAtom } from '@/entities/market/model';
+import { ReceiptText } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip';
+import { orderReceiptsAtom } from '@/entities/order-receipt';
 
 export function MyOrders() {
   const orderbook = useAtomValue(orderbookAtom);
@@ -21,6 +24,7 @@ export function MyOrders() {
   const [cancellingOrders, setCancellingOrders] = useState<Set<number>>(new Set());
   const { submitCancelOrderToSequencer } = useSequencerApi();
   const selectedMarket = useAtomValue(selectedMarketAtom);
+  const orderReceipts = useAtomValue(orderReceiptsAtom);
 
   const myOrders = useMemo(() => {
     if (!orderbook || !publicKey) return [];
@@ -31,6 +35,10 @@ export function MyOrders() {
       .filter(order => order.owner === publicKey?.toBase58())
       .filter(order => !cancellingOrders.has(order.order_id));
   }, [orderbook, publicKey, cancellingOrders]);
+
+  useEffect(() => {
+    console.log('myOrders', myOrders);
+  }, [myOrders]);
 
   if (!publicKey) {
     return (
@@ -126,6 +134,56 @@ export function MyOrders() {
                 </TableCell>
                 <TableCell className="text-right font-mono">
                   <div className="flex gap-1.5 justify-end">
+                    {orderReceipts.has(order.order_id) && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon" className="size-8">
+                              <ReceiptText className="size-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="space-y-2 p-2">
+                              {(() => {
+                                const receipt = orderReceipts.get(order.order_id);
+                                return (
+                                  <>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium">Order ID:</span>
+                                      <span className="text-sm font-mono">{receipt?.orderId}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium">Status:</span>
+                                      <span className="text-sm capitalize">{receipt?.status}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium">Timestamp:</span>
+                                      <span className="text-sm">
+                                        {new Date(receipt?.timestamp || 0).toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium">Signature:</span>
+                                      <span className="text-sm font-mono truncate max-w-[200px]">
+                                        {receipt?.signature}
+                                      </span>
+                                    </div>
+                                    {receipt?.txHash && (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium">Transaction:</span>
+                                        <span className="text-sm font-mono truncate max-w-[200px]">
+                                          {receipt.txHash}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                     <Button
                       onClick={() => cancelOrder(order.order_id)}
                       variant="outline"
