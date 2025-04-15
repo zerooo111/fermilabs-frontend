@@ -17,8 +17,23 @@ export const servers: Server[] = [
     latency: null,
   },
   {
-    label: 'US | East',
-    url: 'https://54.196.30.137:8085',
+    label: 'US | Virgina',
+    url: 'http://54.196.30.137:8084',
+    latency: null,
+  },
+  {
+    label: 'Asia | Tokyo',
+    url: 'http://57.180.19.124:8084',
+    latency: null,
+  },
+  {
+    label: 'Asia | Singapore',
+    url: 'http://13.212.90.103:8084',
+    latency: null,
+  },
+  {
+    label: 'UAE | Dubai',
+    url: 'https://3.29.35.226:8085',
     latency: null,
   },
   // {
