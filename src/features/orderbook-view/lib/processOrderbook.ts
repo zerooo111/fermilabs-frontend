@@ -1,7 +1,7 @@
 import { Orderbook } from '@/entities/orderbook';
 
 const PRICE_DECIMALS = 9; // 10^9 for price normalization
-const DISPLAY_DECIMALS = 4; // Number of decimals to display
+const DISPLAY_DECIMALS = 8; // Number of decimals to display
 const DEFAULT_ORDERBOOK_ROWS = 10;
 
 export type AggregatedOrder = {
@@ -108,7 +108,18 @@ export const formatPrice = (price: number): string => {
 
   // Format with consistent decimal places
   const normalizedPrice = price / Math.pow(10, PRICE_DECIMALS);
-  return normalizedPrice.toFixed(DISPLAY_DECIMALS);
+  return normalizedPrice.toPrecision(DISPLAY_DECIMALS);
+};
+
+export const formatTotal = (price: number, quantity: number): string => {
+  if (!price || !quantity || isNaN(price) || isNaN(quantity)) return '0.0000';
+
+  const normalizedPrice = price / Math.pow(10, PRICE_DECIMALS);
+  const normalizedQuantity = quantity / Math.pow(10, PRICE_DECIMALS);
+  const total = normalizedPrice * normalizedQuantity;
+
+  // Limit to 10 significant digits
+  return total.toPrecision(DISPLAY_DECIMALS);
 };
 
 export const formatQuantity = (quantity: number): string => {
@@ -117,5 +128,5 @@ export const formatQuantity = (quantity: number): string => {
 
   // Format with consistent decimal places
   const normalizedQuantity = quantity / Math.pow(10, PRICE_DECIMALS);
-  return normalizedQuantity.toFixed(DISPLAY_DECIMALS);
+  return normalizedQuantity.toPrecision(DISPLAY_DECIMALS);
 };

@@ -3,17 +3,16 @@
  * Displays a single row in the orderbook
  */
 import { cn } from '../../../shared/lib/utils';
-import { formatPrice, formatQuantity } from '../lib/processOrderbook';
+import { formatPrice, formatQuantity, formatTotal } from '../lib/processOrderbook';
 
 type OrderbookRowProps = {
   price: number;
   size: number;
-  total: string;
   depth: number;
   side: 'Buy' | 'Sell';
 };
 
-export function OrderbookRow({ price, size, total, depth, side }: OrderbookRowProps) {
+export function OrderbookRow({ price, size, depth, side }: OrderbookRowProps) {
   return (
     <div className="relative">
       <div
@@ -34,7 +33,7 @@ export function OrderbookRow({ price, size, total, depth, side }: OrderbookRowPr
       >
         <span className="text-left col-span-2">{formatPrice(price)}</span>
         <span className="text-right col-span-3">{formatQuantity(size)}</span>
-        <span className="text-right col-span-3">{total}</span>
+        <span className="text-right col-span-3">{formatTotal(price, size)}</span>
       </div>
     </div>
   );

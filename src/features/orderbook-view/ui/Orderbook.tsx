@@ -58,7 +58,6 @@ export function Orderbook() {
                   key={`buy-${order.price}`}
                   price={order.price}
                   size={order.quantity}
-                  total={formatPrice(order.total)}
                   depth={order.depth}
                   side="Buy"
                 />
