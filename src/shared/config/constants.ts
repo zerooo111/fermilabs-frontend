@@ -7,7 +7,7 @@ import { PublicKey } from '@solana/web3.js';
 export const config = {
   devnet: {
     globalSequencerApiUrl: 'http://13.203.79.139:8083',
-    graphApiUrl: 'http://localhost:3000',
+    graphApiUrl: 'http://18.132.52.205',
     rpcUrl: 'https://api.devnet.solana.com',
     commitment: 'confirmed',
     wsUrl: 'wss://api.devnet.solana.com',

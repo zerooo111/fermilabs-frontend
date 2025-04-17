@@ -20,14 +20,17 @@ interface ServerWithHealth extends Server {
 }
 
 async function checkServerLatency(
-  server: Server
+  server: Server,
+  logError = true
 ): Promise<{ latency: number; isHealthy: boolean }> {
   const startTime = performance.now();
   try {
-    await axios.get(`${server.url}/health`);
+    await axios.get(`${server.url}/health`, { timeout: 1000 });
     return { latency: performance.now() - startTime, isHealthy: true };
   } catch (error) {
-    console.error(`Error checking latency for ${server.label}:`, error);
+    if (logError) {
+      console.error(`Error checking latency for ${server.label}:`, error);
+    }
     return { latency: Infinity, isHealthy: false };
   }
 }
@@ -63,35 +66,55 @@ export function ServerSelector() {
   );
 
   useEffect(() => {
-    const checkLatencies = async () => {
-      // Set all servers to checking status
-      setServersWithLatency(current => current.map(server => ({ ...server, status: 'checking' })));
+    // Initialize checking status for all servers
+    setServersWithLatency(current => current.map(server => ({ ...server, status: 'checking' })));
 
+    const checkServers = async () => {
+      // Check all servers in parallel
       const results = await Promise.all(
-        servers.map(async server => {
-          const { latency, isHealthy } = await checkServerLatency(server);
+        servers.map(async (server, index) => {
+          // Only log error for first server to avoid console spam
+          const { latency, isHealthy } = await checkServerLatency(server, index === 0);
           return {
-            ...server,
+            server,
             latency: latency === Infinity ? null : latency,
             status: isHealthy ? ('healthy' as const) : ('unhealthy' as const),
           };
         })
       );
 
-      // Sort servers: healthy (by latency) first, then checking, then unhealthy
-      const sortedServers = results.sort((a, b) => {
-        if (a.status === 'unhealthy' && b.status !== 'unhealthy') return 1;
-        if (b.status === 'unhealthy' && a.status !== 'unhealthy') return -1;
-        if (a.latency === null) return 1;
-        if (b.latency === null) return -1;
-        return a.latency - b.latency;
-      });
+      // Update state with all results at once
+      setServersWithLatency(current => {
+        const updatedServers = current.map(s => {
+          const result = results.find(r => r.server.url === s.url);
+          if (result) {
+            return {
+              ...result.server,
+              latency: result.latency,
+              status: result.status,
+            };
+          }
+          return s;
+        });
 
-      setServersWithLatency(sortedServers);
+        // Sort servers: healthy (by latency) first, then checking, then unhealthy
+        return updatedServers.sort((a, b) => {
+          if (a.status === 'unhealthy' && b.status !== 'unhealthy') return 1;
+          if (b.status === 'unhealthy' && a.status !== 'unhealthy') return -1;
+          if (a.latency === null) return 1;
+          if (b.latency === null) return -1;
+          return a.latency - b.latency;
+        });
+      });
     };
 
-    checkLatencies();
-    const interval = setInterval(checkLatencies, 30000);
+    // Initial check
+    checkServers();
+
+    // Set up interval to recheck all servers
+    const interval = setInterval(checkServers, 30000);
+
+    // Clean up interval
     return () => clearInterval(interval);
   }, [servers]);
 
