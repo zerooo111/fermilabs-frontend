@@ -61,10 +61,7 @@ export interface CandleParams {
  * @param attemptFallback Whether to attempt fallback to larger timeframes
  * @returns Array of OHLCV data
  */
-export async function fetchCandles(
-  params: CandleParams,
-  attemptFallback: boolean = false
-): Promise<OHLCVData[]> {
+export async function fetchCandles(params: CandleParams): Promise<OHLCVData[]> {
   try {
     const response = await axios.get(`${config.devnet.graphApiUrl}/candles`, { params });
 
@@ -72,23 +69,6 @@ export async function fetchCandles(
     if (!Array.isArray(response.data)) {
       console.error('Invalid response data format:', response.data);
       throw new Error('Invalid response data format: expected an array');
-    }
-
-    // Check if we have any data
-    if (response.data.length === 0 || response.data.length < 2) {
-      console.warn(`No or insufficient candle data returned for interval: ${params.interval}`);
-
-      // If fallback is enabled and we're not already at the largest timeframe, try a larger one
-      if (attemptFallback && params.interval !== '1 day') {
-        const nextLargerInterval = getNextLargerInterval(params.interval);
-        if (nextLargerInterval) {
-          console.log(`Attempting fallback to larger interval: ${nextLargerInterval}`);
-          return fetchCandles(
-            { ...params, interval: nextLargerInterval },
-            true // Continue attempting fallbacks if needed
-          );
-        }
-      }
     }
 
     return response.data;
@@ -116,22 +96,6 @@ export async function fetchCandles(
       error.response?.data?.message || error.message || 'Failed to fetch chart data';
     throw new Error(`Chart data error: ${errorMessage}`);
   }
-}
-
-/**
- * Get the next larger interval for fallback
- * @param interval The current interval in API format
- * @returns The next larger interval in API format, or null if already at largest
- */
-function getNextLargerInterval(interval: string): string | null {
-  const intervalOrder = ['1 minute', '5 minutes', '15 minutes', '1 hour', '4 hours', '1 day'];
-
-  const currentIndex = intervalOrder.indexOf(interval);
-  if (currentIndex === -1 || currentIndex === intervalOrder.length - 1) {
-    return null; // Not found or already at largest interval
-  }
-
-  return intervalOrder[currentIndex + 1];
 }
 
 /**

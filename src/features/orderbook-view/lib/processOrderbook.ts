@@ -71,6 +71,7 @@ export const processOrderbook = (
   // Process buys and sells
   const buys = aggregateOrders(orderbook.buys, (a, b) => b - a, maxRows); // Descending
   const sells = aggregateOrders(orderbook.sells, (a, b) => a - b, maxRows); // Ascending
+
   // Calculate max depth based on cumulative quantity
   const maxDepth = Math.max(
     buys.length > 0 ? buys[buys.length - 1].total : 0,
