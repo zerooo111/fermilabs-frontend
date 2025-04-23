@@ -48,7 +48,6 @@ export const useOrderbook = () => {
   }, [selectedMarket?.uuid, setOrderbook]);
 
   const loadOrderbook = useCallback(async () => {
-    console.log('loadOrderbook', selectedMarket);
     if (!selectedMarket || !setOrderbook || !fetchOrderbook) return null;
 
     const currentTime = Date.now();
@@ -65,6 +64,15 @@ export const useOrderbook = () => {
     if (fetchStartTime > lastUpdateTimeRef.current) {
       lastUpdateTimeRef.current = fetchStartTime;
 
+      console.log('Raw orderbook data:', {
+        buys: orderbook.buys.length,
+        sells: orderbook.sells.length,
+        selectedMarket: {
+          base_mint: selectedMarket.base_mint,
+          quote_mint: selectedMarket.quote_mint,
+        },
+      });
+
       const filteredBuys = orderbook.buys.filter(
         (it: OrderbookItem) =>
           it.base_mint === selectedMarket.base_mint && it.quote_mint === selectedMarket.quote_mint
@@ -74,6 +82,11 @@ export const useOrderbook = () => {
         (it: OrderbookItem) =>
           it.base_mint === selectedMarket.base_mint && it.quote_mint === selectedMarket.quote_mint
       );
+
+      console.log('Filtered orderbook data:', {
+        buys: filteredBuys.length,
+        sells: filteredSells.length,
+      });
 
       setOrderbook({
         buys: filteredBuys,

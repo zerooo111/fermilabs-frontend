@@ -5,7 +5,7 @@
 import { orderbookAtom } from '@/entities/orderbook';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
 import { Badge } from '@/shared/ui/badge';
@@ -35,10 +35,6 @@ export function MyOrders() {
       .filter(order => !cancellingOrders.has(order.order_id));
   }, [orderbook, publicKey, cancellingOrders]);
 
-  useEffect(() => {
-    console.log('myOrders', myOrders);
-  }, [myOrders]);
-
   if (!publicKey) {
     return (
       <div className="flex flex-col gap-1.5">
@@ -65,8 +61,6 @@ export function MyOrders() {
 
       const message = `FRM_DEX_CANCEL:${new BN(orderId).toString()},${publicKey.toBase58()}`;
 
-      console.log('Message', message);
-
       const sha256Hash = createHash('sha256').update(Buffer.from(message)).digest();
       // Hex encode the hash
       const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
@@ -74,8 +68,6 @@ export function MyOrders() {
       // Sign the hex encoded hash
       const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
       const hexSignature = Buffer.from(signatureBytes).toString('hex');
-
-      console.log('Hex signature', hexSignature);
 
       const body = {
         order_id: new BN(orderId).toNumber(),
@@ -85,8 +77,7 @@ export function MyOrders() {
         signature: hexSignature,
       };
 
-      const response = await submitCancelOrderToSequencer(body);
-      console.log('Order cancelled', { response });
+      await submitCancelOrderToSequencer(body);
       toast.success('Order cancelled');
     } catch (error) {
       console.error(error);
