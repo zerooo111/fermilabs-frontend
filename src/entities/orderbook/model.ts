@@ -48,7 +48,6 @@ export const useOrderbook = () => {
   }, [selectedMarket?.uuid, setOrderbook]);
 
   const loadOrderbook = useCallback(async () => {
-    console.log('loadOrderbook', selectedMarket);
     if (!selectedMarket || !setOrderbook || !fetchOrderbook) return null;
 
     const currentTime = Date.now();
