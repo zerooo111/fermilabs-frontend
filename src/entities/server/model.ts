@@ -33,7 +33,7 @@ export const servers: Server[] = [
   },
   {
     label: 'UAE | Dubai',
-    url: 'https://3.29.35.226:8085',
+    url: 'https://api1.fermilabs.xyz',
     latency: null,
   },
   // {

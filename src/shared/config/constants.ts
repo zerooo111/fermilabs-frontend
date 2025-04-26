@@ -6,7 +6,7 @@ import { PublicKey } from '@solana/web3.js';
 // config -> network ( devnet / mainnet ) -> programId / rpcUrl , commitment , etc...
 export const config = {
   devnet: {
-    globalSequencerApiUrl: 'http://13.203.79.139:8083',
+    globalSequencerApiUrl: 'https://glbsq1.fermilabs.xyz',
     graphApiUrl: 'http://18.132.52.205',
     rpcUrl: 'https://api.devnet.solana.com',
     commitment: 'confirmed',
