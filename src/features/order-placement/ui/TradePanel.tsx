@@ -21,10 +21,38 @@ import { useSelectedMarket } from '@/entities/market';
 import { useSetAtom } from 'jotai';
 import { addOrderReceiptAtom } from '@/entities/order-receipt';
 
+/**
+ * Converts a decimal string to a scaled BN
+ * @param value Decimal string (e.g. "123.45")
+ * @param decimals Number of decimal places to scale by
+ * @returns BN instance scaled by 10^decimals
+ */
+const decimalToBN = (value: string, decimals: number): BN => {
+  try {
+    // Remove any trailing zeros after decimal point
+    const trimmed = value.trim();
+    if (!trimmed) return new BN(0);
+
+    // Split into integer and decimal parts
+    const [integerPart = '0', decimalPart = ''] = trimmed.split('.');
+
+    // Combine parts and pad with zeros
+    const combined = integerPart + decimalPart.padEnd(decimals, '0');
+
+    // Remove leading zeros to avoid interpretation as octal
+    const normalized = combined.replace(/^0+/, '') || '0';
+
+    return new BN(normalized);
+  } catch (e) {
+    console.error('Error converting decimal to BN:', e);
+    return new BN(0);
+  }
+};
+
 export function TradePanel() {
   const [formState, setFormState] = useState({
-    price: '', // Changed to string to better handle decimal input
-    size: '', // Changed to string to better handle decimal input
+    price: '',
+    size: '',
     orderType: 'limit',
   });
   const [isBuying, setIsBuying] = useState(false);
@@ -95,8 +123,12 @@ export function TradePanel() {
       const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
       const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;
 
-      const priceBN = new BN(formState.price).mul(new BN(10).pow(new BN(BASE_DECIMALS)));
-      const sizeBN = new BN(formState.size).mul(new BN(10).pow(new BN(QUOTE_DECIMALS)));
+      // Convert decimal strings to scaled BNs
+      const priceBN = decimalToBN(formState.price, QUOTE_DECIMALS);
+      const sizeBN = decimalToBN(formState.size, BASE_DECIMALS);
+
+      console.log('Sell Order - Price BN:', priceBN.toString());
+      console.log('Sell Order - Size BN:', sizeBN.toString());
 
       const intent = new OrderIntent(
         orderId,
@@ -136,8 +168,12 @@ export function TradePanel() {
       const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
       const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;
 
-      const priceBN = new BN(formState.price).mul(new BN(10).pow(new BN(BASE_DECIMALS)));
-      const sizeBN = new BN(formState.size).mul(new BN(10).pow(new BN(QUOTE_DECIMALS)));
+      // Convert decimal strings to scaled BNs
+      const priceBN = decimalToBN(formState.price, QUOTE_DECIMALS);
+      const sizeBN = decimalToBN(formState.size, BASE_DECIMALS);
+
+      console.log('Buy Order - Price BN:', priceBN.toString());
+      console.log('Buy Order - Size BN:', sizeBN.toString());
 
       const intent = new OrderIntent(
         orderId,
