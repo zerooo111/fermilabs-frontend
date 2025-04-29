@@ -18,7 +18,7 @@ import BN from 'bn.js';
  */
 export const PRICE_DECIMALS = 9;
 /** Number of decimal places to display in the UI for prices and quantities. */
-export const DISPLAY_DECIMALS = 8;
+export const DISPLAY_DECIMALS = 2;
 /** Default number of rows to display on each side (bids/asks) of the order book. */
 const DEFAULT_ORDERBOOK_ROWS = 12;
 

@@ -48,13 +48,14 @@ export interface Order {
 
 export interface Trade {
   id: string;
-  market_id: string;
+  buyer_owner: string;
+  seller_owner: string;
+  buyer_order_id: number;
+  seller_order_id: number;
   price: number;
-  size: number;
-  side: string;
+  quantity: number;
   timestamp: number;
-  maker: string;
-  taker: string;
+  market_id: string;
 }
 
 export function useSequencerApi() {
@@ -124,7 +125,7 @@ export function useSequencerApi() {
 
   const fetchTrades = useCallback(
     async (owner: string, marketId: string, limit: number = 100): Promise<Trade[]> => {
-      const { data, error } = await tryCatch<AxiosResponse<any>>(
+      const { data, error } = await tryCatch<AxiosResponse<{ trades: Trade[] }>>(
         axios.post(`${graphApiUrl}/trades`, {
           owner,
           marketId,
@@ -138,7 +139,7 @@ export function useSequencerApi() {
         throw error;
       }
 
-      return data.data.data.trades || [];
+      return data.data.trades || [];
     },
     [graphApiUrl]
   );

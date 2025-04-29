@@ -10,6 +10,12 @@ import { selectedMarketAtom } from '@/entities/market/model';
 import { useAtomValue } from 'jotai';
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import {
+  formatPrice,
+  formatQuantity,
+  formatTotal,
+  PRICE_DECIMALS,
+} from '@/features/orderbook-view/lib/processOrderbook';
 
 export function MyTrades() {
   const { publicKey } = useWallet();
@@ -29,7 +35,7 @@ export function MyTrades() {
 
   if (!publicKey) {
     return (
-      <div className="flex flex-col gap-1.5">
+      <div>
         <h2 className="text-lg font-medium">Please connect your wallet</h2>
       </div>
     );
@@ -37,28 +43,6 @@ export function MyTrades() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-1.5">
-        <h2 className="text-lg font-medium">My Trades</h2>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          Loading trades...
-        </div>
-      </div>
-    );
-  }
-
-  if (trades.length === 0) {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <h2 className="text-lg font-medium">My Trades</h2>
-        <div className="text-sm text-muted-foreground">No trades found</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <h2 className="text-lg font-medium">My Trades</h2>
       <div className="rounded-md border w-full">
         <Table>
           <TableHeader>
@@ -67,36 +51,98 @@ export function MyTrades() {
               <TableHead className="bg-accent">Side</TableHead>
               <TableHead className="bg-accent">Price</TableHead>
               <TableHead className="bg-accent">Size</TableHead>
-              <TableHead className="bg-accent">Role</TableHead>
+              <TableHead className="bg-accent">Buyer</TableHead>
+              <TableHead className="bg-accent">Seller</TableHead>
               <TableHead className="bg-accent text-right rounded-tr-md">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {trades.map(trade => (
-              <TableRow key={trade.id} className="text-xs">
-                <TableCell>{new Date(trade.timestamp).toLocaleString()}</TableCell>
-                <TableCell>
-                  <Badge variant={trade.side === 'Buy' ? 'success' : 'danger'}>{trade.side}</Badge>
-                </TableCell>
-                <TableCell className="font-mono">
-                  {Number(trade.price / 10 ** 9).toPrecision(4)}
-                </TableCell>
-                <TableCell className="font-mono">
-                  {Number(trade.size / 10 ** 9).toPrecision(4)}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">
-                    {trade.maker === publicKey.toBase58() ? 'Maker' : 'Taker'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {Number((trade.price * trade.size) / 10 ** 18).toPrecision(4)}
-                </TableCell>
-              </TableRow>
-            ))}
+            <TableRow>
+              <TableCell colSpan={7} className="h-24 text-center">
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Loading trades...
+                </div>
+              </TableCell>
+            </TableRow>
           </TableBody>
         </Table>
       </div>
+    );
+  }
+
+  const truncateAddress = (address: string) => {
+    if (!address) return '';
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  };
+
+  const renderTableContent = () => {
+    if (trades.length === 0) {
+      return (
+        <TableRow>
+          <TableCell colSpan={7} className="h-24 text-center text-sm text-muted-foreground">
+            No trades found
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return trades.map(trade => {
+      const isBuyer = trade.buyer_owner === publicKey?.toBase58();
+      const side = isBuyer ? 'Buy' : 'Sell';
+
+      // Scale the values by 10^9 since the formatting functions expect scaled values
+      const scaledPrice = trade.price * Math.pow(10, PRICE_DECIMALS);
+      const scaledQuantity = trade.quantity * Math.pow(10, PRICE_DECIMALS);
+
+      return (
+        <TableRow key={trade.id} className="text-xs">
+          <TableCell>{new Date(trade.timestamp * 1000).toLocaleString()}</TableCell>
+          <TableCell>
+            <Badge variant={side === 'Buy' ? 'success' : 'danger'}>{side}</Badge>
+          </TableCell>
+          <TableCell className="font-mono">
+            {formatPrice(scaledPrice)} {selectedMarket?.quoteTokenName}
+          </TableCell>
+          <TableCell className="font-mono">
+            {formatQuantity(scaledQuantity)} {selectedMarket?.baseTokenName}
+          </TableCell>
+          <TableCell className="font-mono">
+            <span className={isBuyer ? 'text-success' : ''}>
+              {truncateAddress(trade.buyer_owner)}
+            </span>
+          </TableCell>
+          <TableCell className="font-mono">
+            <span className={!isBuyer ? 'text-danger' : ''}>
+              {truncateAddress(trade.seller_owner)}
+            </span>
+          </TableCell>
+          <TableCell className="text-right font-mono">
+            {formatTotal(scaledPrice, scaledQuantity)} {selectedMarket?.quoteTokenName}
+          </TableCell>
+        </TableRow>
+      );
+    });
+  };
+
+  return (
+    <div className="rounded-md border w-full">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="bg-accent rounded-tl-md">Time</TableHead>
+            <TableHead className="bg-accent">Side</TableHead>
+            <TableHead className="bg-accent">Price ({selectedMarket?.quoteTokenName})</TableHead>
+            <TableHead className="bg-accent">Size ({selectedMarket?.baseTokenName})</TableHead>
+            <TableHead className="bg-accent">Buyer</TableHead>
+            <TableHead className="bg-accent">Seller</TableHead>
+            <TableHead className="bg-accent text-right rounded-tr-md">
+              Total ({selectedMarket?.quoteTokenName})
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>{renderTableContent()}</TableBody>
+      </Table>
     </div>
   );
 }

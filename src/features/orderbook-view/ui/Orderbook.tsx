@@ -6,7 +6,7 @@ import { useMemo, useRef } from 'react';
 import { useAtomValue } from 'jotai';
 import { selectedMarketAtom } from '@/entities/market';
 import { useOrderbook } from '@/entities/orderbook';
-import { processOrderbook } from '../lib/processOrderbook';
+import { formatPrice, processOrderbook } from '../lib/processOrderbook';
 import { OrderbookRow } from './OrderbookRow';
 import { QuantityThresholdSelector } from './QuantityThresholdSelector';
 import { quantityThresholdAtom } from '../model/orderbook';
@@ -75,10 +75,9 @@ export function Orderbook() {
       {/* Orderbook Content */}
       <div className="flex-1 min-h-0 overflow-auto flex flex-col divide-y divide-border">
         {/* Sells (asks) */}
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col-reverse min-h-0">
           {processedOrderbook.sells
             .slice()
-            .reverse()
             .map((order, i) =>
               order ? (
                 <OrderbookRow
@@ -97,7 +96,7 @@ export function Orderbook() {
         {/* Spread */}
         <div className="px-4 py-2 text-xs text-muted-foreground bg-accent/5 flex justify-between items-center shrink-0">
           <span>Spread</span>
-          <span className="font-mono">{processedOrderbook.spread.toFixed(6)}</span>
+          <span className="font-mono">{formatPrice(processedOrderbook.spread)}</span>
         </div>
 
         {/* Buys (bids) */}
