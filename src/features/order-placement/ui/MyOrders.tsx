@@ -5,7 +5,7 @@
 import { orderbookAtom } from '@/entities/orderbook';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
 import { Badge } from '@/shared/ui/badge';
@@ -34,10 +34,6 @@ export function MyOrders() {
       .filter(order => order.owner === publicKey?.toBase58())
       .filter(order => !cancellingOrders.has(order.order_id));
   }, [orderbook, publicKey, cancellingOrders]);
-
-  useEffect(() => {
-    console.log('myOrders', myOrders);
-  }, [myOrders]);
 
   if (!publicKey) {
     return (

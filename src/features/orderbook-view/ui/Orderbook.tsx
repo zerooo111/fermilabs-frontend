@@ -2,7 +2,7 @@
  * Orderbook component
  * Displays the orderbook for the selected market
  */
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { OrderbookRow } from './OrderbookRow';
 import { isEqual } from 'lodash';
 import { processOrderbook, formatPrice } from '../lib/processOrderbook';
@@ -36,6 +36,12 @@ export function Orderbook() {
 
     return lastProcessedRef.current;
   }, [orderbook]);
+
+  useEffect(() => {
+    if (selectedMarket) {
+      console.debug('orderbook', processedOrderbook);
+    }
+  }, [selectedMarket, processedOrderbook]);
 
   if (!processedOrderbook) return null;
 
