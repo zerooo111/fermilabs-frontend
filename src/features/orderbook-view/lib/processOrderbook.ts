@@ -11,12 +11,13 @@
  */
 import { Orderbook, OrderbookItem } from '@/entities/orderbook';
 import BN from 'bn.js';
+import { BASE_DECIMALS, QUOTE_DECIMALS } from '@/shared/config/constants';
 
 /**
  * Number of decimal places used for internal price representation (e.g., 1_000_000_000 means 9 decimals).
  * Exchanges often send prices/quantities as integers scaled by a power of 10.
  */
-export const PRICE_DECIMALS = 9;
+
 /** Number of decimal places to display in the UI for prices and quantities. */
 export const DISPLAY_DECIMALS = 2;
 /** Default number of rows to display on each side (bids/asks) of the order book. */
@@ -27,6 +28,125 @@ export const MIN_DISPLAY_QUANTITY = 0.0001;
 
 /** Threshold for highlighting price levels close to last traded price (as percentage) */
 export const PRICE_PROXIMITY_THRESHOLD = 0.001; // 0.1%
+
+/** BN constants for decimal scaling */
+export const BASE_DECIMAL_SCALE = new BN(10).pow(new BN(BASE_DECIMALS));
+export const QUOTE_DECIMAL_SCALE = new BN(10).pow(new BN(QUOTE_DECIMALS));
+
+/**
+ * Safely converts a value to BN
+ * @param value Number or string to convert
+ * @returns BN instance or null if invalid
+ */
+export const toBN = (value: number | string): BN | null => {
+  try {
+    return new BN(value.toString());
+  } catch (e) {
+    console.error('Error converting to BN:', e);
+    return null;
+  }
+};
+
+/**
+ * Normalizes a BN value by the specified decimal scale
+ * @param value BN value to normalize
+ * @param scale Decimal scale to divide by
+ * @returns Normalized number or 0 if invalid
+ */
+export const normalizeBN = (value: BN, scale: BN): number => {
+  try {
+    return Number(value.toString()) / Number(scale.toString());
+  } catch (e) {
+    console.error('Error normalizing BN:', e);
+    return 0;
+  }
+};
+
+/**
+ * Formats a number to a human-readable string with appropriate precision
+ * Uses different precision based on the number's magnitude
+ * @param value The normalized value (after scaling)
+ * @returns Formatted string
+ */
+const formatWithPrecision = (value: number): string => {
+  if (value === 0) return '0.00';
+
+  const abs = Math.abs(value);
+
+  // For very small numbers, show more decimals
+  if (abs < 0.0001) return value.toFixed(8);
+  if (abs < 0.01) return value.toFixed(6);
+  if (abs < 1) return value.toFixed(4);
+  if (abs < 100) return value.toFixed(2);
+
+  // For larger numbers, use comma grouping
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+/**
+ * Formats a scaled integer price for display using appropriate precision.
+ * @param price The scaled integer price
+ * @returns A string representation with dynamic precision.
+ */
+export const formatPrice = (price: number): string => {
+  const priceBN = toBN(price);
+  if (!priceBN) return '0.00';
+
+  try {
+    const normalizedPrice = normalizeBN(priceBN, BASE_DECIMAL_SCALE);
+    return formatWithPrecision(normalizedPrice);
+  } catch (e) {
+    console.error('Error formatting price:', e);
+    return '0.00';
+  }
+};
+
+/**
+ * Formats a scaled integer quantity for display using appropriate precision.
+ * @param quantity The scaled integer quantity
+ * @returns A string representation with dynamic precision.
+ */
+export const formatQuantity = (quantity: number): string => {
+  const quantityBN = toBN(quantity);
+  if (!quantityBN) return '0.00';
+
+  try {
+    const normalizedQuantity = normalizeBN(quantityBN, QUOTE_DECIMAL_SCALE);
+    return formatWithPrecision(normalizedQuantity);
+  } catch (e) {
+    console.error('Error formatting quantity:', e);
+    return '0.00';
+  }
+};
+
+/**
+ * Calculates and formats the total value (price * quantity) using BN.js for precision
+ * @param price Scaled integer price
+ * @param quantity Scaled integer quantity
+ * @returns Formatted string with appropriate precision
+ */
+export const formatTotal = (price: number, quantity: number): string => {
+  const priceBN = toBN(price);
+  const quantityBN = toBN(quantity);
+  if (!priceBN || !quantityBN) return '0.00';
+
+  try {
+    // Calculate total in scaled form
+    const totalBN = priceBN.mul(quantityBN);
+
+    // Normalize by both decimal scales
+    const totalScale = BASE_DECIMAL_SCALE.mul(QUOTE_DECIMAL_SCALE);
+    const normalizedTotal = normalizeBN(totalBN, totalScale);
+
+    return formatWithPrecision(normalizedTotal);
+  } catch (e) {
+    console.error('Error formatting total:', e);
+    return '0.00';
+  }
+};
 
 /** Represents a single aggregated price level in the processed order book. */
 export type AggregatedOrder = {
@@ -63,22 +183,6 @@ export type ProcessedOrderbook = {
 };
 
 /**
- * Calculates the percentage deviation between two prices
- */
-const calculatePriceDeviation = (price: number, referencePrice: number): number => {
-  if (referencePrice === 0) return 0;
-  return ((price - referencePrice) / referencePrice) * 100;
-};
-
-/**
- * Determines if a price level is close to the reference price within the threshold
- */
-const isNearPrice = (price: number, referencePrice: number): boolean => {
-  const deviation = Math.abs(calculatePriceDeviation(price, referencePrice));
-  return deviation <= PRICE_PROXIMITY_THRESHOLD * 100;
-};
-
-/**
  * Aggregates raw orders by price level, calculates running totals using BN.js, sorts, and truncates.
  *
  * @param orders Raw array of orders (OrderbookItem) from the source.
@@ -94,31 +198,36 @@ const aggregateOrders = (
   lastTradedPrice?: number
 ): AggregatedOrder[] => {
   // Use a Map to efficiently aggregate quantities for the same price level.
-  const aggregated = new Map<number, number>();
+  const aggregated = new Map<string, BN>();
 
   orders.forEach(order => {
-    const priceLevel = Number(order.price);
-    const quantity = Number(order.quantity);
+    const priceBN = toBN(order.price);
+    const quantityBN = toBN(order.quantity);
 
-    if (isNaN(priceLevel) || isNaN(quantity)) {
-      console.warn('Invalid order data detected (NaN price or quantity): ', order);
-      return; // Skip invalid orders
+    if (!priceBN || !quantityBN) {
+      console.warn('Invalid order data detected:', order);
+      return;
     }
-    const existingQuantity = aggregated.get(priceLevel) || 0;
-    aggregated.set(priceLevel, existingQuantity + quantity);
+
+    const priceKey = priceBN.toString();
+    const existingQuantity = aggregated.get(priceKey) || new BN(0);
+    aggregated.set(priceKey, existingQuantity.add(quantityBN));
   });
 
-  // Calculate running totals using BN.js to prevent potential overflow.
+  // Calculate running totals using BN.js
   let runningQuantity = new BN(0);
   let runningVolume = new BN(0);
 
   return Array.from(aggregated.entries())
-    .sort(([priceA], [priceB]) => sortFn(priceA, priceB))
+    .map(([priceStr, quantity]) => ({
+      priceBN: new BN(priceStr),
+      price: Number(priceStr),
+      quantityBN: quantity,
+      quantity: Number(quantity.toString()),
+    }))
+    .sort((a, b) => sortFn(a.price, b.price))
     .slice(0, maxRows)
-    .map(([price, quantity]) => {
-      const quantityBN = new BN(String(Math.round(quantity)));
-      const priceBN = new BN(String(price));
-
+    .map(({ priceBN, price, quantityBN, quantity }) => {
       runningQuantity = runningQuantity.add(quantityBN);
       runningVolume = runningVolume.add(quantityBN.mul(priceBN));
 
@@ -130,14 +239,34 @@ const aggregateOrders = (
         depth: 0,
       };
 
-      // Add last traded price related information if available
       if (lastTradedPrice) {
-        aggregatedOrder.priceDeviation = calculatePriceDeviation(price, lastTradedPrice);
-        aggregatedOrder.isNearLastPrice = isNearPrice(price, lastTradedPrice);
+        const lastTradedPriceBN = toBN(lastTradedPrice);
+        if (lastTradedPriceBN) {
+          const deviation = calculatePriceDeviation(priceBN, lastTradedPriceBN);
+          aggregatedOrder.priceDeviation = deviation;
+          aggregatedOrder.isNearLastPrice = Math.abs(deviation) <= PRICE_PROXIMITY_THRESHOLD * 100;
+        }
       }
 
       return aggregatedOrder;
     });
+};
+
+/**
+ * Calculates the percentage deviation between two prices using BN
+ */
+const calculatePriceDeviation = (price: BN, referencePrice: BN): number => {
+  if (referencePrice.isZero()) return 0;
+
+  try {
+    // Convert to normalized numbers for percentage calculation
+    const p1 = normalizeBN(price, QUOTE_DECIMAL_SCALE);
+    const p2 = normalizeBN(referencePrice, QUOTE_DECIMAL_SCALE);
+    return ((p1 - p2) / p2) * 100;
+  } catch (e) {
+    console.error('Error calculating price deviation:', e);
+    return 0;
+  }
 };
 
 /**
@@ -168,12 +297,12 @@ export const processOrderbook = (
 
   // Filter out orders below the quantity threshold
   const filteredBuys = orderbook.buys.filter(order => {
-    const normalizedQuantity = Number(order.quantity) / Math.pow(10, PRICE_DECIMALS);
+    const normalizedQuantity = Number(order.quantity) / Math.pow(10, BASE_DECIMALS);
     return normalizedQuantity >= quantityThreshold;
   });
 
   const filteredSells = orderbook.sells.filter(order => {
-    const normalizedQuantity = Number(order.quantity) / Math.pow(10, PRICE_DECIMALS);
+    const normalizedQuantity = Number(order.quantity) / Math.pow(10, BASE_DECIMALS);
     return normalizedQuantity >= quantityThreshold;
   });
 
@@ -233,65 +362,4 @@ export const processOrderbook = (
     maxDepth,
     nearestPriceLevel,
   };
-};
-
-/**
- * Formats a scaled integer price for display using a fixed number of decimal places.
- * Ensures consistent width by padding with spaces if needed.
- *
- * @param price The scaled integer price (e.g., price * 10^PRICE_DECIMALS).
- * @returns A string representation formatted to DISPLAY_DECIMALS decimal places.
- */
-export const formatPrice = (price: number): string => {
-  // Ensure input is a valid number before processing
-  if (typeof price !== 'number' || isNaN(price)) return (0).toFixed(DISPLAY_DECIMALS);
-
-  const normalizedPrice = price / Math.pow(10, PRICE_DECIMALS);
-  // Use padStart to ensure consistent width for the integer part
-  const [integerPart, decimalPart] = normalizedPrice.toFixed(DISPLAY_DECIMALS).split('.');
-  const paddedInteger = integerPart.padStart(2, ' ');
-  return `${paddedInteger}.${decimalPart}`;
-};
-
-/**
- * Formats a scaled integer quantity for display using a fixed number of decimal places.
- * Ensures consistent width by padding with spaces if needed.
- *
- * @param quantity The scaled integer quantity (e.g., quantity * 10^PRICE_DECIMALS).
- * @returns A string representation formatted to DISPLAY_DECIMALS decimal places.
- */
-export const formatQuantity = (quantity: number): string => {
-  // Ensure input is a valid number
-  if (typeof quantity !== 'number' || isNaN(quantity)) return (0).toFixed(DISPLAY_DECIMALS);
-
-  const normalizedQuantity = quantity / Math.pow(10, PRICE_DECIMALS);
-  // Use padStart to ensure consistent width for the integer part
-  const [integerPart, decimalPart] = normalizedQuantity.toFixed(DISPLAY_DECIMALS).split('.');
-  const paddedInteger = integerPart.padStart(2, ' ');
-  return `${paddedInteger}.${decimalPart}`;
-};
-
-/**
- * Calculates and formats the total value (price * quantity) for display using a fixed number of decimal places.
- * Ensures consistent width by padding with spaces if needed.
- * Note: This uses the normalized number values, not the internal BN cumulative volume.
- *
- * @param price Scaled integer price.
- * @param quantity Scaled integer quantity.
- * @returns A string representation of the total value, formatted to DISPLAY_DECIMALS decimal places.
- */
-export const formatTotal = (price: number, quantity: number): string => {
-  // Ensure inputs are valid numbers
-  if (typeof price !== 'number' || isNaN(price) || typeof quantity !== 'number' || isNaN(quantity))
-    return (0).toFixed(DISPLAY_DECIMALS);
-
-  // Normalize both before multiplication to avoid potential intermediate overflow
-  const normalizedPrice = price / Math.pow(10, PRICE_DECIMALS);
-  const normalizedQuantity = quantity / Math.pow(10, PRICE_DECIMALS);
-  const total = normalizedPrice * normalizedQuantity;
-
-  // Use padStart to ensure consistent width for the integer part
-  const [integerPart, decimalPart] = total.toFixed(DISPLAY_DECIMALS).split('.');
-  const paddedInteger = integerPart.padStart(3, ' ');
-  return `${paddedInteger}.${decimalPart}`;
 };

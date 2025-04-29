@@ -52,38 +52,52 @@ export function Orderbook() {
   if (!processedOrderbook) return null;
 
   return (
-    <div className="flex flex-col h-[600px] w-[360px] bg-background border rounded-lg">
+    <div className="rounded-md border w-[360px]">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border shrink-0">
-        <h2 className="text-lg font-medium">Orderbook</h2>
+      <div className="flex items-center justify-between p-3  rounded-t-md">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-medium">Orderbook</h2>
+          <span className="text-xs text-muted-foreground">
+            ({selectedMarket?.baseTokenName}/{selectedMarket?.quoteTokenName})
+          </span>
+        </div>
         <QuantityThresholdSelector />
       </div>
-      <div className="flex flex-col justify-between flex-1">
-        <div className="flex flex-col-reverse justify-end relative">
-          {/* Buy orders */}
-          {processedOrderbook.buys.map((order, index) =>
+
+      {/* Column Headers */}
+      <div className="grid grid-cols-3 px-4 py-2 text-xs text-muted-foreground bg-accent border-y border-border shrink-0">
+        <div className="text-left font-mono">Price</div>
+        <div className="text-right font-mono">Size</div>
+        <div className="text-right font-mono">Total</div>
+      </div>
+
+      {/* Orderbook Content */}
+      <div className="flex flex-col h-[500px] overflow-hidden">
+        {/* Sells (asks) */}
+        <div className="flex-1 flex flex-col-reverse overflow-y-auto">
+          {processedOrderbook.sells.map((order, i) =>
             order ? (
               <OrderbookRow
-                key={`buy-${order.price}`}
+                key={`${order.price}-${i}`}
                 price={order.price}
                 size={order.quantity}
                 depth={order.depth}
-                side="Buy"
+                side="Sell"
               />
             ) : (
-              <div key={`buy-order-placeholder-${index}`} className="h-6" />
+              <div key={`empty-sell-${i}`} className="h-[26px]" />
             )
           )}
         </div>
 
         {/* Spread */}
-        <div className="px-4 py-2 text-xs text-muted-foreground bg-accent/5 flex justify-between items-center shrink-0">
+        <div className="px-4 py-2 text-xs text-muted-foreground bg-muted flex justify-between items-center shrink-0">
           <span>Spread</span>
           <span className="font-mono">{formatPrice(processedOrderbook.spread)}</span>
         </div>
 
         {/* Buys (bids) */}
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col overflow-y-auto">
           {processedOrderbook.buys.map((order, i) =>
             order ? (
               <OrderbookRow

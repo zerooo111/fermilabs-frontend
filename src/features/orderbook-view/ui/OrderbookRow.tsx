@@ -3,13 +3,7 @@
  * Displays a single row in the orderbook
  */
 import { cn } from '../../../shared/lib/utils';
-import {
-  formatPrice,
-  formatQuantity,
-  formatTotal,
-  MIN_DISPLAY_QUANTITY,
-  PRICE_DECIMALS,
-} from '../lib/processOrderbook';
+import { formatPrice, formatQuantity, formatTotal } from '../lib/processOrderbook';
 
 type OrderbookRowProps = {
   price: number;
@@ -19,12 +13,8 @@ type OrderbookRowProps = {
 };
 
 export function OrderbookRow({ price, size, depth, side }: OrderbookRowProps) {
-  // Normalize the quantity to compare with the threshold
-  const normalizedSize = size / Math.pow(10, PRICE_DECIMALS);
-  const isSmallQuantity = normalizedSize < MIN_DISPLAY_QUANTITY;
-
   return (
-    <div className={cn('relative w-full', isSmallQuantity && 'opacity-50')}>
+    <div className={cn('relative w-full h-[26px]')}>
       {/* Depth indicator */}
       <div
         className={cn(
@@ -38,33 +28,27 @@ export function OrderbookRow({ price, size, depth, side }: OrderbookRowProps) {
       />
 
       {/* Content */}
-      <div className="relative z-10 px-4 py-1">
+      <div className="relative z-10 px-4 h-full flex items-center">
         <div
           className={cn(
-            'grid grid-cols-3 gap-2 items-center',
+            'grid grid-cols-3 gap-4 items-center',
             'font-mono text-xs leading-none tracking-tight w-full',
             side === 'Buy' ? 'text-green-600' : 'text-red-600'
           )}
         >
           {/* Price */}
-          <div className="w-[100px] overflow-hidden">
-            <span className="tabular-nums font-mono block truncate text-left">
-              {formatPrice(price)}
-            </span>
+          <div className="text-left">
+            <span className="tabular-nums">{formatPrice(price)}</span>
           </div>
 
           {/* Size */}
-          <div className="w-[100px] overflow-hidden">
-            <span className="tabular-nums font-mono block truncate text-right">
-              {formatQuantity(size)}
-            </span>
+          <div className="text-right">
+            <span className="tabular-nums">{formatQuantity(size)}</span>
           </div>
 
           {/* Total */}
-          <div className="w-[100px] overflow-hidden">
-            <span className="tabular-nums font-mono block truncate text-right">
-              {formatTotal(price, size)}
-            </span>
+          <div className="text-right">
+            <span className="tabular-nums">{formatTotal(price, size)}</span>
           </div>
         </div>
       </div>

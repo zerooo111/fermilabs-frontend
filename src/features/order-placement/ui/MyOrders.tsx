@@ -16,6 +16,11 @@ import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { selectedMarketAtom } from '@/entities/market/model';
 import { orderReceiptsAtom } from '@/entities/order-receipt';
 import { OrderReceipt } from './OrderReceipt';
+import {
+  formatPrice,
+  formatQuantity,
+  formatTotal,
+} from '@/features/orderbook-view/lib/processOrderbook';
 
 export function MyOrders() {
   const orderbook = useAtomValue(orderbookAtom);
@@ -86,47 +91,62 @@ export function MyOrders() {
     if (myOrders.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={6} className="h-24 text-center text-sm text-muted-foreground">
+          <TableCell colSpan={7} className="h-24 text-center text-sm text-muted-foreground">
             No active orders
           </TableCell>
         </TableRow>
       );
     }
 
-    return myOrders.map(order => (
-      <TableRow key={order.order_id} className="text-xs">
-        <TableCell>{order.order_id}</TableCell>
-        <TableCell>
-          <Badge variant={order.side === 'Buy' ? 'success' : 'danger'}>{order.side}</Badge>
-        </TableCell>
-        <TableCell className="font-mono">
-          {Number(order.price / 10 ** 9).toPrecision(4)} {selectedMarket?.quoteTokenName}
-        </TableCell>
-        <TableCell className="font-mono">
-          {Number(order.quantity / 10 ** 9).toPrecision(4)} {selectedMarket?.baseTokenName}
-        </TableCell>
-        <TableCell className="font-mono">{new Date(order.expiry).toLocaleString()}</TableCell>
-        <TableCell className="text-right font-mono">
-          <div className="flex gap-1.5 justify-end">
-            {orderReceipts.has(order.order_id) && (
-              <OrderReceipt receipt={orderReceipts.get(order.order_id)!} />
-            )}
-            <Button
-              onClick={() => cancelOrder(order.order_id)}
-              variant="outline"
-              size="sm"
-              disabled={cancellingOrders.has(order.order_id)}
-            >
-              {cancellingOrders.has(order.order_id) ? 'Cancelling...' : 'Cancel'}
-            </Button>
-          </div>
-        </TableCell>
-      </TableRow>
-    ));
+    return myOrders.map(order => {
+      return (
+        <TableRow key={order.order_id} className="text-xs">
+          <TableCell>{order.order_id}</TableCell>
+          <TableCell>
+            <Badge variant={order.side === 'Buy' ? 'success' : 'danger'}>{order.side}</Badge>
+          </TableCell>
+          <TableCell className="font-mono tabular-nums">
+            {formatPrice(order.price)} {selectedMarket?.quoteTokenName}
+          </TableCell>
+          <TableCell className="font-mono tabular-nums">
+            {formatQuantity(order.quantity)} {selectedMarket?.baseTokenName}
+          </TableCell>
+          <TableCell className="font-mono tabular-nums">
+            {formatTotal(order.price, order.quantity)} {selectedMarket?.quoteTokenName}
+          </TableCell>
+          <TableCell className="font-mono">
+            {new Date(order.expiry).toLocaleString(undefined, {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false,
+            })}
+          </TableCell>
+          <TableCell className="text-right">
+            <div className="flex gap-1.5 justify-end">
+              {orderReceipts.has(order.order_id) && (
+                <OrderReceipt receipt={orderReceipts.get(order.order_id)!} />
+              )}
+              <Button
+                onClick={() => cancelOrder(order.order_id)}
+                variant="outline"
+                size="sm"
+                disabled={cancellingOrders.has(order.order_id)}
+              >
+                {cancellingOrders.has(order.order_id) ? 'Cancelling...' : 'Cancel'}
+              </Button>
+            </div>
+          </TableCell>
+        </TableRow>
+      );
+    });
   };
 
   return (
-    <div className="rounded-md border w-full">
+    <div className="rounded-md border w-full mb-3">
       <Table>
         <TableHeader>
           <TableRow>
@@ -134,6 +154,7 @@ export function MyOrders() {
             <TableHead className="bg-accent">Side</TableHead>
             <TableHead className="bg-accent">Price ({selectedMarket?.quoteTokenName})</TableHead>
             <TableHead className="bg-accent">Size ({selectedMarket?.baseTokenName})</TableHead>
+            <TableHead className="bg-accent">Total ({selectedMarket?.quoteTokenName})</TableHead>
             <TableHead className="bg-accent">Expiry</TableHead>
             <TableHead className="bg-accent text-right rounded-tr-md">Actions</TableHead>
           </TableRow>

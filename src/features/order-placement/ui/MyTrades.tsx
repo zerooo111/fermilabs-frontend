@@ -10,12 +10,6 @@ import { selectedMarketAtom } from '@/entities/market/model';
 import { useAtomValue } from 'jotai';
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  formatPrice,
-  formatQuantity,
-  formatTotal,
-  PRICE_DECIMALS,
-} from '@/features/orderbook-view/lib/processOrderbook';
 
 export function MyTrades() {
   const { publicKey } = useWallet();
@@ -29,7 +23,7 @@ export function MyTrades() {
       return fetchTrades(publicKey.toBase58(), selectedMarket.uuid);
     },
     enabled: !!publicKey && !!selectedMarket,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 1000, // Refetch every 1 second
     staleTime: 5000, // Consider data stale after 5 seconds
   });
 
@@ -91,10 +85,6 @@ export function MyTrades() {
       const isBuyer = trade.buyer_owner === publicKey?.toBase58();
       const side = isBuyer ? 'Buy' : 'Sell';
 
-      // Scale the values by 10^9 since the formatting functions expect scaled values
-      const scaledPrice = trade.price * Math.pow(10, PRICE_DECIMALS);
-      const scaledQuantity = trade.quantity * Math.pow(10, PRICE_DECIMALS);
-
       return (
         <TableRow key={trade.id} className="text-xs">
           <TableCell>{new Date(trade.timestamp * 1000).toLocaleString()}</TableCell>
@@ -102,10 +92,10 @@ export function MyTrades() {
             <Badge variant={side === 'Buy' ? 'success' : 'danger'}>{side}</Badge>
           </TableCell>
           <TableCell className="font-mono">
-            {formatPrice(scaledPrice)} {selectedMarket?.quoteTokenName}
+            {trade.price} {selectedMarket?.quoteTokenName}
           </TableCell>
           <TableCell className="font-mono">
-            {formatQuantity(scaledQuantity)} {selectedMarket?.baseTokenName}
+            {trade.quantity} {selectedMarket?.baseTokenName}
           </TableCell>
           <TableCell className="font-mono">
             <span className={isBuyer ? 'text-success' : ''}>
@@ -118,7 +108,7 @@ export function MyTrades() {
             </span>
           </TableCell>
           <TableCell className="text-right font-mono">
-            {formatTotal(scaledPrice, scaledQuantity)} {selectedMarket?.quoteTokenName}
+            {trade.price * trade.quantity} {selectedMarket?.quoteTokenName}
           </TableCell>
         </TableRow>
       );
@@ -126,7 +116,7 @@ export function MyTrades() {
   };
 
   return (
-    <div className="rounded-md border w-full">
+    <div className="rounded-md border w-full mt-3">
       <Table>
         <TableHeader>
           <TableRow>

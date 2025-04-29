@@ -14,17 +14,12 @@ import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey } from '@solana/web3.js';
-import { baseMint, quoteMint } from '@/shared/config/constants';
+import { baseMint, quoteMint, QUOTE_DECIMALS, BASE_DECIMALS } from '@/shared/config/constants';
 import { NumberInput } from '@/shared/ui/number-input';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { useSelectedMarket } from '@/entities/market';
 import { useSetAtom } from 'jotai';
 import { addOrderReceiptAtom } from '@/entities/order-receipt';
-
-// Constants for decimal precision
-const PRICE_DECIMALS = 6; // Allow up to 6 decimal places for price
-const SIZE_DECIMALS = 4; // Allow up to 4 decimal places for size
-const SCALING_FACTOR = 10 ** 9; // 9 decimals for blockchain
 
 export function TradePanel() {
   const [formState, setFormState] = useState({
@@ -46,16 +41,6 @@ export function TradePanel() {
   const { setVisible } = useWalletModal();
 
   const addOrderReceipt = useSetAtom(addOrderReceiptAtom);
-
-  // Helper function to convert decimal string to BN with proper scaling
-  const decimalToBN = (value: string): BN => {
-    // Remove any trailing zeros after decimal point
-    const trimmedValue = value.replace(/\.?0+$/, '');
-    // Convert to number and multiply by scaling factor
-    const scaledValue = parseFloat(trimmedValue || '0') * SCALING_FACTOR;
-    // Convert to BN, handling potential floating point precision issues
-    return new BN(Math.round(scaledValue).toString());
-  };
 
   const placeOrderIntent = async (intent: OrderIntent) => {
     if (!signMessage) throw new Error('Wallet not connected!');
@@ -110,12 +95,15 @@ export function TradePanel() {
       const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
       const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;
 
+      const priceBN = new BN(formState.price).mul(new BN(10).pow(new BN(BASE_DECIMALS)));
+      const sizeBN = new BN(formState.size).mul(new BN(10).pow(new BN(QUOTE_DECIMALS)));
+
       const intent = new OrderIntent(
         orderId,
         publicKey,
         'Sell',
-        decimalToBN(formState.price),
-        decimalToBN(formState.size),
+        priceBN,
+        sizeBN,
         new BN(Date.now() + 60 * 60 * 1000),
         baseMintPubkey,
         quoteMintPubkey
@@ -148,12 +136,15 @@ export function TradePanel() {
       const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
       const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;
 
+      const priceBN = new BN(formState.price).mul(new BN(10).pow(new BN(BASE_DECIMALS)));
+      const sizeBN = new BN(formState.size).mul(new BN(10).pow(new BN(QUOTE_DECIMALS)));
+
       const intent = new OrderIntent(
         orderId,
         publicKey,
         'Buy',
-        decimalToBN(formState.price),
-        decimalToBN(formState.size),
+        priceBN,
+        sizeBN,
         new BN(Date.now() + 60 * 60 * 1000),
         baseMintPubkey,
         quoteMintPubkey
@@ -195,7 +186,7 @@ export function TradePanel() {
           placeholder="0.00"
           required
           unit={selectedMarket?.quoteTokenName}
-          decimalScale={PRICE_DECIMALS}
+          decimalScale={QUOTE_DECIMALS}
           allowNegative={false}
         />
 
@@ -209,7 +200,7 @@ export function TradePanel() {
           placeholder="0.00"
           required
           unit={selectedMarket?.baseTokenName}
-          decimalScale={SIZE_DECIMALS}
+          decimalScale={BASE_DECIMALS}
           allowNegative={false}
         />
 
@@ -295,7 +286,7 @@ export function TradePanel() {
           {/* Order Info Section */}
           <div className="flex items-center justify-between">
             <span>Order Value</span>
-            <span className="tabular-nums">{orderValue.toFixed(PRICE_DECIMALS)}</span>
+            <span className="tabular-nums">{orderValue.toFixed(QUOTE_DECIMALS)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span>Fees</span>
