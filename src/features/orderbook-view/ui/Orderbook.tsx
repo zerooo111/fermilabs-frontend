@@ -54,23 +54,21 @@ export function Orderbook() {
         <span className="text-right">Total</span>
       </div>
       <div className="flex flex-col justify-between flex-1">
-        <div className="flex flex-col justify-end relative">
+        <div className="flex flex-col-reverse justify-end relative">
           {/* Buy orders */}
-          {processedOrderbook.buys
-            .reverse()
-            .map((order, index) =>
-              order ? (
-                <OrderbookRow
-                  key={`buy-${order.price}`}
-                  price={order.price}
-                  size={order.quantity}
-                  depth={order.depth}
-                  side="Buy"
-                />
-              ) : (
-                <div key={`buy-order-placeholder-${index}`} className="h-6" />
-              )
-            )}
+          {processedOrderbook.buys.map((order, index) =>
+            order ? (
+              <OrderbookRow
+                key={`buy-${order.price}`}
+                price={order.price}
+                size={order.quantity}
+                depth={order.depth}
+                side="Buy"
+              />
+            ) : (
+              <div key={`buy-order-placeholder-${index}`} className="h-6" />
+            )
+          )}
         </div>
         <div className="flex text-sm bg-neutral-100 px-3 py-1.5 justify-between">
           <span>Spread</span>
