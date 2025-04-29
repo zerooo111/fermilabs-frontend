@@ -46,9 +46,22 @@ export interface Order {
   [key: string]: any;
 }
 
+export interface Trade {
+  id: string;
+  buyer_owner: string;
+  seller_owner: string;
+  buyer_order_id: number;
+  seller_order_id: number;
+  price: number;
+  quantity: number;
+  timestamp: number;
+  market_id: string;
+}
+
 export function useSequencerApi() {
   const { selectedServer } = useSelectedServer();
   const baseUrl = selectedServer.url;
+  const graphApiUrl = config.devnet.graphApiUrl;
 
   // Memoized API calls
   const ping = useCallback(async () => {
@@ -87,16 +100,19 @@ export function useSequencerApi() {
   );
 
   const fetchOrderbook = useCallback(async (marketId: string): Promise<Orderbook> => {
-    const { data, error } = await tryCatch<AxiosResponse<any>>(
-      axios.get(`${config.devnet.globalSequencerApiUrl}/markets/${marketId}/orderbook`)
-    );
+    const url = `${config.devnet.globalSequencerApiUrl}/markets/${marketId}/orderbook`;
+    console.log('Fetching orderbook from:', url);
+
+    const { data, error } = await tryCatch<AxiosResponse<any>>(axios.get(url));
 
     if (error) {
+      console.error('Error fetching orderbook:', error);
       throw error;
     }
 
     // Extract the orderbook data from the response
     const responseData = data.data.data;
+    console.log('Raw API response:', responseData);
 
     // Create a properly structured Orderbook object
     const orderbook: Orderbook = {
@@ -107,11 +123,33 @@ export function useSequencerApi() {
     return orderbook;
   }, []);
 
+  const fetchTrades = useCallback(
+    async (owner: string, marketId: string, limit: number = 100): Promise<Trade[]> => {
+      const { data, error } = await tryCatch<AxiosResponse<{ trades: Trade[] }>>(
+        axios.post(`${graphApiUrl}/trades`, {
+          owner,
+          marketId,
+          limit,
+        })
+      );
+
+      console.log('data for /trades', { data, error });
+
+      if (error) {
+        throw error;
+      }
+
+      return data.data.trades || [];
+    },
+    [graphApiUrl]
+  );
+
   return {
     ping,
 
     submitOrderToSequencer,
     fetchOrderbook,
     submitCancelOrderToSequencer,
+    fetchTrades,
   };
 }

@@ -21,10 +21,15 @@ import { useSelectedMarket } from '@/entities/market';
 import { useSetAtom } from 'jotai';
 import { addOrderReceiptAtom } from '@/entities/order-receipt';
 
+// Constants for decimal precision
+const PRICE_DECIMALS = 6; // Allow up to 6 decimal places for price
+const SIZE_DECIMALS = 4; // Allow up to 4 decimal places for size
+const SCALING_FACTOR = 10 ** 9; // 9 decimals for blockchain
+
 export function TradePanel() {
   const [formState, setFormState] = useState({
-    price: 0,
-    size: 0,
+    price: '', // Changed to string to better handle decimal input
+    size: '', // Changed to string to better handle decimal input
     orderType: 'limit',
   });
   const [isBuying, setIsBuying] = useState(false);
@@ -42,21 +47,25 @@ export function TradePanel() {
 
   const addOrderReceipt = useSetAtom(addOrderReceiptAtom);
 
+  // Helper function to convert decimal string to BN with proper scaling
+  const decimalToBN = (value: string): BN => {
+    // Remove any trailing zeros after decimal point
+    const trimmedValue = value.replace(/\.?0+$/, '');
+    // Convert to number and multiply by scaling factor
+    const scaledValue = parseFloat(trimmedValue || '0') * SCALING_FACTOR;
+    // Convert to BN, handling potential floating point precision issues
+    return new BN(Math.round(scaledValue).toString());
+  };
+
   const placeOrderIntent = async (intent: OrderIntent) => {
     if (!signMessage) throw new Error('Wallet not connected!');
 
     const serializedData = OrderIntent.serialize(intent);
     const prefix = Buffer.from('FRM_DEX_ORDER:');
-
     const encodedMessage = Buffer.concat([prefix, serializedData]);
-
     const sha256Hash = createHash('sha256').update(new Uint8Array(encodedMessage)).digest();
-
     const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
-
-    // Sign the message
     const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
-
     const hexSignature = Buffer.from(signatureBytes).toString('hex');
 
     const body = {
@@ -75,13 +84,11 @@ export function TradePanel() {
 
     const receipt = await submitOrderToSequencer(body);
 
-    // Save the receipt
     addOrderReceipt({
       orderId: intent.order_id.toNumber(),
       timestamp: Date.now(),
       status: 'submitted',
       signature: hexSignature,
-      txHash: receipt?.txHash,
     });
 
     return receipt;
@@ -96,11 +103,9 @@ export function TradePanel() {
     try {
       setIsSelling(true);
       if (!publicKey) throw new Error('Wallet not connected!');
-      const orderId = new BN(
-        formState.price.toString() +
-          formState.size.toString() +
-          Math.floor(Math.random() * 10000000)
-      );
+
+      // Generate a unique order ID
+      const orderId = new BN(Date.now() * 1000 + Math.floor(Math.random() * 1000));
 
       const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
       const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;
@@ -109,16 +114,16 @@ export function TradePanel() {
         orderId,
         publicKey,
         'Sell',
-        new BN(formState.price).mul(new BN(10 ** 9)),
-        new BN(formState.size).mul(new BN(10 ** 9)),
+        decimalToBN(formState.price),
+        decimalToBN(formState.size),
         new BN(Date.now() + 60 * 60 * 1000),
         baseMintPubkey,
         quoteMintPubkey
       );
 
       const response = await placeOrderIntent(intent);
-      console.log('Order placed', { response });
       toast.success('Sell Order placed');
+      return response;
     } catch (error) {
       console.error(error);
       toast.error('Failed to place order');
@@ -136,11 +141,9 @@ export function TradePanel() {
     try {
       setIsBuying(true);
       if (!publicKey) throw new Error('Wallet not connected!');
-      const orderId = new BN(
-        formState.price.toString() +
-          formState.size.toString() +
-          Math.floor(Math.random() * 10000000)
-      );
+
+      // Generate a unique order ID
+      const orderId = new BN(Date.now() * 1000 + Math.floor(Math.random() * 1000));
 
       const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
       const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;
@@ -149,14 +152,14 @@ export function TradePanel() {
         orderId,
         publicKey,
         'Buy',
-        new BN(formState.price).mul(new BN(10 ** 9)),
-        new BN(formState.size).mul(new BN(10 ** 9)),
+        decimalToBN(formState.price),
+        decimalToBN(formState.size),
         new BN(Date.now() + 60 * 60 * 1000),
         baseMintPubkey,
         quoteMintPubkey
       );
-      const response = await placeOrderIntent(intent);
-      console.log('Order placed', { response });
+
+      await placeOrderIntent(intent);
       toast.success('Buy Order placed');
     } catch (error) {
       console.error(error);
@@ -165,6 +168,9 @@ export function TradePanel() {
       setIsBuying(false);
     }
   };
+
+  // Calculate order value considering decimal inputs
+  const orderValue = parseFloat(formState.price) * parseFloat(formState.size) || 0;
 
   return (
     <div className="flex flex-col border border-border rounded-lg w-xs overflow-hidden">
@@ -183,28 +189,28 @@ export function TradePanel() {
           id="price"
           name="price"
           label="Price"
-          value={formState.price.toString()}
-          onValueChange={values =>
-            setFormState(prev => ({ ...prev, price: values.floatValue ?? 0 }))
-          }
+          value={formState.price}
+          onValueChange={values => setFormState(prev => ({ ...prev, price: values.value || '' }))}
           min={0}
-          placeholder="Enter price"
+          placeholder="0.00"
           required
           unit={selectedMarket?.quoteTokenName}
+          decimalScale={PRICE_DECIMALS}
+          allowNegative={false}
         />
 
         <NumberInput
           id="size"
           name="size"
           label="Size"
-          value={formState.size.toString()}
-          onValueChange={values =>
-            setFormState(prev => ({ ...prev, size: values.floatValue ?? 0 }))
-          }
+          value={formState.size}
+          onValueChange={values => setFormState(prev => ({ ...prev, size: values.value || '' }))}
           min={0}
-          placeholder="Enter size"
+          placeholder="0.00"
           required
           unit={selectedMarket?.baseTokenName}
+          decimalScale={SIZE_DECIMALS}
+          allowNegative={false}
         />
 
         {!connected ? (
@@ -289,9 +295,7 @@ export function TradePanel() {
           {/* Order Info Section */}
           <div className="flex items-center justify-between">
             <span>Order Value</span>
-            <span className="tabular-nums">
-              {(Number(formState.price) * Number(formState.size)).toFixed(2)}
-            </span>
+            <span className="tabular-nums">{orderValue.toFixed(PRICE_DECIMALS)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span>Fees</span>

@@ -37,17 +37,8 @@ export function MyOrders() {
 
   if (!publicKey) {
     return (
-      <div className="flex flex-col gap-1.5">
+      <div>
         <h2 className="text-lg font-medium">Please connect your wallet</h2>
-      </div>
-    );
-  }
-
-  if (myOrders.length === 0) {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <h2 className="text-lg font-medium">My Orders</h2>
-        <div className="text-sm text-muted-foreground">No active orders</div>
       </div>
     );
   }
@@ -61,8 +52,6 @@ export function MyOrders() {
 
       const message = `FRM_DEX_CANCEL:${new BN(orderId).toString()},${publicKey.toBase58()}`;
 
-      console.log('Message', message);
-
       const sha256Hash = createHash('sha256').update(Buffer.from(message)).digest();
       // Hex encode the hash
       const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
@@ -70,8 +59,6 @@ export function MyOrders() {
       // Sign the hex encoded hash
       const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
       const hexSignature = Buffer.from(signatureBytes).toString('hex');
-
-      console.log('Hex signature', hexSignature);
 
       const body = {
         order_id: new BN(orderId).toNumber(),
@@ -81,8 +68,7 @@ export function MyOrders() {
         signature: hexSignature,
       };
 
-      const response = await submitCancelOrderToSequencer(body);
-      console.log('Order cancelled', { response });
+      await submitCancelOrderToSequencer(body);
       toast.success('Order cancelled');
     } catch (error) {
       console.error(error);
@@ -96,57 +82,64 @@ export function MyOrders() {
     }
   };
 
+  const renderTableContent = () => {
+    if (myOrders.length === 0) {
+      return (
+        <TableRow>
+          <TableCell colSpan={6} className="h-24 text-center text-sm text-muted-foreground">
+            No active orders
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return myOrders.map(order => (
+      <TableRow key={order.order_id} className="text-xs">
+        <TableCell>{order.order_id}</TableCell>
+        <TableCell>
+          <Badge variant={order.side === 'Buy' ? 'success' : 'danger'}>{order.side}</Badge>
+        </TableCell>
+        <TableCell className="font-mono">
+          {Number(order.price / 10 ** 9).toPrecision(4)} {selectedMarket?.quoteTokenName}
+        </TableCell>
+        <TableCell className="font-mono">
+          {Number(order.quantity / 10 ** 9).toPrecision(4)} {selectedMarket?.baseTokenName}
+        </TableCell>
+        <TableCell className="font-mono">{new Date(order.expiry).toLocaleString()}</TableCell>
+        <TableCell className="text-right font-mono">
+          <div className="flex gap-1.5 justify-end">
+            {orderReceipts.has(order.order_id) && (
+              <OrderReceipt receipt={orderReceipts.get(order.order_id)!} />
+            )}
+            <Button
+              onClick={() => cancelOrder(order.order_id)}
+              variant="outline"
+              size="sm"
+              disabled={cancellingOrders.has(order.order_id)}
+            >
+              {cancellingOrders.has(order.order_id) ? 'Cancelling...' : 'Cancel'}
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    ));
+  };
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <h2 className="text-lg font-medium">My Orders</h2>
-      <div className="rounded-md border w-full">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="bg-accent rounded-tl-md">Order ID</TableHead>
-              <TableHead className="bg-accent">Side</TableHead>
-              <TableHead className="bg-accent">Price</TableHead>
-              <TableHead className="bg-accent">Size</TableHead>
-              <TableHead className="bg-accent">Expiry</TableHead>
-              <TableHead className="bg-accent text-right rounded-tr-md">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {myOrders.map(order => (
-              <TableRow key={order.order_id} className="text-xs">
-                <TableCell>{order.order_id}</TableCell>
-                <TableCell>
-                  <Badge variant={order.side === 'Buy' ? 'success' : 'danger'}>{order.side}</Badge>
-                </TableCell>
-                <TableCell className="font-mono">
-                  {Number(order.price / 10 ** 9).toPrecision(4)}
-                </TableCell>
-                <TableCell className="font-mono">
-                  {Number(order.quantity / 10 ** 9).toPrecision(4)}
-                </TableCell>
-                <TableCell className="font-mono">
-                  {new Date(order.expiry).toLocaleString()}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  <div className="flex gap-1.5 justify-end">
-                    {orderReceipts.has(order.order_id) && (
-                      <OrderReceipt receipt={orderReceipts.get(order.order_id)!} />
-                    )}
-                    <Button
-                      onClick={() => cancelOrder(order.order_id)}
-                      variant="outline"
-                      size="sm"
-                      disabled={cancellingOrders.has(order.order_id)}
-                    >
-                      {cancellingOrders.has(order.order_id) ? 'Cancelling...' : 'Cancel'}
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+    <div className="rounded-md border w-full">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="bg-accent rounded-tl-md">Order ID</TableHead>
+            <TableHead className="bg-accent">Side</TableHead>
+            <TableHead className="bg-accent">Price ({selectedMarket?.quoteTokenName})</TableHead>
+            <TableHead className="bg-accent">Size ({selectedMarket?.baseTokenName})</TableHead>
+            <TableHead className="bg-accent">Expiry</TableHead>
+            <TableHead className="bg-accent text-right rounded-tr-md">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>{renderTableContent()}</TableBody>
+      </Table>
     </div>
   );
 }
