@@ -6,6 +6,12 @@ import { atom, useAtom } from 'jotai';
 import { Server } from '@/types';
 
 export const servers: Server[] = [
+  {
+    label: 'US | East',
+    url: 'https://us-east.fermilabs.xyz',
+    latency: null,
+  },
+
   // {
   //   label: 'Asia | Mumbai',
   //   url: 'https://13.203.79.139:8084',
@@ -21,16 +27,16 @@ export const servers: Server[] = [
   //   url: 'http://54.196.30.137:8084',
   //   latency: null,
   // },
-  // {
-  //   label: 'Asia | Tokyo',
-  //   url: 'http://57.180.19.124:8084',
-  //   latency: null,
-  // },
-  // {
-  //   label: 'Asia | Singapore',
-  //   url: 'http://13.212.90.103:8084',
-  //   latency: null,
-  // },
+  {
+    label: 'Asia | Tokyo',
+    url: 'https://asiatokyo.fermilabs.xyz',
+    latency: null,
+  },
+  {
+    label: 'Asia | Singapore',
+    url: 'https://asia-singapore.fermilabs.xyz',
+    latency: null,
+  },
   {
     label: 'UAE | Dubai',
     url: 'https://api1.fermilabs.xyz',
