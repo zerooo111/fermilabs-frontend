@@ -202,7 +202,7 @@ function VaultPage() {
       const response = await axios.post(`${config.devnet.graphApiUrl}/dev/airdrop`, {
         mint: selectedTokenMint.toBase58(),
         recipient: ata.toBase58(),
-        amount: 1000000000,
+        amount: 1000000000000,
       });
 
       if (response.data.signature) {
@@ -262,10 +262,12 @@ function VaultPage() {
           <div className="flex justify-between items-center">
             <h1 className="text-4xl font-semibold">{selectedToken.name} Vault</h1>
             <div className="flex items-center gap-2">
-              <Button onClick={handleAirdrop} variant="outline" className="bg-secondary/50">
-                <PlusIcon className="w-4 h-4" />
-                Airdrop {selectedToken.name} tokens
-              </Button>
+              {publicKey && (
+                <Button onClick={handleAirdrop} variant="outline" className="bg-secondary/50">
+                  <PlusIcon className="w-4 h-4" />
+                  Airdrop {selectedToken.name} tokens
+                </Button>
+              )}
               <Select
                 defaultValue={selectedToken.publicKey.toBase58()}
                 onValueChange={value => {
