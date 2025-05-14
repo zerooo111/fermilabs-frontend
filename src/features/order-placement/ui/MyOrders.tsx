@@ -132,7 +132,7 @@ export function MyOrders() {
               )}
               <Button
                 onClick={() => cancelOrder(order.order_id)}
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 disabled={cancellingOrders.has(order.order_id)}
               >
@@ -146,17 +146,25 @@ export function MyOrders() {
   };
 
   return (
-    <div className="rounded-md border w-full mb-3">
+    <div className="rounded-md glass-panel w-full mb-3">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="bg-accent rounded-tl-md">Order ID</TableHead>
-            <TableHead className="bg-accent">Side</TableHead>
-            <TableHead className="bg-accent">Price ({selectedMarket?.quoteTokenName})</TableHead>
-            <TableHead className="bg-accent">Size ({selectedMarket?.baseTokenName})</TableHead>
-            <TableHead className="bg-accent">Total ({selectedMarket?.quoteTokenName})</TableHead>
-            <TableHead className="bg-accent">Expiry</TableHead>
-            <TableHead className="bg-accent text-right rounded-tr-md">Actions</TableHead>
+            <TableHead className="bg-primary text-neutral-100 rounded-tl-md">Order ID</TableHead>
+            <TableHead className="bg-primary text-neutral-100">Side</TableHead>
+            <TableHead className="bg-primary text-neutral-100">
+              Price ({selectedMarket?.quoteTokenName})
+            </TableHead>
+            <TableHead className="bg-primary text-neutral-100">
+              Size ({selectedMarket?.baseTokenName})
+            </TableHead>
+            <TableHead className="bg-primary text-neutral-100">
+              Total ({selectedMarket?.quoteTokenName})
+            </TableHead>
+            <TableHead className="bg-primary text-neutral-100">Expiry</TableHead>
+            <TableHead className="bg-primary text-neutral-100 text-right rounded-tr-md">
+              Actions
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>{renderTableContent()}</TableBody>

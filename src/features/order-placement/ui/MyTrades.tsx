@@ -37,17 +37,19 @@ export function MyTrades() {
 
   if (isLoading) {
     return (
-      <div className="rounded-md border w-full">
+      <div className="rounded-md border w-full glass-panel">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="bg-accent rounded-tl-md">Time</TableHead>
-              <TableHead className="bg-accent">Side</TableHead>
-              <TableHead className="bg-accent">Price</TableHead>
-              <TableHead className="bg-accent">Size</TableHead>
-              <TableHead className="bg-accent">Buyer</TableHead>
-              <TableHead className="bg-accent">Seller</TableHead>
-              <TableHead className="bg-accent text-right rounded-tr-md">Total</TableHead>
+              <TableHead className="bg-primary text-neutral-100 rounded-tl-md">Time</TableHead>
+              <TableHead className="bg-primary text-neutral-100">Side</TableHead>
+              <TableHead className="bg-primary text-neutral-100">Price</TableHead>
+              <TableHead className="bg-primary text-neutral-100">Size</TableHead>
+              <TableHead className="bg-primary text-neutral-100">Buyer</TableHead>
+              <TableHead className="bg-primary text-neutral-100">Seller</TableHead>
+              <TableHead className="bg-primary text-neutral-100 text-right rounded-tr-md">
+                Total
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -116,17 +118,21 @@ export function MyTrades() {
   };
 
   return (
-    <div className="rounded-md border w-full mt-3">
+    <div className="rounded-lg  overflow-hidden border w-full mt-2 glass-panel">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="bg-accent rounded-tl-md">Time</TableHead>
-            <TableHead className="bg-accent">Side</TableHead>
-            <TableHead className="bg-accent">Price ({selectedMarket?.quoteTokenName})</TableHead>
-            <TableHead className="bg-accent">Size ({selectedMarket?.baseTokenName})</TableHead>
-            <TableHead className="bg-accent">Buyer</TableHead>
-            <TableHead className="bg-accent">Seller</TableHead>
-            <TableHead className="bg-accent text-right rounded-tr-md">
+            <TableHead className="bg-primary text-neutral-100 rounded-tl-md">Time</TableHead>
+            <TableHead className="bg-primary text-neutral-100">Side</TableHead>
+            <TableHead className="bg-primary text-neutral-100">
+              Price ({selectedMarket?.quoteTokenName})
+            </TableHead>
+            <TableHead className="bg-primary text-neutral-100">
+              Size ({selectedMarket?.baseTokenName})
+            </TableHead>
+            <TableHead className="bg-primary text-neutral-100">Buyer</TableHead>
+            <TableHead className="bg-primary text-neutral-100">Seller</TableHead>
+            <TableHead className="bg-primary text-neutral-100 text-right rounded-tr-md">
               Total ({selectedMarket?.quoteTokenName})
             </TableHead>
           </TableRow>

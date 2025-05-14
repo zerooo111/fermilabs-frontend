@@ -14,12 +14,12 @@ type OrderbookRowProps = {
 
 export function OrderbookRow({ price, size, depth, side }: OrderbookRowProps) {
   return (
-    <div className={cn('relative w-full h-[26px]')}>
+    <div className={cn('relative font-medium w-full h-[26px]')}>
       {/* Depth indicator */}
       <div
         className={cn(
-          'absolute inset-0 opacity-10',
-          side === 'Buy' ? 'bg-green-500' : 'bg-red-500'
+          'absolute inset-0 opacity-25 mix-blend-lighten',
+          side === 'Buy' ? 'bg-emerald-500' : 'bg-red-500'
         )}
         style={{
           width: `${depth}%`,
@@ -33,7 +33,7 @@ export function OrderbookRow({ price, size, depth, side }: OrderbookRowProps) {
           className={cn(
             'grid grid-cols-3 gap-4 items-center',
             'font-mono text-xs leading-none tracking-tight w-full',
-            side === 'Buy' ? 'text-green-600' : 'text-red-600'
+            side === 'Buy' ? 'text-emerald-600' : 'text-red-600'
           )}
         >
           {/* Price */}

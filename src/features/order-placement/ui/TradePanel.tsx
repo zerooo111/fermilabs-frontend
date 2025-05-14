@@ -200,9 +200,9 @@ export function TradePanel() {
   const orderValue = parseFloat(formState.price) * parseFloat(formState.size) || 0;
 
   return (
-    <div className="flex flex-col border border-border rounded-lg w-xs overflow-hidden">
+    <div className="flex flex-col glass-panel rounded-lg w-xs overflow-hidden">
       <Tabs defaultValue="limit">
-        <TabsList className="w-full rounded-none border-b">
+        <TabsList className="w-full ">
           <TabsTrigger value="limit" className="flex-1">
             Limit
           </TabsTrigger>
@@ -281,9 +281,9 @@ export function TradePanel() {
             </Button>
           </div>
         )}
-        <div className="bg-gray-100 font-medium rounded-sm p-2 text-xs space-y-1 mt-auto">
+        <div className="font-medium p-2 text-xs space-y-1 mt-auto glass-panel">
           {/* Wallet Balances Section */}
-          <div className="mb-2 pb-2 border-b border-gray-200">
+          <div className="mb-2 pb-2 border-b border-gray-400">
             <div className="flex items-center justify-between mb-1">
               <span className="text-nowrap font-semibold">Your Balances</span>
               <button

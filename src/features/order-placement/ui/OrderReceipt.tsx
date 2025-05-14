@@ -11,7 +11,7 @@ export function OrderReceipt({ receipt }: OrderReceiptProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="icon" className="size-8">
+        <Button variant="secondary" size="icon" className="size-8">
           <ReceiptText className="size-4" />
         </Button>
       </PopoverTrigger>

@@ -6,6 +6,7 @@
 import { useState, useCallback, memo, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CandlestickChart } from '@/features/chart/ui/CandlestickChart';
+import { MarketSelector } from '@/features/market-selector';
 import {
   fetchCandles,
   getTimeRangeForInterval,
@@ -17,7 +18,7 @@ import { BN } from '@coral-xyz/anchor';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { Button } from '@/shared/ui/button';
 import { useAtomValue } from 'jotai';
-import { selectedMarketAtom } from '@/entities/market';
+import { selectedMarketAtom, useSelectedMarket } from '@/entities/market';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,6 +33,8 @@ const INTERVALS: { label: string; value: TimeInterval }[] = [
 
 function ChartContainerComponent() {
   const selectedMarket = useAtomValue(selectedMarketAtom);
+  const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
+  const [isLoading, setIsLoading] = useState(false);
   const [timeInterval, setTimeInterval] = useState<TimeInterval>(INTERVALS[0].value);
 
   // Memoize the interval change handler
@@ -39,14 +42,13 @@ function ChartContainerComponent() {
     setTimeInterval(value as TimeInterval);
   }, []);
 
-  // Memoize market name parts for display
-  const marketDisplay = useMemo(() => {
-    if (!selectedMarket) return { baseToken: 'BASE', quoteToken: 'QUOTE' };
-    return {
-      baseToken: selectedMarket.baseTokenName || 'BASE',
-      quoteToken: selectedMarket.quoteTokenName || 'QUOTE',
-    };
-  }, [selectedMarket]);
+  // Memoize the market selection handler
+  const handleMarketSelect = useCallback(
+    (marketId: string) => {
+      selectMarket(marketId);
+    },
+    [selectMarket]
+  );
 
   const { data, error, refetch } = useQuery<ExtendedOHLCVData[]>({
     queryKey: ['candlesticks', timeInterval, selectedMarket?.uuid],
@@ -176,18 +178,20 @@ function ChartContainerComponent() {
 
   // Function to render the chart header with interval selector
   const renderChartHeader = () => (
-    <div className="flex items-center justify-between p-3 border-b border-border">
+    <div className="flex items-center justify-between p-3 ">
       <div className="flex items-center gap-4">
-        <h2 className="text-xl font-medium text-foreground">
-          {marketDisplay.baseToken} / {marketDisplay.quoteToken}
-        </h2>
+        <MarketSelector
+          isLoading={isLoading}
+          selectedMarketId={selectedMarketId}
+          onMarketSelect={handleMarketSelect}
+        />
         {latestPrice && (
-          <div className="flex items-center gap-2">
-            <span className={latestPrice.isPositive ? 'text-[#22c55e]' : 'text-[#ef4444]'}>
+          <div className="flex items-center font-semibold text-xl gap-2">
+            <span className={latestPrice.isPositive ? 'text-emerald-500' : 'text-red-600'}>
               ${latestPrice.price}
             </span>
             <span
-              className={`text-xs ${latestPrice.isPositive ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}
+              className={`text-sm font-normal ${latestPrice.isPositive ? 'text-emerald-500' : 'text-red-600'}`}
             >
               {latestPrice.isPositive ? '+' : '-'}${latestPrice.change} ({latestPrice.percentChange}
               %)
@@ -213,7 +217,7 @@ function ChartContainerComponent() {
   // Handle error state
   if (error) {
     return (
-      <div className="w-full h-full flex flex-col bg-background">
+      <div className="w-full h-full flex flex-col glass-panel">
         {renderChartHeader()}
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <AlertCircle className="h-12 w-12 text-red-500" />
@@ -233,10 +237,10 @@ function ChartContainerComponent() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-background">
+    <div className="w-full h-full flex flex-col glass-panel rounded-lg overflow-hidden">
       {renderChartHeader()}
 
-      <div className="flex-1 relative min-h-[400px]">
+      <div className="flex-1 relative min-h-[400px] overflow-hidden glass-panel border-none bg-white/50">
         <CandlestickChart
           className="h-full"
           data={data || []}

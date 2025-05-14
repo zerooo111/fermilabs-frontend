@@ -52,7 +52,7 @@ export function Orderbook() {
   if (!processedOrderbook) return null;
 
   return (
-    <div className="rounded-md border w-[360px]">
+    <div className="rounded-md glass-panel w-[360px]">
       {/* Header */}
       <div className="flex items-center justify-between p-3  rounded-t-md">
         <div className="flex items-center gap-2">
@@ -65,7 +65,7 @@ export function Orderbook() {
       </div>
 
       {/* Column Headers */}
-      <div className="grid grid-cols-3 px-4 py-2 text-xs text-muted-foreground bg-accent border-y border-border shrink-0">
+      <div className="grid grid-cols-3 px-4 py-2 text-xs bg-primary text-primary-foreground border-y border-border shrink-0">
         <div className="text-left font-mono">Price</div>
         <div className="text-right font-mono">Size</div>
         <div className="text-right font-mono">Total</div>
@@ -74,7 +74,7 @@ export function Orderbook() {
       {/* Orderbook Content */}
       <div className="flex flex-col h-[500px] overflow-hidden">
         {/* Sells (asks) */}
-        <div className="flex-1 flex flex-col-reverse overflow-y-auto">
+        <div className="flex-1 flex flex-col-reverse overflow-y-auto glass-panel border-none">
           {processedOrderbook.sells.map((order, i) =>
             order ? (
               <OrderbookRow
@@ -91,13 +91,13 @@ export function Orderbook() {
         </div>
 
         {/* Spread */}
-        <div className="px-4 py-2 text-xs text-muted-foreground bg-muted flex justify-between items-center shrink-0">
+        <div className="px-4 py-2 text-xs flex justify-between items-center shrink-0 bg-primary text-primary-foreground">
           <span>Spread</span>
           <span className="font-mono">{formatPrice(processedOrderbook.spread)}</span>
         </div>
 
         {/* Buys (bids) */}
-        <div className="flex-1 flex flex-col overflow-y-auto">
+        <div className="flex-1 flex flex-col overflow-y-auto glass-panel border-none">
           {processedOrderbook.buys.map((order, i) =>
             order ? (
               <OrderbookRow

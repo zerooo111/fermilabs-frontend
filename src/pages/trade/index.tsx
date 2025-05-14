@@ -3,10 +3,9 @@
  * Main trading interface
  * Completely refactored to avoid circular dependencies
  */
-import { useLayoutEffect, useEffect, useState, useRef, useCallback, memo } from 'react';
+import { useLayoutEffect, useEffect, useRef, memo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { MarketSelector } from '../../features/market-selector';
 import { Orderbook } from '../../features/orderbook-view';
 import { ChartContainer } from '../../features/chart';
 import { TradePanel, OrdersAndTradesTab } from '../../features/order-placement';
@@ -21,7 +20,6 @@ const MemoizedOrdersAndTradesTab = memo(OrdersAndTradesTab);
 function TradePage() {
   const navigate = useNavigate();
   const params = useParams();
-  const [isLoading, setIsLoading] = useState(false);
   const initialLoadRef = useRef(false);
 
   const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
@@ -32,7 +30,6 @@ function TradePage() {
       if (initialLoadRef.current) return;
 
       try {
-        setIsLoading(true);
         const markets = await loadMarkets();
 
         if (!markets?.length) {
@@ -43,11 +40,9 @@ function TradePage() {
         // Batch these operations
         Promise.resolve().then(() => {
           selectMarket(currentMarket?.uuid || markets[0].uuid);
-          setIsLoading(false);
           initialLoadRef.current = true;
         });
       } catch (error) {
-        setIsLoading(false);
         console.error('Failed to load markets:', error);
       }
     };
@@ -62,33 +57,16 @@ function TradePage() {
     }
   }, [selectedMarketId, navigate]);
 
-  // Memoize the handler to avoid recreating on every render
-  const handleMarketSelect = useCallback(
-    (marketId: string) => {
-      selectMarket(marketId);
-    },
-    [selectMarket]
-  );
-
   return (
     <div className="flex flex-col gap-1.5 px-3 min-h-[calc(100vh-60px)]">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-4">
-          <MarketSelector
-            isLoading={isLoading}
-            selectedMarketId={selectedMarketId}
-            onMarketSelect={handleMarketSelect}
-          />
-        </div>
-      </div>
       <div className="flex gap-1.5 rounded-lg">
-        <div className="flex-1 border border-border rounded-lg overflow-hidden">
+        <div className="flex-1 rounded-lg overflow-hidden">
           <MemoizedChartContainer />
         </div>
         <MemoizedOrderbook />
         <MemoizedTradePanel />
       </div>
-      <div className="flex-1 border border-border rounded-lg p-3">
+      <div className="flex-1 rounded-lg p-3 glass-panel">
         <MemoizedOrdersAndTradesTab />
       </div>
     </div>

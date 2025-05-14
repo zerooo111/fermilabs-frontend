@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { ArrowRightCircleIcon, LockKeyhole, LockKeyholeOpen } from 'lucide-react';
+import { ArrowRightCircleIcon, LockKeyhole, LockKeyholeOpen, PlusIcon } from 'lucide-react';
 
 import {
   SelectContent,
@@ -23,15 +23,17 @@ import {
   checkOrCreateAssociatedTokenAccount,
   fetchTokenBalance,
 } from '../../shared/lib/solana/helpers';
-import { baseMint, quoteMint } from '../../shared/config/constants';
+import axios, { AxiosError } from 'axios';
+import { toast } from 'sonner';
+import { config } from '@/shared/config/constants';
 
 const tokens = [
   {
-    publicKey: baseMint,
+    publicKey: new PublicKey('AumtjAJgsrqE62YwMJAWwiMRwjdNYZ8QE9cN2wB5B4nw'),
     name: 'USDC',
   },
   {
-    publicKey: quoteMint,
+    publicKey: new PublicKey('3QciYfuPwwPmneZroFpHnzkjJYrHq2Axnr45kF3c3Hxd'),
     name: 'SOL',
   },
 ];
@@ -75,7 +77,7 @@ function VaultStrategyCard({ strategy }: { strategy: VaultStrategy }) {
       href={strategy.link}
       target="_blank"
       rel="noopener noreferrer"
-      className="block group bg-white rounded-xl p-6 transition-shadow border border-neutral-200 hover:border-neutral-300"
+      className="block group glass-panel rounded-xl p-6 transition-shadow border hover:bg-gradient-to-t hover:from-white/40  duration-200"
     >
       <div className="flex items-start gap-4 justify-between">
         <div className="flex flex-1 gap-4">
@@ -93,11 +95,11 @@ function VaultStrategyCard({ strategy }: { strategy: VaultStrategy }) {
             </div>
             <div className="w-full flex  justify-between   mt-2">
               <div className="flex-1 p-1">
-                <p className="text-xs text-neutral-500 font-medium">TVL</p>
+                <p className="text-xs text-neutral-600 font-medium">TVL</p>
                 <p className="text-sm font-mono font-medium">${strategy.tvl.toLocaleString()}</p>
               </div>
               <div className="flex-1 p-1 text-right">
-                <p className="text-xs text-neutral-500 font-medium">APR</p>
+                <p className="text-xs text-neutral-600 font-medium">APR</p>
                 <p className="text-sm font-mono font-medium text-emerald-600">{strategy.apr}%</p>
               </div>
             </div>
@@ -113,7 +115,7 @@ function VaultStrategyList() {
     <div className="mt-8">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-neutral-900">Available Strategies</h2>
-        <p className="text-neutral-500 mt-1">Choose a strategy to optimize your yields</p>
+        <p className="text-neutral-600 mt-1">Choose a strategy to optimize your yields</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {strategies.map(strategy => (
@@ -183,6 +185,37 @@ function VaultPage() {
     getData();
   };
 
+  const handleAirdrop = async () => {
+    if (!vaultClient) {
+      throw new Error('VAULT_CLIENT_NOT_FOUND');
+    }
+
+    const selectedTokenMint = new PublicKey(selectedToken.publicKey);
+
+    const ata = await checkOrCreateAssociatedTokenAccount(
+      vaultClient.provider,
+      selectedTokenMint,
+      vaultClient.walletPk
+    );
+
+    try {
+      const response = await axios.post(`${config.devnet.graphApiUrl}/dev/airdrop`, {
+        mint: selectedTokenMint.toBase58(),
+        recipient: ata.toBase58(),
+        amount: 1000000000,
+      });
+
+      if (response.data.signature) {
+        toast.success('Tokens airdropped successfully!');
+        getData();
+      }
+    } catch (error) {
+      console.error('Failed to airdrop tokens:', error);
+      const axiosError = error as AxiosError<{ error: string }>;
+      toast.error(axiosError.response?.data?.error || 'Failed to airdrop tokens');
+    }
+  };
+
   const getData = useCallback(async () => {
     try {
       if (!vaultClient) {
@@ -224,11 +257,15 @@ function VaultPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="bg-neutral-100 p-3">
-        <div className="container max-w-screen-lg mx-auto py-10 flex flex-col gap-4">
+      <div className="">
+        <div className="container px-5  max-w-screen-lg mx-auto py-10 flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h1 className="text-4xl font-semibold">{selectedToken.name} Vault</h1>
-            <div>
+            <div className="flex items-center gap-2">
+              <Button onClick={handleAirdrop} variant="outline" className="bg-secondary/50">
+                <PlusIcon className="w-4 h-4" />
+                Airdrop {selectedToken.name} tokens
+              </Button>
               <Select
                 defaultValue={selectedToken.publicKey.toBase58()}
                 onValueChange={value => {
@@ -237,7 +274,7 @@ function VaultPage() {
                   );
                 }}
               >
-                <SelectTrigger className="bg-white">
+                <SelectTrigger className="glass-panel">
                   <SelectValue placeholder="Select token" />
                 </SelectTrigger>
                 <SelectContent>
@@ -253,26 +290,26 @@ function VaultPage() {
 
           {publicKey ? (
             <>
-              <div className="grid grid-cols-2 max-md:grid-cols-1 divide-x divide-y gap-4 bg-white rounded-lg border">
+              <div className="grid grid-cols-2 max-md:grid-cols-1 gap-4 glass-panel rounded-lg border">
                 {/* Left Panel */}
                 <div className="flex flex-col justify-between">
-                  <div className="flex flex-col p-5">
-                    <span className="text-sm text-neutral-500 font-medium">Vault TVL</span>
+                  <div className="flex flex-col p-5 ">
+                    <span className="text-sm text-neutral-600 font-medium">Vault TVL</span>
                     <div className="text-3xl tabular-nums font-mono font-semibold">
                       {tvl}
-                      <span className="text-base pl-1 text-neutral-500 font-medium">
+                      <span className="text-base pl-1 text-neutral-600 font-medium">
                         {selectedToken?.name}
                       </span>
                     </div>
                   </div>
                   <hr />
                   <div className="flex flex-col p-5">
-                    <span className="text-sm text-neutral-500 font-medium">
+                    <span className="text-sm text-neutral-600 font-medium">
                       Your Deposited Amount
                     </span>
                     <div className="text-3xl tabular-nums font-mono font-semibold">
                       {amountDeposited}
-                      <span className="text-base pl-1 text-neutral-500 font-medium">
+                      <span className="text-base pl-1 text-neutral-600 font-medium">
                         {selectedToken?.name}
                       </span>
                     </div>
@@ -283,7 +320,7 @@ function VaultPage() {
                 <div className="flex flex-col p-5">
                   <div className="flex italic items-center gap-2.5 mb-2.5">
                     <span className="font-medium">Wallet Balance</span>
-                    <hr className="flex-1" />
+                    <hr className="flex-1 border-primary/25" />
                     <span className="tabular-nums font-mono font-semibold">
                       {`${walletBalance} ${selectedToken?.name}`}
                     </span>
@@ -319,6 +356,7 @@ function VaultPage() {
                     />
                     <Button
                       className="w-36"
+                      variant="secondary"
                       onClick={withdrawTokens}
                       disabled={withdrawAmount === 0 || withdrawAmount > amountDeposited}
                     >
@@ -331,7 +369,7 @@ function VaultPage() {
               <VaultStrategyList />
             </>
           ) : (
-            <div className="flex p-4 bg-white rounded-lg border">
+            <div className="flex p-4 glass-panel rounded-lg border">
               <p>Wallet not connected</p>
             </div>
           )}
