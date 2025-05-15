@@ -60,7 +60,7 @@ function TradePage() {
   return (
     <div className="flex flex-col gap-1.5 px-3 min-h-[calc(100vh-60px)]">
       <div className="flex gap-1.5 rounded-lg">
-        <div className="flex-1 rounded-lg overflow-hidden">
+        <div className="flex-1 rounded-lg">
           <MemoizedChartContainer />
         </div>
         <MemoizedOrderbook />

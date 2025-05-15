@@ -127,6 +127,6 @@
     @apply bg-white/20 backdrop-blur-md;
   }
   .glass-panel {
-    @apply bg-white/20 backdrop-blur-md border border-primary/40;
+    @apply bg-white/20 backdrop-blur-md border border-white/20 ring ring-primary/50 shadow-md overflow-hidden;  
   }
 }

@@ -6,8 +6,8 @@ const badgeVariants = cva('inline-flex items-center rounded-md px-2 py-1 text-xs
       default: 'border-transparent bg-primary text-primary-foreground shadow ',
       secondary: 'border-transparent bg-secondary text-secondary-foreground ',
       outline: 'text-foreground',
-      danger: 'bg-red-500/10 text-red-500  hover:bg-red-600',
-      success: 'bg-green-500/10 text-green-500  hover:bg-green-600',
+      danger: 'bg-red-500/10 text-red-500 ring ring-red-500/50 ',
+      success: 'bg-green-500/10 text-emerald-500 ring ring-emerald-500/50 ',
     },
   },
   defaultVariants: {

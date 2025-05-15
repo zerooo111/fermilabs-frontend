@@ -240,7 +240,7 @@ function ChartContainerComponent() {
     <div className="w-full h-full flex flex-col glass-panel rounded-lg overflow-hidden">
       {renderChartHeader()}
 
-      <div className="flex-1 relative min-h-[400px] overflow-hidden glass-panel border-none bg-white/50">
+      <div className="flex-1 relative min-h-[400px] overflow-hidden glass-panel  bg-white/50">
         <CandlestickChart
           className="h-full"
           data={data || []}

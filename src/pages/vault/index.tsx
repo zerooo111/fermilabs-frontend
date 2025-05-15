@@ -259,11 +259,11 @@ function VaultPage() {
     <div className="flex flex-col gap-4">
       <div className="">
         <div className="container px-5  max-w-screen-lg mx-auto py-10 flex flex-col gap-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-4xl font-semibold">{selectedToken.name} Vault</h1>
-            <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-4">
+            <h1 className="text-4xl font-semibold ">{selectedToken.name} Vault</h1>
+            <div className="flex-1 flex justify-end items-center gap-2">
               {publicKey && (
-                <Button onClick={handleAirdrop} variant="outline" className="bg-secondary/50">
+                <Button onClick={handleAirdrop} variant="outline" className="bg-secondary/50 ">
                   <PlusIcon className="w-4 h-4" />
                   Airdrop {selectedToken.name} tokens
                 </Button>
@@ -276,7 +276,7 @@ function VaultPage() {
                   );
                 }}
               >
-                <SelectTrigger className="glass-panel">
+                <SelectTrigger className="glass-panel w-40">
                   <SelectValue placeholder="Select token" />
                 </SelectTrigger>
                 <SelectContent>
