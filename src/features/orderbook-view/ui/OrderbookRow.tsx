@@ -2,7 +2,7 @@
  * Orderbook row component
  * Displays a single row in the orderbook
  */
-import { cn } from '../../../shared/lib/utils';
+import { cn } from '@/lib/utils';
 import { formatPrice, formatQuantity, formatTotal } from '../lib/processOrderbook';
 
 type OrderbookRowProps = {

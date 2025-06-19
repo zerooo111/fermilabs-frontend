@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '../../../shared/ui/select';
 import { useSelectedServer } from '../../../entities/server';
-import { cn } from '../../../shared/lib/utils';
+import { cn } from '@/lib/utils';
 import { Server } from '@/types';
 
 interface ServerWithHealth extends Server {
@@ -128,7 +128,8 @@ export function ServerSelector() {
         if (server) {
           setSelectedServer(server);
         }
-      }}f
+      }}
+      f
     >
       <SelectTrigger className="w-[250px] glass-panel">
         <SelectValue>

@@ -4,12 +4,11 @@
  */
 import { AppProviders } from './providers';
 import { AppRouter } from './router';
-import styles from './styles.module.css';
 
 export const App = () => {
   return (
     <AppProviders>
-      <div className={styles.appContainer}>
+      <div>
         <AppRouter />
       </div>
     </AppProviders>

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { NumericFormat, NumericFormatProps } from 'react-number-format';
 import { Input } from '../input';
 import { Label } from '../label';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 export interface NumberInputProps extends Omit<NumericFormatProps, 'customInput'> {
   name?: string;
