@@ -37,17 +37,17 @@ export function MyTrades() {
 
   if (isLoading) {
     return (
-      <div className="rounded-md border w-full glass-panel">
+      <div className="border w-full glass-panel">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="bg-primary text-neutral-100 rounded-tl-md">Time</TableHead>
+              <TableHead className="bg-primary text-neutral-100">Time</TableHead>
               <TableHead className="bg-primary text-neutral-100">Side</TableHead>
               <TableHead className="bg-primary text-neutral-100">Price</TableHead>
               <TableHead className="bg-primary text-neutral-100">Size</TableHead>
               <TableHead className="bg-primary text-neutral-100">Buyer</TableHead>
               <TableHead className="bg-primary text-neutral-100">Seller</TableHead>
-              <TableHead className="bg-primary text-neutral-100 text-right rounded-tr-md">
+              <TableHead className="bg-primary text-neutral-100 text-right">
                 Total
               </TableHead>
             </TableRow>
@@ -118,11 +118,11 @@ export function MyTrades() {
   };
 
   return (
-    <div className="rounded-lg  overflow-hidden border w-full mt-2 glass-panel">
+    <div className="overflow-hidden border w-full mt-2 glass-panel">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="bg-primary text-neutral-100 rounded-tl-md">Time</TableHead>
+            <TableHead className="bg-primary text-neutral-100">Time</TableHead>
             <TableHead className="bg-primary text-neutral-100">Side</TableHead>
             <TableHead className="bg-primary text-neutral-100">
               Price ({selectedMarket?.quoteTokenName})
@@ -132,7 +132,7 @@ export function MyTrades() {
             </TableHead>
             <TableHead className="bg-primary text-neutral-100">Buyer</TableHead>
             <TableHead className="bg-primary text-neutral-100">Seller</TableHead>
-            <TableHead className="bg-primary text-neutral-100 text-right rounded-tr-md">
+            <TableHead className="bg-primary text-neutral-100 text-right">
               Total ({selectedMarket?.quoteTokenName})
             </TableHead>
           </TableRow>

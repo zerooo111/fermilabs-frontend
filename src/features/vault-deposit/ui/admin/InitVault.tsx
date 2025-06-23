@@ -31,7 +31,7 @@ export function InitVaultFlow() {
   };
 
   return (
-    <div className="border border-zinc-300 bg-white p-6 rounded-xl flex flex-col gap-3">
+    <div className="border border-zinc-300 bg-white p-6 flex flex-col gap-3">
       <h1 className="text-xl">Init Vault</h1>
       <form onSubmit={handleSubmit} className="flex gap-3">
         <Input
@@ -52,7 +52,7 @@ export function InitVaultFlow() {
         </a>
       )}
       {error && <div className="text-red-500 font-mono font-medium">{error}</div>}
-      <div className="bg-zinc-100 rounded-xl p-3">
+      <div className="bg-zinc-100 p-3">
         <pre>{JSON.stringify(vaultData, null, 2)}</pre>
       </div>
     </div>

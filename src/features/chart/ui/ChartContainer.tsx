@@ -217,13 +217,13 @@ function ChartContainerComponent() {
   // Handle error state
   if (error) {
     return (
-      <div className="w-full h-full flex flex-col glass-panel">
+      <div className="w-full h-full flex flex-coll">
         {renderChartHeader()}
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <AlertCircle className="h-12 w-12 text-red-500" />
           <div className="text-center">
             <h3 className="text-lg font-medium text-red-500 mb-1">Failed to fetch chart data</h3>
-            <p className="text-sm text-muted-foreground max-w-md mb-4">
+            <p className="text-sm text-zinc-500 max-w-md mb-4">
               {error instanceof Error ? error.message : 'Unknown error'}
             </p>
           </div>
@@ -237,10 +237,10 @@ function ChartContainerComponent() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col glass-panel rounded-lg overflow-hidden">
+    <div className="w-full h-full flex flex-col  overflow-hidden">
       {renderChartHeader()}
 
-      <div className="flex-1 relative min-h-[400px] overflow-hidden glass-panel  bg-white/50">
+      <div className="flex-1 relative min-h-[400px] overflow-hidden  bg-white/50">
         <CandlestickChart
           className="h-full"
           data={data || []}

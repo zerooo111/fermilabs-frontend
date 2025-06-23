@@ -95,7 +95,7 @@ export function MintTokens() {
   };
 
   return (
-    <div className="border border-zinc-300 bg-white p-6 rounded-xl flex flex-col gap-3">
+    <div className="border border-zinc-300 bg-white p-6 flex flex-col gap-3">
       <h1>Airdrop tokens </h1>
       <div className="flex flex-col gap-3 flex-wrap">
         <div className="gap-3 flex flex-wrap">

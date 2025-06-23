@@ -7,11 +7,11 @@ import { AppRouter } from './router';
 
 export const App = () => {
   return (
-    <AppProviders>
-      <div>
+    <div className="bg-background text-zinc-100">
+      <AppProviders>
         <AppRouter />
-      </div>
-    </AppProviders>
+      </AppProviders>
+    </div>
   );
 };
 

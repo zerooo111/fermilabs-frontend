@@ -40,7 +40,7 @@ function ServerStatus({ server }: { server: ServerWithHealth }) {
     <div className="flex items-center gap-2">
       <div
         className={cn(
-          'h-2 w-2 rounded-full border border-black/50',
+          'h-2 w-2 border border-black/50',
           server.status === 'healthy' && 'bg-emerald-500 ',
           server.status === 'unhealthy' && 'bg-red-500',
           server.status === 'checking' && 'bg-yellow-500 animate-pulse'

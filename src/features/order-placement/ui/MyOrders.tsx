@@ -146,11 +146,11 @@ export function MyOrders() {
   };
 
   return (
-    <div className="rounded-md glass-panel w-full mb-3">
+    <div className="glass-panel w-full mb-3">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="bg-primary text-neutral-100 rounded-tl-md">Order ID</TableHead>
+            <TableHead className="bg-primary text-neutral-100">Order ID</TableHead>
             <TableHead className="bg-primary text-neutral-100">Side</TableHead>
             <TableHead className="bg-primary text-neutral-100">
               Price ({selectedMarket?.quoteTokenName})
@@ -162,7 +162,7 @@ export function MyOrders() {
               Total ({selectedMarket?.quoteTokenName})
             </TableHead>
             <TableHead className="bg-primary text-neutral-100">Expiry</TableHead>
-            <TableHead className="bg-primary text-neutral-100 text-right rounded-tr-md">
+            <TableHead className="bg-primary text-neutral-100 text-right">
               Actions
             </TableHead>
           </TableRow>

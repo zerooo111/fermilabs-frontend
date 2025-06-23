@@ -77,14 +77,14 @@ function VaultStrategyCard({ strategy }: { strategy: VaultStrategy }) {
       href={strategy.link}
       target="_blank"
       rel="noopener noreferrer"
-      className="block group glass-panel rounded-xl p-6 transition-shadow border hover:bg-gradient-to-t hover:from-white/40  duration-200"
+      className="block group glass-panel p-6 transition-shadow border hover:bg-gradient-to-t hover:from-white/40  duration-200"
     >
       <div className="flex items-start gap-4 justify-between">
         <div className="flex flex-1 gap-4">
           <img
             src={strategy.logo}
             alt={`${strategy.name} logo`}
-            className="w-12 h-12 rounded-xs object-cover"
+            className="w-12 h-12 object-cover"
           />
           <div className=" w-full">
             <div className="flex items-center justify-between">
@@ -292,7 +292,7 @@ function VaultPage() {
 
           {publicKey ? (
             <>
-              <div className="grid grid-cols-2 max-md:grid-cols-1 gap-4 glass-panel rounded-lg border">
+              <div className="grid grid-cols-2 max-md:grid-cols-1 gap-4 glass-panel border">
                 {/* Left Panel */}
                 <div className="flex flex-col justify-between">
                   <div className="flex flex-col p-5 ">
@@ -371,7 +371,7 @@ function VaultPage() {
               <VaultStrategyList />
             </>
           ) : (
-            <div className="flex p-4 glass-panel rounded-lg border">
+            <div className="flex p-4 glass-panel border">
               <p>Wallet not connected</p>
             </div>
           )}

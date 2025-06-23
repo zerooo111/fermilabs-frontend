@@ -19,10 +19,10 @@ export function Notepad() {
   }, [text]);
 
   return (
-    <div className="border border-zinc-300 bg-white p-6 rounded-xl flex flex-col gap-3">
+    <div className="border border-zinc-300 bg-white p-6 flex flex-col gap-3">
       <h1>Notepad</h1>
       <textarea
-        className="w-full h-64 p-3 bg-zinc-100 border border-zinc-300 rounded-lg resize-y"
+        className="w-full h-64 p-3 bg-zinc-100 border border-zinc-300 resize-y"
         value={text}
         onChange={e => setText(e.target.value)}
         placeholder="Type your notes here..."

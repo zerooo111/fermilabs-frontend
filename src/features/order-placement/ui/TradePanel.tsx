@@ -200,7 +200,7 @@ export function TradePanel() {
   const orderValue = parseFloat(formState.price) * parseFloat(formState.size) || 0;
 
   return (
-    <div className="flex flex-col glass-panel rounded-lg w-xs overflow-hidden">
+    <div className="flex flex-col glass-panel w-xs overflow-hidden">
       <Tabs defaultValue="limit">
         <TabsList className="w-full ">
           <TabsTrigger value="limit" className="flex-1">

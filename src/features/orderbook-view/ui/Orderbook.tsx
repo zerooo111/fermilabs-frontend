@@ -52,9 +52,9 @@ export function Orderbook() {
   if (!processedOrderbook) return null;
 
   return (
-    <div className="rounded-md glass-panel w-[360px]">
+    <div className="w-[360px]">
       {/* Header */}
-      <div className="flex items-center justify-between p-3  rounded-t-md">
+      <div className="flex items-center justify-between p-3">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-medium">Orderbook</h2>
           <span className="text-xs text-muted-foreground">
