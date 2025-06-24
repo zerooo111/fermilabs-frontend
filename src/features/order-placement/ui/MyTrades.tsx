@@ -37,33 +37,29 @@ export function MyTrades() {
 
   if (isLoading) {
     return (
-      <div className="border w-full glass-panel">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="bg-primary text-neutral-100">Time</TableHead>
-              <TableHead className="bg-primary text-neutral-100">Side</TableHead>
-              <TableHead className="bg-primary text-neutral-100">Price</TableHead>
-              <TableHead className="bg-primary text-neutral-100">Size</TableHead>
-              <TableHead className="bg-primary text-neutral-100">Buyer</TableHead>
-              <TableHead className="bg-primary text-neutral-100">Seller</TableHead>
-              <TableHead className="bg-primary text-neutral-100 text-right">
-                Total
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center">
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  Loading trades...
-                </div>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Time</TableHead>
+            <TableHead>Side</TableHead>
+            <TableHead>Price</TableHead>
+            <TableHead>Size</TableHead>
+            <TableHead>Buyer</TableHead>
+            <TableHead>Seller</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell colSpan={7} className="h-24 text-center">
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                Loading trades...
+              </div>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     );
   }
 
@@ -88,7 +84,7 @@ export function MyTrades() {
       const side = isBuyer ? 'Buy' : 'Sell';
 
       return (
-        <TableRow key={trade.id} className="text-xs">
+        <TableRow key={trade.id}>
           <TableCell>{new Date(trade.timestamp * 1000).toLocaleString()}</TableCell>
           <TableCell>
             <Badge variant={side === 'Buy' ? 'success' : 'danger'}>{side}</Badge>
@@ -118,27 +114,19 @@ export function MyTrades() {
   };
 
   return (
-    <div className="overflow-hidden border w-full mt-2 glass-panel">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="bg-primary text-neutral-100">Time</TableHead>
-            <TableHead className="bg-primary text-neutral-100">Side</TableHead>
-            <TableHead className="bg-primary text-neutral-100">
-              Price ({selectedMarket?.quoteTokenName})
-            </TableHead>
-            <TableHead className="bg-primary text-neutral-100">
-              Size ({selectedMarket?.baseTokenName})
-            </TableHead>
-            <TableHead className="bg-primary text-neutral-100">Buyer</TableHead>
-            <TableHead className="bg-primary text-neutral-100">Seller</TableHead>
-            <TableHead className="bg-primary text-neutral-100 text-right">
-              Total ({selectedMarket?.quoteTokenName})
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>{renderTableContent()}</TableBody>
-      </Table>
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Time</TableHead>
+          <TableHead>Side</TableHead>
+          <TableHead>Price ({selectedMarket?.quoteTokenName})</TableHead>
+          <TableHead>Size ({selectedMarket?.baseTokenName})</TableHead>
+          <TableHead>Buyer</TableHead>
+          <TableHead>Seller</TableHead>
+          <TableHead className="text-right">Total ({selectedMarket?.quoteTokenName})</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>{renderTableContent()}</TableBody>
+    </Table>
   );
 }

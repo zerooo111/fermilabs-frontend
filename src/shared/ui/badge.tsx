@@ -10,10 +10,12 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default: 'border-outline bg-card text-zinc-100 [a&]:hover:bg-zinc-800',
-        secondary:
-          'border-outline bg-zinc-800 text-zinc-300 [a&]:hover:bg-zinc-700',
+        secondary: 'border-outline bg-zinc-800 text-zinc-300 [a&]:hover:bg-zinc-700',
         destructive:
           'border-outline bg-red-900/50 text-red-200 [a&]:hover:bg-red-900/70 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
+        success:
+          'border-emerald-700/50 bg-emerald-900/30 text-emerald-400 [a&]:hover:bg-emerald-900/50',
+        danger: 'border-red-700/50 bg-red-900/30 text-red-400 [a&]:hover:bg-red-900/50',
         outline: 'border-outline text-zinc-300 [a&]:hover:bg-card [a&]:hover:text-zinc-100',
       },
     },

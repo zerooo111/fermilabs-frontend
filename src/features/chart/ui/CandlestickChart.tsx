@@ -21,6 +21,17 @@ import {
 import { useEffect, useRef, memo, useMemo } from 'react';
 import { ExtendedOHLCVData, TimeInterval } from '@/features/chart/lib/chart';
 
+// Custom hook to get CSS custom properties
+const useChartColors = () => {
+  return useMemo(() => {
+    const root = getComputedStyle(document.documentElement);
+    return {
+      buyColor: root.getPropertyValue('--color-buy-chart')?.trim() || '#10b981',
+      sellColor: root.getPropertyValue('--color-sell-chart')?.trim() || '#ef4444',
+    };
+  }, []);
+};
+
 interface ChartComponentProps {
   data: ExtendedOHLCVData[];
   interval: TimeInterval;
@@ -75,20 +86,18 @@ const getTimeScaleOptions = (interval: TimeInterval): Partial<TimeScaleOptions> 
   };
 };
 
-function CandlestickChartComponent({
-  data,
-  interval,
-  colors: {
+function CandlestickChartComponent({ data, interval, colors, className }: ChartComponentProps) {
+  const chartColors = useChartColors();
+
+  const {
     backgroundColor = 'transparent',
-    upColor = '#22c55e', // Modern green
-    downColor = '#ef4444', // Modern red
+    upColor = chartColors.buyColor,
+    downColor = chartColors.sellColor,
     textColor = '#94a3b8', // Subtle text color
-    wickUpColor = '#22c55e',
-    wickDownColor = '#ef4444',
+    wickUpColor = chartColors.buyColor,
+    wickDownColor = chartColors.sellColor,
     gridColor = 'rgba(148, 163, 184, 0.1)', // Very subtle grid
-  } = {},
-  className,
-}: ChartComponentProps) {
+  } = colors || {};
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);

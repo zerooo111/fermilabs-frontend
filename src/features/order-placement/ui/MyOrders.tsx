@@ -91,7 +91,7 @@ export function MyOrders() {
     if (myOrders.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={7} className="h-24 text-center text-sm text-muted-foreground">
+          <TableCell colSpan={7} className="h-24 text-center text-sm text-neutral-500">
             No active orders
           </TableCell>
         </TableRow>
@@ -100,7 +100,7 @@ export function MyOrders() {
 
     return myOrders.map(order => {
       return (
-        <TableRow key={order.order_id} className="text-xs">
+        <TableRow key={order.order_id} className="text-xs text-white/75">
           <TableCell>{order.order_id}</TableCell>
           <TableCell>
             <Badge variant={order.side === 'Buy' ? 'success' : 'danger'}>{order.side}</Badge>
@@ -132,7 +132,7 @@ export function MyOrders() {
               )}
               <Button
                 onClick={() => cancelOrder(order.order_id)}
-                variant="secondary"
+                variant="outline"
                 size="sm"
                 disabled={cancellingOrders.has(order.order_id)}
               >
@@ -146,29 +146,19 @@ export function MyOrders() {
   };
 
   return (
-    <div className="glass-panel w-full mb-3">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="bg-primary text-neutral-100">Order ID</TableHead>
-            <TableHead className="bg-primary text-neutral-100">Side</TableHead>
-            <TableHead className="bg-primary text-neutral-100">
-              Price ({selectedMarket?.quoteTokenName})
-            </TableHead>
-            <TableHead className="bg-primary text-neutral-100">
-              Size ({selectedMarket?.baseTokenName})
-            </TableHead>
-            <TableHead className="bg-primary text-neutral-100">
-              Total ({selectedMarket?.quoteTokenName})
-            </TableHead>
-            <TableHead className="bg-primary text-neutral-100">Expiry</TableHead>
-            <TableHead className="bg-primary text-neutral-100 text-right">
-              Actions
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>{renderTableContent()}</TableBody>
-      </Table>
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Order ID</TableHead>
+          <TableHead>Side</TableHead>
+          <TableHead>Price ({selectedMarket?.quoteTokenName})</TableHead>
+          <TableHead>Size ({selectedMarket?.baseTokenName})</TableHead>
+          <TableHead>Total ({selectedMarket?.quoteTokenName})</TableHead>
+          <TableHead>Expiry</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>{renderTableContent()}</TableBody>
+    </Table>
   );
 }

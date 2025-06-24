@@ -5,11 +5,7 @@ import { cn } from '@/lib/utils';
 
 function Tabs({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Root>) {
   return (
-    <TabsPrimitive.Root
-      data-slot="tabs"
-      className={cn('flex flex-col gap-2', className)}
-      {...props}
-    />
+    <TabsPrimitive.Root data-slot="tabs" className={cn('flex flex-col', className)} {...props} />
   );
 }
 
@@ -17,10 +13,7 @@ function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimi
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
-      className={cn(
-        'bg-card text-zinc-300 inline-flex h-9 w-fit items-center justify-center p-[3px]',
-        className
-      )}
+      className={cn(' text-zinc-300 inline-flex h-12 w-fit items-center justify-center', className)}
       {...props}
     />
   );
@@ -31,7 +24,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "data-[state=active]:bg-card data-[state=active]:text-zinc-100 text-zinc-500 inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:shadow-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "data-[state=active] h-full hover:bg-white/2 hover:text-zinc-200  border-b-2 border-transparent data-[state=active]:bg-card data-[state=active]:border-white data-[state=active]:text-zinc-100 text-zinc-100/50 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm  whitespace-nowrap transition-[color,box-shadow] outline-none disabled:cursor-not-allowed disabled:bg-transparent disabled:opacity-25 data-[state=active]:shadow-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 cursor-pointer",
         className
       )}
       {...props}
@@ -43,7 +36,7 @@ function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPr
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn('flex-1 outline-none', className)}
+      className={cn('flex-1 outline-none ', className)}
       {...props}
     />
   );

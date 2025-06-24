@@ -131,7 +131,7 @@ export function ServerSelector() {
       }}
       f
     >
-      <SelectTrigger className="w-[250px] glass-panel">
+      <SelectTrigger className="w-[250px]">
         <SelectValue>
           {selectedServerWithHealth && <ServerStatus server={selectedServerWithHealth} />}
         </SelectValue>

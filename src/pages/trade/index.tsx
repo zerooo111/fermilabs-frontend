@@ -58,7 +58,7 @@ function TradePage() {
   }, [selectedMarketId, navigate]);
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-60px)] border-t border-outline">
+    <div className="flex flex-col min-h-[calc(100vh-60px)] border-outline">
       <div className="flex mx-4 divide-x divide-outline border-x border-outline">
         <div className="flex-1">
           <MemoizedChartContainer />
@@ -66,7 +66,7 @@ function TradePage() {
         <MemoizedOrderbook />
         <MemoizedTradePanel />
       </div>
-      <div className="flex-1 p-3 glass-panel">
+      <div className="flex-1 flex flex-col  border-t border-outline">
         <MemoizedOrdersAndTradesTab />
       </div>
     </div>

@@ -9,8 +9,21 @@
   --color-background: hsla(163, 90%, 5%, 1);
   --color-outline: rgba(255, 255, 255, 0.2);
   --color-card: rgba(255, 255, 255, 0.05);
+  --color-rock: hsla(56, 55%, 94%, 1);
+  --color-buy: hsla(163, 90%, 5%, 1);
+  --color-sell: hsla(348, 90%, 5%, 1);
+  --color-success: #10b981;
+  --color-danger: #ef4444;
 }
 
 body {
   font-family: var(--font-sans);
+}
+
+.text-success {
+  color: #10b981;
+}
+
+.text-danger {
+  color: #ef4444;
 }

@@ -60,10 +60,14 @@ function MarketSelectorBase({ selectedMarketId, onMarketSelect, isLoading }: Mar
       onValueChange={handleValueChange}
       disabled={isLoading || markets.length === 0}
     >
-      <SelectTrigger className="w-[180px]">
-        {isLoading ? loadingContent : <SelectValue placeholder="Select a market" />}
+      <SelectTrigger className="w-[180px] border-none !h-12">
+        {isLoading ? (
+          loadingContent
+        ) : (
+          <SelectValue className="!text-lg" placeholder="Select a market" />
+        )}
       </SelectTrigger>
-      <SelectContent>{marketItems}</SelectContent>
+      <SelectContent className="-translate-x-[1px]">{marketItems}</SelectContent>
     </Select>
   );
 }

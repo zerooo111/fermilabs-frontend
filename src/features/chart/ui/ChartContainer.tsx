@@ -21,6 +21,7 @@ import { useAtomValue } from 'jotai';
 import { selectedMarketAtom, useSelectedMarket } from '@/entities/market';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const INTERVALS: { label: string; value: TimeInterval }[] = [
   { label: '1M', value: '1m' },
@@ -33,8 +34,7 @@ const INTERVALS: { label: string; value: TimeInterval }[] = [
 
 function ChartContainerComponent() {
   const selectedMarket = useAtomValue(selectedMarketAtom);
-  const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
-  const [isLoading, setIsLoading] = useState(false);
+  const { selectMarket, selectedMarketId } = useSelectedMarket();
   const [timeInterval, setTimeInterval] = useState<TimeInterval>(INTERVALS[0].value);
 
   // Memoize the interval change handler
@@ -50,7 +50,7 @@ function ChartContainerComponent() {
     [selectMarket]
   );
 
-  const { data, error, refetch } = useQuery<ExtendedOHLCVData[]>({
+  const { data, error, refetch, isLoading } = useQuery<ExtendedOHLCVData[]>({
     queryKey: ['candlesticks', timeInterval, selectedMarket?.uuid],
     queryFn: async () => {
       try {
@@ -178,15 +178,17 @@ function ChartContainerComponent() {
 
   // Function to render the chart header with interval selector
   const renderChartHeader = () => (
-    <div className="flex items-center justify-between p-3 ">
-      <div className="flex items-center gap-4">
+    <div className="flex h-12 items-center divide-x divide-outline justify-between border-b border-outline">
+      <div>
         <MarketSelector
           isLoading={isLoading}
           selectedMarketId={selectedMarketId}
           onMarketSelect={handleMarketSelect}
         />
-        {latestPrice && (
-          <div className="flex items-center font-semibold text-xl gap-2">
+      </div>
+      <div className="flex items-center flex-1 h-full divide-x divide-outline">
+        {/* {latestPrice && (
+          <div className="flex items-center font-semibold text-xl gap-2 px-2">
             <span className={latestPrice.isPositive ? 'text-emerald-500' : 'text-red-600'}>
               ${latestPrice.price}
             </span>
@@ -197,13 +199,41 @@ function ChartContainerComponent() {
               %)
             </span>
           </div>
-        )}
+        )} */}
+
+        {/* Latest Price */}
+        <div className="flex flex-col justify-center px-2 h-full border-r ">
+          <span className="text-xs font-medium text-white/50">Price</span>
+          <span
+            className={cn(
+              'font-mono font-semibold text-base',
+              latestPrice?.isPositive ? 'text-success' : 'text-danger'
+            )}
+          >
+            ${latestPrice?.price.toFixed(4) ?? '0.0000'}
+          </span>
+        </div>
+
+        {/* 24 h change */}
+        <div className="flex flex-col justify-center px-2 h-full ">
+          <span className="text-xs font-medium text-white/50">24h Change</span>
+          <span
+            className={cn(
+              'font-mono font-semibold text-base',
+              latestPrice?.isPositive ? 'text-success' : 'text-danger'
+            )}
+          >
+            {latestPrice?.isPositive ? '+' : '-'}
+            {latestPrice?.percentChange ?? '0.0'}%
+          </span>
+        </div>
       </div>
+
       <Select value={timeInterval} onValueChange={handleIntervalChange}>
-        <SelectTrigger className="w-[80px] h-7">
+        <SelectTrigger className="w-[80px] !h-full border-none">
           <SelectValue placeholder="Interval" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent align="end">
           {INTERVALS.map(({ label, value }) => (
             <SelectItem key={value} value={value}>
               {label}
@@ -237,10 +267,10 @@ function ChartContainerComponent() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col  overflow-hidden">
+    <div className="w-full h-full flex flex-col overflow-hidden">
       {renderChartHeader()}
 
-      <div className="flex-1 relative min-h-[400px] overflow-hidden  bg-white/50">
+      <div className="flex-1 relative min-h-[400px] overflow-hidden">
         <CandlestickChart
           className="h-full"
           data={data || []}

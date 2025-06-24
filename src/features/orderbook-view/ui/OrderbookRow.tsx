@@ -33,7 +33,7 @@ export function OrderbookRow({ price, size, depth, side }: OrderbookRowProps) {
           className={cn(
             'grid grid-cols-3 gap-4 items-center',
             'font-mono text-xs leading-none tracking-tight w-full',
-            side === 'Buy' ? 'text-emerald-600' : 'text-red-600'
+            side === 'Buy' ? 'text-success' : 'text-danger'
           )}
         >
           {/* Price */}

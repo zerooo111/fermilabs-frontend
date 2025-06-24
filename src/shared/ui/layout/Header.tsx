@@ -10,18 +10,15 @@ export function Header() {
     <nav className="w-full h-14  flex items-center p-3 border-b border-outline">
       <div className="flex items-center justify-between flex-1">
         <div className="flex items-center gap-3 relative">
-          <Link
-            to="/"
-            className="flex items-center glass-panel px-2 py-1 gap-2 text-lg text-primary"
-          >
+          <Link to="/" className="flex items-center px-2 py-1 gap-2 text-lg text-primary">
             <FermiLogo3d className="w-5 h-5 " />
             FermiLabs
           </Link>
           <Link
             to="/trade"
             className={cn(
-              'duration-100 ease-out relative group hover:glass-panel px-2 py-1',
-              location.pathname === '/trade' && 'glass-panel '
+              'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
+              location.pathname === '/trade' && 'text-white'
             )}
           >
             Trade
@@ -30,8 +27,8 @@ export function Header() {
           <Link
             to="/vault"
             className={cn(
-              'duration-100 ease-out relative group hover:glass-panel px-2 py-1',
-              location.pathname === '/vault' && 'glass-panel '
+              'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
+              location.pathname === '/vault' && 'text-white'
             )}
           >
             Vaults
