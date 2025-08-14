@@ -18,6 +18,8 @@ export interface OrderReceipt {
   status: string;
   signature?: string;
   txHash?: string;
+  sequenceNumber?: string;
+  expectedTick?: string;
   explorerUrl?: string; // New field for the explorer URL
 }
 

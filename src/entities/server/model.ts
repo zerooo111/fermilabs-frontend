@@ -7,6 +7,11 @@ import { Server } from '@/types';
 
 export const servers: Server[] = [
   {
+    label: 'Local Development',
+    url: 'http://localhost:3000',
+    latency: null,
+  },
+  {
     label: 'US | East',
     url: 'https://us-east.fermilabs.xyz',
     latency: null,

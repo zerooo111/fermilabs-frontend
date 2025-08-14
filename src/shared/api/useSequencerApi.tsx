@@ -8,7 +8,6 @@ import axios, { AxiosResponse } from 'axios';
 import { useSelectedServer } from '@/entities/server';
 import { tryCatch } from '@/shared/lib/try-catch';
 import { config } from '../config/constants';
-import { PlaceOrderResponse } from '@/types';
 
 export interface Market {
   uuid: string;
@@ -70,16 +69,45 @@ export function useSequencerApi() {
   }, [baseUrl]);
 
   const submitOrderToSequencer = useCallback(
-    async (body: any) => {
-      const { data, error } = await tryCatch<AxiosResponse<PlaceOrderResponse>>(
-        axios.post(`${baseUrl}/orders`, body)
+    async (transactionData: {
+      tx_id: string;
+      payload: string;
+      signature: string;
+      public_key: string;
+      nonce: string;
+      timestamp: string;
+    }) => {
+      const body = {
+        transaction: transactionData,
+      };
+
+      const { data, error } = await tryCatch<
+        AxiosResponse<{
+          sequence_number: string;
+          expected_tick: string;
+          tx_hash: string;
+        }>
+      >(
+        axios.post(`http://localhost:3001/api/v1/tx`, body, {
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+        })
       );
 
       if (error) {
+        // Handle specific error responses from new API
+        if (axios.isAxiosError(error) && error.response) {
+          const errorData = error.response.data;
+          if (errorData && typeof errorData === 'object' && 'error' in errorData) {
+            throw new Error(`API Error (${error.response.status}): ${errorData.error}`);
+          }
+        }
         throw error;
       }
 
-      return data.data.data.receipt;
+      return data.data;
     },
     [baseUrl]
   );

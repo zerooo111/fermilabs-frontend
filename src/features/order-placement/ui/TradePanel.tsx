@@ -20,6 +20,7 @@ import { useSelectedMarket } from '@/entities/market';
 import { useSetAtom } from 'jotai';
 import { addOrderReceiptAtom } from '@/entities/order-receipt';
 import { OrderAndBalanceInfo } from './OrderInfoSection';
+import axios from 'axios';
 
 /**
  * Converts a decimal string to a scaled BN
@@ -66,17 +67,11 @@ export function TradePanel() {
   const addOrderReceipt = useSetAtom(addOrderReceiptAtom);
 
   const placeOrderIntent = async (intent: OrderIntent) => {
-    if (!signMessage) throw new Error('Wallet not connected!');
+    if (!signMessage || !publicKey) throw new Error('Wallet not connected!');
 
-    const serializedData = OrderIntent.serialize(intent);
-    const prefix = Buffer.from('FRM_DEX_ORDER:');
-    const encodedMessage = Buffer.concat([prefix, serializedData]);
-    const sha256Hash = createHash('sha256').update(new Uint8Array(encodedMessage)).digest();
-    const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
-    const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
-    const hexSignature = Buffer.from(signatureBytes).toString('hex');
-
-    const body = {
+    // Create the order transaction data
+    const frmTransaction = {
+      type: 'order',
       intent: {
         order_id: intent.order_id.toNumber(),
         owner: intent.owner.toBase58(),
@@ -87,17 +82,44 @@ export function TradePanel() {
         base_mint: intent.base_mint.toBase58(),
         quote_mint: intent.quote_mint.toBase58(),
       },
-      signature: hexSignature,
+      local_sequencer_id: 'client',
+      timestamp_ms: Date.now().toString(),
     };
 
-    const receipt = await submitOrderToSequencer(body);
+    // Create payload for signing
+    const serializedData = OrderIntent.serialize(intent);
+    const prefix = Buffer.from('FRM_DEX_ORDER:');
+    const encodedMessage = Buffer.concat([prefix, serializedData]);
+    const sha256Hash = createHash('sha256').update(new Uint8Array(encodedMessage)).digest();
+    const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
+    const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
 
-    addOrderReceipt({
-      orderId: intent.order_id.toNumber(),
-      timestamp: Date.now(),
-      status: 'submitted',
-      signature: hexSignature,
+    // Prepare transaction data for new API
+    const transactionData = {
+      tx_id: `frm_order_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      payload: Array.from(Buffer.from(JSON.stringify(frmTransaction))),
+      signature: Array.from(Buffer.from(signatureBytes)),
+      public_key: Array.from(publicKey.toBytes()),
+      nonce: Date.now(),
+      timestamp: Date.now() * 1000, // Convert to microseconds
+    };
+
+    // const receipt = await submitOrderToSequencer(transactionData);
+    const receipt = await axios.post('http://localhost:3001/api/v1/tx', {
+      transaction: transactionData,
     });
+
+    console.log(receipt);
+
+    // addOrderReceipt({
+    //   orderId: intent.order_id.toNumber(),
+    //   timestamp: Date.now(),
+    //   status: 'submitted',
+    //   signature: Buffer.from(signatureBytes).toString('hex'),
+    //   txHash: receipt.tx_hash,
+    //   sequenceNumber: receipt.sequence_number,
+    //   expectedTick: receipt.expected_tick,
+    // });
 
     return receipt;
   };
@@ -136,9 +158,8 @@ export function TradePanel() {
         quoteMintPubkey
       );
 
-      const response = await placeOrderIntent(intent);
+      await placeOrderIntent(intent);
       toast.success('Sell Order placed');
-      return response;
     } catch (error) {
       console.error(error);
       toast.error('Failed to place order');

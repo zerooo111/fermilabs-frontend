@@ -84,7 +84,7 @@ export const useSelectedMarket = () => {
       if (error) throw error;
 
       // Extract markets from response
-      const newMarkets = data.data.data || [];
+      const newMarkets = data.data || [];
 
       // Quick hash comparison using market IDs
       const newHash = newMarkets.map((m: Market) => m.uuid).join(',');

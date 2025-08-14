@@ -48,7 +48,7 @@ function TradePage() {
     };
 
     loadAndSetMarketOnFirstRender(params.id);
-  }, []); // Empty deps since we only want this on mount
+  }, [loadMarkets, params.id, selectMarket]); // Empty deps since we only want this on mount
 
   // Update URL when selected market changes - but only after initial load
   useEffect(() => {
