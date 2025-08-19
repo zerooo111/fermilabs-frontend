@@ -1,7 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ConnectWallet } from '../../../features/wallet-connect/ui/ConnectWallet';
-import { ServerSelector } from '../../../features/server-selector/ui/ServerSelector';
 import FermiLogo3d from './FermiLogo';
 
 export function Header() {

@@ -109,7 +109,7 @@ export function useSequencerApi() {
 
       return data.data;
     },
-    [baseUrl]
+    []
   );
 
   const submitCancelOrderToSequencer = useCallback(
@@ -128,7 +128,8 @@ export function useSequencerApi() {
   );
 
   const fetchOrderbook = useCallback(async (marketId: string): Promise<Orderbook> => {
-    const url = `${config.devnet.globalSequencerApiUrl}/markets/${marketId}/orderbook`;
+    // const url = `${config.devnet.globalSequencerApiUrl}/markets/${marketId}/orderbook`;
+    const url = `https://explorer.fermilabs.xyz/api/v1/me/markets/${marketId}/orderbook`;
 
     const { data, error } = await tryCatch<AxiosResponse<any>>(axios.get(url));
 

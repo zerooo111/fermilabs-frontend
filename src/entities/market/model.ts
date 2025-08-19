@@ -6,7 +6,6 @@
 import { tryCatch } from '@/shared/lib/try-catch';
 import axios, { AxiosResponse } from 'axios';
 import { atom, useAtom } from 'jotai';
-import { config } from '@/shared/config/constants';
 import { useCallback, useRef, useMemo } from 'react';
 
 // Market types
@@ -78,7 +77,7 @@ export const useSelectedMarket = () => {
 
     try {
       const { data, error } = await tryCatch<AxiosResponse<any>>(
-        axios.get(`${config.devnet.globalSequencerApiUrl}/markets`)
+        axios.get(`https://explorer.fermilabs.xyz/api/v1/me/markets`)
       );
 
       if (error) throw error;

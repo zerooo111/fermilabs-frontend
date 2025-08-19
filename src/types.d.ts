@@ -38,15 +38,6 @@ type GetOrderbookResponse = {
   message: string;
 };
 
-type OrderReceipt = {
-  merkle_root: string;
-  order_id: number;
-  owner: string;
-  sequencer_id: string;
-  sequencer_signature: string;
-  timestamp_ms: number;
-};
-
 type PlaceOrderResponse = {
   code: 200;
   data: {

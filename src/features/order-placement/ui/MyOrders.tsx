@@ -14,8 +14,6 @@ import { BN } from '@coral-xyz/anchor';
 import { toast } from 'sonner';
 
 import { selectedMarketAtom } from '@/entities/market/model';
-import { orderReceiptsAtom } from '@/entities/order-receipt';
-import { OrderReceipt } from './OrderReceipt';
 import {
   formatPrice,
   formatQuantity,
@@ -28,7 +26,6 @@ export function MyOrders() {
   const { publicKey, signMessage } = useWallet();
   const [cancellingOrders, setCancellingOrders] = useState<Set<number>>(new Set());
   const selectedMarket = useAtomValue(selectedMarketAtom);
-  const orderReceipts = useAtomValue(orderReceiptsAtom);
 
   const myOrders = useMemo(() => {
     if (!orderbook || !publicKey) return [];
@@ -174,9 +171,6 @@ export function MyOrders() {
           </TableCell>
           <TableCell className="text-right">
             <div className="flex gap-1.5 justify-end">
-              {orderReceipts.has(order.order_id) && (
-                <OrderReceipt receipt={orderReceipts.get(order.order_id)!} />
-              )}
               <Button
                 onClick={() => cancelOrder(order.order_id)}
                 variant="outline"

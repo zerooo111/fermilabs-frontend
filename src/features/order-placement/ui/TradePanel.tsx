@@ -17,6 +17,8 @@ import { baseMint, quoteMint, QUOTE_DECIMALS, BASE_DECIMALS } from '@/shared/con
 import { NumberInput } from '@/shared/ui/number-input';
 import { useSelectedMarket } from '@/entities/market';
 import { OrderAndBalanceInfo } from './OrderInfoSection';
+import { addOrderReceiptAtom } from '@/entities/order-receipt';
+import { useSetAtom } from 'jotai';
 import axios from 'axios';
 
 /**
@@ -56,6 +58,7 @@ export function TradePanel() {
   const [isBuying, setIsBuying] = useState(false);
   const [isSelling, setIsSelling] = useState(false);
   const { selectedMarket } = useSelectedMarket();
+  const addOrderReceipt = useSetAtom(addOrderReceiptAtom);
 
   const { signMessage, publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
@@ -112,15 +115,13 @@ export function TradePanel() {
       })
       .then(res => res.data);
 
-    // addOrderReceipt({
-    //   orderId: intent.order_id.toNumber(),
-    //   timestamp: Date.now(),
-    //   status: 'submitted',
-    //   signature: Buffer.from(signatureBytes).toString('hex'),
-    //   txHash: receipt.tx_hash,
-    //   sequenceNumber: receipt.sequence_number,
-    //   expectedTick: receipt.expected_tick,
-    // });
+    if (receipt.sequence_number && receipt.expected_tick && receipt.tx_hash) {
+      addOrderReceipt({
+        sequence_number: receipt.sequence_number,
+        expected_tick: receipt.expected_tick,
+        tx_hash: receipt.tx_hash,
+      });
+    }
 
     return receipt;
   };

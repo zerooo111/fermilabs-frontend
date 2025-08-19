@@ -7,28 +7,23 @@ const SOLANA_EXPLORER_URL = {
   testnet: 'https://explorer.solana.com/?cluster=testnet',
 } as const;
 
-export const getSolanaExplorerUrl = (signature: string): string => {
+export const getSolanaExplorerUrl = (txHash: string): string => {
   const baseUrl = SOLANA_EXPLORER_URL.devnet;
-  return `${baseUrl}/tx/${signature}`;
+  return `${baseUrl}/tx/${txHash}`;
 };
 
 export interface OrderReceipt {
-  orderId: number;
-  timestamp: number;
-  status: string;
-  signature?: string;
-  txHash?: string;
-  sequenceNumber?: string;
-  expectedTick?: string;
-  explorerUrl?: string; // New field for the explorer URL
+  sequence_number: string;
+  expected_tick: string;
+  tx_hash: string;
 }
 
 // Helper function to serialize/deserialize Map for localStorage
-const serializeMap = (map: Map<number, OrderReceipt>): string => {
+const serializeMap = (map: Map<string, OrderReceipt>): string => {
   return JSON.stringify(Array.from(map.entries()));
 };
 
-const deserializeMap = (str: string | null): Map<number, OrderReceipt> => {
+const deserializeMap = (str: string | null): Map<string, OrderReceipt> => {
   if (!str) return new Map();
   try {
     const entries = JSON.parse(str);
@@ -52,15 +47,15 @@ const createAtomWithLocalStorage = <T>(key: string, initialValue: T) => {
     get => get(baseAtom),
     (get, set, update: T) => {
       set(baseAtom, update);
-      localStorage.setItem(key, serializeMap(update as Map<number, OrderReceipt>));
+      localStorage.setItem(key, serializeMap(update as Map<string, OrderReceipt>));
     }
   );
 
   return derivedAtom;
 };
 
-// Map of orderId to receipt with persistence
-export const orderReceiptsAtom = createAtomWithLocalStorage<Map<number, OrderReceipt>>(
+// Map of sequence_number to receipt with persistence
+export const orderReceiptsAtom = createAtomWithLocalStorage<Map<string, OrderReceipt>>(
   'order-receipts',
   new Map()
 );
@@ -70,11 +65,6 @@ export const addOrderReceiptAtom = atom(null, (get, set, receipt: OrderReceipt) 
   const receipts = get(orderReceiptsAtom);
   const newReceipts = new Map(receipts);
 
-  // Generate explorer URL if signature exists
-  if (receipt.signature) {
-    receipt.explorerUrl = getSolanaExplorerUrl(receipt.signature);
-  }
-
-  newReceipts.set(receipt.orderId, receipt);
+  newReceipts.set(receipt.sequence_number, receipt);
   set(orderReceiptsAtom, newReceipts);
 });
