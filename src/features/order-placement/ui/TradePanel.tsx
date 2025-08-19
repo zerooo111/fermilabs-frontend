@@ -15,10 +15,7 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey } from '@solana/web3.js';
 import { baseMint, quoteMint, QUOTE_DECIMALS, BASE_DECIMALS } from '@/shared/config/constants';
 import { NumberInput } from '@/shared/ui/number-input';
-import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { useSelectedMarket } from '@/entities/market';
-import { useSetAtom } from 'jotai';
-import { addOrderReceiptAtom } from '@/entities/order-receipt';
 import { OrderAndBalanceInfo } from './OrderInfoSection';
 import axios from 'axios';
 
@@ -58,19 +55,24 @@ export function TradePanel() {
   });
   const [isBuying, setIsBuying] = useState(false);
   const [isSelling, setIsSelling] = useState(false);
-  const { submitOrderToSequencer } = useSequencerApi();
   const { selectedMarket } = useSelectedMarket();
 
   const { signMessage, publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
 
-  const addOrderReceipt = useSetAtom(addOrderReceiptAtom);
-
   const placeOrderIntent = async (intent: OrderIntent) => {
     if (!signMessage || !publicKey) throw new Error('Wallet not connected!');
 
-    // Create the order transaction data
+    // Create payload for signing (keep this part as-is)
+    const serializedData = OrderIntent.serialize(intent);
+    // const prefix = Buffer.from('FRM_v1.0:');
+
+    const encodedMessage = Buffer.concat([serializedData]);
+    const sha256Hash = createHash('sha256').update(new Uint8Array(encodedMessage)).digest();
+    const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
+    const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
     const frmTransaction = {
+      version: '1.0',
       type: 'order',
       intent: {
         order_id: intent.order_id.toNumber(),
@@ -82,35 +84,37 @@ export function TradePanel() {
         base_mint: intent.base_mint.toBase58(),
         quote_mint: intent.quote_mint.toBase58(),
       },
-      local_sequencer_id: 'client',
-      timestamp_ms: Date.now().toString(),
+      signature: Buffer.from(signatureBytes).toString('hex'),
+      local_sequencer_id: 'continuum_client',
+      timestamp_ms: Date.now().toString(), // Keep as string, as expected by the server
     };
 
-    // Create payload for signing
-    const serializedData = OrderIntent.serialize(intent);
-    const prefix = Buffer.from('FRM_DEX_ORDER:');
-    const encodedMessage = Buffer.concat([prefix, serializedData]);
-    const sha256Hash = createHash('sha256').update(new Uint8Array(encodedMessage)).digest();
-    const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
-    const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
+    console.log('payload1', { frmTransaction });
 
-    // Prepare transaction data for new API
+    const jsonFrm = JSON.stringify(frmTransaction);
+    const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
+
+    console.log('Final FRM payload:', frmPrefixedString);
+
+    const payloadBytes = Buffer.from(frmPrefixedString, 'utf-8');
+    const tx_id = `frm_order_${intent.order_id.toString()}_${Date.now()}`;
+
     const transactionData = {
-      tx_id: `frm_order_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-      payload: Array.from(Buffer.from(JSON.stringify(frmTransaction))),
-      signature: Array.from(Buffer.from(signatureBytes)),
-      public_key: Array.from(publicKey.toBytes()),
-      nonce: Date.now(),
-      timestamp: Date.now() * 1000, // Convert to microseconds
+      version: '1.0',
+      tx_id,
+      payload: Array.from(payloadBytes),
+      signature: Buffer.from(signatureBytes).toString('hex'),
+      public_key: publicKey,
+      nonce: frmTransaction.intent.order_id,
+      timestamp: Date.now().toString(),
     };
 
     // const receipt = await submitOrderToSequencer(transactionData);
-    const receipt = await axios.post('http://localhost:3001/api/v1/tx', {
+    const receipt = await axios.post('https://explorer.fermilabs.xyz/api/v1/tx', {
       transaction: transactionData,
     });
 
-    console.log(receipt);
-
+    console.log('Order placed successfully ', receipt);
     // addOrderReceipt({
     //   orderId: intent.order_id.toNumber(),
     //   timestamp: Date.now(),
@@ -143,9 +147,6 @@ export function TradePanel() {
       // Convert decimal strings to scaled BNs
       const priceBN = decimalToBN(formState.price, QUOTE_DECIMALS);
       const sizeBN = decimalToBN(formState.size, BASE_DECIMALS);
-
-      console.log('Sell Order - Price BN:', priceBN.toString());
-      console.log('Sell Order - Size BN:', sizeBN.toString());
 
       const intent = new OrderIntent(
         orderId,
@@ -187,9 +188,6 @@ export function TradePanel() {
       // Convert decimal strings to scaled BNs
       const priceBN = decimalToBN(formState.price, QUOTE_DECIMALS);
       const sizeBN = decimalToBN(formState.size, BASE_DECIMALS);
-
-      console.log('Buy Order - Price BN:', priceBN.toString());
-      console.log('Buy Order - Size BN:', sizeBN.toString());
 
       const intent = new OrderIntent(
         orderId,

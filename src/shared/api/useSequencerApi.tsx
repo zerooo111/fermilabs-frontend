@@ -129,7 +129,6 @@ export function useSequencerApi() {
 
   const fetchOrderbook = useCallback(async (marketId: string): Promise<Orderbook> => {
     const url = `${config.devnet.globalSequencerApiUrl}/markets/${marketId}/orderbook`;
-    console.log('Fetching orderbook from:', url);
 
     const { data, error } = await tryCatch<AxiosResponse<any>>(axios.get(url));
 
@@ -139,8 +138,7 @@ export function useSequencerApi() {
     }
 
     // Extract the orderbook data from the response
-    const responseData = data.data.data;
-    console.log('Raw API response:', responseData);
+    const responseData = data.data;
 
     // Create a properly structured Orderbook object
     const orderbook: Orderbook = {

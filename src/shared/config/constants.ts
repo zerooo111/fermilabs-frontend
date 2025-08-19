@@ -6,8 +6,8 @@ import { PublicKey } from '@solana/web3.js';
 // config -> network ( devnet / mainnet ) -> programId / rpcUrl , commitment , etc...
 export const config = {
   devnet: {
-    // globalSequencerApiUrl: 'https://mtchengine.fermilabs.xyz',
-    globalSequencerApiUrl: 'http://54.237.255.40:8080',
+    globalSequencerApiUrl: 'http://mtchengine.fermilabs.xyz:8080',
+    // globalSequencerApiUrl: 'http://54.237.255.40:8080',
     graphApiUrl: 'https://graphapi1.fermilabs.xyz',
     rpcUrl: 'https://api.devnet.solana.com',
     commitment: 'confirmed',
