@@ -13,6 +13,7 @@ export function ToastProvider() {
       theme="dark"
       style={{ fontFamily: 'Geist Mono' }}
       toastOptions={{
+        className: 'backdrop-blur-2xl !rounded-none',
         style: {
           background: 'rgba(255, 255, 255, 0.05)',
           border: '1px solid rgba(255, 255, 255, 0.2)',

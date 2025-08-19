@@ -12,7 +12,7 @@ import { Badge } from '@/shared/ui/badge';
 import { createHash } from 'crypto';
 import { BN } from '@coral-xyz/anchor';
 import { toast } from 'sonner';
-import { useSequencerApi } from '@/shared/api/useSequencerApi';
+
 import { selectedMarketAtom } from '@/entities/market/model';
 import { orderReceiptsAtom } from '@/entities/order-receipt';
 import { OrderReceipt } from './OrderReceipt';
@@ -21,12 +21,12 @@ import {
   formatQuantity,
   formatTotal,
 } from '@/features/orderbook-view/lib/processOrderbook';
+import axios from 'axios';
 
 export function MyOrders() {
   const orderbook = useAtomValue(orderbookAtom);
   const { publicKey, signMessage } = useWallet();
   const [cancellingOrders, setCancellingOrders] = useState<Set<number>>(new Set());
-  const { submitCancelOrderToSequencer } = useSequencerApi();
   const selectedMarket = useAtomValue(selectedMarketAtom);
   const orderReceipts = useAtomValue(orderReceiptsAtom);
 
@@ -55,25 +55,72 @@ export function MyOrders() {
       // Optimistically update UI
       setCancellingOrders(prev => new Set(prev).add(orderId));
 
-      const message = `FRM_DEX_CANCEL:${new BN(orderId).toString()},${publicKey.toBase58()}`;
-
-      const sha256Hash = createHash('sha256').update(Buffer.from(message)).digest();
-      // Hex encode the hash
-      const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
-
-      // Sign the hex encoded hash
-      const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
-      const hexSignature = Buffer.from(signatureBytes).toString('hex');
-
-      const body = {
+      const cancelData = {
         order_id: new BN(orderId).toNumber(),
         owner: publicKey.toBase58(),
-        base_mint: selectedMarket?.base_mint,
-        quote_mint: selectedMarket?.quote_mint,
-        signature: hexSignature,
+        market_id: selectedMarket?.uuid,
+        signature: '', // Will be filled after signing
+        local_sequencer_id: 'continuum_client',
+        timestamp_ms: Date.now().toString(),
       };
 
-      await submitCancelOrderToSequencer(body);
+      const frmTransactionForSigning = {
+        version: '1.0',
+        type: 'cancel',
+        order_id: cancelData.order_id,
+        owner: cancelData.owner,
+        market_id: cancelData.market_id,
+        local_sequencer_id: cancelData.local_sequencer_id,
+        timestamp_ms: cancelData.timestamp_ms,
+      };
+
+      // Serialize and sign the transaction data
+      const serializedData = Buffer.from(JSON.stringify(frmTransactionForSigning), 'utf-8');
+      const sha256Hash = createHash('sha256').update(new Uint8Array(serializedData)).digest();
+      const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
+      const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
+
+      // Update the cancel data with signature
+      cancelData.signature = Buffer.from(signatureBytes).toString('hex');
+
+      // Create the complete FRM transaction
+      const frmTransaction = {
+        version: '1.0',
+        type: 'cancel',
+        order_id: cancelData.order_id,
+        owner: cancelData.owner,
+        market_id: cancelData.market_id,
+        signature: cancelData.signature,
+        local_sequencer_id: cancelData.local_sequencer_id,
+        timestamp_ms: cancelData.timestamp_ms,
+      };
+
+      // Create the prefixed payload for continuum
+      const jsonFrm = JSON.stringify(frmTransaction);
+      const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
+      const payloadBytes = Buffer.from(frmPrefixedString, 'utf-8');
+
+      // Generate transaction ID
+      const tx_id = `frm_cancel_${orderId.toString()}_${Date.now()}`;
+
+      // Create the transaction data for continuum submission
+      const transactionData = {
+        version: '1.0',
+        tx_id,
+        payload: Array.from(payloadBytes),
+        signature: Buffer.from(signatureBytes).toString('hex'),
+        public_key: publicKey,
+        nonce: cancelData.order_id,
+        timestamp: cancelData.timestamp_ms,
+      };
+
+      // Submit to continuum via the explorer API
+      await axios
+        .post('https://explorer.fermilabs.xyz/api/v1/tx', {
+          transaction: transactionData,
+        })
+        .then(res => res.data);
+
       toast.success('Order cancelled');
     } catch (error) {
       console.error(error);

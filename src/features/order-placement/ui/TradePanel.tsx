@@ -86,15 +86,11 @@ export function TradePanel() {
       },
       signature: Buffer.from(signatureBytes).toString('hex'),
       local_sequencer_id: 'continuum_client',
-      timestamp_ms: Date.now().toString(), // Keep as string, as expected by the server
+      timestamp_ms: Date.now().toString(),
     };
-
-    console.log('payload1', { frmTransaction });
 
     const jsonFrm = JSON.stringify(frmTransaction);
     const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
-
-    console.log('Final FRM payload:', frmPrefixedString);
 
     const payloadBytes = Buffer.from(frmPrefixedString, 'utf-8');
     const tx_id = `frm_order_${intent.order_id.toString()}_${Date.now()}`;
@@ -110,11 +106,12 @@ export function TradePanel() {
     };
 
     // const receipt = await submitOrderToSequencer(transactionData);
-    const receipt = await axios.post('https://explorer.fermilabs.xyz/api/v1/tx', {
-      transaction: transactionData,
-    });
+    const receipt = await axios
+      .post('https://explorer.fermilabs.xyz/api/v1/tx', {
+        transaction: transactionData,
+      })
+      .then(res => res.data);
 
-    console.log('Order placed successfully ', receipt);
     // addOrderReceipt({
     //   orderId: intent.order_id.toNumber(),
     //   timestamp: Date.now(),
