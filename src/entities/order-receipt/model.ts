@@ -1,21 +1,25 @@
 import { atom } from 'jotai';
 
-// Solana explorer URL constants
-const SOLANA_EXPLORER_URL = {
-  mainnet: 'https://explorer.solana.com',
-  devnet: 'https://explorer.solana.com/?cluster=devnet',
-  testnet: 'https://explorer.solana.com/?cluster=testnet',
-} as const;
+// FermiLabs explorer URL constants
+const FERMILABS_EXPLORER_URL = 'https://explorer.fermilabs.xyz';
 
-export const getSolanaExplorerUrl = (txHash: string): string => {
-  const baseUrl = SOLANA_EXPLORER_URL.devnet;
-  return `${baseUrl}/tx/${txHash}`;
+export const getFermiLabsExplorerUrl = (path: string): string => {
+  return `${FERMILABS_EXPLORER_URL}${path}`;
+};
+
+export const getTickExplorerUrl = (tickNumber: string): string => {
+  return getFermiLabsExplorerUrl(`/tick/${tickNumber}`);
+};
+
+export const getTxExplorerUrl = (txHash: string): string => {
+  return getFermiLabsExplorerUrl(`/tx/${txHash}`);
 };
 
 export interface OrderReceipt {
   sequence_number: string;
   expected_tick: string;
   tx_hash: string;
+  order_id?: number; // Add order_id to link back to the order
 }
 
 // Helper function to serialize/deserialize Map for localStorage

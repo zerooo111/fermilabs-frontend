@@ -1,4 +1,8 @@
-import { OrderReceipt as OrderReceiptType, getSolanaExplorerUrl } from '@/entities/order-receipt';
+import {
+  OrderReceipt as OrderReceiptType,
+  getTickExplorerUrl,
+  getTxExplorerUrl,
+} from '@/entities/order-receipt';
 import { Button } from '@/shared/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { ReceiptText, ExternalLink } from 'lucide-react';
@@ -8,7 +12,8 @@ interface OrderReceiptProps {
 }
 
 export function OrderReceipt({ receipt }: OrderReceiptProps) {
-  const explorerUrl = getSolanaExplorerUrl(receipt.tx_hash);
+  const tickExplorerUrl = getTickExplorerUrl(receipt.expected_tick);
+  const txExplorerUrl = getTxExplorerUrl(receipt.tx_hash);
 
   return (
     <Popover>
@@ -25,12 +30,20 @@ export function OrderReceipt({ receipt }: OrderReceiptProps) {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">Expected Tick:</span>
-            <span className="text-sm font-mono">{receipt.expected_tick}</span>
+            <a
+              href={tickExplorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-sm font-mono text-blue-500 hover:text-blue-600"
+            >
+              {receipt.expected_tick}
+              <ExternalLink className="size-3" />
+            </a>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">Transaction:</span>
             <a
-              href={explorerUrl}
+              href={txExplorerUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-sm font-mono text-blue-500 hover:text-blue-600 truncate max-w-[200px]"

@@ -8,7 +8,7 @@ export const config = {
   devnet: {
     globalSequencerApiUrl: 'https://mtchengine.fermilabs.xyz',
     // globalSequencerApiUrl: 'http://54.237.255.40:8080',
-    graphApiUrl: 'https://graphapi1.fermilabs.xyz',
+    graphApiUrl: 'https://graphapi1.fermilabs.xyz/v2',
     // graphApiUrl: 'http://localhost:3000',
     rpcUrl: 'https://api.devnet.solana.com',
     commitment: 'confirmed',

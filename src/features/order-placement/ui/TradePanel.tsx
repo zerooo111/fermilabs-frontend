@@ -120,6 +120,7 @@ export function TradePanel() {
         sequence_number: receipt.sequence_number,
         expected_tick: receipt.expected_tick,
         tx_hash: receipt.tx_hash,
+        order_id: intent.order_id.toNumber(),
       });
     }
 

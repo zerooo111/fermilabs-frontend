@@ -14,6 +14,8 @@ import { BN } from '@coral-xyz/anchor';
 import { toast } from 'sonner';
 
 import { selectedMarketAtom } from '@/entities/market/model';
+import { orderReceiptsAtom } from '@/entities/order-receipt';
+import { OrderReceipt } from './OrderReceipt';
 import {
   formatPrice,
   formatQuantity,
@@ -26,6 +28,7 @@ export function MyOrders() {
   const { publicKey, signMessage } = useWallet();
   const [cancellingOrders, setCancellingOrders] = useState<Set<number>>(new Set());
   const selectedMarket = useAtomValue(selectedMarketAtom);
+  const orderReceipts = useAtomValue(orderReceiptsAtom);
 
   const myOrders = useMemo(() => {
     if (!orderbook || !publicKey) return [];
@@ -36,6 +39,17 @@ export function MyOrders() {
       .filter(order => order.owner === publicKey?.toBase58())
       .filter(order => !cancellingOrders.has(order.order_id));
   }, [orderbook, publicKey, cancellingOrders]);
+
+  // Helper function to find receipt by order_id
+  const getReceiptForOrder = (orderId: number) => {
+    // Find receipt by matching order_id
+    for (const [, receipt] of orderReceipts.entries()) {
+      if (receipt.order_id === orderId) {
+        return receipt;
+      }
+    }
+    return undefined;
+  };
 
   if (!publicKey) {
     return (
@@ -171,6 +185,9 @@ export function MyOrders() {
           </TableCell>
           <TableCell className="text-right">
             <div className="flex gap-1.5 justify-end">
+              {getReceiptForOrder(order.order_id) && (
+                <OrderReceipt receipt={getReceiptForOrder(order.order_id)!} />
+              )}
               <Button
                 onClick={() => cancelOrder(order.order_id)}
                 variant="outline"
