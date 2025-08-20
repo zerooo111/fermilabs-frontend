@@ -7,7 +7,7 @@ import { PublicKey } from '@solana/web3.js';
 export const config = {
   devnet: {
     globalSequencerApiUrl: 'https://glbsq1.fermilabs.xyz',
-    graphApiUrl: 'https://graphapi1.fermilabs.xyz',
+    graphApiUrl: 'https://graphapi1.fermilabs.xyz/v1',
     rpcUrl: 'https://api.devnet.solana.com',
     commitment: 'confirmed',
     wsUrl: 'wss://api.devnet.solana.com',
