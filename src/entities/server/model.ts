@@ -6,11 +6,11 @@ import { atom, useAtom } from 'jotai';
 import { Server } from '@/types';
 
 export const servers: Server[] = [
-  {
-    label: 'US | East',
-    url: 'https://us-east.fermilabs.xyz',
-    latency: null,
-  },
+  // {
+  //   label: 'US | East',
+  //   url: 'https://us-east.fermilabs.xyz',
+  //   latency: null,
+  // },
 
   // {
   //   label: 'Asia | Mumbai',
@@ -27,11 +27,11 @@ export const servers: Server[] = [
   //   url: 'http://54.196.30.137:8084',
   //   latency: null,
   // },
-  {
-    label: 'Asia | Tokyo',
-    url: 'https://asiatokyo.fermilabs.xyz',
-    latency: null,
-  },
+  // {
+  //   label: 'Asia | Tokyo',
+  //   url: 'https://asiatokyo.fermilabs.xyz',
+  //   latency: null,
+  // },
   {
     label: 'Asia | Singapore',
     url: 'https://asia-singapore.fermilabs.xyz',
