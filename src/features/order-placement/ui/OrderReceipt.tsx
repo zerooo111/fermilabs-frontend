@@ -48,7 +48,7 @@ export function OrderReceipt({ receipt }: OrderReceiptProps) {
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-sm font-mono text-blue-500 hover:text-blue-600 truncate max-w-[200px]"
             >
-              {receipt.tx_hash.slice(0, 8)}...{receipt.tx_hash.slice(-8)}
+              {receipt.tx_hash.slice(0, 8)}
               <ExternalLink className="size-3" />
             </a>
           </div>
