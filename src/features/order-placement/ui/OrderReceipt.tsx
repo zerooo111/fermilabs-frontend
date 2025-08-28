@@ -1,8 +1,4 @@
-import {
-  OrderReceipt as OrderReceiptType,
-  getTickExplorerUrl,
-  getTxExplorerUrl,
-} from '@/entities/order-receipt';
+import { OrderReceipt as OrderReceiptType, getTxExplorerUrl } from '@/entities/order-receipt';
 import { Button } from '@/shared/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { ReceiptText, ExternalLink } from 'lucide-react';
@@ -12,7 +8,6 @@ interface OrderReceiptProps {
 }
 
 export function OrderReceipt({ receipt }: OrderReceiptProps) {
-  const tickExplorerUrl = getTickExplorerUrl(receipt.expected_tick);
   const txExplorerUrl = getTxExplorerUrl(receipt.tx_hash);
 
   return (
@@ -28,7 +23,7 @@ export function OrderReceipt({ receipt }: OrderReceiptProps) {
             <span className="text-sm font-medium">Sequence Number:</span>
             <span className="text-sm font-mono">{receipt.sequence_number}</span>
           </div>
-          <div className="flex items-center gap-2">
+          {/* <div className="flex items-center gap-2">
             <span className="text-sm font-medium">Expected Tick:</span>
             <a
               href={tickExplorerUrl}
@@ -39,7 +34,7 @@ export function OrderReceipt({ receipt }: OrderReceiptProps) {
               {receipt.expected_tick}
               <ExternalLink className="size-3" />
             </a>
-          </div>
+          </div> */}
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">Transaction:</span>
             <a
