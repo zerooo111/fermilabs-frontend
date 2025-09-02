@@ -22,7 +22,7 @@ export const baseMint = new PublicKey('fnUTeVwrsGgTHHLnr5x6ayDTJiuJbr9vNxi3SHoF5
 export const quoteMint = new PublicKey('Hf9KLE7pbHruArPXSVPn7sZ5iKt8Xxjmg2fCTzWUjEz8');
 
 export const BASE_DECIMALS = 9;
-export const QUOTE_DECIMALS = 9;
+export const QUOTE_DECIMALS = 6;
 
 export const Side = {
   Bid: { bid: {} },
