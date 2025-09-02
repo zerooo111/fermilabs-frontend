@@ -32,7 +32,14 @@ export function Orderbook() {
 
   // Process orderbook with memoization to prevent unnecessary re-renders
   const processedOrderbook = useMemo(() => {
-    const processed = processOrderbook(orderbook, orderbookRows, undefined);
+    const processed = processOrderbook(
+      orderbook,
+      orderbookRows,
+      undefined,
+      undefined,
+      selectedMarket?.quoteTokenName,
+      selectedMarket?.baseTokenName
+    );
 
     // Only update if the data has actually changed
     if (!isEqual(processed, lastProcessedRef.current)) {
@@ -40,7 +47,7 @@ export function Orderbook() {
     }
 
     return lastProcessedRef.current;
-  }, [orderbook]);
+  }, [orderbook, selectedMarket?.quoteTokenName, selectedMarket?.baseTokenName]);
 
   useEffect(() => {
     if (selectedMarket) {
@@ -84,6 +91,8 @@ export function Orderbook() {
                     size={order.quantity}
                     depth={order.depth}
                     side="Sell"
+                    quoteTokenName={selectedMarket?.quoteTokenName}
+                    baseTokenName={selectedMarket?.baseTokenName}
                   />
                 ) : (
                   <div key={`empty-sell-${i}`} className="h-[26px]" />
@@ -94,7 +103,9 @@ export function Orderbook() {
             {/* Spread */}
             <div className="px-4 py-2 text-xs flex justify-between items-center shrink-0 bg-card border-y border-outline">
               <span>Spread</span>
-              <span className="font-mono">{formatPrice(processedOrderbook.spread)}</span>
+              <span className="font-mono">
+                {formatPrice(processedOrderbook.spread, selectedMarket?.quoteTokenName)}
+              </span>
             </div>
 
             {/* Buys (bids) */}
@@ -107,6 +118,8 @@ export function Orderbook() {
                     size={order.quantity}
                     depth={order.depth}
                     side="Buy"
+                    quoteTokenName={selectedMarket?.quoteTokenName}
+                    baseTokenName={selectedMarket?.baseTokenName}
                   />
                 ) : (
                   <div key={`empty-buy-${i}`} className="h-[26px]" />

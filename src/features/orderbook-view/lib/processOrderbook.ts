@@ -11,7 +11,7 @@
  */
 import { Orderbook, OrderbookItem } from '@/entities/orderbook';
 import BN from 'bn.js';
-import { BASE_DECIMALS, QUOTE_DECIMALS } from '@/shared/config/constants';
+import { getTokenDecimals } from '@/shared/lib/token-decimals';
 
 /**
  * Number of decimal places used for internal price representation (e.g., 1_000_000_000 means 9 decimals).
@@ -29,9 +29,14 @@ export const MIN_DISPLAY_QUANTITY = 0.0001;
 /** Threshold for highlighting price levels close to last traded price (as percentage) */
 export const PRICE_PROXIMITY_THRESHOLD = 0.001; // 0.1%
 
-/** BN constants for decimal scaling */
-export const BASE_DECIMAL_SCALE = new BN(10).pow(new BN(BASE_DECIMALS));
-export const QUOTE_DECIMAL_SCALE = new BN(10).pow(new BN(QUOTE_DECIMALS));
+/**
+ * Create BN scale for decimal conversion
+ * @param decimals Number of decimal places
+ * @returns BN scale factor
+ */
+const createDecimalScale = (decimals: number): BN => {
+  return new BN(10).pow(new BN(decimals));
+};
 
 /**
  * Safely converts a value to BN
@@ -89,14 +94,17 @@ const formatWithPrecision = (value: number): string => {
 /**
  * Formats a scaled integer price for display using appropriate precision.
  * @param price The scaled integer price
+ * @param quoteTokenName The quote token name for decimal determination
  * @returns A string representation with dynamic precision.
  */
-export const formatPrice = (price: number): string => {
+export const formatPrice = (price: number, quoteTokenName?: string): string => {
   const priceBN = toBN(price);
   if (!priceBN) return '0.00';
 
   try {
-    const normalizedPrice = normalizeBN(priceBN, BASE_DECIMAL_SCALE);
+    const decimals = getTokenDecimals(quoteTokenName);
+    const scale = createDecimalScale(decimals);
+    const normalizedPrice = normalizeBN(priceBN, scale);
     return formatWithPrecision(normalizedPrice);
   } catch {
     // Silent error handling
@@ -107,14 +115,17 @@ export const formatPrice = (price: number): string => {
 /**
  * Formats a scaled integer quantity for display using appropriate precision.
  * @param quantity The scaled integer quantity
+ * @param baseTokenName The base token name for decimal determination
  * @returns A string representation with dynamic precision.
  */
-export const formatQuantity = (quantity: number): string => {
+export const formatQuantity = (quantity: number, baseTokenName?: string): string => {
   const quantityBN = toBN(quantity);
   if (!quantityBN) return '0.00';
 
   try {
-    const normalizedQuantity = normalizeBN(quantityBN, QUOTE_DECIMAL_SCALE);
+    const decimals = getTokenDecimals(baseTokenName);
+    const scale = createDecimalScale(decimals);
+    const normalizedQuantity = normalizeBN(quantityBN, scale);
     return formatWithPrecision(normalizedQuantity);
   } catch {
     // Silent error handling
@@ -126,9 +137,16 @@ export const formatQuantity = (quantity: number): string => {
  * Calculates and formats the total value (price * quantity) using BN.js for precision
  * @param price Scaled integer price
  * @param quantity Scaled integer quantity
+ * @param quoteTokenName The quote token name for decimal determination
+ * @param baseTokenName The base token name for decimal determination
  * @returns Formatted string with appropriate precision
  */
-export const formatTotal = (price: number, quantity: number): string => {
+export const formatTotal = (
+  price: number,
+  quantity: number,
+  quoteTokenName?: string,
+  baseTokenName?: string
+): string => {
   const priceBN = toBN(price);
   const quantityBN = toBN(quantity);
   if (!priceBN || !quantityBN) return '0.00';
@@ -138,7 +156,11 @@ export const formatTotal = (price: number, quantity: number): string => {
     const totalBN = priceBN.mul(quantityBN);
 
     // Normalize by both decimal scales
-    const totalScale = BASE_DECIMAL_SCALE.mul(QUOTE_DECIMAL_SCALE);
+    const quoteDecimals = getTokenDecimals(quoteTokenName);
+    const baseDecimals = getTokenDecimals(baseTokenName);
+    const quoteScale = createDecimalScale(quoteDecimals);
+    const baseScale = createDecimalScale(baseDecimals);
+    const totalScale = baseScale.mul(quoteScale);
     const normalizedTotal = normalizeBN(totalBN, totalScale);
 
     return formatWithPrecision(normalizedTotal);
@@ -195,7 +217,8 @@ const aggregateOrders = (
   orders: OrderbookItem[],
   sortFn: (a: number, b: number) => number,
   maxRows: number = DEFAULT_ORDERBOOK_ROWS,
-  lastTradedPrice?: number
+  lastTradedPrice?: number,
+  quoteTokenName?: string
 ): AggregatedOrder[] => {
   // Use a Map to efficiently aggregate quantities for the same price level.
   const aggregated = new Map<string, BN>();
@@ -242,7 +265,7 @@ const aggregateOrders = (
       if (lastTradedPrice) {
         const lastTradedPriceBN = toBN(lastTradedPrice);
         if (lastTradedPriceBN) {
-          const deviation = calculatePriceDeviation(priceBN, lastTradedPriceBN);
+          const deviation = calculatePriceDeviation(priceBN, lastTradedPriceBN, quoteTokenName);
           aggregatedOrder.priceDeviation = deviation;
           aggregatedOrder.isNearLastPrice = Math.abs(deviation) <= PRICE_PROXIMITY_THRESHOLD * 100;
         }
@@ -254,14 +277,23 @@ const aggregateOrders = (
 
 /**
  * Calculates the percentage deviation between two prices using BN
+ * @param price The price to compare
+ * @param referencePrice The reference price
+ * @param quoteTokenName The quote token name for decimal determination
  */
-const calculatePriceDeviation = (price: BN, referencePrice: BN): number => {
+const calculatePriceDeviation = (
+  price: BN,
+  referencePrice: BN,
+  quoteTokenName?: string
+): number => {
   if (referencePrice.isZero()) return 0;
 
   try {
     // Convert to normalized numbers for percentage calculation
-    const p1 = normalizeBN(price, QUOTE_DECIMAL_SCALE);
-    const p2 = normalizeBN(referencePrice, QUOTE_DECIMAL_SCALE);
+    const decimals = getTokenDecimals(quoteTokenName);
+    const scale = createDecimalScale(decimals);
+    const p1 = normalizeBN(price, scale);
+    const p2 = normalizeBN(referencePrice, scale);
     return ((p1 - p2) / p2) * 100;
   } catch {
     // Silent error handling
@@ -283,7 +315,9 @@ export const processOrderbook = (
   orderbook: Orderbook | null,
   maxRows: number = DEFAULT_ORDERBOOK_ROWS,
   lastTradedPrice?: number,
-  quantityThreshold: number = MIN_DISPLAY_QUANTITY
+  quantityThreshold: number = MIN_DISPLAY_QUANTITY,
+  quoteTokenName?: string,
+  baseTokenName?: string
 ): ProcessedOrderbook => {
   if (!orderbook || !orderbook.buys || !orderbook.sells) {
     return {
@@ -296,18 +330,31 @@ export const processOrderbook = (
   }
 
   // Filter out orders below the quantity threshold
+  const baseDecimals = getTokenDecimals(baseTokenName);
   const filteredBuys = orderbook.buys.filter(order => {
-    const normalizedQuantity = Number(order.quantity) / Math.pow(10, BASE_DECIMALS);
+    const normalizedQuantity = Number(order.quantity) / Math.pow(10, baseDecimals);
     return normalizedQuantity >= quantityThreshold;
   });
 
   const filteredSells = orderbook.sells.filter(order => {
-    const normalizedQuantity = Number(order.quantity) / Math.pow(10, BASE_DECIMALS);
+    const normalizedQuantity = Number(order.quantity) / Math.pow(10, baseDecimals);
     return normalizedQuantity >= quantityThreshold;
   });
 
-  const buys = aggregateOrders(filteredBuys, (a, b) => b - a, maxRows, lastTradedPrice);
-  const sells = aggregateOrders(filteredSells, (a, b) => a - b, maxRows, lastTradedPrice);
+  const buys = aggregateOrders(
+    filteredBuys,
+    (a, b) => b - a,
+    maxRows,
+    lastTradedPrice,
+    quoteTokenName
+  );
+  const sells = aggregateOrders(
+    filteredSells,
+    (a, b) => a - b,
+    maxRows,
+    lastTradedPrice,
+    quoteTokenName
+  );
 
   const lastBuyTotal = buys.length > 0 ? buys[buys.length - 1].total : new BN(0);
   const lastSellTotal = sells.length > 0 ? sells[sells.length - 1].total : new BN(0);

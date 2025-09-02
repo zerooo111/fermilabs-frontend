@@ -13,7 +13,8 @@ import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey } from '@solana/web3.js';
-import { baseMint, quoteMint, QUOTE_DECIMALS, BASE_DECIMALS } from '@/shared/config/constants';
+import { baseMint, quoteMint } from '@/shared/config/constants';
+import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
 import { useSelectedMarket } from '@/entities/market';
 import { OrderAndBalanceInfo } from './OrderInfoSection';
@@ -92,6 +93,8 @@ export function TradePanel() {
       timestamp_ms: Date.now().toString(),
     };
 
+    console.log(frmTransaction);
+
     const jsonFrm = JSON.stringify(frmTransaction);
     const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
 
@@ -143,9 +146,11 @@ export function TradePanel() {
       const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
       const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;
 
-      // Convert decimal strings to scaled BNs
-      const priceBN = decimalToBN(formState.price, QUOTE_DECIMALS);
-      const sizeBN = decimalToBN(formState.size, BASE_DECIMALS);
+      // Convert decimal strings to scaled BNs using dynamic decimals based on token name
+      const quoteDecimals = getTokenDecimals(selectedMarket?.quoteTokenName);
+      const baseDecimals = getTokenDecimals(selectedMarket?.baseTokenName);
+      const priceBN = decimalToBN(formState.price, quoteDecimals);
+      const sizeBN = decimalToBN(formState.size, baseDecimals);
 
       const intent = new OrderIntent(
         orderId,
@@ -184,9 +189,11 @@ export function TradePanel() {
       const baseMintPubkey = selectedMarket ? new PublicKey(selectedMarket.base_mint) : baseMint;
       const quoteMintPubkey = selectedMarket ? new PublicKey(selectedMarket.quote_mint) : quoteMint;
 
-      // Convert decimal strings to scaled BNs
-      const priceBN = decimalToBN(formState.price, QUOTE_DECIMALS);
-      const sizeBN = decimalToBN(formState.size, BASE_DECIMALS);
+      // Convert decimal strings to scaled BNs using dynamic decimals based on token name
+      const quoteDecimals = getTokenDecimals(selectedMarket?.quoteTokenName);
+      const baseDecimals = getTokenDecimals(selectedMarket?.baseTokenName);
+      const priceBN = decimalToBN(formState.price, quoteDecimals);
+      const sizeBN = decimalToBN(formState.size, baseDecimals);
 
       const intent = new OrderIntent(
         orderId,
@@ -235,7 +242,7 @@ export function TradePanel() {
           placeholder="0.00"
           required
           unit={selectedMarket?.quoteTokenName}
-          decimalScale={QUOTE_DECIMALS}
+          decimalScale={getTokenDecimals(selectedMarket?.quoteTokenName)}
           allowNegative={false}
         />
 
@@ -249,7 +256,7 @@ export function TradePanel() {
           placeholder="0.00"
           required
           unit={selectedMarket?.baseTokenName}
-          decimalScale={BASE_DECIMALS}
+          decimalScale={getTokenDecimals(selectedMarket?.baseTokenName)}
           allowNegative={false}
         />
 

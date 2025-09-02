@@ -14,6 +14,7 @@ import {
 
 import * as anchor from '@coral-xyz/anchor';
 import { BN } from '@coral-xyz/anchor';
+import { getTokenDecimals } from '@/shared/lib/token-decimals';
 
 export function bpsToDecimal(bps: number): number {
   return bps / 10000;
@@ -35,10 +36,14 @@ export function toUiDecimals(nativeAmount: number, decimals: number): number {
   return nativeAmount / Math.pow(10, decimals);
 }
 
-export const QUOTE_DECIMALS = 6;
+export function toUiDecimalsForToken(nativeAmount: number, tokenName?: string): number {
+  const decimals = getTokenDecimals(tokenName);
+  return toUiDecimals(nativeAmount, decimals);
+}
 
+// Deprecated: Use toUiDecimalsForToken instead
 export function toUiDecimalsForQuote(nativeAmount: number): number {
-  return toUiDecimals(nativeAmount, QUOTE_DECIMALS);
+  return toUiDecimalsForToken(nativeAmount, 'USDC');
 }
 
 /**

@@ -14,10 +14,8 @@ export interface Market {
   name: string;
   base_mint: string;
   quote_mint: string;
-  base_decimals: number;
-  quote_decimals: number;
-  base_lot_size: number;
-  quote_lot_size: number;
+  // base_decimals: number;
+  // quote_decimals: number;
   [key: string]: any;
 }
 

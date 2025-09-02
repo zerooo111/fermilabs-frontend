@@ -69,6 +69,23 @@ export interface Trade {
   market_id: string;
 }
 
+export interface TokenBalance {
+  available: number;
+  balance: number;
+  in_orders: number;
+}
+
+export interface UserBalancesResponse {
+  balances: Record<string, TokenBalance>;
+  user: string;
+}
+
+export interface AirdropResponse {
+  message: string;
+  success: boolean;
+  transaction_hash?: string;
+}
+
 export function useSequencerApi() {
   const { selectedServer } = useSelectedServer();
   const baseUrl = selectedServer.url;
@@ -205,6 +222,52 @@ export function useSequencerApi() {
     [graphApiUrl]
   );
 
+  const fetchUserBalances = useCallback(async (pubkey: string): Promise<UserBalancesResponse> => {
+    const apiBaseUrl = config.devnet.apiBaseUrl;
+    const url = `${apiBaseUrl}/me/balances/${pubkey}`;
+
+    const { data, error } = await tryCatch<AxiosResponse<UserBalancesResponse>>(axios.get(url));
+
+    if (error) {
+      throw error;
+    }
+
+    return data.data;
+  }, []);
+
+  const requestAirdrop = useCallback(
+    async (receiverPubKey: string, tokenName: string): Promise<AirdropResponse> => {
+      const apiBaseUrl = config.devnet.apiBaseUrl;
+      const url = `${apiBaseUrl}/me/airdrop/${receiverPubKey}/${tokenName}`;
+
+      const { data, error } = await tryCatch<AxiosResponse<AirdropResponse>>(
+        axios.post(
+          url,
+          {},
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+            },
+          }
+        )
+      );
+
+      if (error) {
+        if (axios.isAxiosError(error) && error.response) {
+          const errorData = error.response.data;
+          if (errorData && typeof errorData === 'object' && 'error' in errorData) {
+            throw new Error(`Airdrop failed: ${errorData.error}`);
+          }
+        }
+        throw error;
+      }
+
+      return data.data;
+    },
+    []
+  );
+
   return {
     ping,
 
@@ -213,5 +276,7 @@ export function useSequencerApi() {
     fetchUserOrders,
     submitCancelOrderToSequencer,
     fetchTrades,
+    fetchUserBalances,
+    requestAirdrop,
   };
 }

@@ -10,9 +10,18 @@ type OrderbookRowProps = {
   size: number;
   depth: number;
   side: 'Buy' | 'Sell';
+  quoteTokenName?: string;
+  baseTokenName?: string;
 };
 
-export function OrderbookRow({ price, size, depth, side }: OrderbookRowProps) {
+export function OrderbookRow({
+  price,
+  size,
+  depth,
+  side,
+  quoteTokenName,
+  baseTokenName,
+}: OrderbookRowProps) {
   return (
     <div className={cn('relative font-medium w-full h-[26px]')}>
       {/* Depth indicator */}
@@ -38,17 +47,19 @@ export function OrderbookRow({ price, size, depth, side }: OrderbookRowProps) {
         >
           {/* Price */}
           <div className="text-left">
-            <span className="tabular-nums">{formatPrice(price)}</span>
+            <span className="tabular-nums">{formatPrice(price, quoteTokenName)}</span>
           </div>
 
           {/* Size */}
           <div className="text-right">
-            <span className="tabular-nums">{formatQuantity(size)}</span>
+            <span className="tabular-nums">{formatQuantity(size, baseTokenName)}</span>
           </div>
 
           {/* Total */}
           <div className="text-right">
-            <span className="tabular-nums">{formatTotal(price, size)}</span>
+            <span className="tabular-nums">
+              {formatTotal(price, size, quoteTokenName, baseTokenName)}
+            </span>
           </div>
         </div>
       </div>

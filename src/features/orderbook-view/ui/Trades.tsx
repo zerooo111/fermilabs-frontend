@@ -9,12 +9,12 @@ import { useQuery } from '@tanstack/react-query';
 
 import { selectedMarketAtom } from '@/entities/market';
 import { config } from '@/shared/config/constants';
-// no color-coding utilities needed
+import { getTokenDecimals } from '@/shared/lib/token-decimals';
 
 type Trade = {
   id: string;
-  price: number; // scaled integer as per BASE_DECIMALS
-  quantity: number; // scaled integer as per QUOTE_DECIMALS
+  price: number; // scaled integer, needs to be divided by 10^decimals for display
+  quantity: number; // scaled integer, needs to be divided by 10^decimals for display
   timestamp: string; // epoch seconds as string
   txid: string;
   market_id: string;
@@ -60,6 +60,17 @@ export function Trades({ rows }: { rows: number }) {
   function TradeRow({ trade, direction }: { trade: Trade; direction: Direction }) {
     const { price, quantity } = trade;
 
+    // Format values with proper decimals
+    const quoteDecimals = getTokenDecimals(selectedMarket?.quoteTokenName);
+    const baseDecimals = getTokenDecimals(selectedMarket?.baseTokenName);
+
+    const formattedPrice = (price / Math.pow(10, quoteDecimals)).toFixed(quoteDecimals);
+    const formattedQuantity = (quantity / Math.pow(10, baseDecimals)).toFixed(baseDecimals);
+    const formattedTotal = (
+      (price / Math.pow(10, quoteDecimals)) *
+      (quantity / Math.pow(10, baseDecimals))
+    ).toFixed(quoteDecimals);
+
     return (
       <div
         className={`relative font-medium w-full select-none hover:bg-white/3 ${ROW_HEIGHT_CLASS}`}
@@ -75,17 +86,17 @@ export function Trades({ rows }: { rows: number }) {
           >
             {/* Price */}
             <div className="text-left">
-              <span className="tabular-nums">{price}</span>
+              <span className="tabular-nums">{formattedPrice}</span>
             </div>
 
             {/* Size */}
             <div className="text-right">
-              <span className="tabular-nums">{quantity}</span>
+              <span className="tabular-nums">{formattedQuantity}</span>
             </div>
 
             {/* Total */}
             <div className="text-right">
-              <span className="tabular-nums">{price * quantity}</span>
+              <span className="tabular-nums">{formattedTotal}</span>
             </div>
           </div>
         </div>

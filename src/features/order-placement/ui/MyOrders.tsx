@@ -180,13 +180,21 @@ export function MyOrders() {
             <Badge variant={order.side === 'Buy' ? 'success' : 'danger'}>{order.side}</Badge>
           </TableCell>
           <TableCell className="font-mono tabular-nums">
-            {formatPrice(order.price)} {selectedMarket?.quoteTokenName}
+            {formatPrice(order.price, selectedMarket?.quoteTokenName)}{' '}
+            {selectedMarket?.quoteTokenName}
           </TableCell>
           <TableCell className="font-mono tabular-nums">
-            {formatQuantity(order.quantity)} {selectedMarket?.baseTokenName}
+            {formatQuantity(order.quantity, selectedMarket?.baseTokenName)}{' '}
+            {selectedMarket?.baseTokenName}
           </TableCell>
           <TableCell className="font-mono tabular-nums">
-            {formatTotal(order.price, order.quantity)} {selectedMarket?.quoteTokenName}
+            {formatTotal(
+              order.price,
+              order.quantity,
+              selectedMarket?.quoteTokenName,
+              selectedMarket?.baseTokenName
+            )}{' '}
+            {selectedMarket?.quoteTokenName}
           </TableCell>
           <TableCell className="font-mono">
             {new Date(order.expiry).toLocaleString(undefined, {
