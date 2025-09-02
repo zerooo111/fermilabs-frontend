@@ -3,6 +3,7 @@
  * Displays recent trades for the selected market
  */
 import { useMemo } from 'react';
+import { cn } from '@/lib/utils';
 import { useAtomValue } from 'jotai';
 import { useQuery } from '@tanstack/react-query';
 
@@ -54,7 +55,9 @@ export function Trades({ rows }: { rows: number }) {
   // Determine side (Buy/Sell) by comparing to adjacent trade price
   const visibleTrades = useMemo(() => (trades.length ? trades.slice(0, rows) : []), [trades, rows]);
 
-  function TradeRow({ trade }: { trade: Trade }) {
+  type Direction = 'up' | 'down' | 'flat';
+
+  function TradeRow({ trade, direction }: { trade: Trade; direction: Direction }) {
     const { price, quantity } = trade;
 
     return (
@@ -63,7 +66,13 @@ export function Trades({ rows }: { rows: number }) {
       >
         {/* Content */}
         <div className="relative z-10 px-4 h-full flex items-center">
-          <div className="grid grid-cols-3 gap-4 items-center font-mono  text-xs leading-none opacity-50 tracking-tight w-full">
+          <div
+            className={cn(
+              'grid grid-cols-3 gap-4 items-center font-mono  text-xs leading-none opacity-50 tracking-tight w-full',
+              direction === 'up' && 'text-success',
+              direction === 'down' && 'text-danger'
+            )}
+          >
             {/* Price */}
             <div className="text-left">
               <span className="tabular-nums">{price}</span>
@@ -87,9 +96,14 @@ export function Trades({ rows }: { rows: number }) {
   return (
     <div className="flex flex-col h-[500px] overflow-hidden py-2">
       <div className="flex-1 flex flex-col overflow-y-auto divide-y divide-white/5  border-none">
-        {visibleTrades.map((t, i) => (
-          <TradeRow key={`${t.id}-${i}`} trade={t} />
-        ))}
+        {visibleTrades.map((t, i) => {
+          const next = visibleTrades[i + 1]; // next is the previous trade in time (older)
+          let direction: Direction = 'flat';
+          if (next) {
+            direction = t.price > next.price ? 'up' : t.price < next.price ? 'down' : 'flat';
+          }
+          return <TradeRow key={`${t.id}-${i}`} trade={t} direction={direction} />;
+        })}
 
         {/* Pad with empty rows to keep height consistent */}
         {Array.from({ length: Math.max(0, rows - trades.length) }).map((_, i) => (
