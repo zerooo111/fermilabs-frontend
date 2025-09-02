@@ -96,8 +96,7 @@ export const useSelectedMarket = () => {
 
       marketsLoadedRef.current = true;
       return newMarkets;
-    } catch (error) {
-      console.error('Failed to load markets:', error);
+    } catch {
       return markets; // Return existing markets on error
     }
   }, [markets, setMarkets]);

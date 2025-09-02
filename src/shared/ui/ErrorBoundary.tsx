@@ -2,7 +2,7 @@
  * ErrorBoundary.tsx
  * React error boundary component for graceful error handling
  */
-import { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ReactNode } from 'react';
 import { toast } from 'sonner';
 
 interface ErrorBoundaryProps {
@@ -31,8 +31,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('Error caught by ErrorBoundary:', error, errorInfo);
+  componentDidCatch(): void {
     toast.error('Something went wrong. Please try again later.');
   }
 

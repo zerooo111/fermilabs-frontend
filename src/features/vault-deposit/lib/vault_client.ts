@@ -37,9 +37,8 @@ export class LiquidityVaultClient {
     this.walletPk = this.provider.wallet.publicKey;
     this.postSendTxCallback =
       opts?.postSendTxCallback ??
-      (({ txid }) => {
-        console.log('txid:', txid);
-        console.log('Solana Explorer:', `https://explorer.solana.com/tx/${txid}?cluster=devnet`);
+      (() => {
+        // Silent transaction handling
       });
     this.txConfirmationCommitment = opts?.commitment ?? 'processed';
   }
@@ -49,16 +48,11 @@ export class LiquidityVaultClient {
     ixs: TransactionInstruction[],
     opts: any = {}
   ): Promise<string> {
-    try {
-      return await sendTransaction(this.program.provider as AnchorProvider, ixs, opts.alts ?? [], {
-        postSendTxCallback: this.postSendTxCallback,
-        txConfirmationCommitment: this.txConfirmationCommitment,
-        ...opts,
-      });
-    } catch (e) {
-      console.error('Error sending transaction', e);
-      throw e;
-    }
+    return await sendTransaction(this.program.provider as AnchorProvider, ixs, opts.alts ?? [], {
+      postSendTxCallback: this.postSendTxCallback,
+      txConfirmationCommitment: this.txConfirmationCommitment,
+      ...opts,
+    });
   }
 
   /**

@@ -9,6 +9,7 @@ A React + TypeScript + Vite frontend for a Solana-based decentralized exchange (
 ## Commands
 
 ### Development
+
 ```bash
 pnpm dev          # Start development server on port 4000
 pnpm build        # Build for production
@@ -17,6 +18,7 @@ pnpm serve        # Serve on port 5500 with host
 ```
 
 ### Code Quality
+
 ```bash
 pnpm lint         # Run ESLint
 pnpm lint:fix     # Fix ESLint issues
@@ -33,7 +35,7 @@ The project follows **Feature Slice Design (FSD)** architecture:
 - `src/app/` - Application-wide setup (providers, router configuration)
 - `src/entities/` - Business entities (market, orderbook, wallet, server)
 - `src/features/` - Feature modules (chart, order-placement, vault-deposit, etc.)
-- `src/pages/` - Page components (trade, vault, vault-admin)
+- `src/pages/` - Page components (trade, vault)
 - `src/shared/` - Shared utilities, UI components, API clients
 
 Path alias `@/*` maps to `./src/*` in imports.

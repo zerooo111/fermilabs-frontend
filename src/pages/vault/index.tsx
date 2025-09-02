@@ -210,7 +210,6 @@ function VaultPage() {
         getData();
       }
     } catch (error) {
-      console.error('Failed to airdrop tokens:', error);
       const axiosError = error as AxiosError<{ error: string }>;
       toast.error(axiosError.response?.data?.error || 'Failed to airdrop tokens');
     }
@@ -246,8 +245,8 @@ function VaultPage() {
         const userDeposit = new BN(userState?.amountDeposited).div(new BN(10 ** 9));
         setAmountDeposited(userDeposit.toNumber());
       });
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Silent error handling
     }
   }, [selectedToken, vaultClient]);
 

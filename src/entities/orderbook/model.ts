@@ -9,12 +9,10 @@ import { useSequencerApi } from '@/shared/api/useSequencerApi';
 
 // Orderbook types
 export interface OrderbookItem {
-  market_id: string;
-  base_mint: string;
-  quote_mint: string;
+  order_count: number;
   price: number;
-  size: number;
-  [key: string]: any;
+  quantity: number;
+  total_quantity: number;
 }
 
 export interface Orderbook {
@@ -64,15 +62,9 @@ export const useOrderbook = () => {
     if (fetchStartTime > lastUpdateTimeRef.current) {
       lastUpdateTimeRef.current = fetchStartTime;
 
-      const filteredBuys = orderbook.buys.filter(
-        (it: OrderbookItem) =>
-          it.base_mint === selectedMarket.base_mint && it.quote_mint === selectedMarket.quote_mint
-      );
-
-      const filteredSells = orderbook.sells.filter(
-        (it: OrderbookItem) =>
-          it.base_mint === selectedMarket.base_mint && it.quote_mint === selectedMarket.quote_mint
-      );
+      // No need to filter by mint since the API already returns market-specific data
+      const filteredBuys = orderbook.buys;
+      const filteredSells = orderbook.sells;
 
       setOrderbook({
         buys: filteredBuys,

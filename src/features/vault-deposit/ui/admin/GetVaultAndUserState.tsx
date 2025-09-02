@@ -40,9 +40,9 @@ export function GetVaultAndUserState() {
 
       const userState = await vaultClient
         .getUserState(vaultClient.walletPk, vaultStatePda)
-        .catch(err => {
+        .catch(() => {
           toast.error('User state not found');
-          console.error(err);
+          // Silent error handling
           return {};
         });
 
@@ -54,7 +54,7 @@ export function GetVaultAndUserState() {
         userAta: userAta.toBase58(),
       });
     } catch (err) {
-      console.error(err);
+      // Silent error handling
       // @ts-expect-error : err is not defined
       toast.error(err?.message ?? 'Unknown error');
     }

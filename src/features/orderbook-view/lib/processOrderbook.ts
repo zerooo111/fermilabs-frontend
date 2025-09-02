@@ -41,8 +41,8 @@ export const QUOTE_DECIMAL_SCALE = new BN(10).pow(new BN(QUOTE_DECIMALS));
 export const toBN = (value: number | string): BN | null => {
   try {
     return new BN(value.toString());
-  } catch (e) {
-    console.error('Error converting to BN:', e);
+  } catch {
+    // Silent error handling
     return null;
   }
 };
@@ -56,8 +56,8 @@ export const toBN = (value: number | string): BN | null => {
 export const normalizeBN = (value: BN, scale: BN): number => {
   try {
     return Number(value.toString()) / Number(scale.toString());
-  } catch (e) {
-    console.error('Error normalizing BN:', e);
+  } catch {
+    // Silent error handling
     return 0;
   }
 };
@@ -98,8 +98,8 @@ export const formatPrice = (price: number): string => {
   try {
     const normalizedPrice = normalizeBN(priceBN, BASE_DECIMAL_SCALE);
     return formatWithPrecision(normalizedPrice);
-  } catch (e) {
-    console.error('Error formatting price:', e);
+  } catch {
+    // Silent error handling
     return '0.00';
   }
 };
@@ -116,8 +116,8 @@ export const formatQuantity = (quantity: number): string => {
   try {
     const normalizedQuantity = normalizeBN(quantityBN, QUOTE_DECIMAL_SCALE);
     return formatWithPrecision(normalizedQuantity);
-  } catch (e) {
-    console.error('Error formatting quantity:', e);
+  } catch {
+    // Silent error handling
     return '0.00';
   }
 };
@@ -142,8 +142,8 @@ export const formatTotal = (price: number, quantity: number): string => {
     const normalizedTotal = normalizeBN(totalBN, totalScale);
 
     return formatWithPrecision(normalizedTotal);
-  } catch (e) {
-    console.error('Error formatting total:', e);
+  } catch {
+    // Silent error handling
     return '0.00';
   }
 };
@@ -205,7 +205,7 @@ const aggregateOrders = (
     const quantityBN = toBN(order.quantity);
 
     if (!priceBN || !quantityBN) {
-      console.warn('Invalid order data detected:', order);
+      // Silent error handling
       return;
     }
 
@@ -263,8 +263,8 @@ const calculatePriceDeviation = (price: BN, referencePrice: BN): number => {
     const p1 = normalizeBN(price, QUOTE_DECIMAL_SCALE);
     const p2 = normalizeBN(referencePrice, QUOTE_DECIMAL_SCALE);
     return ((p1 - p2) / p2) * 100;
-  } catch (e) {
-    console.error('Error calculating price deviation:', e);
+  } catch {
+    // Silent error handling
     return 0;
   }
 };
@@ -321,8 +321,8 @@ export const processOrderbook = (
         try {
           const depthBN = order.total.mul(new BN(10000)).div(maxDepth);
           order.depth = depthBN.toNumber() / 100;
-        } catch (e) {
-          console.error('Error calculating depth percentage:', e);
+        } catch {
+          // Silent error handling
           order.depth = 0;
         }
       }

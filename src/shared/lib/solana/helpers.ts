@@ -98,39 +98,34 @@ export const createMint = async (
   provider: anchor.AnchorProvider,
   decimal: number
 ): Promise<{ signature: string; mintAddress: PublicKey }> => {
-  try {
-    // Token Mints are accounts which hold data ABOUT a specific token
-    // Token Mints DO NOT hold tokens themselves
-    const tokenMint = Keypair.generate();
+  // Token Mints are accounts which hold data ABOUT a specific token
+  // Token Mints DO NOT hold tokens themselves
+  const tokenMint = Keypair.generate();
 
-    // amount of SOL required fro the account to not be deallocated
-    const lamports = await spl.getMinimumBalanceForRentExemptMint(provider.connection);
+  // amount of SOL required fro the account to not be deallocated
+  const lamports = await spl.getMinimumBalanceForRentExemptMint(provider.connection);
 
-    // `spl.createMint` function creates a transaction with the following two instruction: `createAccount` and `createInitializeMintInstruction`.
-    const transaction = new Transaction().add(
-      SystemProgram.createAccount({
-        fromPubkey: provider.wallet.publicKey,
-        newAccountPubkey: tokenMint.publicKey,
-        space: spl.MINT_SIZE,
-        lamports,
-        programId: spl.TOKEN_PROGRAM_ID,
-      }),
-      spl.createInitializeMintInstruction(
-        tokenMint.publicKey,
-        decimal,
-        provider.wallet.publicKey,
-        null,
-        spl.TOKEN_PROGRAM_ID
-      )
-    );
+  // `spl.createMint` function creates a transaction with the following two instruction: `createAccount` and `createInitializeMintInstruction`.
+  const transaction = new Transaction().add(
+    SystemProgram.createAccount({
+      fromPubkey: provider.wallet.publicKey,
+      newAccountPubkey: tokenMint.publicKey,
+      space: spl.MINT_SIZE,
+      lamports,
+      programId: spl.TOKEN_PROGRAM_ID,
+    }),
+    spl.createInitializeMintInstruction(
+      tokenMint.publicKey,
+      decimal,
+      provider.wallet.publicKey,
+      null,
+      spl.TOKEN_PROGRAM_ID
+    )
+  );
 
-    // prompts user to sign the transaction and submit it to the network
-    const signature = await provider.sendAndConfirm(transaction, [tokenMint]);
-    return { signature, mintAddress: tokenMint.publicKey };
-  } catch (err) {
-    console.error(err);
-    throw err;
-  }
+  // prompts user to sign the transaction and submit it to the network
+  const signature = await provider.sendAndConfirm(transaction, [tokenMint]);
+  return { signature, mintAddress: tokenMint.publicKey };
 };
 
 export const checkOrCreateAssociatedTokenAccount = async (
@@ -155,19 +150,14 @@ export async function checkMintOfATA(
   connection: Connection,
   ataAddress: anchor.Address
 ): Promise<string> {
-  try {
-    const ataInfo = await connection.getAccountInfo(new PublicKey(ataAddress));
-    if (ataInfo === null) {
-      throw new Error('Account not found');
-    }
-
-    // The mint address is the first 32 bytes of the account data
-    const mintAddress = new PublicKey(ataInfo.data.slice(0, 32));
-    return mintAddress.toBase58();
-  } catch (error) {
-    console.error('Error in checkMintOfATA:', error);
-    throw error;
+  const ataInfo = await connection.getAccountInfo(new PublicKey(ataAddress));
+  if (ataInfo === null) {
+    throw new Error('Account not found');
   }
+
+  // The mint address is the first 32 bytes of the account data
+  const mintAddress = new PublicKey(ataInfo.data.slice(0, 32));
+  return mintAddress.toBase58();
 }
 
 export const createAssociatedTokenAccount = async (
@@ -214,8 +204,7 @@ export const fetchTokenBalance = async (
     if (error instanceof spl.TokenAccountNotFoundError) {
       return '0';
     }
-    // Log other unexpected errors but still return 0
-    console.error('Error in fetchTokenBalance:', error);
+    // Return 0 for other unexpected errors
     return '0';
   }
 };

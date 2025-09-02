@@ -67,28 +67,26 @@ export async function fetchCandles(params: CandleParams): Promise<OHLCVData[]> {
 
     // Validate the response data
     if (!Array.isArray(response.data)) {
-      console.error('Invalid response data format:', response.data);
+      // Silent error handling
       throw new Error('Invalid response data format: expected an array');
     }
 
     return response.data;
   } catch (error: any) {
     // Type assertion for better error handling
-    console.error('Error fetching candle data:', error);
+    // Silent error handling
 
     // Add more detailed error information
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
-      console.error('Error response data:', error.response.data);
-      console.error('Error response status:', error.response.status);
-      console.error('Error response headers:', error.response.headers);
+      // Silent error handling
     } else if (error.request) {
       // The request was made but no response was received
-      console.error('Error request:', error.request);
+      // Silent error handling
     } else {
       // Something happened in setting up the request that triggered an Error
-      console.error('Error message:', error.message || 'Unknown error');
+      // Silent error handling
     }
 
     // Create a more user-friendly error message

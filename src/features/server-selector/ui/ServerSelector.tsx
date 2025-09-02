@@ -27,9 +27,9 @@ async function checkServerLatency(
   try {
     await axios.get(`${server.url}/health`, { timeout: 5000 });
     return { latency: performance.now() - startTime, isHealthy: true };
-  } catch (error) {
+  } catch {
     if (logError) {
-      console.error(`Error checking latency for ${server.label}:`, error);
+      // Silent error handling
     }
     return { latency: Infinity, isHealthy: false };
   }

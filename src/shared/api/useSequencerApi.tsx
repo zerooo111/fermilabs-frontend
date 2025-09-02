@@ -22,12 +22,16 @@ export interface Market {
 }
 
 export interface OrderbookItem {
-  market_id: string;
-  base_mint: string;
-  quote_mint: string;
+  order_count: number;
   price: number;
-  size: number;
-  [key: string]: any;
+  total_quantity: number;
+}
+
+export interface OrderbookSummary {
+  asks: OrderbookItem[];
+  bids: OrderbookItem[];
+  last_trade_price: number;
+  timestamp: number;
 }
 
 export interface Orderbook {
@@ -36,13 +40,21 @@ export interface Orderbook {
 }
 
 export interface Order {
-  id: string;
+  base_mint: string;
+  expiry: number;
   market_id: string;
+  order_id: number;
   price: number;
-  size: number;
+  quantity: number;
+  quote_mint: string;
   side: string;
-  status: string;
-  [key: string]: any;
+  timestamp: number;
+}
+
+export interface UserOrdersResponse {
+  orders: Order[];
+  owner: string;
+  total_orders: number;
 }
 
 export interface Trade {
@@ -128,26 +140,50 @@ export function useSequencerApi() {
   );
 
   const fetchOrderbook = useCallback(async (marketId: string): Promise<Orderbook> => {
-    // const url = `${config.devnet.globalSequencerApiUrl}/markets/${marketId}/orderbook`;
-    const url = `https://explorer.fermilabs.xyz/api/v1/me/markets/${marketId}/orderbook`;
+    const apiBaseUrl = config.devnet.apiBaseUrl;
+    const url = `${apiBaseUrl}/me/markets/${marketId}/orderbook/summary`;
 
-    const { data, error } = await tryCatch<AxiosResponse<any>>(axios.get(url));
+    const { data, error } = await tryCatch<AxiosResponse<OrderbookSummary>>(axios.get(url));
 
     if (error) {
-      console.error('Error fetching orderbook:', error);
       throw error;
     }
 
     // Extract the orderbook data from the response
     const responseData = data.data;
 
-    // Create a properly structured Orderbook object
+    // Transform the API response to match our internal structure
     const orderbook: Orderbook = {
-      buys: responseData.buys || [],
-      sells: responseData.sells || [],
+      buys:
+        responseData.bids.map(bid => ({
+          order_count: bid.order_count,
+          price: bid.price,
+          quantity: bid.total_quantity,
+          total_quantity: bid.total_quantity,
+        })) || [],
+      sells:
+        responseData.asks.map(ask => ({
+          order_count: ask.order_count,
+          price: ask.price,
+          quantity: ask.total_quantity,
+          total_quantity: ask.total_quantity,
+        })) || [],
     };
 
     return orderbook;
+  }, []);
+
+  const fetchUserOrders = useCallback(async (pubkey: string): Promise<Order[]> => {
+    const apiBaseUrl = config.devnet.apiBaseUrl;
+    const url = `${apiBaseUrl}/me/orders/user/${pubkey}`;
+
+    const { data, error } = await tryCatch<AxiosResponse<UserOrdersResponse>>(axios.get(url));
+
+    if (error) {
+      throw error;
+    }
+
+    return data.data.orders || [];
   }, []);
 
   const fetchTrades = useCallback(
@@ -159,8 +195,6 @@ export function useSequencerApi() {
           limit,
         })
       );
-
-      console.log('data for /trades', { data, error });
 
       if (error) {
         throw error;
@@ -176,6 +210,7 @@ export function useSequencerApi() {
 
     submitOrderToSequencer,
     fetchOrderbook,
+    fetchUserOrders,
     submitCancelOrderToSequencer,
     fetchTrades,
   };

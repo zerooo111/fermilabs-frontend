@@ -2,10 +2,9 @@
  * My orders component
  * Displays the user's active orders
  */
-import { orderbookAtom } from '@/entities/orderbook';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
 import { Badge } from '@/shared/ui/badge';
@@ -22,23 +21,39 @@ import {
   formatTotal,
 } from '@/features/orderbook-view/lib/processOrderbook';
 import axios from 'axios';
+import { config } from '@/shared/config/constants';
+import { useSequencerApi } from '@/shared/api/useSequencerApi';
+import { useQuery } from '@tanstack/react-query';
 
 export function MyOrders() {
-  const orderbook = useAtomValue(orderbookAtom);
   const { publicKey, signMessage } = useWallet();
   const [cancellingOrders, setCancellingOrders] = useState<Set<number>>(new Set());
   const selectedMarket = useAtomValue(selectedMarketAtom);
   const orderReceipts = useAtomValue(orderReceiptsAtom);
+  const { fetchUserOrders } = useSequencerApi();
+
+  const { data: userOrders } = useQuery({
+    queryKey: ['userOrders', publicKey?.toBase58(), selectedMarket?.uuid],
+    queryFn: async () => {
+      if (!publicKey) return [];
+      return await fetchUserOrders(publicKey.toBase58());
+    },
+    enabled: !!publicKey && !!selectedMarket,
+    refetchInterval: 1000, // Refetch every 1 second
+    staleTime: 5000, // Consider data stale after 5 seconds
+  });
+
+  useEffect(() => {
+    // User orders effect
+  }, [userOrders]);
 
   const myOrders = useMemo(() => {
-    if (!orderbook || !publicKey) return [];
-    // Concatenate buys and sells
-    const allOrders = [...orderbook.buys, ...orderbook.sells];
+    if (!userOrders || !publicKey) return [];
 
-    return allOrders
-      .filter(order => order.owner === publicKey?.toBase58())
+    return userOrders
+      .filter(order => order.market_id === selectedMarket?.uuid)
       .filter(order => !cancellingOrders.has(order.order_id));
-  }, [orderbook, publicKey, cancellingOrders]);
+  }, [userOrders, publicKey, selectedMarket?.uuid, cancellingOrders]);
 
   // Helper function to find receipt by order_id
   const getReceiptForOrder = (orderId: number) => {
@@ -126,15 +141,16 @@ export function MyOrders() {
       };
 
       // Submit to continuum via the explorer API
+      const apiBaseUrl = config.devnet.apiBaseUrl;
       await axios
-        .post('https://explorer.fermilabs.xyz/api/v1/tx', {
+        .post(`${apiBaseUrl}/tx`, {
           transaction: transactionData,
         })
         .then(res => res.data);
 
       toast.success('Order cancelled');
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Silent error handling
       // Rollback optimistic update
       setCancellingOrders(prev => {
         const newSet = new Set(prev);

@@ -29,7 +29,6 @@ src/
 ├── pages/                # Page components that compose features
 │   ├── trade/            # Trade page
 │   ├── vault/            # Vault page
-│   └── vault-admin/      # Vault admin page
 ├── shared/               # Shared utilities, UI components, etc.
 │   ├── api/              # API clients and utilities
 │   ├── config/           # Configuration constants
@@ -52,7 +51,7 @@ The migration to the Feature Slice Architecture is in progress. Here's what has 
 - ✅ Moved utility functions to `shared/lib`
 - ✅ Moved constants to `shared/config`
 - ✅ Moved API clients to `shared/api`
-- ✅ Created page components for trade, vault, and vault-admin
+- ✅ Created page components for trade and vault
 
 Still to be done:
 
@@ -102,7 +101,6 @@ The `pages` layer contains page components that compose features:
 
 - `trade/`: Trade page
 - `vault/`: Vault page
-- `vault-admin/`: Vault admin page
 
 Pages are responsible for composing features and handling page-specific logic.
 
