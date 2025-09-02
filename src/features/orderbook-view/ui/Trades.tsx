@@ -13,8 +13,8 @@ import { getTokenDecimals } from '@/shared/lib/token-decimals';
 
 type Trade = {
   id: string;
-  price: number; // scaled integer, needs to be divided by 10^decimals for display
-  quantity: number; // scaled integer, needs to be divided by 10^decimals for display
+  price: number; // already divided by decimals
+  quantity: number; // already divided by decimals
   timestamp: string; // epoch seconds as string
   txid: string;
   market_id: string;
@@ -60,16 +60,12 @@ export function Trades({ rows }: { rows: number }) {
   function TradeRow({ trade, direction }: { trade: Trade; direction: Direction }) {
     const { price, quantity } = trade;
 
-    // Format values with proper decimals
+    // Format values (already divided by decimals from API)
     const quoteDecimals = getTokenDecimals(selectedMarket?.quoteTokenName);
     const baseDecimals = getTokenDecimals(selectedMarket?.baseTokenName);
-
-    const formattedPrice = (price / Math.pow(10, quoteDecimals)).toFixed(quoteDecimals);
-    const formattedQuantity = (quantity / Math.pow(10, baseDecimals)).toFixed(baseDecimals);
-    const formattedTotal = (
-      (price / Math.pow(10, quoteDecimals)) *
-      (quantity / Math.pow(10, baseDecimals))
-    ).toFixed(quoteDecimals);
+    const formattedPrice = price.toFixed(quoteDecimals);
+    const formattedQuantity = quantity.toFixed(baseDecimals);
+    const formattedTotal = (price * quantity).toFixed(quoteDecimals);
 
     return (
       <div
