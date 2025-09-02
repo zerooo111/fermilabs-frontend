@@ -50,7 +50,7 @@ function ChartContainerComponent() {
     [selectMarket]
   );
 
-  const { data, error, refetch, isLoading } = useQuery<ExtendedOHLCVData[]>({
+  const { data, error, refetch } = useQuery<ExtendedOHLCVData[]>({
     queryKey: ['candlesticks', timeInterval, selectedMarket?.uuid],
     queryFn: async () => {
       try {
@@ -181,7 +181,7 @@ function ChartContainerComponent() {
     <div className="flex h-12 items-center divide-x divide-outline justify-between border-b border-outline">
       <div>
         <MarketSelector
-          isLoading={isLoading}
+          isLoading={false}
           selectedMarketId={selectedMarketId}
           onMarketSelect={handleMarketSelect}
         />

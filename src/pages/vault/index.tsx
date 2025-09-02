@@ -77,7 +77,7 @@ function VaultStrategyCard({ strategy }: { strategy: VaultStrategy }) {
       href={strategy.link}
       target="_blank"
       rel="noopener noreferrer"
-      className="block group p-6 transition-shadow border hover:bg-gradient-to-t hover:from-white/40  duration-200"
+      className="block group p-5 transition-colors border border-outline hover:bg-card/30 duration-150"
     >
       <div className="flex items-start gap-4 justify-between">
         <div className="flex flex-1 gap-4">
@@ -88,19 +88,19 @@ function VaultStrategyCard({ strategy }: { strategy: VaultStrategy }) {
           />
           <div className=" w-full">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-xl text-neutral-900">{strategy.name}</h3>
-              <div className="text-neutral-400 hover:text-neutral-600 group-hover:text-blue-600 group-hover:translate-x-1 transition-all group-hover:scale-105">
+              <h3 className="font-semibold text-lg">{strategy.name}</h3>
+              <div className="text-white/40 group-hover:text-white/80 group-hover:translate-x-1 transition-transform">
                 <ArrowRightCircleIcon className="w-4 h-4" />
               </div>
             </div>
-            <div className="w-full flex  justify-between   mt-2">
+            <div className="w-full flex justify-between mt-2">
               <div className="flex-1 p-1">
-                <p className="text-xs text-neutral-600 font-medium">TVL</p>
+                <p className="text-xs text-white/60 font-medium">TVL</p>
                 <p className="text-sm font-mono font-medium">${strategy.tvl.toLocaleString()}</p>
               </div>
               <div className="flex-1 p-1 text-right">
-                <p className="text-xs text-neutral-600 font-medium">APR</p>
-                <p className="text-sm font-mono font-medium text-emerald-600">{strategy.apr}%</p>
+                <p className="text-xs text-white/60 font-medium">APR</p>
+                <p className="text-sm font-mono font-medium text-success">{strategy.apr}%</p>
               </div>
             </div>
           </div>
@@ -112,10 +112,10 @@ function VaultStrategyCard({ strategy }: { strategy: VaultStrategy }) {
 
 function VaultStrategyList() {
   return (
-    <div className="mt-8">
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-neutral-900">Available Strategies</h2>
-        <p className="text-neutral-600 mt-1">Choose a strategy to optimize your yields</p>
+    <div className="mt-6">
+      <div className="mb-4 px-1">
+        <h2 className="text-xl font-semibold">Available Strategies</h2>
+        <p className="text-white/60 mt-1">Choose a strategy to optimize your yields</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {strategies.map(strategy => (
@@ -256,126 +256,131 @@ function VaultPage() {
   }, [getData]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="">
-        <div className="container px-5  max-w-screen-lg mx-auto py-10 flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <h1 className="text-4xl font-semibold ">{selectedToken.name} Vault</h1>
-            <div className="flex-1 flex justify-end items-center gap-2">
-              {publicKey && (
-                <Button onClick={handleAirdrop} variant="outline" className="bg-secondary/50 ">
-                  <PlusIcon className="w-4 h-4" />
-                  Airdrop {selectedToken.name} tokens
-                </Button>
-              )}
-              <Select
-                defaultValue={selectedToken.publicKey.toBase58()}
-                onValueChange={value => {
-                  setSelectedToken(
-                    tokens.find(token => token.publicKey.toBase58() === value) ?? tokens[0]
-                  );
-                }}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Select token" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tokens.map(token => (
-                    <SelectItem key={token.publicKey.toBase58()} value={token.publicKey.toBase58()}>
-                      {token.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+    <div className="flex flex-col min-h-[calc(100vh-60px)]">
+      {/* Page frame mirrors /trade: side borders and inner divisions */}
+      <div className="mx-4 border-x border-outline">
+        {/* Header bar */}
+        <div className="flex flex-wrap items-center gap-3 justify-between px-4 py-4 border-b border-outline">
+          <h1 className="text-2xl md:text-3xl font-semibold">{selectedToken.name} Vault</h1>
+          <div className="flex items-center gap-2">
+            {publicKey && (
+              <Button onClick={handleAirdrop} variant="outline" className="bg-card/30">
+                <PlusIcon className="w-4 h-4" />
+                Airdrop {selectedToken.name}
+              </Button>
+            )}
+            <Select
+              defaultValue={selectedToken.publicKey.toBase58()}
+              onValueChange={value => {
+                setSelectedToken(
+                  tokens.find(token => token.publicKey.toBase58() === value) ?? tokens[0]
+                );
+              }}
+            >
+              <SelectTrigger className="w-36 md:w-40">
+                <SelectValue placeholder="Select token" />
+              </SelectTrigger>
+              <SelectContent>
+                {tokens.map(token => (
+                  <SelectItem key={token.publicKey.toBase58()} value={token.publicKey.toBase58()}>
+                    {token.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Content area */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-outline">
+          {/* Stats column */}
+          <div className="flex flex-col">
+            <div className="p-5 border-b border-outline">
+              <span className="text-sm text-white/60 font-medium">Vault TVL</span>
+              <div className="text-3xl tabular-nums font-mono font-semibold">
+                {tvl}
+                <span className="text-base pl-1 text-white/60 font-medium">
+                  {selectedToken?.name}
+                </span>
+              </div>
+            </div>
+            <div className="p-5">
+              <span className="text-sm text-white/60 font-medium">Your Deposited</span>
+              <div className="text-3xl tabular-nums font-mono font-semibold">
+                {amountDeposited}
+                <span className="text-base pl-1 text-white/60 font-medium">
+                  {selectedToken?.name}
+                </span>
+              </div>
             </div>
           </div>
 
-          {publicKey ? (
-            <>
-              <div className="grid grid-cols-2 max-md:grid-cols-1 gap-4 border">
-                {/* Left Panel */}
-                <div className="flex flex-col justify-between">
-                  <div className="flex flex-col p-5 ">
-                    <span className="text-sm text-neutral-600 font-medium">Vault TVL</span>
-                    <div className="text-3xl tabular-nums font-mono font-semibold">
-                      {tvl}
-                      <span className="text-base pl-1 text-neutral-600 font-medium">
-                        {selectedToken?.name}
-                      </span>
-                    </div>
-                  </div>
-                  <hr />
-                  <div className="flex flex-col p-5">
-                    <span className="text-sm text-neutral-600 font-medium">
-                      Your Deposited Amount
-                    </span>
-                    <div className="text-3xl tabular-nums font-mono font-semibold">
-                      {amountDeposited}
-                      <span className="text-base pl-1 text-neutral-600 font-medium">
-                        {selectedToken?.name}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Panel */}
-                <div className="flex flex-col p-5">
-                  <div className="flex italic items-center gap-2.5 mb-2.5">
-                    <span className="font-medium">Wallet Balance</span>
-                    <hr className="flex-1 border-primary/25" />
-                    <span className="tabular-nums font-mono font-semibold">
-                      {`${walletBalance} ${selectedToken?.name}`}
-                    </span>
-                  </div>
-                  <div className="flex items-end gap-2.5">
-                    <NumberInput
-                      className="flex-1"
-                      id="depositAmount"
-                      name="depositAmount"
-                      label="Deposit Amount"
-                      unit={selectedToken?.name}
-                      value={depositAmount.toString()}
-                      onValueChange={values => setDepositAmount(values.floatValue ?? 0)}
-                    />
-                    <Button
-                      className="w-36"
-                      onClick={depositTokens}
-                      disabled={depositAmount === 0 || depositAmount > walletBalance}
-                    >
-                      Deposit
-                      <LockKeyhole className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="flex items-end gap-2.5">
-                    <NumberInput
-                      className="flex-1"
-                      id="withdrawAmount"
-                      name="withdrawAmount"
-                      label="Withdraw Amount"
-                      unit={selectedToken?.name}
-                      value={withdrawAmount.toString()}
-                      onValueChange={values => setWithdrawAmount(values.floatValue ?? 0)}
-                    />
-                    <Button
-                      className="w-36"
-                      variant="secondary"
-                      onClick={withdrawTokens}
-                      disabled={withdrawAmount === 0 || withdrawAmount > amountDeposited}
-                    >
-                      Withdraw
-                      <LockKeyholeOpen className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <VaultStrategyList />
-            </>
-          ) : (
-            <div className="flex p-4 border">
-              <p>Wallet not connected</p>
+          {/* Actions column */}
+          <div className="flex flex-col">
+            {/* Wallet balance strip */}
+            <div className="flex items-center gap-2 px-5 py-4 border-b border-outline text-white/80">
+              <span className="font-medium">Wallet</span>
+              <div className="flex-1 h-px bg-white/20" />
+              <span className="tabular-nums font-mono font-semibold">
+                {walletBalance} {selectedToken?.name}
+              </span>
             </div>
-          )}
+
+            {/* Deposit */}
+            <div className="flex items-end gap-2.5 px-5 py-4 border-b border-outline">
+              <NumberInput
+                className="flex-1"
+                id="depositAmount"
+                name="depositAmount"
+                label="Deposit Amount"
+                unit={selectedToken?.name}
+                value={depositAmount.toString()}
+                onValueChange={values => setDepositAmount(values.floatValue ?? 0)}
+              />
+              <Button
+                className="w-36"
+                onClick={depositTokens}
+                disabled={depositAmount === 0 || depositAmount > walletBalance}
+              >
+                Deposit
+                <LockKeyhole className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Withdraw */}
+            <div className="flex items-end gap-2.5 px-5 py-4">
+              <NumberInput
+                className="flex-1"
+                id="withdrawAmount"
+                name="withdrawAmount"
+                label="Withdraw Amount"
+                unit={selectedToken?.name}
+                value={withdrawAmount.toString()}
+                onValueChange={values => setWithdrawAmount(values.floatValue ?? 0)}
+              />
+              <Button
+                className="w-36"
+                variant="secondary"
+                onClick={withdrawTokens}
+                disabled={withdrawAmount === 0 || withdrawAmount > amountDeposited}
+              >
+                Withdraw
+                <LockKeyholeOpen className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
         </div>
+
+        {/* Strategies */}
+        {publicKey ? (
+          <div className="border-t border-outline px-4 pb-6">
+            <VaultStrategyList />
+          </div>
+        ) : (
+          <div className="px-4 py-6 border-t border-outline text-white/80">
+            Wallet not connected
+          </div>
+        )}
       </div>
     </div>
   );
