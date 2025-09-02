@@ -53,70 +53,65 @@ function ChartContainerComponent() {
   const { data, error, refetch, isLoading } = useQuery<ExtendedOHLCVData[]>({
     queryKey: ['candlesticks', timeInterval, selectedMarket?.uuid],
     queryFn: async () => {
-      try {
-        if (!selectedMarket?.uuid) {
-          throw new Error('No market selected');
-        }
-
-        const { startTime, endTime } = getTimeRangeForInterval(timeInterval);
-
-        // Use the API format for interval as per documentation
-        const candleData = await fetchCandles(
-          {
-            interval: intervalToApiFormat[timeInterval], // Convert to API format (e.g., '1 hour')
-            startTime,
-            endTime,
-            marketId: selectedMarket.uuid,
-          },
-          true // Enable fallback to larger timeframes if needed
-        );
-
-        // Process the data
-        const processedData = candleData.map(item => {
-          try {
-            const time = item.time;
-
-            // Skip empty candles
-            if (
-              item.high === 0 &&
-              item.low === 0 &&
-              item.close === 0 &&
-              item.volume === 0 &&
-              item.open === 0
-            ) {
-              return { time };
-            }
-
-            // Check for gap-filled candles (all OHLC values are the same and volume is 0)
-            const isGapFilled =
-              item.isGapFilled ||
-              (item.open === item.high &&
-                item.high === item.low &&
-                item.low === item.close &&
-                item.volume === 0);
-
-            return {
-              time,
-              open: new BN(item.open).toNumber(),
-              high: new BN(item.high).toNumber(),
-              low: new BN(item.low).toNumber(),
-              close: new BN(item.close).toNumber(),
-              volume: new BN(item.volume).toNumber(),
-              isGapFilled,
-              gapFillMethod: item.gapFillMethod,
-            };
-          } catch (itemError) {
-            console.error('Error processing candle item:', itemError, item);
-            // Return a minimal valid item with just the time to avoid breaking the map function
-            return { time: item.time };
-          }
-        });
-
-        return processedData;
-      } catch (error) {
-        console.error('Error in chart data query function:', error);
-        throw error; // Re-throw to let React Query handle the error state
+      if (!selectedMarket?.uuid) {
+        throw new Error('No market selected');
       }
+
+      const { startTime, endTime } = getTimeRangeForInterval(timeInterval);
+
+      // Use the API format for interval as per documentation
+      const candleData = await fetchCandles(
+        {
+          interval: intervalToApiFormat[timeInterval], // Convert to API format (e.g., '1 hour')
+          startTime,
+          endTime,
+          marketId: selectedMarket.uuid,
+        },
+        true // Enable fallback to larger timeframes if needed
+      );
+
+      // Process the data
+      const processedData = candleData.map(item => {
+        try {
+          const time = item.time;
+
+          // Skip empty candles
+          if (
+            item.high === 0 &&
+            item.low === 0 &&
+            item.close === 0 &&
+            item.volume === 0 &&
+            item.open === 0
+          ) {
+            return { time };
+          }
+
+          // Check for gap-filled candles (all OHLC values are the same and volume is 0)
+          const isGapFilled =
+            item.isGapFilled ||
+            (item.open === item.high &&
+              item.high === item.low &&
+              item.low === item.close &&
+              item.volume === 0);
+
+          return {
+            time,
+            open: new BN(item.open).toNumber(),
+            high: new BN(item.high).toNumber(),
+            low: new BN(item.low).toNumber(),
+            close: new BN(item.close).toNumber(),
+            volume: new BN(item.volume).toNumber(),
+            isGapFilled,
+            gapFillMethod: item.gapFillMethod,
+          };
+        } catch {
+          // Silent error handling
+          // Return a minimal valid item with just the time to avoid breaking the map function
+          return { time: item.time };
+        }
+      });
+
+      return processedData;
     },
     refetchInterval: 500, // Refetch every 30 seconds
     enabled: !!selectedMarket?.uuid,
@@ -157,24 +152,21 @@ function ChartContainerComponent() {
   }, [data]);
 
   // Handle loading more historical data
-  const handleLoadMoreData = useCallback(
-    async (startTime: number, endTime: number) => {
-      if (!selectedMarket?.uuid) return;
+  const handleLoadMoreData = useCallback(async () => {
+    if (!selectedMarket?.uuid) return;
 
-      try {
-        console.log('Loading more historical data:', { startTime, endTime });
-        // Trigger refetch with the new time range
-        // In a real implementation, you would pass the custom time range to the query
-        // For now, we're just logging the parameters and doing a simple refetch
-        await refetch();
-      } catch (err) {
-        console.error('Failed to load historical data:', err);
-        // Show a toast or notification to the user
-        toast.error('Failed to load historical data. Please try again.');
-      }
-    },
-    [selectedMarket?.uuid, refetch]
-  );
+    try {
+      // Loading more historical data
+      // Trigger refetch with the new time range
+      // In a real implementation, you would pass the custom time range to the query
+      // For now, we're just doing a simple refetch
+      await refetch();
+    } catch {
+      // Silent error handling
+      // Show a toast or notification to the user
+      toast.error('Failed to load historical data. Please try again.');
+    }
+  }, [selectedMarket?.uuid, refetch]);
 
   // Function to render the chart header with interval selector
   const renderChartHeader = () => (

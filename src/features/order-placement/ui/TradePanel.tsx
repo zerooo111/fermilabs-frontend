@@ -43,8 +43,8 @@ const decimalToBN = (value: string, decimals: number): BN => {
     const normalized = combined.replace(/^0+/, '') || '0';
 
     return new BN(normalized);
-  } catch (e) {
-    console.error('Error converting decimal to BN:', e);
+  } catch {
+    // Silent error handling
     return new BN(0);
   }
 };
@@ -160,8 +160,8 @@ export function TradePanel() {
 
       await placeOrderIntent(intent);
       toast.success('Sell Order placed');
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Silent error handling
       toast.error('Failed to place order');
     } finally {
       setIsSelling(false);
@@ -201,8 +201,8 @@ export function TradePanel() {
 
       await placeOrderIntent(intent);
       toast.success('Buy Order placed');
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Silent error handling
       toast.error('Failed to place order');
     } finally {
       setIsBuying(false);

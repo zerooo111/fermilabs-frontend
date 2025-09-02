@@ -18,8 +18,7 @@ export const useWalletWithErrorHandling = () => {
     if (wallet.wallet && !wallet.connected) {
       try {
         await wallet.connect();
-      } catch (error) {
-        console.error('Failed to connect wallet:', error);
+      } catch {
         toast.error('Failed to connect wallet');
       }
     }
@@ -29,8 +28,7 @@ export const useWalletWithErrorHandling = () => {
     if (wallet.connected) {
       try {
         await wallet.disconnect();
-      } catch (error) {
-        console.error('Failed to disconnect wallet:', error);
+      } catch {
         toast.error('Failed to disconnect wallet');
       }
     }

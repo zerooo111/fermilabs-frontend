@@ -24,7 +24,7 @@ export function InitVaultFlow() {
       setTxn(txid);
       setVaultData(rest);
     } catch (err) {
-      console.error(err);
+      // Silent error handling
       // @ts-expect-error : err is not defined
       setError(err.message);
     }

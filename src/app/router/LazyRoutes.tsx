@@ -15,7 +15,6 @@ const LoadingPage = () => (
 // Lazy-loaded page components
 export const TradePage = lazy(() => import('@/pages/trade'));
 export const VaultPage = lazy(() => import('@/pages/vault'));
-export const VaultAdminPage = lazy(() => import('@/pages/vault-admin'));
 
 // Wrapper components with Suspense and ErrorBoundary
 export const LazyTradePage = () => (
@@ -30,14 +29,6 @@ export const LazyVaultPage = () => (
   <ErrorBoundary>
     <Suspense fallback={<LoadingPage />}>
       <VaultPage />
-    </Suspense>
-  </ErrorBoundary>
-);
-
-export const LazyVaultAdminPage = () => (
-  <ErrorBoundary>
-    <Suspense fallback={<LoadingPage />}>
-      <VaultAdminPage />
     </Suspense>
   </ErrorBoundary>
 );

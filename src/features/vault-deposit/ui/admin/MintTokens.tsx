@@ -46,7 +46,7 @@ export function MintTokens() {
 
       setWalletBalance(fetchWalletBalance);
     } catch (err) {
-      console.error(err);
+      // Silent error handling
       // @ts-expect-error : err is not defined
       toast.error(err?.message ?? 'Unknown error:: check console');
     }
@@ -87,7 +87,7 @@ export function MintTokens() {
 
       setMintTx(mintTx);
     } catch (err) {
-      console.error(err);
+      // Silent error handling
       // @ts-expect-error : err is not defined
       toast.error(err?.message ?? 'Unknown error:: check console');
     }

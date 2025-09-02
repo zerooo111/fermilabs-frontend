@@ -67,8 +67,8 @@ export async function sendTransaction(
   if (opts?.postSendTxCallback !== undefined && opts?.postSendTxCallback !== null) {
     try {
       opts.postSendTxCallback({ txid: signature });
-    } catch (e) {
-      console.warn(`postSendTxCallback error`, e);
+    } catch {
+      // Silent error handling
     }
   }
 
@@ -89,7 +89,7 @@ export async function sendTransaction(
     status = (await connection.confirmTransaction(signature, txConfirmationCommitment)).value;
   }
   if (status.err !== '' && status.err !== null) {
-    console.warn('Tx status: ', status);
+    // Silent error handling
     throw new OpenBookError({
       txid: signature,
       message: `${JSON.stringify(status)}`,

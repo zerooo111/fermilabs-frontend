@@ -40,8 +40,8 @@ export function useMarketTokenBalances() {
         .toString();
 
       return { baseBalance, quoteBalance };
-    } catch (error) {
-      console.error('Error fetching market token balances:', error);
+    } catch {
+      // Silent error handling
       return { baseBalance: '0', quoteBalance: '0' };
     }
   }, [publicKey, connected, connection, selectedMarket]);

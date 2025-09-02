@@ -4,8 +4,8 @@ export function Notepad() {
   const [text, setText] = useState(() => {
     try {
       return localStorage.getItem('notepadText') || '';
-    } catch (error) {
-      console.error('Failed to retrieve from localStorage:', error);
+    } catch {
+      // Silent error handling
       return '';
     }
   });
@@ -13,8 +13,8 @@ export function Notepad() {
   useEffect(() => {
     try {
       localStorage.setItem('notepadText', text);
-    } catch (error) {
-      console.error('Failed to save to localStorage:', error);
+    } catch {
+      // Silent error handling
     }
   }, [text]);
 

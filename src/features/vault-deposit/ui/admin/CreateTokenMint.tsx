@@ -26,7 +26,7 @@ export function CreateTokenMintFlow() {
       setTokenMint(mintAddress);
       setTokenMintTx(signature);
     } catch (err) {
-      console.error(err);
+      // Silent error handling
       // @ts-expect-error : err is not defined
       toast.error(err?.message ?? 'Failed to create mint');
     }

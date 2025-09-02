@@ -42,8 +42,8 @@ function TradePage() {
           selectMarket(currentMarket?.uuid || markets[0].uuid);
           initialLoadRef.current = true;
         });
-      } catch (error) {
-        console.error('Failed to load markets:', error);
+      } catch {
+        // Silent error handling
       }
     };
 

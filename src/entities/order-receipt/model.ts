@@ -32,8 +32,7 @@ const deserializeMap = (str: string | null): Map<string, OrderReceipt> => {
   try {
     const entries = JSON.parse(str);
     return new Map(entries);
-  } catch (e) {
-    console.error('Error deserializing order receipts:', e);
+  } catch {
     return new Map();
   }
 };

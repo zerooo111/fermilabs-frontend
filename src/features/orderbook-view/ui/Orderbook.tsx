@@ -45,7 +45,7 @@ export function Orderbook() {
 
   useEffect(() => {
     if (selectedMarket) {
-      console.debug('orderbook', processedOrderbook);
+      // Orderbook effect
     }
   }, [selectedMarket, processedOrderbook]);
 

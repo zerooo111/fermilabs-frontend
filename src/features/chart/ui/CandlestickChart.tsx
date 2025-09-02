@@ -229,7 +229,7 @@ function CandlestickChartComponent({ data, interval, colors, className }: ChartC
 
         // Validate that time is a valid number
         if (isNaN(timeValue)) {
-          console.error('Invalid time value:', item.time);
+          // Silent error handling
           return; // Skip this item
         }
 
@@ -315,34 +315,21 @@ function CandlestickChartComponent({ data, interval, colors, className }: ChartC
         return timeA - timeB;
       });
 
-      // Log any filtered out data points
+      // Silent handling of filtered out data points
       if (transformedData.length !== validTransformedData.length) {
-        console.warn(
-          `Filtered out ${transformedData.length - validTransformedData.length} invalid candlestick data points`
-        );
+        // Silent error handling
       }
 
       if (volumeData.length !== validVolumeData.length) {
-        console.warn(
-          `Filtered out ${volumeData.length - validVolumeData.length} invalid volume data points`
-        );
+        // Silent error handling
       }
 
       try {
         // Set the data with error handling
         candlestickSeries.setData(validTransformedData);
         volumeSeries.setData(validVolumeData);
-      } catch (error) {
-        console.error('Error setting chart data:', error);
-        console.error('Data that caused the error:', {
-          validDataLength: validTransformedData.length,
-          validVolumeLength: validVolumeData.length,
-          firstCandlestick: validTransformedData.length > 0 ? validTransformedData[0] : null,
-          lastCandlestick:
-            validTransformedData.length > 0
-              ? validTransformedData[validTransformedData.length - 1]
-              : null,
-        });
+      } catch {
+        // Silent error handling
       }
 
       return () => {
@@ -353,12 +340,12 @@ function CandlestickChartComponent({ data, interval, colors, className }: ChartC
             seriesRef.current = null;
             volumeSeriesRef.current = null;
           }
-        } catch (cleanupError) {
-          console.error('Error during chart cleanup:', cleanupError);
+        } catch {
+          // Silent error handling
         }
       };
-    } catch (chartError) {
-      console.error('Error creating or updating chart:', chartError);
+    } catch {
+      // Silent error handling
     }
   }, [
     data,
