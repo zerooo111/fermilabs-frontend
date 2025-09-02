@@ -59,7 +59,7 @@ const strategies: VaultStrategy[] = [
     name: 'Drift',
     tvl: 2000000,
     apr: 9,
-    logo: 'https://pbs.twimg.com/profile_images/1884910583621042176/mdGXo6iq_400x400.png',
+    logo: 'https://cryptocurrencyjobs.co/startups/assets/logos/drift-protocol.34f245fe34eb2fce4344bf10796187af86862783027318b633c7432ce49c7025.png',
     link: 'https://drift.trade',
   },
   {
