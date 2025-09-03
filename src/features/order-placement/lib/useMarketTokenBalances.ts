@@ -23,9 +23,8 @@ export function useMarketTokenBalances() {
       const balancesResponse = await fetchUserBalances(publicKey.toString());
 
       // Get the token balances for the selected market
-      const baseTokenBalance = balancesResponse.balances[selectedMarket.base_mint];
-      const quoteTokenBalance = balancesResponse.balances[selectedMarket.quote_mint];
-      console.log(selectedMarket);
+      const baseTokenBalance = balancesResponse.balances[selectedMarket.baseTokenName];
+      const quoteTokenBalance = balancesResponse.balances[selectedMarket.quoteTokenName];
 
       // Convert to human-readable format using dynamic decimals based on token name
       const baseDecimals = getTokenDecimals(selectedMarket?.baseTokenName);
@@ -34,6 +33,7 @@ export function useMarketTokenBalances() {
       const baseBalance = baseTokenBalance
         ? (Number(baseTokenBalance.available) / Math.pow(10, baseDecimals)).toString()
         : '0';
+
       const quoteBalance = quoteTokenBalance
         ? (Number(quoteTokenBalance.available) / Math.pow(10, quoteDecimals)).toString()
         : '0';

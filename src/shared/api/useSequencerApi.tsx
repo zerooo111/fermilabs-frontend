@@ -226,13 +226,15 @@ export function useSequencerApi() {
     const apiBaseUrl = config.devnet.apiBaseUrl;
     const url = `${apiBaseUrl}/me/balances/${pubkey}`;
 
-    const { data, error } = await tryCatch<AxiosResponse<UserBalancesResponse>>(axios.get(url));
+    const { data, error } = await tryCatch<AxiosResponse<{ data: UserBalancesResponse }>>(
+      axios.get(url)
+    );
 
     if (error) {
       throw error;
     }
 
-    return data.data;
+    return data.data.data;
   }, []);
 
   const requestAirdrop = useCallback(
