@@ -113,7 +113,7 @@ export function TradePanel() {
 
     // const receipt = await submitOrderToSequencer(transactionData);
     const receipt = await axios
-      .post(`${config.devnet.apiBaseUrl}/api/v1/tx`, {
+      .post(`${config.devnet.apiBaseUrl}/tx`, {
         transaction: transactionData,
       })
       .then(res => res.data);
