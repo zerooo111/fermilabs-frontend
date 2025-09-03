@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey } from '@solana/web3.js';
-import { baseMint, quoteMint } from '@/shared/config/constants';
+import { baseMint, config, quoteMint } from '@/shared/config/constants';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
 import { useSelectedMarket } from '@/entities/market';
@@ -113,7 +113,7 @@ export function TradePanel() {
 
     // const receipt = await submitOrderToSequencer(transactionData);
     const receipt = await axios
-      .post('https://explorer.fermilabs.xyz/api/v1/tx', {
+      .post(`${config.devnet.apiBaseUrl}/api/v1/tx`, {
         transaction: transactionData,
       })
       .then(res => res.data);

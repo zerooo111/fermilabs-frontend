@@ -3,6 +3,7 @@
  * Defines market-related state and operations
  * Completely refactored to avoid circular dependencies
  */
+import { config } from '@/shared/config/constants';
 import { tryCatch } from '@/shared/lib/try-catch';
 import axios, { AxiosResponse } from 'axios';
 import { atom, useAtom } from 'jotai';
@@ -75,7 +76,7 @@ export const useSelectedMarket = () => {
 
     try {
       const { data, error } = await tryCatch<AxiosResponse<any>>(
-        axios.get(`https://explorer.fermilabs.xyz/api/v1/me/markets`)
+        axios.get(`${config.devnet.apiBaseUrl}/me/markets`)
       );
 
       if (error) throw error;
