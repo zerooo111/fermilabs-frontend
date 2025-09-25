@@ -14,13 +14,22 @@ export function Header() {
             FermiLabs
           </Link>
           <Link
-            to="/trade"
+            to="/spot"
             className={cn(
               'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
-              location.pathname === '/trade' && 'text-white'
+              location.pathname === '/spot' && 'text-white'
             )}
           >
-            Trade
+            Spot
+          </Link>
+          <Link
+            to="/perps"
+            className={cn(
+              'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
+              location.pathname === '/perps' && 'text-white'
+            )}
+          >
+            Perps
           </Link>
 
           <Link

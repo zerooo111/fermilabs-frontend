@@ -1,6 +1,6 @@
 /**
- * Trade page
- * Main trading interface
+ * Perps page
+ * Main perpetual contracts trading interface
  * Completely refactored to avoid circular dependencies
  */
 import { useLayoutEffect, useEffect, useRef, memo } from 'react';
@@ -8,16 +8,16 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { Orderbook } from '../../features/orderbook-view';
 import { ChartContainer } from '../../features/chart';
-import { SpotTradePanel, OrdersAndTradesTab } from '../../features/order-placement';
+import { PerpsTradePanel, OrdersAndTradesTab } from '../../features/order-placement';
 import { useSelectedMarket } from '@/entities/market';
 
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
 const MemoizedChartContainer = memo(ChartContainer);
-const MemoizedSpotTradePanel = memo(SpotTradePanel);
+const MemoizedPerpsTradePanel = memo(PerpsTradePanel);
 const MemoizedOrdersAndTradesTab = memo(OrdersAndTradesTab);
 
-function TradePage() {
+function PerpsPage() {
   const navigate = useNavigate();
   const params = useParams();
   const initialLoadRef = useRef(false);
@@ -53,7 +53,7 @@ function TradePage() {
   // Update URL when selected market changes - but only after initial load
   useEffect(() => {
     if (selectedMarketId && initialLoadRef.current) {
-      navigate(`/spot/${selectedMarketId}`, { replace: true }); // Use replace to avoid browser history buildup
+      navigate(`/perps/${selectedMarketId}`, { replace: true }); // Use replace to avoid browser history buildup
     }
   }, [selectedMarketId, navigate]);
 
@@ -64,7 +64,7 @@ function TradePage() {
           <MemoizedChartContainer />
         </div>
         <MemoizedOrderbook />
-        <MemoizedSpotTradePanel />
+        <MemoizedPerpsTradePanel />
       </div>
       <div className="flex-1 flex flex-col  border-t border-outline">
         <MemoizedOrdersAndTradesTab />
@@ -74,4 +74,4 @@ function TradePage() {
 }
 
 // Memoize the entire page component if it's wrapped in any providers
-export default memo(TradePage);
+export default memo(PerpsPage);

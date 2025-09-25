@@ -50,7 +50,7 @@ const decimalToBN = (value: string, decimals: number): BN => {
   }
 };
 
-export function TradePanel() {
+export function SpotTradePanel() {
   const [formState, setFormState] = useState({
     price: '',
     size: '',

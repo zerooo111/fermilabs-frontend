@@ -14,6 +14,7 @@ const LoadingPage = () => (
 
 // Lazy-loaded page components
 export const TradePage = lazy(() => import('@/pages/trade'));
+export const PerpsPage = lazy(() => import('@/pages/perps'));
 export const VaultPage = lazy(() => import('@/pages/vault'));
 
 // Wrapper components with Suspense and ErrorBoundary
@@ -21,6 +22,14 @@ export const LazyTradePage = () => (
   <ErrorBoundary>
     <Suspense fallback={<LoadingPage />}>
       <TradePage />
+    </Suspense>
+  </ErrorBoundary>
+);
+
+export const LazyPerpsPage = () => (
+  <ErrorBoundary>
+    <Suspense fallback={<LoadingPage />}>
+      <PerpsPage />
     </Suspense>
   </ErrorBoundary>
 );
