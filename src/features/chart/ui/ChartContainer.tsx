@@ -3,7 +3,8 @@
  * Optimized with memoization for better performance
  * Updated to use the Graph API according to documentation
  */
-import { useState, useCallback, memo, useMemo } from 'react';
+import { useState, useCallback, memo, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CandlestickChart } from '@/features/chart/ui/CandlestickChart';
 import { MarketSelector } from '@/features/market-selector';
@@ -18,7 +19,7 @@ import { BN } from '@coral-xyz/anchor';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { Button } from '@/shared/ui/button';
 import { useAtomValue } from 'jotai';
-import { selectedMarketAtom, useSelectedMarket } from '@/entities/market';
+import { selectedMarketAtom, useSelectedMarket, MarketKind, marketsAtom } from '@/entities/market';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -33,9 +34,34 @@ const INTERVALS: { label: string; value: TimeInterval }[] = [
 ];
 
 function ChartContainerComponent() {
+  const location = useLocation();
   const selectedMarket = useAtomValue(selectedMarketAtom);
+  const allMarkets = useAtomValue(marketsAtom);
   const { selectMarket, selectedMarketId } = useSelectedMarket();
   const [timeInterval, setTimeInterval] = useState<TimeInterval>(INTERVALS[0].value);
+
+  // Determine market kind based on current route
+  const marketKind = useMemo<MarketKind>(() => {
+    return location.pathname.startsWith('/perps') ? 'perp' : 'spot';
+  }, [location.pathname]);
+
+  // Filter markets by kind
+  const filteredMarkets = useMemo(() => {
+    return allMarkets.filter(market => market.kind === marketKind);
+  }, [allMarkets, marketKind]);
+
+  // Auto-select first market when filtered markets change and no market is selected,
+  // or when the currently selected market is not in the filtered markets
+  useEffect(() => {
+    if (filteredMarkets.length > 0) {
+      const isCurrentMarketInFiltered = filteredMarkets.some(
+        market => market.uuid === selectedMarketId
+      );
+      if (!selectedMarketId || !isCurrentMarketInFiltered) {
+        selectMarket(filteredMarkets[0].uuid);
+      }
+    }
+  }, [filteredMarkets, selectedMarketId, selectMarket]);
 
   // Memoize the interval change handler
   const handleIntervalChange = useCallback((value: string) => {
@@ -176,6 +202,7 @@ function ChartContainerComponent() {
           isLoading={false}
           selectedMarketId={selectedMarketId}
           onMarketSelect={handleMarketSelect}
+          marketKind={marketKind}
         />
       </div>
       <div className="flex items-center flex-1 h-full divide-x divide-outline">

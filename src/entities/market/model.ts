@@ -10,14 +10,83 @@ import { atom, useAtom } from 'jotai';
 import { useCallback, useRef, useMemo } from 'react';
 
 // Market types
+export type MarketKind = 'spot' | 'perp';
+
+export interface PerpConfig {
+  initial_margin: number;
+  maintenance_margin: number;
+  liquidation_penalty: number;
+  max_leverage_tiers: Array<{
+    notional: number;
+    max_leverage: number;
+  }>;
+  funding_interval_seconds: number;
+  funding_rate_cap_bps: number;
+  funding_interest_rate_bps: number;
+  funding_premium_cap_bps: number;
+  funding_oracle: string | null;
+}
+
+export interface LeverageLimits {
+  min: number;
+  max: number;
+  recommended: number[];
+}
+
+/**
+ * Get leverage limits from market configuration
+ */
+export function getLeverageLimitsFromMarket(market: Market): LeverageLimits | null {
+  if (market.kind !== 'perp' || !market.perp_config) {
+    return null;
+  }
+
+  const tiers = market.perp_config.max_leverage_tiers;
+  if (!tiers || tiers.length === 0) {
+    return null;
+  }
+
+  // Sort tiers by notional size ascending
+  const sortedTiers = [...tiers].sort((a, b) => a.notional - b.notional);
+
+  // The max leverage is the highest leverage available (typically from the highest tier)
+  const maxLeverage = Math.max(...sortedTiers.map(tier => tier.max_leverage));
+
+  // Min leverage is typically 1
+  const minLeverage = 1;
+
+  // Recommended leverages - could be based on common values or tier boundaries
+  const recommended = [1, 2, 5, 10, 25, 50, 100].filter(l => l <= maxLeverage);
+
+  return {
+    min: minLeverage,
+    max: maxLeverage,
+    recommended,
+  };
+}
+
+export interface PerpState {
+  mark_price: number | null;
+  mark_price_timestamp: number | null;
+  index_price: number | null;
+  index_price_timestamp: number | null;
+  last_premium_rate_bps: number | null;
+  last_funding_rate_bps: number | null;
+  last_funding_timestamp: number | null;
+  next_funding_timestamp: number | null;
+}
+
 export interface Market {
   uuid: string;
   name: string;
   base_mint: string;
   quote_mint: string;
+  created_at: number;
+  kind: MarketKind;
+  perp_config: PerpConfig | null;
+  perp_state: PerpState | null;
   // base_decimals: number;
   // quote_decimals: number;
-  [key: string]: any;
 }
 
 // Enhanced market type with parsed token names

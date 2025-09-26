@@ -16,15 +16,25 @@ export function useMarketTokenBalances() {
 
   const fetchBalances = useCallback(async () => {
     if (!publicKey || !connected || !selectedMarket) {
-      return { baseBalance: '0', quoteBalance: '0' };
+      return {
+        baseBalance: '0',
+        quoteBalance: '0',
+        baseMint: '',
+        quoteMint: '',
+      };
     }
 
     try {
       const balancesResponse = await fetchUserBalances(publicKey.toString());
 
-      // Get the token balances for the selected market
-      const baseTokenBalance = balancesResponse.balances[selectedMarket.baseTokenName];
-      const quoteTokenBalance = balancesResponse.balances[selectedMarket.quoteTokenName];
+      // Find balances by mint address instead of token name
+      const balances = balancesResponse.balances;
+      const baseTokenBalance = Object.values(balances).find(
+        (balance: any) => balance.mint === selectedMarket.base_mint
+      ) as any;
+      const quoteTokenBalance = Object.values(balances).find(
+        (balance: any) => balance.mint === selectedMarket.quote_mint
+      ) as any;
 
       // Convert to human-readable format using dynamic decimals based on token name
       const baseDecimals = getTokenDecimals(selectedMarket?.baseTokenName);
@@ -38,10 +48,24 @@ export function useMarketTokenBalances() {
         ? (Number(quoteTokenBalance.available) / Math.pow(10, quoteDecimals)).toString()
         : '0';
 
-      return { baseBalance, quoteBalance };
+      // Get mint addresses (should match the market mints if found)
+      const baseMint = baseTokenBalance?.mint || selectedMarket.base_mint || '';
+      const quoteMint = quoteTokenBalance?.mint || selectedMarket.quote_mint || '';
+
+      return {
+        baseBalance,
+        quoteBalance,
+        baseMint,
+        quoteMint,
+      };
     } catch {
       // Silent error handling
-      return { baseBalance: '0', quoteBalance: '0' };
+      return {
+        baseBalance: '0',
+        quoteBalance: '0',
+        baseMint: '',
+        quoteMint: '',
+      };
     }
   }, [publicKey, connected, selectedMarket, fetchUserBalances]);
 
@@ -59,7 +83,12 @@ export function useMarketTokenBalances() {
   });
 
   return {
-    balances: data || { baseBalance: '0', quoteBalance: '0' },
+    balances: data || {
+      baseBalance: '0',
+      quoteBalance: '0',
+      baseMint: '',
+      quoteMint: '',
+    },
     isLoading,
     error,
     refetch,

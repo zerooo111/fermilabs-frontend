@@ -11,20 +11,23 @@ import { useSequencerApi } from '@/shared/api/useSequencerApi';
 export interface OrderbookItem {
   order_count: number;
   price: number;
-  quantity: number;
   total_quantity: number;
 }
 
 export interface Orderbook {
-  buys: OrderbookItem[];
-  sells: OrderbookItem[];
+  asks: OrderbookItem[];
+  bids: OrderbookItem[];
+  last_trade_price: number;
+  timestamp: number;
   lastUpdated: Date;
 }
 
 // Orderbook state atom
 export const orderbookAtom = atom<Orderbook>({
-  buys: [],
-  sells: [],
+  asks: [],
+  bids: [],
+  last_trade_price: 0,
+  timestamp: 0,
   lastUpdated: new Date(),
 });
 
@@ -38,8 +41,10 @@ export const useOrderbook = () => {
   // Clear orderbook when market changes
   useEffect(() => {
     setOrderbook({
-      buys: [],
-      sells: [],
+      asks: [],
+      bids: [],
+      last_trade_price: 0,
+      timestamp: 0,
       lastUpdated: new Date(),
     });
     lastUpdateTimeRef.current = 0; // Reset the update time
@@ -63,12 +68,11 @@ export const useOrderbook = () => {
       lastUpdateTimeRef.current = fetchStartTime;
 
       // No need to filter by mint since the API already returns market-specific data
-      const filteredBuys = orderbook.buys;
-      const filteredSells = orderbook.sells;
-
       setOrderbook({
-        buys: filteredBuys,
-        sells: filteredSells,
+        asks: orderbook.asks || [],
+        bids: orderbook.bids || [],
+        last_trade_price: orderbook.last_trade_price,
+        timestamp: orderbook.timestamp,
         lastUpdated: new Date(),
       });
     }

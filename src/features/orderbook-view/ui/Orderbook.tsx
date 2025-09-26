@@ -35,7 +35,7 @@ export function Orderbook() {
     const processed = processOrderbook(
       orderbook,
       orderbookRows,
-      undefined,
+      orderbook?.last_trade_price,
       undefined,
       selectedMarket?.quoteTokenName,
       selectedMarket?.baseTokenName

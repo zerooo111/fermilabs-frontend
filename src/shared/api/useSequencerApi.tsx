@@ -71,12 +71,23 @@ export interface Trade {
 
 export interface TokenBalance {
   available: number;
-  balance: number;
-  in_orders: number;
+  locked: number;
+  mint: string;
+  total: number;
 }
 
 export interface UserBalancesResponse {
   balances: Record<string, TokenBalance>;
+  margin_metrics: {
+    available_withdrawal: string;
+    equity: string;
+    free_collateral: string;
+    initial_margin: string;
+    maintenance_margin: string;
+    realized_pnl: string;
+    reserved_margin: string;
+    unrealized_pnl: string;
+  };
   user: string;
 }
 
@@ -156,7 +167,7 @@ export function useSequencerApi() {
     [baseUrl]
   );
 
-  const fetchOrderbook = useCallback(async (marketId: string): Promise<Orderbook> => {
+  const fetchOrderbook = useCallback(async (marketId: string): Promise<OrderbookSummary> => {
     const apiBaseUrl = config.devnet.apiBaseUrl;
     const url = `${apiBaseUrl}/me/markets/${marketId}/orderbook/summary`;
 
@@ -166,28 +177,8 @@ export function useSequencerApi() {
       throw error;
     }
 
-    // Extract the orderbook data from the response
-    const responseData = data.data;
-
-    // Transform the API response to match our internal structure
-    const orderbook: Orderbook = {
-      buys:
-        responseData.bids.map(bid => ({
-          order_count: bid.order_count,
-          price: bid.price,
-          quantity: bid.total_quantity,
-          total_quantity: bid.total_quantity,
-        })) || [],
-      sells:
-        responseData.asks.map(ask => ({
-          order_count: ask.order_count,
-          price: ask.price,
-          quantity: ask.total_quantity,
-          total_quantity: ask.total_quantity,
-        })) || [],
-    };
-
-    return orderbook;
+    // Return the orderbook data directly from the response
+    return data.data;
   }, []);
 
   const fetchUserOrders = useCallback(async (pubkey: string): Promise<Order[]> => {
@@ -226,9 +217,9 @@ export function useSequencerApi() {
     const apiBaseUrl = config.devnet.apiBaseUrl;
     const url = `${apiBaseUrl}/me/balances/${pubkey}`;
 
-    const { data, error } = await tryCatch<AxiosResponse<{ data: UserBalancesResponse }>>(
-      axios.get(url)
-    );
+    const { data, error } = await tryCatch<
+      AxiosResponse<{ code: number; data: UserBalancesResponse; message: string }>
+    >(axios.get(url));
 
     if (error) {
       throw error;

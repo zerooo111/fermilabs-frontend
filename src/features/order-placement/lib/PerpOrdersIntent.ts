@@ -3,9 +3,9 @@ import { PublicKey } from '@solana/web3.js';
 import * as borsh from '@coral-xyz/borsh';
 
 export type OrderSide = 'Buy' | 'Sell';
-export type MarketKind = 'Perp';
-export type PositionEffect = 'Open' | 'Close';
-export type MarginMode = 'Isolated' | 'Cross';
+export type MarketKind = 'perp';
+export type PositionEffect = 'open' | 'Close';
+export type MarginMode = 'isolated' | 'Cross';
 
 export class PerpOrderIntent {
   constructor(
@@ -50,25 +50,43 @@ export class PerpOrderIntent {
   }
 
   static serialize(intent: PerpOrderIntent) {
-    const buffer = Buffer.alloc(PerpOrderIntent.layout().span);
     const sideValue = intent.side === 'Buy' ? 0 : 1;
     // Rust MarketKind enum order is: Spot=0, Perp=1
     const marketKindValue = intent.market_kind === 'Perp' ? 1 : 0;
+
     const positionEffectValue =
       intent.position_effect === null ? null : intent.position_effect === 'Open' ? 0 : 1;
+
     // Rust MarginMode enum order is: Cross=0, Isolated=1
     const marginModeValue =
       intent.margin_mode === null ? null : intent.margin_mode === 'Isolated' ? 1 : 0;
 
     const serializable = {
-      ...intent,
+      order_id: intent.order_id,
+      owner: intent.owner,
       side: sideValue,
+      price: intent.price,
+      quantity: intent.quantity,
+      expiry: intent.expiry,
+      base_mint: intent.base_mint,
+      quote_mint: intent.quote_mint,
       market_kind: marketKindValue,
+      leverage: intent.leverage,
       position_effect: positionEffectValue,
+      reduce_only: intent.reduce_only,
       margin_mode: marginModeValue,
+      margin_amount: intent.margin_amount,
+      liquidation: intent.liquidation,
     };
-    PerpOrderIntent.layout().encode(serializable, buffer);
-    return buffer;
+
+    // Since borsh.option() creates variable-size structures, we need to encode first
+    // to determine the actual size, then return the properly sized buffer
+    const tempBuffer = Buffer.alloc(1024); // Large enough buffer for any perp order
+    const layout = PerpOrderIntent.layout();
+    const span = layout.encode(serializable, tempBuffer);
+    const resultBuffer = tempBuffer.subarray(0, span);
+
+    return resultBuffer;
   }
 
   static deserialize(buffer: Buffer): PerpOrderIntent {
@@ -80,7 +98,7 @@ export class PerpOrderIntent {
     const position_effect =
       decoded.position_effect === null ? null : decoded.position_effect === 0 ? 'Open' : 'Close';
     const margin_mode =
-      decoded.margin_mode === null ? null : decoded.margin_mode === 0 ? 'Isolated' : 'Cross';
+      decoded.margin_mode === null ? null : decoded.margin_mode === 0 ? 'Cross' : 'Isolated';
 
     return new PerpOrderIntent(
       decoded.order_id,

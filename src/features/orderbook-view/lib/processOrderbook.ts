@@ -225,7 +225,7 @@ const aggregateOrders = (
 
   orders.forEach(order => {
     const priceBN = toBN(order.price);
-    const quantityBN = toBN(order.quantity);
+    const quantityBN = toBN(order.total_quantity);
 
     if (!priceBN || !quantityBN) {
       // Silent error handling
@@ -308,18 +308,18 @@ const calculatePriceDeviation = (
  * @param orderbook The raw order book data from the source, or null if not yet loaded.
  * @param maxRows The maximum number of rows to display per side (bids/asks).
  * @param lastTradedPrice Optional last traded price for additional processing.
- * @param quantityThreshold Optional minimum quantity threshold (normalized value).
+ * @param quantityThreshold Optional minimum quantity threshold (normalized value). Use 0 to show all orders.
  * @returns A ProcessedOrderbook object ready for the UI.
  */
 export const processOrderbook = (
   orderbook: Orderbook | null,
   maxRows: number = DEFAULT_ORDERBOOK_ROWS,
   lastTradedPrice?: number,
-  quantityThreshold: number = MIN_DISPLAY_QUANTITY,
+  quantityThreshold: number = 0,
   quoteTokenName?: string,
   baseTokenName?: string
 ): ProcessedOrderbook => {
-  if (!orderbook || !orderbook.buys || !orderbook.sells) {
+  if (!orderbook || !orderbook.asks || !orderbook.bids) {
     return {
       buys: Array(maxRows).fill(null),
       sells: Array(maxRows).fill(null),
@@ -331,34 +331,34 @@ export const processOrderbook = (
 
   // Filter out orders below the quantity threshold
   const baseDecimals = getTokenDecimals(baseTokenName);
-  const filteredBuys = orderbook.buys.filter(order => {
-    const normalizedQuantity = Number(order.quantity) / Math.pow(10, baseDecimals);
+  const filteredBids = orderbook.bids.filter(order => {
+    const normalizedQuantity = Number(order.total_quantity) / Math.pow(10, baseDecimals);
     return normalizedQuantity >= quantityThreshold;
   });
 
-  const filteredSells = orderbook.sells.filter(order => {
-    const normalizedQuantity = Number(order.quantity) / Math.pow(10, baseDecimals);
+  const filteredAsks = orderbook.asks.filter(order => {
+    const normalizedQuantity = Number(order.total_quantity) / Math.pow(10, baseDecimals);
     return normalizedQuantity >= quantityThreshold;
   });
 
-  const buys = aggregateOrders(
-    filteredBuys,
+  const bids = aggregateOrders(
+    filteredBids,
     (a, b) => b - a,
     maxRows,
     lastTradedPrice,
     quoteTokenName
   );
-  const sells = aggregateOrders(
-    filteredSells,
+  const asks = aggregateOrders(
+    filteredAsks,
     (a, b) => a - b,
     maxRows,
     lastTradedPrice,
     quoteTokenName
   );
 
-  const lastBuyTotal = buys.length > 0 ? buys[buys.length - 1].total : new BN(0);
-  const lastSellTotal = sells.length > 0 ? sells[sells.length - 1].total : new BN(0);
-  const maxDepth = lastBuyTotal.gt(lastSellTotal) ? lastBuyTotal : lastSellTotal;
+  const lastBidTotal = bids.length > 0 ? bids[bids.length - 1].total : new BN(0);
+  const lastAskTotal = asks.length > 0 ? asks[asks.length - 1].total : new BN(0);
+  const maxDepth = lastBidTotal.gt(lastAskTotal) ? lastBidTotal : lastAskTotal;
 
   const calculateDepth = (orders: AggregatedOrder[]) => {
     orders.forEach(order => {
@@ -376,19 +376,19 @@ export const processOrderbook = (
     });
   };
 
-  calculateDepth(buys);
-  calculateDepth(sells);
+  calculateDepth(bids);
+  calculateDepth(asks);
 
-  const filledBuys = [...buys, ...Array(Math.max(0, maxRows - buys.length)).fill(null)];
-  const filledSells = [...sells, ...Array(Math.max(0, maxRows - sells.length)).fill(null)];
+  const filledBids = [...bids, ...Array(Math.max(0, maxRows - bids.length)).fill(null)];
+  const filledAsks = [...asks, ...Array(Math.max(0, maxRows - asks.length)).fill(null)];
 
-  const bestAsk = filledSells[0]?.price;
-  const bestBid = filledBuys[0]?.price;
+  const bestAsk = filledAsks[0]?.price;
+  const bestBid = filledBids[0]?.price;
   const spread = bestAsk !== undefined && bestBid !== undefined ? bestAsk - bestBid : 0;
 
   let nearestPriceLevel: number | undefined;
   if (lastTradedPrice) {
-    const allPriceLevels = [...buys, ...sells]
+    const allPriceLevels = [...bids, ...asks]
       .filter((order): order is AggregatedOrder => order !== null)
       .map(order => order.price);
 
@@ -402,8 +402,8 @@ export const processOrderbook = (
   }
 
   return {
-    buys: filledBuys,
-    sells: filledSells,
+    buys: filledBids,
+    sells: filledAsks,
     spread,
     lastUpdated: orderbook.lastUpdated,
     maxDepth,

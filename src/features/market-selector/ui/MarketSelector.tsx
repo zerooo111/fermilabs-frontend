@@ -6,24 +6,37 @@
 import { memo, useMemo, useCallback } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { Loader2 } from 'lucide-react';
-import { marketsAtom } from '@/entities/market';
+import { marketsAtom, MarketKind } from '@/entities/market';
 import { useAtomValue } from 'jotai';
 
 interface MarketSelectorProps {
   selectedMarketId: string | null;
   onMarketSelect: (marketId: string) => void;
   isLoading: boolean;
+  marketKind?: MarketKind; // Optional filter for market type
 }
 
-function MarketSelectorBase({ selectedMarketId, onMarketSelect, isLoading }: MarketSelectorProps) {
-  const markets = useAtomValue(marketsAtom);
+function MarketSelectorBase({
+  selectedMarketId,
+  onMarketSelect,
+  isLoading,
+  marketKind,
+}: MarketSelectorProps) {
+  const allMarkets = useAtomValue(marketsAtom);
+
+  // Filter markets by kind if specified
+  const markets = useMemo(() => {
+    if (!marketKind) return allMarkets;
+    return allMarkets.filter(market => market.kind === marketKind);
+  }, [allMarkets, marketKind]);
 
   // Memoize the market items to prevent unnecessary recalculation
   const marketItems = useMemo(() => {
     if (markets.length === 0) {
+      const marketTypeText = marketKind ? `${marketKind} ` : '';
       return (
         <SelectItem value="no-markets" disabled>
-          No markets available
+          No {marketTypeText}markets available
         </SelectItem>
       );
     }
@@ -33,7 +46,7 @@ function MarketSelectorBase({ selectedMarketId, onMarketSelect, isLoading }: Mar
         {market.name}
       </SelectItem>
     ));
-  }, [markets]);
+  }, [markets, marketKind]);
 
   // Memoize the loading content
   const loadingContent = useMemo(
@@ -77,6 +90,7 @@ export const MarketSelector = memo(MarketSelectorBase, (prev, next) => {
   return (
     prev.selectedMarketId === next.selectedMarketId &&
     prev.isLoading === next.isLoading &&
-    prev.onMarketSelect === next.onMarketSelect
+    prev.onMarketSelect === next.onMarketSelect &&
+    prev.marketKind === next.marketKind
   );
 });

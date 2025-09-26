@@ -18,12 +18,43 @@ type Orderbook = {
   lastUpdated: Date;
 };
 
+type MarketKind = 'spot' | 'perp';
+
+type PerpConfig = {
+  initial_margin: number;
+  maintenance_margin: number;
+  liquidation_penalty: number;
+  max_leverage_tiers: Array<{
+    notional: number;
+    max_leverage: number;
+  }>;
+  funding_interval_seconds: number;
+  funding_rate_cap_bps: number;
+  funding_interest_rate_bps: number;
+  funding_premium_cap_bps: number;
+  funding_oracle: string | null;
+};
+
+type PerpState = {
+  mark_price: number | null;
+  mark_price_timestamp: number | null;
+  index_price: number | null;
+  index_price_timestamp: number | null;
+  last_premium_rate_bps: number | null;
+  last_funding_rate_bps: number | null;
+  last_funding_timestamp: number | null;
+  next_funding_timestamp: number | null;
+};
+
 type Market = {
   uuid: string;
   name: string;
   baseMint: string;
   quoteMint: string;
   created_at: number;
+  kind: MarketKind;
+  perp_config: PerpConfig | null;
+  perp_state: PerpState | null;
 };
 
 type GetMarketsResponse = {

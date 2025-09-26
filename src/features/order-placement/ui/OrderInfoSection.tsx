@@ -1,5 +1,4 @@
 import { ExternalLinkIcon, RefreshCw, Droplets } from 'lucide-react';
-import { baseMint, quoteMint } from '@/shared/config/constants';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { useSelectedMarket } from '@/entities/market';
 import { useMarketTokenBalances } from '@/features/order-placement/lib/useMarketTokenBalances';
@@ -20,19 +19,21 @@ export function OrderAndBalanceInfo({ orderValue }: OrderAndBalanceInfoProps) {
     isLoading: balancesLoading,
     refetch: refetchBalances,
   } = useMarketTokenBalances();
+
+  const { baseBalance, quoteBalance, baseMint, quoteMint } = balances;
   const { requestAirdrop } = useSequencerApi();
   const [isRequestingAirdrop, setIsRequestingAirdrop] = useState<string | null>(null);
 
-  const handleAirdrop = async (tokenName: string) => {
+  const handleAirdrop = async (mintAddress: string) => {
     if (!publicKey || !connected) {
       toast.error('Please connect your wallet first');
       return;
     }
 
-    setIsRequestingAirdrop(tokenName);
+    setIsRequestingAirdrop(mintAddress);
     try {
-      await requestAirdrop(publicKey.toString(), tokenName);
-      toast.success(`Airdrop requested for ${tokenName}`);
+      await requestAirdrop(publicKey.toString(), mintAddress);
+      toast.success(`Airdrop requested for ${mintAddress.slice(0, 6)}...${mintAddress.slice(-6)}`);
       // Refetch balances after a short delay to show updated balance
       setTimeout(() => refetchBalances(), 2000);
     } catch (error) {
@@ -67,33 +68,33 @@ export function OrderAndBalanceInfo({ orderValue }: OrderAndBalanceInfoProps) {
               <div className="flex items-center gap-1">
                 <span className="text-nowrap">{selectedMarket?.baseTokenName || 'BASE'}</span>
                 <button
-                  onClick={() => handleAirdrop(selectedMarket?.baseTokenName || 'BASE')}
+                  onClick={() => handleAirdrop(baseMint || selectedMarket?.base_mint || '')}
                   disabled={isRequestingAirdrop !== null}
                   className="cursor-pointer text-blue-500 hover:text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title={`Request ${selectedMarket?.baseTokenName || 'BASE'} airdrop`}
                 >
                   <Droplets
-                    className={`size-3 ${isRequestingAirdrop === (selectedMarket?.baseTokenName || 'BASE') ? 'animate-pulse' : ''}`}
+                    className={`size-3 ${isRequestingAirdrop === (baseMint || selectedMarket?.base_mint || '') ? 'animate-pulse' : ''}`}
                   />
                 </button>
               </div>
-              <span className="tabular-nums">{balancesLoading ? '0' : balances.baseBalance}</span>
+              <span className="tabular-nums">{balancesLoading ? '0' : baseBalance}</span>
             </div>
             <div className="flex items-center justify-between text-white/50 font-light">
               <div className="flex items-center gap-1">
                 <span className="text-nowrap">{selectedMarket?.quoteTokenName || 'QUOTE'}</span>
                 <button
-                  onClick={() => handleAirdrop(selectedMarket?.quoteTokenName || 'QUOTE')}
+                  onClick={() => handleAirdrop(quoteMint || selectedMarket?.quote_mint || '')}
                   disabled={isRequestingAirdrop !== null}
                   className="cursor-pointer text-blue-500 hover:text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title={`Request ${selectedMarket?.quoteTokenName || 'QUOTE'} airdrop`}
                 >
                   <Droplets
-                    className={`size-3 ${isRequestingAirdrop === (selectedMarket?.quoteTokenName || 'QUOTE') ? 'animate-pulse' : ''}`}
+                    className={`size-3 ${isRequestingAirdrop === (quoteMint || selectedMarket?.quote_mint || '') ? 'animate-pulse' : ''}`}
                   />
                 </button>
               </div>
-              <span className="tabular-nums">{balancesLoading ? '0' : balances.quoteBalance}</span>
+              <span className="tabular-nums">{balancesLoading ? '0' : quoteBalance}</span>
             </div>
           </>
         )}
@@ -113,28 +114,28 @@ export function OrderAndBalanceInfo({ orderValue }: OrderAndBalanceInfoProps) {
       <div className="flex items-center justify-between ">
         <span className="text-nowrap text-white/50 font-light">Base Token</span>
         <a
-          href={`https://solscan.io/token/${selectedMarket?.base_mint || baseMint.toBase58()}`}
+          href={`https://solscan.io/token/${baseMint || selectedMarket?.base_mint || ''}`}
           className="group tabular-nums inline-flex items-center text-white/50  gap-1 font-normal  hover:text-blue-600 transition-colors"
           target="_blank"
-          title={selectedMarket?.base_mint || baseMint.toBase58()}
+          title={baseMint || selectedMarket?.base_mint || ''}
         >
-          {selectedMarket?.base_mint
-            ? `${selectedMarket.base_mint.slice(0, 6)}...${selectedMarket.base_mint.slice(-6)}`
-            : `${baseMint.toBase58().slice(0, 6)}...${baseMint.toBase58().slice(-6)}`}
+          {baseMint || selectedMarket?.base_mint
+            ? `${(baseMint || selectedMarket?.base_mint || '').slice(0, 6)}...${(baseMint || selectedMarket?.base_mint || '').slice(-6)}`
+            : ''}
           <ExternalLinkIcon className="size-0 group-hover:size-3 transition-all" />
         </a>
       </div>
       <div className="flex items-center justify-between">
         <span className="text-nowrap text-white/50 font-light">Quote Token</span>
         <a
-          href={`https://solscan.io/token/${selectedMarket?.quote_mint || quoteMint.toBase58()}`}
+          href={`https://solscan.io/token/${quoteMint || selectedMarket?.quote_mint || ''}`}
           className="group tabular-nums inline-flex items-center text-white/50 gap-1 font-normal  hover:text-blue-600 transition-colors"
           target="_blank"
-          title={selectedMarket?.quote_mint || quoteMint.toBase58()}
+          title={quoteMint || selectedMarket?.quote_mint || ''}
         >
-          {selectedMarket?.quote_mint
-            ? `${selectedMarket.quote_mint.slice(0, 6)}...${quoteMint.toBase58().slice(-6)}`
-            : `${quoteMint.toBase58().slice(0, 6)}...${quoteMint.toBase58().slice(-6)}`}
+          {quoteMint || selectedMarket?.quote_mint
+            ? `${(quoteMint || selectedMarket?.quote_mint || '').slice(0, 6)}...${(quoteMint || selectedMarket?.quote_mint || '').slice(-6)}`
+            : ''}
           <ExternalLinkIcon className="size-0 group-hover:size-3 transition-all" />
         </a>
       </div>
