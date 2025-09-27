@@ -7,4 +7,4 @@ export { PerpsTradePanel } from './ui/PerpsTradePanel';
 export { MyOrders } from './ui/MyOrders';
 export { MyTrades } from './ui/MyTrades';
 export { OrderIntent } from './lib/OrderIntent';
-export { OrdersAndTradesTab } from './ui/OrdersAndTradesTab';
+export { PortfolioTabs } from './ui/PortfolioTabs';

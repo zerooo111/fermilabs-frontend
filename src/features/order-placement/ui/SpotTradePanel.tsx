@@ -17,7 +17,6 @@ import { baseMint, config, quoteMint } from '@/shared/config/constants';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
 import { useSelectedMarket } from '@/entities/market';
-import { OrderAndBalanceInfo } from './OrderInfoSection';
 import { addOrderReceiptAtom } from '@/entities/order-receipt';
 import { useSetAtom } from 'jotai';
 import axios from 'axios';
@@ -216,9 +215,6 @@ export function SpotTradePanel() {
     }
   };
 
-  // Calculate order value considering decimal inputs
-  const orderValue = parseFloat(formState.price) * parseFloat(formState.size) || 0;
-
   return (
     <div className="flex flex-col w-xs overflow-hidden">
       <Tabs defaultValue="limit">
@@ -301,9 +297,6 @@ export function SpotTradePanel() {
             </Button>
           </div>
         )}
-        <div className="font-medium bg-card border border-outline p-2 text-xs space-y-1 mt-auto">
-          <OrderAndBalanceInfo orderValue={orderValue} />
-        </div>
       </div>
     </div>
   );

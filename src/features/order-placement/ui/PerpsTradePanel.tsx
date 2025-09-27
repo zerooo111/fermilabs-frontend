@@ -23,7 +23,6 @@ import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
 import { Slider } from '@/shared/ui/slider';
 import { useSelectedMarket } from '@/entities/market';
-import { OrderAndBalanceInfo } from './OrderInfoSection';
 import { addOrderReceiptAtom } from '@/entities/order-receipt';
 import { useSetAtom } from 'jotai';
 import axios from 'axios';
@@ -93,8 +92,8 @@ export function PerpsTradePanel() {
       const priceValue = parseFloat(formState.price);
       const sizeValue = parseFloat(formState.size);
 
-      const priceBN = new BN(Math.floor(priceValue * Math.pow(10, priceDecimals)));
-      const sizeBN = new BN(Math.floor(sizeValue * Math.pow(10, sizeDecimals)));
+      const priceBN = new BN(Math.floor(priceValue));
+      const sizeBN = new BN(Math.floor(sizeValue));
 
       console.log('[PerpsTradePanel] BN values:', {
         price: priceBN.toString(),
@@ -108,11 +107,6 @@ export function PerpsTradePanel() {
 
       const baseMintAddress = selectedMarket?.base_mint || baseMint.toBase58();
       const quoteMintAddress = selectedMarket?.quote_mint || quoteMint.toBase58();
-
-      console.log('[PerpsTradePanel] Mint addresses:', {
-        baseMintAddress,
-        quoteMintAddress,
-      });
 
       const orderIntent = new PerpOrderIntent(
         orderId,
@@ -410,7 +404,30 @@ export function PerpsTradePanel() {
           </div>
         )}
         <div className="font-medium bg-card border border-outline p-2 text-xs space-y-1 mt-auto">
-          <OrderAndBalanceInfo orderValue={orderValue} />
+          <div className="flex items-center justify-between">
+            <span>Margin</span>
+            <span className="tabular-nums">
+              {orderValue > 0
+                ? (orderValue / parseFloat(formState.leverage)).toFixed(
+                    getTokenDecimals(selectedMarket?.quoteTokenName)
+                  )
+                : '0.00'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Est. Liq. Price</span>
+            <span className="tabular-nums">
+              {orderValue > 0
+                ? (parseFloat(formState.price) * (1 - 1 / parseFloat(formState.leverage))).toFixed(
+                    getTokenDecimals(selectedMarket?.quoteTokenName)
+                  )
+                : '0.00'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Fee</span>
+            <span className="tabular-nums">0.01%</span>
+          </div>
         </div>
       </div>
     </div>

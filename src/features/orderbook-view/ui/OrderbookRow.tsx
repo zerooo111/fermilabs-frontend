@@ -3,7 +3,7 @@
  * Displays a single row in the orderbook
  */
 import { cn } from '@/lib/utils';
-import { formatPrice, formatQuantity, formatTotal } from '../lib/processOrderbook';
+import { formatTotal } from '../lib/processOrderbook';
 
 type OrderbookRowProps = {
   price: number;
@@ -47,12 +47,14 @@ export function OrderbookRow({
         >
           {/* Price */}
           <div className="text-left">
-            <span className="tabular-nums">{formatPrice(price, quoteTokenName)}</span>
+            {/* <span className="tabular-nums">{formatPrice(price, quoteTokenName)}</span> */}
+            <span className="tabular-nums">{price}</span>
           </div>
 
           {/* Size */}
           <div className="text-right">
-            <span className="tabular-nums">{formatQuantity(size, baseTokenName)}</span>
+            {/* <span className="tabular-nums">{formatQuantity(size, baseTokenName)}</span> */}
+            <span className="tabular-nums">{size}</span>
           </div>
 
           {/* Total */}

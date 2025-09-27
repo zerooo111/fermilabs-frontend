@@ -41,7 +41,7 @@ function ChartHeaderComponent({
   const { data: marketStats, isLoading: isStatsLoading } = useMarketStats(selectedMarketId || '');
 
   return (
-    <div className="flex h-12 items-center divide-x divide-outline justify-between border-b border-outline">
+    <div className="flex h-12  items-center divide-x divide-outline justify-between border-b border-outline">
       <div>
         <MarketSelector
           isLoading={false}
@@ -50,10 +50,10 @@ function ChartHeaderComponent({
           marketKind={marketKind}
         />
       </div>
-      <div className="flex items-center flex-1 h-full divide-x divide-outline">
+      <div className="flex items-center overflow-x-scroll flex-1 h-full divide-x divide-outline">
         {/* Mark Price */}
         <div className="flex flex-col justify-center px-2 h-full border-r ">
-          <span className="text-xs font-medium text-white/50">Mark Price</span>
+          <span className="text-xs whitespace-nowrap font-medium text-white/50">Mark Price</span>
           <span className="font-mono font-semibold text-base text-white">
             {isStatsLoading ? '...' : (marketStats?.mark_price?.toFixed(4) ?? '0.0000')}
           </span>
@@ -61,7 +61,7 @@ function ChartHeaderComponent({
 
         {/* 24 h change */}
         <div className="flex flex-col justify-center px-2 h-full ">
-          <span className="text-xs font-medium text-white/50">24h Change</span>
+          <span className="text-xs whitespace-nowrap font-medium text-white/50">24h Change</span>
           <span
             className={cn(
               'font-mono font-semibold text-base',
@@ -76,7 +76,9 @@ function ChartHeaderComponent({
         {/* Funding Rate (for perp markets) */}
         {marketKind === 'perp' && (
           <div className="flex flex-col justify-center px-2 h-full ">
-            <span className="text-xs font-medium text-white/50">Funding Rate</span>
+            <span className="text-xs whitespace-nowrap font-medium text-white/50">
+              Funding Rate
+            </span>
             <span
               className={cn(
                 'font-mono font-semibold text-base',
@@ -96,7 +98,7 @@ function ChartHeaderComponent({
 
         {/* Open Interest */}
         <div className="flex flex-col justify-center px-2 h-full ">
-          <span className="text-xs font-medium text-white/50">Open Interest</span>
+          <span className="text-xs whitespace-nowrap font-medium text-white/50">Open Interest</span>
           <span className="font-mono font-semibold text-base text-white">
             {isStatsLoading
               ? '...'

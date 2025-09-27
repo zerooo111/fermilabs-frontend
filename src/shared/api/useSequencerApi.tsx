@@ -228,48 +228,13 @@ export function useSequencerApi() {
     return data.data.data;
   }, []);
 
-  const requestAirdrop = useCallback(
-    async (receiverPubKey: string, tokenName: string): Promise<AirdropResponse> => {
-      const apiBaseUrl = config.devnet.apiBaseUrl;
-      const url = `${apiBaseUrl}/me/airdrop/${receiverPubKey}/${tokenName}`;
-
-      const { data, error } = await tryCatch<AxiosResponse<AirdropResponse>>(
-        axios.post(
-          url,
-          {},
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-            },
-          }
-        )
-      );
-
-      if (error) {
-        if (axios.isAxiosError(error) && error.response) {
-          const errorData = error.response.data;
-          if (errorData && typeof errorData === 'object' && 'error' in errorData) {
-            throw new Error(`Airdrop failed: ${errorData.error}`);
-          }
-        }
-        throw error;
-      }
-
-      return data.data;
-    },
-    []
-  );
-
   return {
     ping,
-
     submitOrderToSequencer,
     fetchOrderbook,
     fetchUserOrders,
     submitCancelOrderToSequencer,
     fetchTrades,
     fetchUserBalances,
-    requestAirdrop,
   };
 }

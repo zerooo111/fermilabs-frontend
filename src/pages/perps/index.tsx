@@ -8,14 +8,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { Orderbook } from '../../features/orderbook-view';
 import { ChartContainer } from '../../features/chart';
-import { PerpsTradePanel, OrdersAndTradesTab } from '../../features/order-placement';
+import { PerpsTradePanel, PortfolioTabs } from '../../features/order-placement';
 import { useSelectedMarket } from '@/entities/market';
 
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
 const MemoizedChartContainer = memo(ChartContainer);
 const MemoizedPerpsTradePanel = memo(PerpsTradePanel);
-const MemoizedOrdersAndTradesTab = memo(OrdersAndTradesTab);
+const MemoizedPortfolioTabs = memo(PortfolioTabs);
 
 function PerpsPage() {
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ function PerpsPage() {
         <MemoizedPerpsTradePanel />
       </div>
       <div className="flex-1 flex flex-col  border-t border-outline">
-        <MemoizedOrdersAndTradesTab />
+        <MemoizedPortfolioTabs />
       </div>
     </div>
   );

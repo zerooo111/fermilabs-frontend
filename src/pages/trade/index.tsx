@@ -8,14 +8,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { Orderbook } from '../../features/orderbook-view';
 import { ChartContainer } from '../../features/chart';
-import { SpotTradePanel, OrdersAndTradesTab } from '../../features/order-placement';
+import { SpotTradePanel, PortfolioTabs } from '../../features/order-placement';
 import { useSelectedMarket } from '@/entities/market';
 
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
 const MemoizedChartContainer = memo(ChartContainer);
 const MemoizedSpotTradePanel = memo(SpotTradePanel);
-const MemoizedOrdersAndTradesTab = memo(OrdersAndTradesTab);
+const MemoizedPortfolioTabs = memo(PortfolioTabs);
 
 function TradePage() {
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ function TradePage() {
         <MemoizedSpotTradePanel />
       </div>
       <div className="flex-1 flex flex-col  border-t border-outline">
-        <MemoizedOrdersAndTradesTab />
+        <MemoizedPortfolioTabs />
       </div>
     </div>
   );
