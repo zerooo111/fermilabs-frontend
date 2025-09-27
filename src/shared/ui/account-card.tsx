@@ -31,7 +31,7 @@ export function AccountCard() {
     );
   }
 
-  if (error || !pnlData) {
+  if (error || !pnlData || !pnlData.margin_metrics) {
     return (
       <div className="border border-outline rounded-lg bg-card">
         <div className="text-center text-white/60">Failed to load account data</div>
