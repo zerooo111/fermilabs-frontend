@@ -16,7 +16,7 @@ export function AccountCard() {
 
   if (!publicKey) {
     return (
-      <div className="text-center text-white/60">
+      <div className="text-center px-4 h-12 text-white/60">
         Please connect your wallet to view account details
       </div>
     );
@@ -24,19 +24,19 @@ export function AccountCard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex h-12 px-4 items-center justify-center gap-2">
         <Loader2 className="size-4 animate-spin" />
         <span className="text-sm text-white/60">Loading account data...</span>
       </div>
     );
   }
 
-  if (error || !pnlData || !pnlData.margin_metrics) {
-    return (
-      <div className="border border-outline rounded-lg bg-card">
-        <div className="text-center text-white/60">Failed to load account data</div>
-      </div>
-    );
+  if (error) {
+    return <div className="text-center h-12 px-4 text-white/60">Failed to load account data</div>;
+  }
+
+  if (!pnlData || !pnlData.margin_metrics) {
+    return null;
   }
 
   const { margin_metrics } = pnlData;
