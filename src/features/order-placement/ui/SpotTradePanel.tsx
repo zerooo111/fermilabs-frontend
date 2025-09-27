@@ -110,7 +110,6 @@ export function SpotTradePanel() {
       timestamp: Date.now().toString(),
     };
 
-    // const receipt = await submitOrderToSequencer(transactionData);
     const receipt = await axios
       .post(`${config.devnet.apiBaseUrl}/tx`, {
         transaction: transactionData,

@@ -108,50 +108,6 @@ export function useSequencerApi() {
     return healthCheck;
   }, [baseUrl]);
 
-  const submitOrderToSequencer = useCallback(
-    async (transactionData: {
-      tx_id: string;
-      payload: string;
-      signature: string;
-      public_key: string;
-      nonce: string;
-      timestamp: string;
-    }) => {
-      const body = {
-        transaction: transactionData,
-      };
-
-      const { data, error } = await tryCatch<
-        AxiosResponse<{
-          sequence_number: string;
-          expected_tick: string;
-          tx_hash: string;
-        }>
-      >(
-        axios.post(`http://localhost:3001/api/v1/tx`, body, {
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-        })
-      );
-
-      if (error) {
-        // Handle specific error responses from new API
-        if (axios.isAxiosError(error) && error.response) {
-          const errorData = error.response.data;
-          if (errorData && typeof errorData === 'object' && 'error' in errorData) {
-            throw new Error(`API Error (${error.response.status}): ${errorData.error}`);
-          }
-        }
-        throw error;
-      }
-
-      return data.data;
-    },
-    []
-  );
-
   const submitCancelOrderToSequencer = useCallback(
     async (body: any) => {
       const { data, error } = await tryCatch<AxiosResponse<Order>>(
@@ -230,7 +186,6 @@ export function useSequencerApi() {
 
   return {
     ping,
-    submitOrderToSequencer,
     fetchOrderbook,
     fetchUserOrders,
     submitCancelOrderToSequencer,
