@@ -80,6 +80,23 @@ type PlaceOrderResponse = {
   message: string;
 };
 
+type MarketStats = {
+  base_mint: string;
+  funding_rate: number;
+  mark_price: number;
+  market_id: string;
+  market_name: string;
+  market_type: string;
+  open_interest: number;
+  quote_mint: string;
+};
+
+type GetMarketStatsResponse = {
+  code: number;
+  data: MarketStats;
+  message: string;
+};
+
 export interface Server {
   label: string;
   url: string;

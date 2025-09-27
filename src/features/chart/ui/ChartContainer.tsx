@@ -7,7 +7,7 @@ import { useState, useCallback, memo, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CandlestickChart } from '@/features/chart/ui/CandlestickChart';
-import { MarketSelector } from '@/features/market-selector';
+import { ChartHeader } from '@/features/chart/ui/ChartHeader';
 import {
   fetchCandles,
   getTimeRangeForInterval,
@@ -16,29 +16,18 @@ import {
   ExtendedOHLCVData,
 } from '@/features/chart/lib/chart';
 import { BN } from '@coral-xyz/anchor';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { Button } from '@/shared/ui/button';
 import { useAtomValue } from 'jotai';
 import { selectedMarketAtom, useSelectedMarket, MarketKind, marketsAtom } from '@/entities/market';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-
-const INTERVALS: { label: string; value: TimeInterval }[] = [
-  { label: '1M', value: '1m' },
-  { label: '5M', value: '5m' },
-  { label: '15M', value: '15m' },
-  { label: '1H', value: '1h' },
-  { label: '4H', value: '4h' },
-  { label: '1D', value: '1d' },
-];
 
 function ChartContainerComponent() {
   const location = useLocation();
   const selectedMarket = useAtomValue(selectedMarketAtom);
   const allMarkets = useAtomValue(marketsAtom);
   const { selectMarket, selectedMarketId } = useSelectedMarket();
-  const [timeInterval, setTimeInterval] = useState<TimeInterval>(INTERVALS[0].value);
+  const [timeInterval, setTimeInterval] = useState<TimeInterval>('1m');
 
   // Determine market kind based on current route
   const marketKind = useMemo<MarketKind>(() => {
@@ -86,15 +75,12 @@ function ChartContainerComponent() {
       const { startTime, endTime } = getTimeRangeForInterval(timeInterval);
 
       // Use the API format for interval as per documentation
-      const candleData = await fetchCandles(
-        {
-          interval: intervalToApiFormat[timeInterval], // Convert to API format (e.g., '1 hour')
-          startTime,
-          endTime,
-          marketId: selectedMarket.uuid,
-        },
-        true // Enable fallback to larger timeframes if needed
-      );
+      const candleData = await fetchCandles({
+        interval: intervalToApiFormat[timeInterval], // Convert to API format (e.g., '1 hour')
+        startTime,
+        endTime,
+        marketId: selectedMarket.uuid,
+      });
 
       // Process the data
       const processedData = candleData.map(item => {
@@ -194,80 +180,18 @@ function ChartContainerComponent() {
     }
   }, [selectedMarket?.uuid, refetch]);
 
-  // Function to render the chart header with interval selector
-  const renderChartHeader = () => (
-    <div className="flex h-12 items-center divide-x divide-outline justify-between border-b border-outline">
-      <div>
-        <MarketSelector
-          isLoading={false}
-          selectedMarketId={selectedMarketId}
-          onMarketSelect={handleMarketSelect}
-          marketKind={marketKind}
-        />
-      </div>
-      <div className="flex items-center flex-1 h-full divide-x divide-outline">
-        {/* {latestPrice && (
-          <div className="flex items-center font-semibold text-xl gap-2 px-2">
-            <span className={latestPrice.isPositive ? 'text-emerald-500' : 'text-red-600'}>
-              ${latestPrice.price}
-            </span>
-            <span
-              className={`text-sm font-normal ${latestPrice.isPositive ? 'text-emerald-500' : 'text-red-600'}`}
-            >
-              {latestPrice.isPositive ? '+' : '-'}${latestPrice.change} ({latestPrice.percentChange}
-              %)
-            </span>
-          </div>
-        )} */}
-
-        {/* Latest Price */}
-        <div className="flex flex-col justify-center px-2 h-full border-r ">
-          <span className="text-xs font-medium text-white/50">Price</span>
-          <span
-            className={cn(
-              'font-mono font-semibold text-base',
-              latestPrice?.isPositive ? 'text-success' : 'text-danger'
-            )}
-          >
-            ${latestPrice?.price.toFixed(4) ?? '0.0000'}
-          </span>
-        </div>
-
-        {/* 24 h change */}
-        <div className="flex flex-col justify-center px-2 h-full ">
-          <span className="text-xs font-medium text-white/50">24h Change</span>
-          <span
-            className={cn(
-              'font-mono font-semibold text-base',
-              latestPrice?.isPositive ? 'text-success' : 'text-danger'
-            )}
-          >
-            {latestPrice?.isPositive ? '+' : '-'}
-            {latestPrice?.percentChange ?? '0.0'}%
-          </span>
-        </div>
-      </div>
-
-      <Select value={timeInterval} onValueChange={handleIntervalChange}>
-        <SelectTrigger className="w-[80px] !h-full border-none">
-          <SelectValue placeholder="Interval" />
-        </SelectTrigger>
-        <SelectContent align="end">
-          {INTERVALS.map(({ label, value }) => (
-            <SelectItem key={value} value={value}>
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-
   // Handle error state
   if (error) {
     return (
       <div className="w-full h-full flex flex-coll">
-        {renderChartHeader()}
+        <ChartHeader
+          selectedMarketId={selectedMarketId}
+          onMarketSelect={handleMarketSelect}
+          marketKind={marketKind}
+          timeInterval={timeInterval}
+          onIntervalChange={handleIntervalChange}
+          latestPrice={latestPrice}
+        />
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <AlertCircle className="h-12 w-12 text-red-500" />
           <div className="text-center">
@@ -287,7 +211,14 @@ function ChartContainerComponent() {
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
-      {renderChartHeader()}
+      <ChartHeader
+        selectedMarketId={selectedMarketId}
+        onMarketSelect={handleMarketSelect}
+        marketKind={marketKind}
+        timeInterval={timeInterval}
+        onIntervalChange={handleIntervalChange}
+        latestPrice={latestPrice}
+      />
 
       <div className="flex-1 relative min-h-[400px] overflow-hidden">
         <CandlestickChart
