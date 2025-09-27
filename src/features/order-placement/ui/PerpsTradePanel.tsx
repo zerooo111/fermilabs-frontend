@@ -19,7 +19,6 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey } from '@solana/web3.js';
 import { createHash } from 'crypto';
 import { baseMint, config, quoteMint } from '@/shared/config/constants';
-import { perpLimits, validateLeverage, validatePositionSize } from '@/shared/config/perp-config';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
 import { Slider } from '@/shared/ui/slider';
@@ -28,14 +27,6 @@ import { OrderAndBalanceInfo } from './OrderInfoSection';
 import { addOrderReceiptAtom } from '@/entities/order-receipt';
 import { useSetAtom } from 'jotai';
 import axios from 'axios';
-
-interface LeverageLimits {
-  min: number;
-  max: number;
-  recommended: number[];
-}
-
-// Import the function directly from model
 import { getLeverageLimitsFromMarket } from '@/entities/market/model';
 
 export function PerpsTradePanel() {
@@ -67,94 +58,9 @@ export function PerpsTradePanel() {
     return null;
   }, [selectedMarket]);
 
-  // Fallback to default limits if no market-specific limits available
-  const effectiveLeverageLimits: LeverageLimits = leverageLimits || {
-    min: perpLimits.minLeverage,
-    max: perpLimits.maxLeverage,
-    recommended: [1, 2, 5, 10, 25, 50, 100],
-  };
-
   const handleInputChange = (field: string, value: string | boolean) => {
     console.log('[PerpsTradePanel] Form input changed:', { field, value });
     setFormState(prev => ({ ...prev, [field]: value }));
-  };
-
-  const validateForm = () => {
-    console.log('[PerpsTradePanel] Validating form inputs:', {
-      price: formState.price,
-      size: formState.size,
-      leverage: formState.leverage,
-      orderType: formState.orderType,
-      marginMode: formState.marginMode,
-    });
-
-    const { price, size, leverage } = formState;
-
-    if (!price.trim() || !size.trim()) {
-      console.log('[PerpsTradePanel] Validation failed: Price or size is empty');
-      toast.error('Price and size are required');
-      return false;
-    }
-
-    const priceNum = parseFloat(price);
-    const sizeNum = parseFloat(size);
-    const leverageNum = parseFloat(leverage);
-
-    console.log('[PerpsTradePanel] Parsed values:', {
-      priceNum,
-      sizeNum,
-      leverageNum,
-    });
-
-    if (isNaN(priceNum) || isNaN(sizeNum) || isNaN(leverageNum)) {
-      console.log('[PerpsTradePanel] Validation failed: Invalid number format');
-      toast.error('Price, size, and leverage must be valid numbers');
-      return false;
-    }
-
-    if (priceNum <= 0 || sizeNum <= 0) {
-      console.log('[PerpsTradePanel] Validation failed: Non-positive price or size');
-      toast.error('Price and size must be positive');
-      return false;
-    }
-
-    // Validate leverage using market-specific limits
-    const leverageValidation = validateLeverage(
-      leverageNum,
-      effectiveLeverageLimits.min,
-      effectiveLeverageLimits.max
-    );
-    if (!leverageValidation.isValid) {
-      console.log(
-        '[PerpsTradePanel] Validation failed: Leverage validation failed',
-        leverageValidation.error
-      );
-      toast.error(leverageValidation.error);
-      return false;
-    }
-
-    // Validate position size using perp config
-    const sizeValidation = validatePositionSize(sizeNum, true); // true for order size
-    if (!sizeValidation.isValid) {
-      console.log(
-        '[PerpsTradePanel] Validation failed: Size validation failed',
-        sizeValidation.error
-      );
-      toast.error(sizeValidation.error);
-      return false;
-    }
-
-    // Validate price limit if it's a limit order (skip for market orders)
-    if (formState.orderType === 'limit') {
-      // For now, we'll skip price validation against market price as we don't have real-time market data
-      // In a real implementation, you'd fetch the current market price and validate against it
-      console.log(
-        '[PerpsTradePanel] Skipping price deviation validation for limit orders (market price not available)'
-      );
-    }
-
-    console.log('[PerpsTradePanel] Form validation passed');
-    return true;
   };
 
   const handleSubmitOrder = async (side: OrderSide) => {
@@ -168,10 +74,6 @@ export function PerpsTradePanel() {
     if (!signMessage || !publicKey) {
       console.log('[PerpsTradePanel] Wallet not connected - opening modal');
       setVisible(true);
-      return;
-    }
-
-    if (!validateForm()) {
       return;
     }
 
@@ -412,7 +314,7 @@ export function PerpsTradePanel() {
           label="Price"
           value={formState.price}
           onValueChange={values => setFormState(prev => ({ ...prev, price: values.value || '' }))}
-          min={0}
+          min={0.01}
           placeholder="0.00"
           required
           unit={selectedMarket?.quoteTokenName}
@@ -426,9 +328,8 @@ export function PerpsTradePanel() {
           name="size"
           label="Size"
           value={formState.size}
+          min={0.01}
           onValueChange={values => setFormState(prev => ({ ...prev, size: values.value || '' }))}
-          min={perpLimits.minOrderSize}
-          max={perpLimits.maxOrderSize}
           placeholder="0.00"
           required
           unit={selectedMarket?.baseTokenName}
@@ -444,8 +345,8 @@ export function PerpsTradePanel() {
           <Slider
             value={[parseFloat(formState.leverage) || 1]}
             onValueChange={([value]) => handleInputChange('leverage', value.toString())}
-            min={effectiveLeverageLimits.min}
-            max={effectiveLeverageLimits.max}
+            min={leverageLimits?.min ?? 0}
+            max={leverageLimits?.max ?? 1}
             step={1}
             className="w-full"
           />
