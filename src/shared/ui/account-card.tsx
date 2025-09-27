@@ -16,7 +16,7 @@ export function AccountCard() {
 
   if (!publicKey) {
     return (
-      <div className="text-center px-4 h-12 text-white/60">
+      <div className="text-center p-4 h-12 text-white/60">
         Please connect your wallet to view account details
       </div>
     );
