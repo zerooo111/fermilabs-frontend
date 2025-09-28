@@ -103,7 +103,10 @@ const memoizedEnhanceMarket = (market: Market): EnhancedMarket => {
   if (!market) return null as unknown as EnhancedMarket;
 
   // Parse the market name to get base and quote token names
-  const [baseTokenName, quoteTokenName] = market.name.split('/').map((s: string) => s.trim());
+  const [baseTokenName, quoteTokenName] = market.name
+    .split(' ')[0]
+    .split('/')
+    .map((s: string) => s.trim());
 
   const baseDecimals = getTokenDecimals(baseTokenName);
   const quoteDecimals = getTokenDecimals(quoteTokenName);

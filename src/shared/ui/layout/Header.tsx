@@ -13,7 +13,7 @@ export function Header() {
             <FermiLogo3d className="w-5 h-5 " />
             FermiLabs
           </Link>
-          <Link
+          {/* <Link
             to="/spot"
             className={cn(
               'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
@@ -21,7 +21,7 @@ export function Header() {
             )}
           >
             Spot
-          </Link>
+          </Link> */}
           <Link
             to="/perps"
             className={cn(

@@ -6,29 +6,27 @@ import { Button } from '@/shared/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { useState, useMemo } from 'react';
-import {
-  PerpOrderIntent,
-  OrderSide,
-  MarginMode,
-} from '@/features/order-placement/lib/PerpOrdersIntent';
-import { BN } from '@coral-xyz/anchor';
+import { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpOrdersIntent';
 import { Loader2, Wallet } from 'lucide-react';
-import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { PublicKey } from '@solana/web3.js';
-import { createHash } from 'crypto';
-import { baseMint, config, quoteMint } from '@/shared/config/constants';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
 import { Slider } from '@/shared/ui/slider';
 import { useSelectedMarket } from '@/entities/market';
-import { addOrderReceiptAtom } from '@/entities/order-receipt';
-import { useSetAtom } from 'jotai';
-import axios from 'axios';
 import { getLeverageLimitsFromMarket } from '@/entities/market/model';
+import { usePerps } from '@/features/order-placement/lib/usePerps';
+import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
+
+// Safe parsing functions to prevent NaN errors
+const safeParseFloat = (value: string, defaultValue: number = 0): number => {
+  if (!value || value.trim() === '') return defaultValue;
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? defaultValue : parsed;
+};
 
 export function PerpsTradePanel() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formState, setFormState] = useState<{
     price: string;
     size: string;
@@ -43,11 +41,10 @@ export function PerpsTradePanel() {
     marginMode: 'isolated',
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { publicKey, signMessage } = useWallet();
+  const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const { selectedMarket } = useSelectedMarket();
-  const addOrderReceipt = useSetAtom(addOrderReceiptAtom);
+  const { openPosition } = usePerps();
 
   // Get leverage limits from the selected market
   const leverageLimits = useMemo(() => {
@@ -59,232 +56,51 @@ export function PerpsTradePanel() {
 
   const handleInputChange = (field: string, value: string | boolean) => {
     console.log('[PerpsTradePanel] Form input changed:', { field, value });
+
+    // Validate numeric inputs for price and size
+    if (field === 'price' || field === 'size') {
+      const stringValue = value as string;
+      // Allow empty string, numbers, and decimal point
+      if (stringValue !== '' && !/^\d*\.?\d*$/.test(stringValue)) {
+        return; // Reject invalid characters
+      }
+    }
+
+    // Validate leverage input
+    if (field === 'leverage') {
+      const stringValue = value as string;
+      const numValue = safeParseFloat(stringValue);
+      if (numValue < 1 || numValue > 100) {
+        return; // Reject invalid leverage values
+      }
+    }
+
     setFormState(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmitOrder = async (side: OrderSide) => {
-    console.log('[PerpsTradePanel] Starting order submission', {
-      side,
-      formState,
-      hasWallet: !!publicKey,
-      hasSignMessage: !!signMessage,
-    });
-
-    if (!signMessage || !publicKey) {
-      console.log('[PerpsTradePanel] Wallet not connected - opening modal');
-      setVisible(true);
-      return;
-    }
-
+  const handleOpenPosition = async (side: OrderSide) => {
     setIsSubmitting(true);
-
-    try {
-      console.log('[PerpsTradePanel] Creating order intent...');
-      const orderId = new BN(Date.now());
-
-      // Convert form values to proper BN values with decimal scaling
-      const leverageNum = parseFloat(formState.leverage);
-
-      // Apply decimal scaling based on token types
-      const priceDecimals = selectedMarket?.quoteTokenName?.toUpperCase() === 'USDC' ? 6 : 9;
-      const sizeDecimals = selectedMarket?.baseTokenName?.toUpperCase() === 'USDC' ? 6 : 9;
-
-      const priceValue = parseFloat(formState.price);
-      const sizeValue = parseFloat(formState.size);
-
-      const priceBN = new BN(Math.floor(priceValue));
-      const sizeBN = new BN(Math.floor(sizeValue));
-
-      console.log('[PerpsTradePanel] BN values:', {
-        price: priceBN.toString(),
-        size: sizeBN.toString(),
-        priceDecimals,
-        sizeDecimals,
-        priceValue,
-        sizeValue,
-        leverageNum,
-      });
-
-      const baseMintAddress = selectedMarket?.base_mint || baseMint.toBase58();
-      const quoteMintAddress = selectedMarket?.quote_mint || quoteMint.toBase58();
-
-      const orderIntent = new PerpOrderIntent(
-        orderId,
-        publicKey,
-        side,
-        priceBN,
-        sizeBN,
-        new BN(Math.floor(Date.now() / 1000) + 86400), // 24 hours expiry
-        new PublicKey(baseMintAddress),
-        new PublicKey(quoteMintAddress),
-        'perp',
-        new BN(leverageNum),
-        'open',
-        false, // reduce_only - always false for open positions from PerpsTradePanel
-        formState.marginMode,
-        sizeBN.mul(new BN(leverageNum)), // margin_amount
-        false // liquidation
-      );
-
-      console.log('[PerpsTradePanel] Order intent created:', {
-        order_id: orderIntent.order_id.toString(),
-        owner: orderIntent.owner.toBase58(),
-        side: orderIntent.side,
-        price: orderIntent.price.toString(),
-        quantity: orderIntent.quantity.toString(),
-        leverage: orderIntent.leverage?.toString(),
-        margin_mode: orderIntent.margin_mode,
-        reduce_only: orderIntent.reduce_only, // Always false for PerpsTradePanel
-      });
-
-      console.log('[PerpsTradePanel] Serializing order intent...');
-      const serializedData = PerpOrderIntent.serialize(orderIntent);
-      console.log('[PerpsTradePanel] Serialized data length:', serializedData.length, 'bytes');
-
-      console.log('[PerpsTradePanel] Creating hash and signing...');
-      const encodedMessage = Buffer.concat([serializedData]);
-      const sha256Hash = createHash('sha256').update(new Uint8Array(encodedMessage)).digest();
-      const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
-      console.log('[PerpsTradePanel] Hash created:', sha256Hash_hex.substring(0, 16) + '...');
-
-      console.log('[PerpsTradePanel] Requesting signature from wallet...');
-      const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
-      console.log('[PerpsTradePanel] Signature received, length:', signatureBytes.length, 'bytes');
-
-      console.log('[PerpsTradePanel] Building FRM transaction...');
-      const frmTransaction = {
-        version: '1.0',
-        type: 'order',
-        intent: {
-          order_id: orderIntent.order_id.toNumber(),
-          owner: orderIntent.owner.toBase58(),
-          side: orderIntent.side,
-          price: orderIntent.price.toNumber(),
-          quantity: orderIntent.quantity.toNumber(),
-          expiry: orderIntent.expiry.toNumber(),
-          base_mint: orderIntent.base_mint.toBase58(),
-          quote_mint: orderIntent.quote_mint.toBase58(),
-          market_kind: orderIntent.market_kind,
-          leverage: orderIntent.leverage?.toNumber() || 1,
-          position_effect: orderIntent.position_effect,
-          reduce_only: orderIntent.reduce_only,
-          margin_mode: orderIntent.margin_mode,
-          margin_amount: orderIntent.margin_amount?.toNumber() || 0,
-          liquidation: orderIntent.liquidation,
-        },
-        signature: Buffer.from(signatureBytes).toString('hex'),
-        local_sequencer_id: 'continuum_client',
-        timestamp_ms: Date.now().toString(),
-      };
-
-      console.log('[PerpsTradePanel] FRM transaction created:', frmTransaction);
-
-      console.log('[PerpsTradePanel] Creating prefixed string and payload...');
-      const jsonFrm = JSON.stringify(frmTransaction);
-      const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
-      console.log(
-        '[PerpsTradePanel] FRM prefixed string length:',
-        frmPrefixedString.length,
-        'chars'
-      );
-
-      const payloadBytes = Buffer.from(frmPrefixedString, 'utf-8');
-      const tx_id = `frm_order_${orderIntent.order_id.toString()}_${Date.now()}`;
-      console.log('[PerpsTradePanel] Transaction ID:', tx_id);
-
-      console.log('[PerpsTradePanel] Building final transaction data...');
-      const transactionData = {
-        version: '1.0',
-        tx_id,
-        payload: Array.from(payloadBytes),
-        signature: Buffer.from(signatureBytes).toString('hex'),
-        public_key: publicKey,
-        nonce: frmTransaction.intent.order_id,
-        timestamp: Date.now().toString(),
-      };
-
-      console.log('[PerpsTradePanel] Transaction data prepared:', {
-        version: transactionData.version,
-        tx_id: transactionData.tx_id,
-        payload_length: transactionData.payload.length,
-        signature_length: transactionData.signature.length,
-        public_key: transactionData.public_key.toBase58().substring(0, 8) + '...',
-        nonce: transactionData.nonce,
-        timestamp: transactionData.timestamp,
-      });
-
-      console.log('[PerpsTradePanel] Sending transaction to API...');
-      const apiUrl = `${config.devnet.apiBaseUrl}/tx`;
-      console.log('[PerpsTradePanel] API endpoint:', apiUrl);
-
-      const response = await axios.post(apiUrl, {
-        transaction: transactionData,
-      });
-
-      console.log('[PerpsTradePanel] API response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers,
-        data: response.data,
-      });
-
-      const receipt = response.data;
-
-      console.log('[PerpsTradePanel] Processing receipt:', receipt);
-
-      if (receipt.sequence_number && receipt.expected_tick && receipt.tx_hash) {
-        console.log('[PerpsTradePanel] Valid receipt received, adding to order receipts:', {
-          sequence_number: receipt.sequence_number,
-          expected_tick: receipt.expected_tick,
-          tx_hash: receipt.tx_hash.substring(0, 16) + '...',
-          order_id: orderIntent.order_id.toNumber(),
-        });
-
-        addOrderReceipt({
-          sequence_number: receipt.sequence_number,
-          expected_tick: receipt.expected_tick,
-          tx_hash: receipt.tx_hash,
-          order_id: orderIntent.order_id.toNumber(),
-        });
-
-        console.log('[PerpsTradePanel] Order receipt added successfully');
-      } else {
-        console.warn('[PerpsTradePanel] Receipt missing required fields:', {
-          has_sequence_number: !!receipt.sequence_number,
-          has_expected_tick: !!receipt.expected_tick,
-          has_tx_hash: !!receipt.tx_hash,
-          receipt_keys: Object.keys(receipt),
-        });
-      }
-
-      console.log('[PerpsTradePanel] Order submission completed successfully');
-      toast.success(`${side} order placed successfully`);
-
-      // Reset form
+    const result = await openPosition({
+      side: side,
+      leverage: formState.leverage,
+      marginMode: formState.marginMode,
+      price: formState.price,
+      size: formState.size,
+    });
+    if (result.success) {
       setFormState(prev => ({
         ...prev,
         price: '',
         size: '',
       }));
-
-      console.log('[PerpsTradePanel] Form reset completed');
-    } catch (error) {
-      console.error('[PerpsTradePanel] Order submission failed:', {
-        error: error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        formState,
-        side,
-      });
-      toast.error('Failed to place order');
-    } finally {
-      console.log('[PerpsTradePanel] Setting isSubmitting to false');
-      setIsSubmitting(false);
     }
+    setIsSubmitting(false);
   };
-
-  // Calculate order value considering decimal inputs
-  const orderValue = parseFloat(formState.price) * parseFloat(formState.size) || 0;
+  // Calculate order value considering decimal inputs with safe parsing
+  const priceValue = safeParseFloat(formState.price);
+  const sizeValue = safeParseFloat(formState.size);
+  const leverageValue = safeParseFloat(formState.leverage, 1);
+  const orderValue = priceValue * sizeValue;
 
   return (
     <div className="flex flex-col w-xs overflow-hidden">
@@ -296,7 +112,7 @@ export function PerpsTradePanel() {
           <TabsTrigger value="limit" className="flex-1">
             Limit
           </TabsTrigger>
-          <TabsTrigger value="market" className="flex-1">
+          <TabsTrigger value="market" disabled className="flex-1">
             Market
           </TabsTrigger>
         </TabsList>
@@ -337,10 +153,10 @@ export function PerpsTradePanel() {
             <span className="text-sm text-muted-foreground">{formState.leverage}x</span>
           </div>
           <Slider
-            value={[parseFloat(formState.leverage) || 1]}
+            value={[leverageValue]}
             onValueChange={([value]) => handleInputChange('leverage', value.toString())}
-            min={leverageLimits?.min ?? 0}
-            max={leverageLimits?.max ?? 1}
+            min={leverageLimits?.min ?? 1}
+            max={leverageLimits?.max ?? 100}
             step={1}
             className="w-full"
           />
@@ -374,9 +190,9 @@ export function PerpsTradePanel() {
         ) : (
           <div className="grid grid-cols-2 gap-2">
             <Button
-              disabled={!formState.price || !formState.size || isSubmitting}
+              disabled={priceValue <= 0 || sizeValue <= 0 || isSubmitting}
               variant="success"
-              onClick={() => handleSubmitOrder('Buy')}
+              onClick={() => handleOpenPosition('Buy')}
             >
               {isSubmitting ? (
                 <>
@@ -389,8 +205,8 @@ export function PerpsTradePanel() {
             </Button>
             <Button
               variant="destructive"
-              disabled={!formState.price || !formState.size || isSubmitting}
-              onClick={() => handleSubmitOrder('Sell')}
+              disabled={priceValue <= 0 || sizeValue <= 0 || isSubmitting}
+              onClick={() => handleOpenPosition('Sell')}
             >
               {isSubmitting ? (
                 <>
@@ -407,20 +223,40 @@ export function PerpsTradePanel() {
           <div className="flex items-center justify-between">
             <span>Margin</span>
             <span className="tabular-nums">
-              {orderValue > 0
-                ? (orderValue / parseFloat(formState.leverage)).toFixed(
-                    getTokenDecimals(selectedMarket?.quoteTokenName)
-                  )
+              {orderValue > 0 && priceValue > 0 && sizeValue > 0 && leverageValue >= 1
+                ? (() => {
+                    try {
+                      const marginResult = calculatePerpMargin({
+                        price: priceValue,
+                        quantity: sizeValue,
+                        leverage: leverageValue,
+                        marketInitialMarginBps: selectedMarket?.perp_config?.initial_margin || 0,
+                      });
+                      return (
+                        Number(marginResult.requiredMargin) /
+                        Math.pow(10, getTokenDecimals(selectedMarket?.quoteTokenName))
+                      ).toFixed(getTokenDecimals(selectedMarket?.quoteTokenName));
+                    } catch (error) {
+                      console.error('Margin calculation error:', error);
+                      return '0.00';
+                    }
+                  })()
                 : '0.00'}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span>Est. Liq. Price</span>
             <span className="tabular-nums">
-              {orderValue > 0
-                ? (parseFloat(formState.price) * (1 - 1 / parseFloat(formState.leverage))).toFixed(
-                    getTokenDecimals(selectedMarket?.quoteTokenName)
-                  )
+              {orderValue > 0 && priceValue > 0 && leverageValue > 1
+                ? (() => {
+                    try {
+                      const liqPrice = priceValue * (1 - 1 / leverageValue);
+                      return liqPrice.toFixed(getTokenDecimals(selectedMarket?.quoteTokenName));
+                    } catch (error) {
+                      console.error('Liquidation price calculation error:', error);
+                      return '0.00';
+                    }
+                  })()
                 : '0.00'}
             </span>
           </div>

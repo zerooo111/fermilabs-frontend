@@ -4,8 +4,8 @@ import * as borsh from '@coral-xyz/borsh';
 
 export type OrderSide = 'Buy' | 'Sell';
 export type MarketKind = 'perp';
-export type PositionEffect = 'open' | 'Close';
-export type MarginMode = 'isolated' | 'Cross';
+export type PositionEffect = 'open' | 'close';
+export type MarginMode = 'isolated' | 'cross';
 
 export class PerpOrderIntent {
   constructor(
@@ -52,14 +52,14 @@ export class PerpOrderIntent {
   static serialize(intent: PerpOrderIntent) {
     const sideValue = intent.side === 'Buy' ? 0 : 1;
     // Rust MarketKind enum order is: Spot=0, Perp=1
-    const marketKindValue = intent.market_kind === 'Perp' ? 1 : 0;
+    const marketKindValue = intent.market_kind === 'perp' ? 1 : 0;
 
     const positionEffectValue =
-      intent.position_effect === null ? null : intent.position_effect === 'Open' ? 0 : 1;
+      intent.position_effect === null ? null : intent.position_effect === 'open' ? 0 : 1;
 
     // Rust MarginMode enum order is: Cross=0, Isolated=1
     const marginModeValue =
-      intent.margin_mode === null ? null : intent.margin_mode === 'Isolated' ? 1 : 0;
+      intent.margin_mode === null ? null : intent.margin_mode === 'isolated' ? 1 : 0;
 
     const serializable = {
       order_id: intent.order_id,
@@ -94,11 +94,11 @@ export class PerpOrderIntent {
 
     // Convert numeric values back to strings
     const side = decoded.side === 0 ? 'Buy' : 'Sell';
-    const market_kind: MarketKind = 'Perp'; // Only 'Perp' for now
+    const market_kind: MarketKind = 'perp'; // Only 'Perp' for now
     const position_effect =
-      decoded.position_effect === null ? null : decoded.position_effect === 0 ? 'Open' : 'Close';
+      decoded.position_effect === null ? null : decoded.position_effect === 0 ? 'open' : 'close';
     const margin_mode =
-      decoded.margin_mode === null ? null : decoded.margin_mode === 0 ? 'Cross' : 'Isolated';
+      decoded.margin_mode === null ? null : decoded.margin_mode === 0 ? 'cross' : 'isolated';
 
     return new PerpOrderIntent(
       decoded.order_id,
@@ -134,12 +134,12 @@ export class PerpOrderIntent {
       leverage: this.leverage ? Number(this.leverage) : null,
       // Server expects lowercase strings for these option fields
       position_effect: this.position_effect
-        ? this.position_effect === 'Open'
+        ? this.position_effect === 'open'
           ? 'open'
           : 'close'
         : null,
       reduce_only: this.reduce_only,
-      margin_mode: this.margin_mode ? (this.margin_mode === 'Cross' ? 'cross' : 'isolated') : null,
+      margin_mode: this.margin_mode ? (this.margin_mode === 'cross' ? 'cross' : 'isolated') : null,
       margin_amount: this.margin_amount ? Number(this.margin_amount) : null,
       liquidation: this.liquidation,
     };

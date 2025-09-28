@@ -2,6 +2,7 @@
  * My positions component
  * Displays the user's open positions (perpetuals only)
  */
+import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { formatQuantity, formatPrice } from '@/features/orderbook-view/lib/processOrderbook';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
@@ -9,11 +10,40 @@ import { Button } from '@/shared/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useSelectedMarket } from '@/entities/market/model';
 import { usePositions } from '@/shared/hooks/usePositions';
+import { usePerps } from '@/features/order-placement/lib/usePerps';
+import { OrderSide } from '@/features/order-placement/lib/PerpOrdersIntent';
 
 export function MyPositions() {
   const { publicKey } = useWallet();
   const { selectedMarket } = useSelectedMarket();
   const { data: positions, isLoading } = usePositions(publicKey?.toBase58() || '');
+  const { closePosition } = usePerps();
+  const [closingPositionIndex, setClosingPositionIndex] = useState<number | null>(null);
+
+  const handleClosePosition = async (position: any, index: number) => {
+    setClosingPositionIndex(index);
+
+    try {
+      // Determine side: if base_position > 0 (long), sell to close; if < 0 (short), buy to close
+      const side: OrderSide = parseFloat(position.base_position) > 0 ? 'Sell' : 'Buy';
+      const size = Math.abs(parseFloat(position.base_position)).toString();
+      const price = position.mark_price;
+
+      const result = await closePosition({
+        side,
+        price,
+        size,
+      });
+
+      if (result.success) {
+        // Position closed successfully - could refresh positions here if needed
+      }
+    } catch (error) {
+      console.error('Failed to close position:', error);
+    } finally {
+      setClosingPositionIndex(null);
+    }
+  };
 
   if (!publicKey) {
     return (
@@ -90,11 +120,17 @@ export function MyPositions() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              alert('Work in progress.');
-            }}
+            disabled={closingPositionIndex === index}
+            onClick={() => handleClosePosition(position, index)}
           >
-            Close
+            {closingPositionIndex === index ? (
+              <>
+                <Loader2 className="size-3 animate-spin mr-1" />
+                Closing...
+              </>
+            ) : (
+              'Close'
+            )}
           </Button>
         </TableCell>
       </TableRow>
