@@ -18,6 +18,7 @@ export const AppRouter = () => {
           <Route path="/perps" element={<LazyPerpsPage />} />
           <Route path="/perps/:id" element={<LazyPerpsPage />} />
           <Route path="/vault" element={<LazyVaultPage />} />
+          <Route path="*" element={<Navigate replace to="/perps" />} />
         </Route>
       </Routes>
     </BrowserRouter>
