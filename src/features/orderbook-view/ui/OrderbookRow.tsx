@@ -3,15 +3,15 @@
  * Displays a single row in the orderbook
  */
 import { cn } from '@/lib/utils';
-import { formatTotal } from '../lib/processOrderbook';
+import { formatPrice, formatQuantity, formatTotal } from '../lib/processOrderbook';
 
 type OrderbookRowProps = {
   price: number;
   size: number;
   depth: number;
   side: 'Buy' | 'Sell';
-  quoteTokenName?: string;
-  baseTokenName?: string;
+  baseDecimals: number;
+  quoteDecimals: number;
 };
 
 export function OrderbookRow({
@@ -19,8 +19,8 @@ export function OrderbookRow({
   size,
   depth,
   side,
-  quoteTokenName,
-  baseTokenName,
+  quoteDecimals,
+  baseDecimals,
 }: OrderbookRowProps) {
   return (
     <div className={cn('relative font-medium w-full h-[26px]')}>
@@ -47,20 +47,18 @@ export function OrderbookRow({
         >
           {/* Price */}
           <div className="text-left">
-            {/* <span className="tabular-nums">{formatPrice(price, quoteTokenName)}</span> */}
-            <span className="tabular-nums">{price}</span>
+            <span className="tabular-nums">{formatPrice(price, quoteDecimals)}</span>
           </div>
 
           {/* Size */}
           <div className="text-right">
-            {/* <span className="tabular-nums">{formatQuantity(size, baseTokenName)}</span> */}
-            <span className="tabular-nums">{size}</span>
+            <span className="tabular-nums">{formatQuantity(size, baseDecimals)}</span>
           </div>
 
           {/* Total */}
           <div className="text-right">
             <span className="tabular-nums">
-              {formatTotal(price, size, quoteTokenName, baseTokenName)}
+              {formatTotal(price, size, quoteDecimals, baseDecimals)}
             </span>
           </div>
         </div>

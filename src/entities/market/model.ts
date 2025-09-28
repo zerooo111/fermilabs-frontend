@@ -4,6 +4,7 @@
  * Completely refactored to avoid circular dependencies
  */
 import { config } from '@/shared/config/constants';
+import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { tryCatch } from '@/shared/lib/try-catch';
 import axios, { AxiosResponse } from 'axios';
 import { atom, useAtom } from 'jotai';
@@ -93,6 +94,8 @@ export interface Market {
 export interface EnhancedMarket extends Market {
   baseTokenName: string;
   quoteTokenName: string;
+  baseDecimals: number;
+  quoteDecimals: number;
 }
 
 // Memoized market enhancement to avoid unnecessary object creation
@@ -102,11 +105,15 @@ const memoizedEnhanceMarket = (market: Market): EnhancedMarket => {
   // Parse the market name to get base and quote token names
   const [baseTokenName, quoteTokenName] = market.name.split('/').map((s: string) => s.trim());
 
+  const baseDecimals = getTokenDecimals(baseTokenName);
+  const quoteDecimals = getTokenDecimals(quoteTokenName);
   // Create enhanced market with token names
   return {
     ...market,
     baseTokenName: baseTokenName || 'BASE',
     quoteTokenName: quoteTokenName || 'QUOTE',
+    baseDecimals,
+    quoteDecimals,
   };
 };
 

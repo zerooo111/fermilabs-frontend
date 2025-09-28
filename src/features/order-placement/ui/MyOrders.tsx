@@ -11,8 +11,7 @@ import { Badge } from '@/shared/ui/badge';
 import { createHash } from 'crypto';
 import { BN } from '@coral-xyz/anchor';
 import { toast } from 'sonner';
-
-import { selectedMarketAtom } from '@/entities/market/model';
+import { useSelectedMarket } from '@/entities/market';
 import { orderReceiptsAtom } from '@/entities/order-receipt';
 import { OrderReceipt } from './OrderReceipt';
 import {
@@ -28,7 +27,7 @@ import { useQuery } from '@tanstack/react-query';
 export function MyOrders() {
   const { publicKey, signMessage } = useWallet();
   const [cancellingOrders, setCancellingOrders] = useState<Set<number>>(new Set());
-  const selectedMarket = useAtomValue(selectedMarketAtom);
+  const { selectedMarket } = useSelectedMarket();
   const orderReceipts = useAtomValue(orderReceiptsAtom);
   const { fetchUserOrders } = useSequencerApi();
 
@@ -172,6 +171,8 @@ export function MyOrders() {
       );
     }
 
+    if (!selectedMarket) return null;
+
     return myOrders.map(order => {
       return (
         <TableRow key={order.order_id} className="text-xs text-white/75">
@@ -180,19 +181,18 @@ export function MyOrders() {
             <Badge variant={order.side === 'Buy' ? 'success' : 'danger'}>{order.side}</Badge>
           </TableCell>
           <TableCell className="font-mono tabular-nums">
-            {formatPrice(order.price, selectedMarket?.quoteTokenName)}{' '}
-            {selectedMarket?.quoteTokenName}
+            {formatPrice(order.price, selectedMarket.quoteDecimals)} {selectedMarket.quoteTokenName}
           </TableCell>
           <TableCell className="font-mono tabular-nums">
-            {formatQuantity(order.quantity, selectedMarket?.baseTokenName)}{' '}
+            {formatQuantity(order.quantity, selectedMarket.baseDecimals)}{' '}
             {selectedMarket?.baseTokenName}
           </TableCell>
           <TableCell className="font-mono tabular-nums">
             {formatTotal(
               order.price,
               order.quantity,
-              selectedMarket?.quoteTokenName,
-              selectedMarket?.baseTokenName
+              selectedMarket.quoteDecimals,
+              selectedMarket.baseDecimals
             )}{' '}
             {selectedMarket?.quoteTokenName}
           </TableCell>

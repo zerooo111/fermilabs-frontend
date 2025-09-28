@@ -4,7 +4,6 @@
  * Updated to use the Graph API according to documentation
  */
 import { useState, useCallback, memo, useMemo, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CandlestickChart } from '@/features/chart/ui/CandlestickChart';
 import { ChartHeader } from '@/features/chart/ui/ChartHeader';
@@ -23,18 +22,16 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 function ChartContainerComponent() {
-  const location = useLocation();
+  // Remove all this complex market selection logic
   const selectedMarket = useAtomValue(selectedMarketAtom);
   const allMarkets = useAtomValue(marketsAtom);
   const { selectMarket, selectedMarketId } = useSelectedMarket();
   const [timeInterval, setTimeInterval] = useState<TimeInterval>('1m');
 
-  // Determine market kind based on current route
-  const marketKind = useMemo<MarketKind>(() => {
-    return location.pathname.startsWith('/perps') ? 'perp' : 'spot';
-  }, [location.pathname]);
+  // ChartContainer is now only used for spot markets
+  const marketKind: MarketKind = 'spot';
 
-  // Filter markets by kind
+  // Filter markets by kind (only spot markets)
   const filteredMarkets = useMemo(() => {
     return allMarkets.filter(market => market.kind === marketKind);
   }, [allMarkets, marketKind]);

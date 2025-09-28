@@ -3,11 +3,10 @@
  * Displays the orderbook for the selected market
  */
 import { useEffect, useMemo, useRef } from 'react';
-import { useAtomValue } from 'jotai';
 import { useQuery } from '@tanstack/react-query';
 import { isEqual } from 'lodash';
 
-import { selectedMarketAtom } from '@/entities/market';
+import { useSelectedMarket } from '@/entities/market';
 import { useOrderbook } from '@/entities/orderbook';
 import { processOrderbook, formatPrice } from '../lib/processOrderbook';
 
@@ -15,10 +14,10 @@ import { OrderbookRow } from './OrderbookRow';
 import { Trades } from './Trades';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 
-const orderbookRows = 12;
+const orderbookRows = 10;
 
 export function Orderbook() {
-  const selectedMarket = useAtomValue(selectedMarketAtom);
+  const { selectedMarket } = useSelectedMarket();
   const { orderbook, loadOrderbook } = useOrderbook();
   const lastProcessedRef = useRef<ReturnType<typeof processOrderbook> | null>(null);
 
@@ -55,7 +54,7 @@ export function Orderbook() {
     }
   }, [selectedMarket, processedOrderbook]);
 
-  if (!processedOrderbook) return null;
+  if (!processedOrderbook || !selectedMarket) return null;
 
   return (
     <div className="w-[360px]">
@@ -91,8 +90,8 @@ export function Orderbook() {
                     size={order.quantity}
                     depth={order.depth}
                     side="Sell"
-                    quoteTokenName={selectedMarket?.quoteTokenName}
-                    baseTokenName={selectedMarket?.baseTokenName}
+                    quoteDecimals={selectedMarket.quoteDecimals}
+                    baseDecimals={selectedMarket.baseDecimals}
                   />
                 ) : (
                   <div key={`empty-sell-${i}`} className="h-[26px]" />
@@ -104,7 +103,7 @@ export function Orderbook() {
             <div className="px-4 py-2 text-xs flex justify-between items-center shrink-0 bg-card border-y border-outline">
               <span>Spread</span>
               <span className="font-mono">
-                {formatPrice(processedOrderbook.spread, selectedMarket?.quoteTokenName)}
+                {formatPrice(processedOrderbook.spread, selectedMarket.quoteDecimals)}
               </span>
             </div>
 
@@ -118,8 +117,8 @@ export function Orderbook() {
                     size={order.quantity}
                     depth={order.depth}
                     side="Buy"
-                    quoteTokenName={selectedMarket?.quoteTokenName}
-                    baseTokenName={selectedMarket?.baseTokenName}
+                    quoteDecimals={selectedMarket.quoteDecimals}
+                    baseDecimals={selectedMarket.baseDecimals}
                   />
                 ) : (
                   <div key={`empty-buy-${i}`} className="h-[26px]" />

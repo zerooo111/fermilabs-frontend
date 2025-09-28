@@ -7,13 +7,13 @@ import { useLayoutEffect, useEffect, useRef, memo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { Orderbook } from '../../features/orderbook-view';
-import { ChartContainer } from '../../features/chart';
+import { PerpsChartContainer } from '../../features/chart/ui/PerpsChartContainer';
 import { PerpsTradePanel, PortfolioTabs } from '../../features/order-placement';
 import { useSelectedMarket } from '@/entities/market';
 
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
-const MemoizedChartContainer = memo(ChartContainer);
+const MemoizedPerpsChartContainer = memo(PerpsChartContainer);
 const MemoizedPerpsTradePanel = memo(PerpsTradePanel);
 const MemoizedPortfolioTabs = memo(PortfolioTabs);
 
@@ -61,7 +61,7 @@ function PerpsPage() {
     <div className="flex flex-col min-h-[calc(100vh-60px)] border-outline">
       <div className="flex mx-4 divide-x divide-outline border-x border-outline">
         <div className="flex-1">
-          <MemoizedChartContainer />
+          <MemoizedPerpsChartContainer />
         </div>
         <MemoizedOrderbook />
         <MemoizedPerpsTradePanel />

@@ -4,6 +4,8 @@ import { TimeInterval } from '@/features/chart/lib/chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { cn } from '@/lib/utils';
+import { useSelectedMarket } from '@/entities/market';
+import { formatPrice, formatQuantity } from '@/features/orderbook-view/lib/processOrderbook';
 
 const INTERVALS: { label: string; value: TimeInterval }[] = [
   { label: '1M', value: '1m' },
@@ -39,6 +41,9 @@ function ChartHeaderComponent({
   latestPrice,
 }: ChartHeaderProps) {
   const { data: marketStats, isLoading: isStatsLoading } = useMarketStats(selectedMarketId || '');
+  const { selectedMarket } = useSelectedMarket();
+
+  if (!selectedMarket) return null;
 
   return (
     <div className="flex h-12  items-center divide-x divide-outline justify-between border-b border-outline">
@@ -55,7 +60,11 @@ function ChartHeaderComponent({
         <div className="flex flex-col justify-center px-2 h-full border-r ">
           <span className="text-xs whitespace-nowrap font-medium text-white/50">Mark Price</span>
           <span className="font-mono font-semibold text-base text-white">
-            {isStatsLoading ? '...' : (marketStats?.mark_price?.toFixed(4) ?? '0.0000')}
+            {isStatsLoading
+              ? '...'
+              : marketStats?.mark_price
+                ? formatPrice(marketStats.mark_price, selectedMarket?.quoteDecimals)
+                : '0.0000'}
           </span>
         </div>
 
@@ -103,7 +112,7 @@ function ChartHeaderComponent({
             {isStatsLoading
               ? '...'
               : marketStats?.open_interest
-                ? marketStats.open_interest.toLocaleString()
+                ? formatQuantity(marketStats.open_interest, selectedMarket.baseDecimals)
                 : '0'}
           </span>
         </div>

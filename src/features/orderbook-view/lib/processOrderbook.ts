@@ -97,13 +97,12 @@ const formatWithPrecision = (value: number): string => {
  * @param quoteTokenName The quote token name for decimal determination
  * @returns A string representation with dynamic precision.
  */
-export const formatPrice = (price: number, quoteTokenName?: string): string => {
+export const formatPrice = (price: number, quoteDecimals: number): string => {
   const priceBN = toBN(price);
   if (!priceBN) return '0.00';
 
   try {
-    const decimals = getTokenDecimals(quoteTokenName);
-    const scale = createDecimalScale(decimals);
+    const scale = createDecimalScale(quoteDecimals);
     const normalizedPrice = normalizeBN(priceBN, scale);
     return formatWithPrecision(normalizedPrice);
   } catch {
@@ -118,13 +117,12 @@ export const formatPrice = (price: number, quoteTokenName?: string): string => {
  * @param baseTokenName The base token name for decimal determination
  * @returns A string representation with dynamic precision.
  */
-export const formatQuantity = (quantity: number, baseTokenName?: string): string => {
+export const formatQuantity = (quantity: number, baseDecimals: number): string => {
   const quantityBN = toBN(quantity);
   if (!quantityBN) return '0.00';
 
   try {
-    const decimals = getTokenDecimals(baseTokenName);
-    const scale = createDecimalScale(decimals);
+    const scale = createDecimalScale(baseDecimals);
     const normalizedQuantity = normalizeBN(quantityBN, scale);
     return formatWithPrecision(normalizedQuantity);
   } catch {
@@ -144,8 +142,8 @@ export const formatQuantity = (quantity: number, baseTokenName?: string): string
 export const formatTotal = (
   price: number,
   quantity: number,
-  quoteTokenName?: string,
-  baseTokenName?: string
+  quoteDecimals: number,
+  baseDecimals: number
 ): string => {
   const priceBN = toBN(price);
   const quantityBN = toBN(quantity);
@@ -156,8 +154,6 @@ export const formatTotal = (
     const totalBN = priceBN.mul(quantityBN);
 
     // Normalize by both decimal scales
-    const quoteDecimals = getTokenDecimals(quoteTokenName);
-    const baseDecimals = getTokenDecimals(baseTokenName);
     const quoteScale = createDecimalScale(quoteDecimals);
     const baseScale = createDecimalScale(baseDecimals);
     const totalScale = baseScale.mul(quoteScale);

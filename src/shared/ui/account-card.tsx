@@ -1,16 +1,19 @@
 import { useWallet } from '@solana/wallet-adapter-react';
 import { usePNL } from '@/shared/hooks/usePNL';
 import { Loader2 } from 'lucide-react';
+import { getTokenDecimals } from '@/shared/lib/token-decimals';
 
 export function AccountCard() {
   const { publicKey } = useWallet();
   const { data: pnlData, isLoading, error } = usePNL(publicKey?.toBase58() || '');
 
-  const formatCurrency = (value: string) => {
+  const formatCurrency = (value: string, tokenName?: string) => {
     const num = parseFloat(value);
-    return num.toLocaleString(undefined, {
+    const decimals = getTokenDecimals(tokenName);
+    const formattedValue = num / Math.pow(10, decimals);
+    return formattedValue.toLocaleString(undefined, {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 4,
     });
   };
 
@@ -58,14 +61,14 @@ export function AccountCard() {
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">Maintenance Margin</span>
           <span className="text-sm font-mono">
-            {formatCurrency(margin_metrics.maintenance_margin)}
+            {formatCurrency(margin_metrics.maintenance_margin, 'USDC')}
           </span>
         </div>
 
         {/* Account Equity */}
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">Equity</span>
-          <span className="text-sm font-mono">{formatCurrency(margin_metrics.equity)}</span>
+          <span className="text-sm font-mono">{formatCurrency(margin_metrics.equity, 'USDC')}</span>
         </div>
 
         {/* Unrealized PnL */}
@@ -74,7 +77,7 @@ export function AccountCard() {
           <span
             className={`text-sm font-mono ${parseFloat(margin_metrics.unrealized_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}
           >
-            {formatCurrency(margin_metrics.unrealized_pnl)}
+            {formatCurrency(margin_metrics.unrealized_pnl, 'USDC')}
           </span>
         </div>
       </div>

@@ -3,23 +3,18 @@
  * Displays the user's open positions (perpetuals only)
  */
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useAtomValue } from 'jotai';
+import { formatQuantity, formatPrice } from '@/features/orderbook-view/lib/processOrderbook';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
 import { Loader2 } from 'lucide-react';
-import { selectedMarketAtom } from '@/entities/market/model';
+import { useSelectedMarket } from '@/entities/market/model';
 import { usePositions } from '@/shared/hooks/usePositions';
-import { useEffect } from 'react';
 
 export function MyPositions() {
   const { publicKey } = useWallet();
-  const selectedMarket = useAtomValue(selectedMarketAtom);
-
+  const { selectedMarket } = useSelectedMarket();
   const { data: positions, isLoading } = usePositions(publicKey?.toBase58() || '');
 
-  useEffect(() => {
-    console.log('positions', positions);
-  }, [positions]);
   if (!publicKey) {
     return (
       <div>
@@ -78,24 +73,25 @@ export function MyPositions() {
       <TableRow key={index} className="text-white/90">
         <TableCell className="font-medium">{position.market_name}</TableCell>
         <TableCell className="text-center font-mono tabular-nums">
-          {position.base_position}
+          {formatQuantity(position.base_position, selectedMarket.baseDecimals)}
         </TableCell>
         <TableCell className="text-center font-mono tabular-nums">
-          {position.average_entry_price}
+          {formatPrice(position.average_entry_price, selectedMarket.quoteDecimals)}
         </TableCell>
-        <TableCell className="text-center font-mono tabular-nums">{position.mark_price}</TableCell>
+        <TableCell className="text-center font-mono tabular-nums">
+          {formatPrice(position.mark_price, selectedMarket.quoteDecimals)}
+        </TableCell>
         <TableCell
           className={`text-center font-mono tabular-nums ${parseFloat(position.unrealized_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}
         >
-          {position.unrealized_pnl}
+          {formatPrice(parseFloat(position.unrealized_pnl), selectedMarket.quoteDecimals)}
         </TableCell>
         <TableCell className="text-center">
           <Button
             variant="outline"
             size="sm"
             onClick={() => {
-              // TODO: Implement close position logic
-              console.log('Close position:', position.market_id);
+              alert('Work in progress.');
             }}
           >
             Close

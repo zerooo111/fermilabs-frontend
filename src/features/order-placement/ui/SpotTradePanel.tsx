@@ -92,8 +92,6 @@ export function SpotTradePanel() {
       timestamp_ms: Date.now().toString(),
     };
 
-    console.log(frmTransaction);
-
     const jsonFrm = JSON.stringify(frmTransaction);
     const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
 

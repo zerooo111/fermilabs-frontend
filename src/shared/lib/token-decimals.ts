@@ -12,5 +12,5 @@ export function getTokenDecimals(tokenName?: string): number {
   if (!tokenName) return 9;
 
   // USDC uses 6 decimals, all other tokens use 9
-  return tokenName.toUpperCase() === 'USDC' ? 6 : 9;
+  return tokenName.toUpperCase().includes('USDC') ? 6 : 9;
 }
