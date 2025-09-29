@@ -37,9 +37,17 @@ function TradePage() {
         }
 
         const currentMarket = markets.find(m => m.uuid === urlMarketId);
+        // Filter for spot markets only
+        const spotMarkets = markets.filter(m => m.kind === 'spot');
+        const firstSpotMarket = spotMarkets[0];
+
+        if (!currentMarket && !firstSpotMarket) {
+          throw new Error('No spot markets found!');
+        }
+
         // Batch these operations
         Promise.resolve().then(() => {
-          selectMarket(currentMarket?.uuid || markets[0].uuid);
+          selectMarket(currentMarket?.uuid || firstSpotMarket?.uuid);
           initialLoadRef.current = true;
         });
       } catch {

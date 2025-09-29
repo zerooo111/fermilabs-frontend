@@ -11,7 +11,7 @@ export const AppRouter = () => {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<Navigate replace to="/spot" />} />
+          <Route path="/" element={<Navigate replace to="/perps" />} />
 
           <Route path="/spot" element={<LazyTradePage />} />
           <Route path="/spot/:id" element={<LazyTradePage />} />

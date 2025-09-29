@@ -37,9 +37,17 @@ function PerpsPage() {
         }
 
         const currentMarket = markets.find(m => m.uuid === urlMarketId);
+        // Filter for perp markets only
+        const perpMarkets = markets.filter(m => m.kind === 'perp');
+        const firstPerpMarket = perpMarkets[0];
+
+        if (!currentMarket && !firstPerpMarket) {
+          throw new Error('No perp markets found!');
+        }
+
         // Batch these operations
         Promise.resolve().then(() => {
-          selectMarket(currentMarket?.uuid || markets[0].uuid);
+          selectMarket(currentMarket?.uuid || firstPerpMarket?.uuid);
           initialLoadRef.current = true;
         });
       } catch {
