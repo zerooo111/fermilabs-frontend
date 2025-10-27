@@ -42,7 +42,7 @@ export function PerpsTradePanel() {
     size: '',
     orderType: 'limit',
     leverage: '1',
-    marginMode: 'isolated',
+    marginMode: 'cross',
   });
 
   const { publicKey } = useWallet();
@@ -233,7 +233,9 @@ export function PerpsTradePanel() {
               <SelectValue placeholder="Select margin mode" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="isolated">Isolated</SelectItem>
+              <SelectItem value="isolated" disabled>
+                Isolated
+              </SelectItem>
               <SelectItem value="cross">Cross</SelectItem>
             </SelectContent>
           </Select>
@@ -250,8 +252,8 @@ export function PerpsTradePanel() {
                   {balances && balances[selectedMarket.base_mint]
                     ? (
                         parseFloat(balances[selectedMarket.base_mint].available) /
-                        Math.pow(10, getTokenDecimals(selectedMarket.baseTokenName))
-                      ).toFixed(getTokenDecimals(selectedMarket.baseTokenName))
+                        Math.pow(10, selectedMarket.baseDecimals)
+                      ).toFixed(6)
                     : '0.000000000'}
                 </span>
                 <Button
@@ -274,8 +276,8 @@ export function PerpsTradePanel() {
                   {balances && balances[selectedMarket.quote_mint]
                     ? (
                         parseFloat(balances[selectedMarket.quote_mint].available) /
-                        Math.pow(10, getTokenDecimals(selectedMarket.quoteTokenName))
-                      ).toFixed(getTokenDecimals(selectedMarket.quoteTokenName))
+                        Math.pow(10, selectedMarket.quoteDecimals)
+                      ).toFixed(selectedMarket.quoteDecimals)
                     : '0.000000'}
                 </span>
                 <Button

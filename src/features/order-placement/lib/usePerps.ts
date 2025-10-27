@@ -282,6 +282,8 @@ export function usePerps() {
 
       const receipt = response.data;
 
+      console.log('CLOSE TX', receipt);
+
       if (receipt.sequence_number && receipt.expected_tick && receipt.tx_hash) {
         addOrderReceipt({
           sequence_number: receipt.sequence_number,
@@ -291,7 +293,7 @@ export function usePerps() {
         });
       }
 
-      toast.success(`Closed ${side} position`);
+      toast.success(`Closed position`);
       return { success: true };
     } catch (error) {
       toast.error('Failed to place close order');
