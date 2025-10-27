@@ -199,11 +199,12 @@ export function usePerps() {
       const priceValue = parseFloat(price);
       const sizeValue = parseFloat(size);
 
-      const priceDecimals = new BN(Math.pow(10, selectedMarket?.quoteDecimals));
-      const quantityDecimals = new BN(Math.pow(10, selectedMarket?.baseDecimals));
+      // const priceDecimals = new BN(Math.pow(10, selectedMarket?.quoteDecimals));
+      // const quantityDecimals = new BN(Math.pow(10, selectedMarket?.baseDecimals));
+      // commentintg out decimal part because the positions api gives lamports and wedirectly use that
 
-      const priceBN = new BN(Math.floor(priceValue)).mul(priceDecimals);
-      const sizeBN = new BN(Math.floor(sizeValue)).mul(quantityDecimals);
+      const priceBN = new BN(Math.floor(priceValue));
+      const sizeBN = new BN(Math.floor(sizeValue));
 
       const baseMintAddress = selectedMarket?.base_mint || baseMint.toBase58();
       const quoteMintAddress = selectedMarket?.quote_mint || quoteMint.toBase58();
