@@ -155,6 +155,7 @@ export function usePerps() {
         transaction: transactionData,
       });
 
+      console.log('TX RESPONSE', response.data);
       const receipt = response.data;
 
       if (receipt.sequence_number && receipt.expected_tick && receipt.tx_hash) {
