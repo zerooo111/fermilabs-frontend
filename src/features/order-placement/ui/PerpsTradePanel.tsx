@@ -234,7 +234,7 @@ export function PerpsTradePanel() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="isolated">Isolated</SelectItem>
-              <SelectItem value="Cross">Cross</SelectItem>
+              <SelectItem value="cross">Cross</SelectItem>
             </SelectContent>
           </Select>
         </div>
