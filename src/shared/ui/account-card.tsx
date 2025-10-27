@@ -1,16 +1,15 @@
 import { useWallet } from '@solana/wallet-adapter-react';
-import { usePNL } from '@/shared/hooks/usePNL';
+import { useAccount } from '@/shared/hooks/useAccount';
 import { Loader2 } from 'lucide-react';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 
 export function AccountCard() {
   const { publicKey } = useWallet();
-  const { data: pnlData, isLoading, error } = usePNL(publicKey?.toBase58() || '');
+  const { data: accountData, isLoading, error } = useAccount(publicKey?.toBase58() || '');
 
-  const formatCurrency = (value: string, tokenName?: string) => {
-    const num = parseFloat(value);
+  const formatCurrency = (value: number, tokenName?: string) => {
     const decimals = getTokenDecimals(tokenName);
-    const formattedValue = num / Math.pow(10, decimals);
+    const formattedValue = value / Math.pow(10, decimals);
     return formattedValue.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 4,
@@ -38,11 +37,15 @@ export function AccountCard() {
     return <div className="text-center h-12 px-4 text-white/60">Failed to load account data</div>;
   }
 
-  if (!pnlData || !pnlData.margin_metrics) {
+  if (!accountData) {
     return null;
   }
 
-  const { margin_metrics } = pnlData;
+  // Calculate margin ratio
+  const marginRatio =
+    accountData.maintenance_margin_snapshot > 0
+      ? (accountData.equity_snapshot / accountData.maintenance_margin_snapshot) * 100
+      : 0;
 
   return (
     <>
@@ -54,30 +57,32 @@ export function AccountCard() {
         {/* Account Margin Ratio */}
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">Margin Ratio</span>
-          <span className="text-sm font-mono">0.00%</span>
+          <span className="text-sm font-mono">{marginRatio.toFixed(2)}%</span>
         </div>
 
         {/* Account Maintenance Margin */}
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">Maintenance Margin</span>
           <span className="text-sm font-mono">
-            {formatCurrency(margin_metrics.maintenance_margin, 'USDC')}
+            {formatCurrency(accountData.maintenance_margin_snapshot, 'USDC')}
           </span>
         </div>
 
         {/* Account Equity */}
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">Equity</span>
-          <span className="text-sm font-mono">{formatCurrency(margin_metrics.equity, 'USDC')}</span>
+          <span className="text-sm font-mono">
+            {formatCurrency(accountData.equity_snapshot, 'USDC')}
+          </span>
         </div>
 
         {/* Unrealized PnL */}
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">Unrealized PNL</span>
           <span
-            className={`text-sm font-mono ${parseFloat(margin_metrics.unrealized_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}
+            className={`text-sm font-mono ${accountData.unrealized_pnl_snapshot >= 0 ? 'text-green-400' : 'text-red-400'}`}
           >
-            {formatCurrency(margin_metrics.unrealized_pnl, 'USDC')}
+            {formatCurrency(accountData.unrealized_pnl_snapshot, 'USDC')}
           </span>
         </div>
       </div>

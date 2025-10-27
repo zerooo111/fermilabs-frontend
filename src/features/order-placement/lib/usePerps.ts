@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { createHash } from 'crypto';
-import { baseMint, config, quoteMint } from '@/shared/config/constants';
+import { baseMint, config, quoteMint, API_ROUTES } from '@/shared/config/constants';
 import { useSelectedMarket } from '@/entities/market';
 import { addOrderReceiptAtom } from '@/entities/order-receipt';
 import { useSetAtom } from 'jotai';
@@ -149,7 +149,7 @@ export function usePerps() {
         timestamp: Date.now().toString(),
       };
 
-      const apiUrl = `${config.devnet.apiBaseUrl}/tx`;
+      const apiUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.tx}`;
 
       const response = await axios.post(apiUrl, {
         transaction: transactionData,
@@ -272,7 +272,7 @@ export function usePerps() {
         timestamp: Date.now().toString(),
       };
 
-      const apiUrl = `${config.devnet.apiBaseUrl}/tx`;
+      const apiUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.tx}`;
 
       const response = await axios.post(apiUrl, {
         transaction: transactionData,

@@ -1,8 +1,7 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { MarketSelector } from '@/features/market-selector';
 import { TimeInterval } from '@/features/chart/lib/chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { cn } from '@/lib/utils';
 import { useSelectedMarket } from '@/entities/market';
 import { formatPrice, formatQuantity } from '@/features/orderbook-view/lib/processOrderbook';
@@ -40,8 +39,40 @@ function ChartHeaderComponent({
   onIntervalChange,
   latestPrice,
 }: ChartHeaderProps) {
-  const { data: marketStats, isLoading: isStatsLoading } = useMarketStats(selectedMarketId || '');
   const { selectedMarket } = useSelectedMarket();
+
+  // Calculate market stats directly from selectedMarket
+  const marketStats = useMemo(() => {
+    if (!selectedMarket) return null;
+
+    // Extract stats from perp_state for perp markets
+    if (
+      (selectedMarket.kind === 'perp' || selectedMarket.kind === 'Perpetual') &&
+      selectedMarket.perp_state
+    ) {
+      const perpState = selectedMarket.perp_state;
+
+      // Handle both new and old mark_price structure
+      const markPriceRaw = perpState.mark_price ?? 0;
+      const markPrice = markPriceRaw / Math.pow(10, selectedMarket.quoteDecimals);
+
+      // Convert funding rate from bps to percentage (handle both structures)
+      const fundingRateBps = perpState.funding_rate_bps ?? perpState.last_funding_rate_bps ?? 0;
+      const fundingRate = fundingRateBps / 10000;
+
+      // Open interest is at the market level (raw value with base_decimals)
+      const openInterestRaw = selectedMarket.open_interest ?? 0;
+      const openInterest = openInterestRaw / Math.pow(10, selectedMarket.baseDecimals);
+
+      return {
+        mark_price: markPrice,
+        funding_rate: fundingRate,
+        open_interest: openInterest,
+      };
+    }
+
+    return null;
+  }, [selectedMarket]);
 
   if (!selectedMarket) return null;
 
@@ -60,11 +91,9 @@ function ChartHeaderComponent({
         <div className="flex flex-col justify-center px-2 h-full border-r ">
           <span className="text-xs whitespace-nowrap font-medium text-white/50">Mark Price</span>
           <span className="font-mono font-semibold text-base text-white">
-            {isStatsLoading
-              ? '...'
-              : marketStats?.mark_price
-                ? formatPrice(marketStats.mark_price, selectedMarket?.quoteDecimals)
-                : '0.0000'}
+            {marketStats?.mark_price
+              ? formatPrice(marketStats.mark_price, selectedMarket.quoteDecimals)
+              : '0.0000'}
           </span>
         </div>
 
@@ -96,11 +125,9 @@ function ChartHeaderComponent({
                   : 'text-white'
               )}
             >
-              {isStatsLoading
-                ? '...'
-                : marketStats?.funding_rate
-                  ? `${marketStats.funding_rate.toFixed(4)}%`
-                  : '0.0000%'}
+              {marketStats?.funding_rate !== undefined
+                ? `${marketStats.funding_rate.toFixed(4)}%`
+                : '0.0000%'}
             </span>
           </div>
         )}
@@ -109,11 +136,9 @@ function ChartHeaderComponent({
         <div className="flex flex-col justify-center px-2 h-full ">
           <span className="text-xs whitespace-nowrap font-medium text-white/50">Open Interest</span>
           <span className="font-mono font-semibold text-base text-white">
-            {isStatsLoading
-              ? '...'
-              : marketStats?.open_interest
-                ? formatQuantity(marketStats.open_interest, selectedMarket.baseDecimals)
-                : '0'}
+            {marketStats?.open_interest
+              ? formatQuantity(marketStats.open_interest, selectedMarket.baseDecimals)
+              : '0'}
           </span>
         </div>
       </div>

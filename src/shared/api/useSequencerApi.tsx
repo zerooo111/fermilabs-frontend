@@ -7,88 +7,120 @@ import { useCallback } from 'react';
 import axios, { AxiosResponse } from 'axios';
 import { useSelectedServer } from '@/entities/server';
 import { tryCatch } from '@/shared/lib/try-catch';
-import { config } from '../config/constants';
+import { config, API_ROUTES } from '../config/constants';
 
 export interface Market {
   uuid: string;
-  name: string;
   base_mint: string;
   quote_mint: string;
+  name: string;
+  created_at: number;
+  kind: 'spot' | 'perp' | 'Perpetual';
+  perp_config: {
+    funding_interval_seconds: number;
+    funding_interest_rate_bps: number;
+    funding_oracle: string | null;
+    funding_premium_cap_bps: number;
+    funding_rate_cap_bps: number;
+    initial_margin: number;
+    liquidation_penalty: number;
+    maintenance_margin: number;
+    // New simplified structure
+    max_leverage?: number;
+    initial_margin_bps?: number;
+    maintenance_margin_bps?: number;
+    // Old structure with tiers
+    max_leverage_tiers?: Array<{
+      notional: number;
+      max_leverage: number;
+    }>;
+  } | null;
+  perp_state: {
+    // New structure
+    funding_rate_bps?: number;
+    last_funding_update?: number;
+    mark_price?: number;
+    index_price?: number;
+    // Old structure
+    last_funding_rate_bps?: number | null;
+    last_funding_timestamp?: number | null;
+    last_premium_rate_bps?: number | null;
+    mark_price_timestamp?: number | null;
+    index_price_timestamp?: number | null;
+    next_funding_timestamp?: number | null;
+  } | null;
   base_decimals: number;
   quote_decimals: number;
+  price_decimals: number | null;
   base_lot_size: number;
   quote_lot_size: number;
-  [key: string]: any;
 }
 
-export interface OrderbookItem {
-  order_count: number;
+export interface OrderbookOrder {
+  order_id: number;
+  owner: string;
   price: number;
-  total_quantity: number;
-}
-
-export interface OrderbookSummary {
-  asks: OrderbookItem[];
-  bids: OrderbookItem[];
-  last_trade_price: number;
-  timestamp: number;
+  quantity: number;
+  side: 'Buy' | 'Sell';
+  expiry: number;
+  base_mint: string;
+  quote_mint: string;
+  market_id: string;
 }
 
 export interface Orderbook {
-  buys: OrderbookItem[];
-  sells: OrderbookItem[];
+  buys: OrderbookOrder[];
+  sells: OrderbookOrder[];
+}
+
+export interface OrderbookSummary {
+  market_id: string;
+  bid_count: number;
+  ask_count: number;
+  best_bid: number | null;
+  best_ask: number | null;
+  spread: number | null;
+  total_bid_volume: string;
+  total_ask_volume: string;
+}
+
+export interface OrderbookDepth {
+  lastUpdateId: number;
+  bids: [string, string][]; // [price, quantity] pairs
+  asks: [string, string][]; // [price, quantity] pairs
 }
 
 export interface Order {
-  base_mint: string;
-  expiry: number;
-  market_id: string;
   order_id: number;
+  market_id: string;
+  market_name: string;
+  owner: string;
+  side: 'Buy' | 'Sell';
   price: number;
   quantity: number;
-  quote_mint: string;
-  side: string;
+  expiry: number;
   timestamp: number;
-}
-
-export interface UserOrdersResponse {
-  orders: Order[];
-  owner: string;
-  total_orders: number;
+  base_mint: string;
+  quote_mint: string;
 }
 
 export interface Trade {
-  id: string;
   buyer_owner: string;
   seller_owner: string;
-  buyer_order_id: number;
-  seller_order_id: number;
   price: number;
   quantity: number;
   timestamp: number;
-  market_id: string;
+  base_mint: string;
+  quote_mint: string;
 }
 
 export interface TokenBalance {
-  available: number;
-  locked: number;
-  mint: string;
-  total: number;
+  available: string;
+  reserved: string;
 }
 
 export interface UserBalancesResponse {
-  balances: Record<string, TokenBalance>;
-  margin_metrics: {
-    available_withdrawal: string;
-    equity: string;
-    free_collateral: string;
-    initial_margin: string;
-    maintenance_margin: string;
-    realized_pnl: string;
-    reserved_margin: string;
-    unrealized_pnl: string;
-  };
-  user: string;
+  [mint: string]: TokenBalance;
 }
 
 export interface AirdropResponse {
@@ -125,7 +157,7 @@ export function useSequencerApi() {
 
   const fetchOrderbook = useCallback(async (marketId: string): Promise<OrderbookSummary> => {
     const apiBaseUrl = config.devnet.apiBaseUrl;
-    const url = `${apiBaseUrl}/me/markets/${marketId}/orderbook/summary`;
+    const url = `${apiBaseUrl}${API_ROUTES.market_orderbook_summary.replace('{marketId}', marketId)}`;
 
     const { data, error } = await tryCatch<AxiosResponse<OrderbookSummary>>(axios.get(url));
 
@@ -137,17 +169,30 @@ export function useSequencerApi() {
     return data.data;
   }, []);
 
-  const fetchUserOrders = useCallback(async (pubkey: string): Promise<Order[]> => {
+  const fetchOrderbookDepth = useCallback(async (marketId: string): Promise<OrderbookDepth> => {
     const apiBaseUrl = config.devnet.apiBaseUrl;
-    const url = `${apiBaseUrl}/me/orders/user/${pubkey}`;
+    const url = `${apiBaseUrl}${API_ROUTES.market_orderbook_depth.replace('{marketId}', marketId)}`;
 
-    const { data, error } = await tryCatch<AxiosResponse<UserOrdersResponse>>(axios.get(url));
+    const { data, error } = await tryCatch<AxiosResponse<OrderbookDepth>>(axios.get(url));
 
     if (error) {
       throw error;
     }
 
-    return data.data.orders || [];
+    return data.data;
+  }, []);
+
+  const fetchUserOrders = useCallback(async (pubkey: string): Promise<Order[]> => {
+    const apiBaseUrl = config.devnet.apiBaseUrl;
+    const url = `${apiBaseUrl}${API_ROUTES.user_orders.replace('{pubkey}', pubkey)}`;
+
+    const { data, error } = await tryCatch<AxiosResponse<Order[]>>(axios.get(url));
+
+    if (error) {
+      throw error;
+    }
+
+    return data.data || [];
   }, []);
 
   const fetchTrades = useCallback(
@@ -171,22 +216,21 @@ export function useSequencerApi() {
 
   const fetchUserBalances = useCallback(async (pubkey: string): Promise<UserBalancesResponse> => {
     const apiBaseUrl = config.devnet.apiBaseUrl;
-    const url = `${apiBaseUrl}/me/balances/${pubkey}`;
+    const url = `${apiBaseUrl}${API_ROUTES.user_balances.replace('{pubkey}', pubkey)}`;
 
-    const { data, error } = await tryCatch<
-      AxiosResponse<{ code: number; data: UserBalancesResponse; message: string }>
-    >(axios.get(url));
+    const { data, error } = await tryCatch<AxiosResponse<UserBalancesResponse>>(axios.get(url));
 
     if (error) {
       throw error;
     }
 
-    return data.data.data;
+    return data.data;
   }, []);
 
   return {
     ping,
     fetchOrderbook,
+    fetchOrderbookDepth,
     fetchUserOrders,
     submitCancelOrderToSequencer,
     fetchTrades,

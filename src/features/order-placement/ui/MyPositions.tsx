@@ -2,23 +2,30 @@
  * My positions component
  * Displays the user's open positions (perpetuals only)
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { formatQuantity, formatPrice } from '@/features/orderbook-view/lib/processOrderbook';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
 import { Loader2 } from 'lucide-react';
-import { useSelectedMarket } from '@/entities/market/model';
+import { useSelectedMarket, marketsAtom } from '@/entities/market/model';
 import { usePositions } from '@/shared/hooks/usePositions';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
 import { OrderSide } from '@/features/order-placement/lib/PerpOrdersIntent';
+import { useAtomValue } from 'jotai';
 
 export function MyPositions() {
   const { publicKey } = useWallet();
   const { selectedMarket } = useSelectedMarket();
-  const { data: positions, isLoading } = usePositions(publicKey?.toBase58() || '');
+  const markets = useAtomValue(marketsAtom);
+  const { data: positions, isLoading } = usePositions({ owner: publicKey?.toBase58() || '' });
   const { closePosition } = usePerps();
   const [closingPositionIndex, setClosingPositionIndex] = useState<number | null>(null);
+
+  // Create a map of market_id to market data for quick lookup
+  const marketsMap = useMemo(() => {
+    return new Map(markets.map(market => [market.uuid, market]));
+  }, [markets]);
 
   const handleClosePosition = async (position: any, index: number) => {
     setClosingPositionIndex(index);
@@ -89,7 +96,7 @@ export function MyPositions() {
   }
 
   const renderTableContent = () => {
-    if (positions.length === 0) {
+    if (!positions || positions.length === 0) {
       return (
         <TableRow>
           <TableCell colSpan={6} className="h-24 text-center text-sm text-muted-foreground">
@@ -99,42 +106,57 @@ export function MyPositions() {
       );
     }
 
-    return positions.map((position, index) => (
-      <TableRow key={index} className="text-white/90">
-        <TableCell className="font-medium">{position.market_name}</TableCell>
-        <TableCell className="text-center font-mono tabular-nums">
-          {formatQuantity(position.base_position, selectedMarket.baseDecimals)}
-        </TableCell>
-        <TableCell className="text-center font-mono tabular-nums">
-          {formatPrice(position.average_entry_price, selectedMarket.quoteDecimals)}
-        </TableCell>
-        <TableCell className="text-center font-mono tabular-nums">
-          {formatPrice(position.mark_price, selectedMarket.quoteDecimals)}
-        </TableCell>
-        <TableCell
-          className={`text-center font-mono tabular-nums ${parseFloat(position.unrealized_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}
-        >
-          {formatPrice(parseFloat(position.unrealized_pnl), selectedMarket.quoteDecimals)}
-        </TableCell>
-        <TableCell className="text-center">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={closingPositionIndex === index}
-            onClick={() => handleClosePosition(position, index)}
+    return positions.map((position, index) => {
+      // Convert string values to numbers for formatting
+      const basePosition = parseFloat(position.base_position);
+      const averageEntryPrice = parseFloat(position.average_entry_price);
+      const markPrice = parseFloat(position.mark_price);
+      const unrealizedPnl = parseFloat(position.unrealized_pnl);
+
+      // Get the market data for this position
+      const positionMarket = marketsMap.get(position.market_id);
+
+      // Use decimals from the position's market data
+      const baseDecimals = positionMarket?.base_decimals ?? 9;
+      const quoteDecimals = positionMarket?.quote_decimals ?? 6;
+
+      return (
+        <TableRow key={index} className="text-white/90">
+          <TableCell className="font-medium">{position.market_name}</TableCell>
+          <TableCell className="text-center font-mono tabular-nums">
+            {formatQuantity(basePosition, baseDecimals)}
+          </TableCell>
+          <TableCell className="text-center font-mono tabular-nums">
+            {formatPrice(averageEntryPrice, quoteDecimals)}
+          </TableCell>
+          <TableCell className="text-center font-mono tabular-nums">
+            {formatPrice(markPrice, quoteDecimals)}
+          </TableCell>
+          <TableCell
+            className={`text-center font-mono tabular-nums ${unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}
           >
-            {closingPositionIndex === index ? (
-              <>
-                <Loader2 className="size-3 animate-spin mr-1" />
-                Closing...
-              </>
-            ) : (
-              'Close'
-            )}
-          </Button>
-        </TableCell>
-      </TableRow>
-    ));
+            {formatPrice(unrealizedPnl, quoteDecimals)}
+          </TableCell>
+          <TableCell className="text-center">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={closingPositionIndex === index}
+              onClick={() => handleClosePosition(position, index)}
+            >
+              {closingPositionIndex === index ? (
+                <>
+                  <Loader2 className="size-3 animate-spin mr-1" />
+                  Closing...
+                </>
+              ) : (
+                'Close'
+              )}
+            </Button>
+          </TableCell>
+        </TableRow>
+      );
+    });
   };
 
   return (

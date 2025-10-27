@@ -8,33 +8,17 @@ import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
-import { config } from '@/shared/config/constants';
+import { config, API_ROUTES } from '@/shared/config/constants';
 import { Address } from '@coral-xyz/anchor';
 import { Button } from '@/shared/ui/button';
 import { toast } from 'sonner';
 
-interface AssetBalance {
-  available: number;
-  locked: number;
-  mint: string;
-  total: number;
+interface TokenBalance {
+  available: string;
+  reserved: string;
 }
 
-interface BalanceData {
-  balances: Record<string, AssetBalance>;
-  margin_metrics: {
-    available_withdrawal: string;
-    equity: string;
-    free_collateral: string;
-    funding_accrued: string;
-    initial_margin: string;
-    maintenance_margin: string;
-    realized_pnl: string;
-    reserved_margin: string;
-    unrealized_pnl: string;
-  };
-  user: string;
-}
+type BalanceData = Record<string, TokenBalance>;
 
 export function MyAssets() {
   const { publicKey } = useWallet();
@@ -43,10 +27,9 @@ export function MyAssets() {
     queryKey: ['userBalances', publicKey?.toBase58()],
     queryFn: async () => {
       if (!publicKey) return null;
-      const response = await axios.get(
-        `${config.devnet.apiBaseUrl}/me/balances/${publicKey.toBase58()}`
-      );
-      return response.data.data as BalanceData;
+      const url = `${config.devnet.apiBaseUrl}${API_ROUTES.user_balances.replace('{pubkey}', publicKey.toBase58())}`;
+      const response = await axios.get(url);
+      return response.data as BalanceData;
     },
     enabled: !!publicKey,
     refetchInterval: 5000, // Refetch every 5 seconds
@@ -54,9 +37,10 @@ export function MyAssets() {
   });
 
   const requestAirdrop = async (mintAddress: Address) => {
-    const promise = axios
-      .post(`${config.devnet.apiBaseUrl}/me/airdrop/${publicKey?.toBase58()}/${mintAddress}`)
-      .then(res => res.data.data);
+    const url = `${config.devnet.apiBaseUrl}${API_ROUTES.airdrop
+      .replace('{receiverPubKey}', publicKey?.toBase58() || '')
+      .replace('{tokenName}', mintAddress)}`;
+    const promise = axios.post(url).then(res => res.data.data);
 
     toast.promise(promise, {
       loading: 'Airdrop Request Initiated - Waiting for approval...',
@@ -113,7 +97,7 @@ export function MyAssets() {
     );
   }
 
-  const balances = data?.balances || {};
+  const balances = data || {};
 
   const renderTableContent = () => {
     const assetEntries = Object.entries(balances);
@@ -128,26 +112,29 @@ export function MyAssets() {
       );
     }
 
-    return assetEntries.map(([assetName, balance]) => {
-      const decimals = getTokenDecimals(assetName);
-      const availableFormatted = (balance.available / Math.pow(10, decimals)).toFixed(decimals);
-      const lockedFormatted = (balance.locked / Math.pow(10, decimals)).toFixed(decimals);
-      const totalFormatted = (balance.total / Math.pow(10, decimals)).toFixed(decimals);
+    return assetEntries.map(([mint, balance]) => {
+      // Try to get token name from mint address (simplified - you may want a better lookup)
+      const tokenName = 'USDC'; // Default to USDC for now
+      const decimals = getTokenDecimals(tokenName);
+
+      const available = parseFloat(balance.available);
+      const reserved = parseFloat(balance.reserved);
+      const total = available + reserved;
+
+      const availableFormatted = (available / Math.pow(10, decimals)).toFixed(decimals);
+      const reservedFormatted = (reserved / Math.pow(10, decimals)).toFixed(decimals);
+      const totalFormatted = (total / Math.pow(10, decimals)).toFixed(decimals);
 
       return (
-        <TableRow key={assetName} className="text-white/90">
-          <TableCell className="font-medium">{assetName}</TableCell>
+        <TableRow key={mint} className="text-white/90">
+          <TableCell className="font-medium">{tokenName}</TableCell>
           <TableCell className="text-center font-mono tabular-nums">{availableFormatted}</TableCell>
-          <TableCell className="text-center font-mono tabular-nums">{lockedFormatted}</TableCell>
+          <TableCell className="text-center font-mono tabular-nums">{reservedFormatted}</TableCell>
           <TableCell className="text-center font-mono tabular-nums">{totalFormatted}</TableCell>
           <TableCell className="font-mono text-right">
             <div className="flex items-center justify-end gap-2">
-              {balance.mint.slice(0, 8)}...{balance.mint.slice(-8)}
-              <Button
-                variant={'outline'}
-                size="sm"
-                onClick={() => requestAirdrop(balance.mint as Address)}
-              >
+              {mint.slice(0, 8)}...{mint.slice(-8)}
+              <Button variant={'outline'} size="sm" onClick={() => requestAirdrop(mint as Address)}>
                 Request airdrop
               </Button>
             </div>
@@ -163,7 +150,7 @@ export function MyAssets() {
         <TableRow>
           <TableHead>Asset</TableHead>
           <TableHead className="text-center">Available</TableHead>
-          <TableHead className="text-center">Locked</TableHead>
+          <TableHead className="text-center">Reserved</TableHead>
           <TableHead className="text-center">Total</TableHead>
           <TableHead className="text-right">Mint Address</TableHead>
         </TableRow>

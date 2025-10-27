@@ -17,6 +17,10 @@ import { useSelectedMarket } from '@/entities/market';
 import { getLeverageLimitsFromMarket } from '@/entities/market/model';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { config, API_ROUTES } from '@/shared/config/constants';
+import { toast } from 'sonner';
 
 // Safe parsing functions to prevent NaN errors
 const safeParseFloat = (value: string, defaultValue: number = 0): number => {
@@ -45,6 +49,63 @@ export function PerpsTradePanel() {
   const { setVisible } = useWalletModal();
   const { selectedMarket } = useSelectedMarket();
   const { openPosition } = usePerps();
+
+  // Fetch user balances from API
+  const { data: balances } = useQuery({
+    queryKey: ['userBalances', publicKey?.toBase58()],
+    queryFn: async () => {
+      if (!publicKey) return null;
+      const url = `${config.devnet.apiBaseUrl}${API_ROUTES.user_balances.replace('{pubkey}', publicKey.toBase58())}`;
+      const response = await axios.get(url);
+      return response.data as Record<string, { available: string; reserved: string }>;
+    },
+    enabled: !!publicKey,
+    refetchInterval: 5000,
+  });
+
+  // Airdrop function
+  const requestAirdrop = async (mintAddress: string, tokenName: string) => {
+    if (!publicKey) return;
+
+    const url = `${config.devnet.apiBaseUrl}/rollup/airdrop`;
+
+    // Default airdrop amount based on token decimals (e.g., 1000 tokens)
+    const decimals = getTokenDecimals(tokenName);
+    const amount = 1000 * Math.pow(10, decimals);
+
+    const promise = axios
+      .post(url, {
+        recipient: publicKey.toBase58(),
+        token_mint: mintAddress,
+        amount: amount,
+      })
+      .then(res => res.data);
+
+    toast.promise(promise, {
+      loading: 'Airdrop Request Initiated - Waiting for approval...',
+      success: data => (
+        <div className="flex flex-col gap-1">
+          <div>
+            <strong>Airdrop Request Confirmed</strong>
+          </div>
+          <div>
+            Sent {(amount / Math.pow(10, decimals)).toLocaleString()} {tokenName}
+          </div>
+          {data?.transaction_id && (
+            <div className="text-xs">TX: {data.transaction_id.slice(0, 8)}...</div>
+          )}
+        </div>
+      ),
+      error: (err: any) => (
+        <div className="flex flex-col gap-1">
+          <div>
+            <strong>Airdrop Request Failed</strong>
+          </div>
+          <div>{err?.response?.data?.error || err?.message || 'Request failed'}</div>
+        </div>
+      ),
+    });
+  };
 
   // Get leverage limits from the selected market
   const leverageLimits = useMemo(() => {
@@ -177,6 +238,60 @@ export function PerpsTradePanel() {
             </SelectContent>
           </Select>
         </div>
+
+        {publicKey && selectedMarket && (
+          <div className="space-y-2 bg-card border border-outline p-2">
+            <div className="text-xs font-medium text-muted-foreground">Balances</div>
+            {/* Base Token Balance */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">{selectedMarket.baseTokenName}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono tabular-nums">
+                  {balances && balances[selectedMarket.base_mint]
+                    ? (
+                        parseFloat(balances[selectedMarket.base_mint].available) /
+                        Math.pow(10, getTokenDecimals(selectedMarket.baseTokenName))
+                      ).toFixed(getTokenDecimals(selectedMarket.baseTokenName))
+                    : '0.000000000'}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() =>
+                    requestAirdrop(selectedMarket.base_mint, selectedMarket.baseTokenName)
+                  }
+                >
+                  Airdrop
+                </Button>
+              </div>
+            </div>
+            {/* Quote Token Balance */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">{selectedMarket.quoteTokenName}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono tabular-nums">
+                  {balances && balances[selectedMarket.quote_mint]
+                    ? (
+                        parseFloat(balances[selectedMarket.quote_mint].available) /
+                        Math.pow(10, getTokenDecimals(selectedMarket.quoteTokenName))
+                      ).toFixed(getTokenDecimals(selectedMarket.quoteTokenName))
+                    : '0.000000'}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() =>
+                    requestAirdrop(selectedMarket.quote_mint, selectedMarket.quoteTokenName)
+                  }
+                >
+                  Airdrop
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {!publicKey ? (
           <Button

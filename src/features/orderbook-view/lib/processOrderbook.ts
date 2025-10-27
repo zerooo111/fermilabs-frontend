@@ -133,11 +133,15 @@ export const formatQuantity = (quantity: number, baseDecimals: number): string =
 
 /**
  * Calculates and formats the total value (price * quantity) using BN.js for precision
- * @param price Scaled integer price
- * @param quantity Scaled integer quantity
- * @param quoteTokenName The quote token name for decimal determination
- * @param baseTokenName The base token name for decimal determination
+ * @param price Scaled integer price (in quote token units with quoteDecimals scaling)
+ * @param quantity Scaled integer quantity (in base token units with baseDecimals scaling)
+ * @param quoteDecimals Number of decimals for the quote token
+ * @param baseDecimals Number of decimals for the base token
  * @returns Formatted string with appropriate precision
+ *
+ * Formula: total = (price_raw * quantity_raw) / (10^quoteDecimals * 10^baseDecimals)
+ * Example: price=115000000000 (115k USDC, 6 decimals), quantity=1500000000 (1.5 SOL, 9 decimals)
+ *          total = (115000000000 * 1500000000) / (10^6 * 10^9) = 172,500 USDC
  */
 export const formatTotal = (
   price: number,
@@ -150,10 +154,12 @@ export const formatTotal = (
   if (!priceBN || !quantityBN) return '0.00';
 
   try {
-    // Calculate total in scaled form
+    // Calculate total: price (scaled by quoteDecimals) * quantity (scaled by baseDecimals)
+    // Result is scaled by (quoteDecimals + baseDecimals)
     const totalBN = priceBN.mul(quantityBN);
 
-    // Normalize by both decimal scales
+    // We want the result in quote currency, so divide by both scales
+    // This gives us: (price/10^quoteDecimals) * (quantity/10^baseDecimals) in actual units
     const quoteScale = createDecimalScale(quoteDecimals);
     const baseScale = createDecimalScale(baseDecimals);
     const totalScale = baseScale.mul(quoteScale);
@@ -207,6 +213,8 @@ export type ProcessedOrderbook = {
  * @param sortFn Sorting function for price levels (descending for bids, ascending for asks).
  * @param maxRows Maximum number of aggregated levels to return.
  * @param lastTradedPrice Optional last traded price for additional processing
+ * @param quoteTokenName The quote token name (for fallback decimal lookup)
+ * @param quoteDecimals Optional quote token decimals (preferred over token name lookup)
  * @returns An array of aggregated order book levels.
  */
 const aggregateOrders = (
@@ -214,14 +222,15 @@ const aggregateOrders = (
   sortFn: (a: number, b: number) => number,
   maxRows: number = DEFAULT_ORDERBOOK_ROWS,
   lastTradedPrice?: number,
-  quoteTokenName?: string
+  quoteTokenName?: string,
+  quoteDecimals?: number
 ): AggregatedOrder[] => {
   // Use a Map to efficiently aggregate quantities for the same price level.
   const aggregated = new Map<string, BN>();
 
   orders.forEach(order => {
     const priceBN = toBN(order.price);
-    const quantityBN = toBN(order.total_quantity);
+    const quantityBN = toBN(order.quantity);
 
     if (!priceBN || !quantityBN) {
       // Silent error handling
@@ -261,7 +270,12 @@ const aggregateOrders = (
       if (lastTradedPrice) {
         const lastTradedPriceBN = toBN(lastTradedPrice);
         if (lastTradedPriceBN) {
-          const deviation = calculatePriceDeviation(priceBN, lastTradedPriceBN, quoteTokenName);
+          const deviation = calculatePriceDeviation(
+            priceBN,
+            lastTradedPriceBN,
+            quoteTokenName,
+            quoteDecimals
+          );
           aggregatedOrder.priceDeviation = deviation;
           aggregatedOrder.isNearLastPrice = Math.abs(deviation) <= PRICE_PROXIMITY_THRESHOLD * 100;
         }
@@ -275,18 +289,20 @@ const aggregateOrders = (
  * Calculates the percentage deviation between two prices using BN
  * @param price The price to compare
  * @param referencePrice The reference price
- * @param quoteTokenName The quote token name for decimal determination
+ * @param quoteTokenName The quote token name (for fallback decimal lookup)
+ * @param quoteDecimals Optional quote token decimals (preferred over token name lookup)
  */
 const calculatePriceDeviation = (
   price: BN,
   referencePrice: BN,
-  quoteTokenName?: string
+  quoteTokenName?: string,
+  quoteDecimals?: number
 ): number => {
   if (referencePrice.isZero()) return 0;
 
   try {
-    // Convert to normalized numbers for percentage calculation
-    const decimals = getTokenDecimals(quoteTokenName);
+    // Use provided decimals or fallback to token name lookup
+    const decimals = quoteDecimals ?? getTokenDecimals(quoteTokenName);
     const scale = createDecimalScale(decimals);
     const p1 = normalizeBN(price, scale);
     const p2 = normalizeBN(referencePrice, scale);
@@ -305,6 +321,10 @@ const calculatePriceDeviation = (
  * @param maxRows The maximum number of rows to display per side (bids/asks).
  * @param lastTradedPrice Optional last traded price for additional processing.
  * @param quantityThreshold Optional minimum quantity threshold (normalized value). Use 0 to show all orders.
+ * @param quoteTokenName The quote token name (for fallback decimal lookup).
+ * @param baseTokenName The base token name (for fallback decimal lookup).
+ * @param quoteDecimals Optional quote token decimals (preferred over token name lookup).
+ * @param baseDecimals Optional base token decimals (preferred over token name lookup).
  * @returns A ProcessedOrderbook object ready for the UI.
  */
 export const processOrderbook = (
@@ -313,7 +333,9 @@ export const processOrderbook = (
   lastTradedPrice?: number,
   quantityThreshold: number = 0,
   quoteTokenName?: string,
-  baseTokenName?: string
+  baseTokenName?: string,
+  quoteDecimals?: number,
+  baseDecimals?: number
 ): ProcessedOrderbook => {
   if (!orderbook || !orderbook.asks || !orderbook.bids) {
     return {
@@ -325,15 +347,18 @@ export const processOrderbook = (
     };
   }
 
+  // Use provided decimals or fallback to token name lookup
+  const actualBaseDecimals = baseDecimals ?? getTokenDecimals(baseTokenName);
+  const actualQuoteDecimals = quoteDecimals ?? getTokenDecimals(quoteTokenName);
+
   // Filter out orders below the quantity threshold
-  const baseDecimals = getTokenDecimals(baseTokenName);
   const filteredBids = orderbook.bids.filter(order => {
-    const normalizedQuantity = Number(order.total_quantity) / Math.pow(10, baseDecimals);
+    const normalizedQuantity = Number(order.quantity) / Math.pow(10, actualBaseDecimals);
     return normalizedQuantity >= quantityThreshold;
   });
 
   const filteredAsks = orderbook.asks.filter(order => {
-    const normalizedQuantity = Number(order.total_quantity) / Math.pow(10, baseDecimals);
+    const normalizedQuantity = Number(order.quantity) / Math.pow(10, actualBaseDecimals);
     return normalizedQuantity >= quantityThreshold;
   });
 
@@ -342,14 +367,16 @@ export const processOrderbook = (
     (a, b) => b - a,
     maxRows,
     lastTradedPrice,
-    quoteTokenName
+    quoteTokenName,
+    actualQuoteDecimals
   );
   const asks = aggregateOrders(
     filteredAsks,
     (a, b) => a - b,
     maxRows,
     lastTradedPrice,
-    quoteTokenName
+    quoteTokenName,
+    actualQuoteDecimals
   );
 
   const lastBidTotal = bids.length > 0 ? bids[bids.length - 1].total : new BN(0);

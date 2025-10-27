@@ -8,7 +8,7 @@ export const config = {
   devnet: {
     graphApiUrl: 'https://graphapi1.fermilabs.xyz/v2',
     apiBaseUrl: 'https://internal-proxy.fermilabs.xyz/api/v1',
-    // apiBaseUrl: 'http://localhost:3001/api/v1',
+    // apiBaseUrl: 'http://localhost:3001',
     rpcUrl: 'https://api.devnet.solana.com',
     commitment: 'confirmed',
     wsUrl: 'wss://api.devnet.solana.com',
@@ -42,4 +42,22 @@ export const SelfTradeBehavior = {
   DecrementTake: { decrementTake: {} },
   CancelProvide: { cancelProvide: {} },
   AbortTransaction: { abortTransaction: {} },
+};
+
+export const API_ROUTES = {
+  markets: '/rollup/markets',
+  market_by_id: '/rollup/markets/{marketId}',
+  market_orderbook: '/rollup/markets/{marketId}/orderbook',
+  market_orderbook_summary: '/rollup/markets/{marketId}/orderbook/summary',
+  market_orderbook_depth: '/rollup/markets/{marketId}/depth',
+  market_trades: '/rollup/markets/{marketId}/trades',
+  market_funding: '/rollup/markets/{marketId}/funding',
+  market_candles: '/rollup/markets/{marketId}/candles?tf=1h&from=ISO&to=ISO',
+  user_orders: '/rollup/orders/user/{pubkey}',
+  user_balances: '/rollup/balances/{pubkey}',
+  user_accounts: '/rollup/accounts/{pubkey}',
+  positions: '/rollup/positions',
+  liquidations: '/rollup/liquidations',
+  airdrop: '/rollup/airdrop/{receiverPubKey}/{tokenName}',
+  tx: '/tx',
 };

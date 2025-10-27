@@ -9,16 +9,14 @@ import { useSequencerApi } from '@/shared/api/useSequencerApi';
 
 // Orderbook types
 export interface OrderbookItem {
-  order_count: number;
   price: number;
-  total_quantity: number;
+  quantity: number;
 }
 
 export interface Orderbook {
   asks: OrderbookItem[];
   bids: OrderbookItem[];
-  last_trade_price: number;
-  timestamp: number;
+  lastUpdateId: number;
   lastUpdated: Date;
 }
 
@@ -26,8 +24,7 @@ export interface Orderbook {
 export const orderbookAtom = atom<Orderbook>({
   asks: [],
   bids: [],
-  last_trade_price: 0,
-  timestamp: 0,
+  lastUpdateId: 0,
   lastUpdated: new Date(),
 });
 
@@ -36,22 +33,21 @@ export const useOrderbook = () => {
   const [orderbook, setOrderbook] = useAtom(orderbookAtom);
   const selectedMarket = useAtomValue(selectedMarketAtom);
   const lastUpdateTimeRef = useRef<number>(0);
-  const { fetchOrderbook } = useSequencerApi();
+  const { fetchOrderbookDepth } = useSequencerApi();
 
   // Clear orderbook when market changes
   useEffect(() => {
     setOrderbook({
       asks: [],
       bids: [],
-      last_trade_price: 0,
-      timestamp: 0,
+      lastUpdateId: 0,
       lastUpdated: new Date(),
     });
     lastUpdateTimeRef.current = 0; // Reset the update time
   }, [selectedMarket?.uuid, setOrderbook]);
 
   const loadOrderbook = useCallback(async () => {
-    if (!selectedMarket || !setOrderbook || !fetchOrderbook) return null;
+    if (!selectedMarket || !setOrderbook || !fetchOrderbookDepth) return null;
 
     const currentTime = Date.now();
     const fetchStartTime = currentTime;
@@ -61,23 +57,33 @@ export const useOrderbook = () => {
       return null;
     }
 
-    const orderbook = await fetchOrderbook(selectedMarket.uuid);
+    const depthData = await fetchOrderbookDepth(selectedMarket.uuid);
 
     // Check if this response is still relevant
     if (fetchStartTime > lastUpdateTimeRef.current) {
       lastUpdateTimeRef.current = fetchStartTime;
 
-      // No need to filter by mint since the API already returns market-specific data
+      // Transform depth data to orderbook items
+      // Keep as raw integers (not floats) - they will be scaled by decimals in formatting
+      const asks: OrderbookItem[] = depthData.asks.map(([price, quantity]) => ({
+        price: Number(price),
+        quantity: Number(quantity),
+      }));
+
+      const bids: OrderbookItem[] = depthData.bids.map(([price, quantity]) => ({
+        price: Number(price),
+        quantity: Number(quantity),
+      }));
+
       setOrderbook({
-        asks: orderbook.asks || [],
-        bids: orderbook.bids || [],
-        last_trade_price: orderbook.last_trade_price,
-        timestamp: orderbook.timestamp,
+        asks,
+        bids,
+        lastUpdateId: depthData.lastUpdateId,
         lastUpdated: new Date(),
       });
     }
-    return orderbook;
-  }, [selectedMarket, setOrderbook, fetchOrderbook]);
+    return depthData;
+  }, [selectedMarket, setOrderbook, fetchOrderbookDepth]);
 
   return {
     orderbook,

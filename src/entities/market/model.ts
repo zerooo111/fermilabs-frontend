@@ -3,7 +3,7 @@
  * Defines market-related state and operations
  * Completely refactored to avoid circular dependencies
  */
-import { config } from '@/shared/config/constants';
+import { API_ROUTES, config } from '@/shared/config/constants';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { tryCatch } from '@/shared/lib/try-catch';
 import axios, { AxiosResponse } from 'axios';
@@ -155,7 +155,7 @@ export const useSelectedMarket = () => {
 
     try {
       const { data, error } = await tryCatch<AxiosResponse<any>>(
-        axios.get(`${config.devnet.apiBaseUrl}/me/markets`)
+        axios.get(`${config.devnet.apiBaseUrl}${API_ROUTES.markets}`)
       );
 
       if (error) throw error;

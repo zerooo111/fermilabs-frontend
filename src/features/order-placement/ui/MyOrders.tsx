@@ -20,7 +20,7 @@ import {
   formatTotal,
 } from '@/features/orderbook-view/lib/processOrderbook';
 import axios from 'axios';
-import { config } from '@/shared/config/constants';
+import { config, API_ROUTES } from '@/shared/config/constants';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { useQuery } from '@tanstack/react-query';
 
@@ -142,7 +142,7 @@ export function MyOrders() {
       // Submit to continuum via the explorer API
       const apiBaseUrl = config.devnet.apiBaseUrl;
       await axios
-        .post(`${apiBaseUrl}/tx`, {
+        .post(`${apiBaseUrl}${API_ROUTES.tx}`, {
           transaction: transactionData,
         })
         .then(res => res.data);

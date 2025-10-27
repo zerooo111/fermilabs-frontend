@@ -1,4 +1,5 @@
 import { atom } from 'jotai';
+import { API_ROUTES } from '@/shared/config/constants';
 
 // FermiLabs explorer URL constants
 const FERMILABS_EXPLORER_URL = 'https://explorer-staging.fermilabs.xyz';
@@ -12,7 +13,7 @@ export const getTickExplorerUrl = (tickNumber: string): string => {
 };
 
 export const getTxExplorerUrl = (txHash: string): string => {
-  return getFermiLabsExplorerUrl(`/tx/${txHash}`);
+  return getFermiLabsExplorerUrl(`${API_ROUTES.tx}/${txHash}`);
 };
 
 export interface OrderReceipt {

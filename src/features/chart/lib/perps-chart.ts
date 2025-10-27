@@ -3,8 +3,7 @@
  * Handles perps-specific candle data fetching and processing
  */
 import axios from 'axios';
-import { config } from '@/shared/config/constants';
-import { getTokenDecimals } from '@/shared/lib/token-decimals';
+import { config, API_ROUTES } from '@/shared/config/constants';
 
 export interface PerpsCandleData {
   t: string; // Timestamp in RFC3339 format
@@ -49,8 +48,9 @@ export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<Perp
   if (to) queryParams.append('to', to);
 
   try {
+    const baseRoute = API_ROUTES.market_candles.split('?')[0].replace('{marketId}', marketId);
     const response = await axios.get<PerpsCandlesResponse>(
-      `${config.devnet.apiBaseUrl}/me/markets/${marketId}/candles?${queryParams}`
+      `${config.devnet.apiBaseUrl}${baseRoute}?${queryParams}`
     );
 
     const result = response.data;
@@ -115,11 +115,8 @@ export function getPerpsTimeRangeForInterval(timeframe: PerpsTimeframe): {
  */
 export function processPerpsCandleData(
   candleData: PerpsCandleData[],
-  quoteTokenName?: string
+  quoteDecimals: number
 ): ExtendedPerpsOHLCVData[] {
-  // Get decimals for proper formatting
-  const quoteDecimals = getTokenDecimals(quoteTokenName);
-
   return candleData.map(item => {
     try {
       // Convert RFC3339 timestamp to Unix timestamp (seconds)

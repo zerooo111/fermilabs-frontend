@@ -37,7 +37,9 @@ export function Orderbook() {
       orderbook?.last_trade_price,
       undefined,
       selectedMarket?.quoteTokenName,
-      selectedMarket?.baseTokenName
+      selectedMarket?.baseTokenName,
+      selectedMarket?.quoteDecimals,
+      selectedMarket?.baseDecimals
     );
 
     // Only update if the data has actually changed
@@ -46,7 +48,13 @@ export function Orderbook() {
     }
 
     return lastProcessedRef.current;
-  }, [orderbook, selectedMarket?.quoteTokenName, selectedMarket?.baseTokenName]);
+  }, [
+    orderbook,
+    selectedMarket?.quoteTokenName,
+    selectedMarket?.baseTokenName,
+    selectedMarket?.baseDecimals,
+    selectedMarket?.quoteDecimals,
+  ]);
 
   useEffect(() => {
     if (selectedMarket) {

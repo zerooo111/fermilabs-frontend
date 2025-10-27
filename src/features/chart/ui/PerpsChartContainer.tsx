@@ -43,11 +43,11 @@ function PerpsChartContainerComponent() {
         to: endTime,
       });
 
-      // Get quote token name for decimal formatting
-      const quoteTokenName = selectedMarket.name?.split('/')[1]?.trim();
+      // Use quote decimals from the selected market as source of truth
+      const quoteDecimals = selectedMarket.quote_decimals;
 
       // Process the data for TradingView charts
-      return processPerpsCandleData(candleData, quoteTokenName);
+      return processPerpsCandleData(candleData, quoteDecimals);
     },
     refetchInterval: 5000, // Refetch every 5 seconds for perps
     enabled: !!selectedMarket?.uuid,
