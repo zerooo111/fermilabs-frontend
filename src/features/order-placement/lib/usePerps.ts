@@ -222,7 +222,7 @@ export function usePerps() {
         new BN(1), // leverage doesn't matter for closing
         'close', // position_effect: close
         true, // reduce_only: true for closing positions
-        'isolated', // margin_mode: doesn't matter for closing
+        'cross', // margin_mode: cross for closing
         new BN(0), // margin_amount: 0 for closing
         false // liquidation
       );
