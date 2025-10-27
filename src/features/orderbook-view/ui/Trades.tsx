@@ -61,8 +61,11 @@ export function Trades({ rows }: { rows: number }) {
     const { price, quantity } = trade;
 
     // Format values (already divided by decimals from API)
-    const quoteDecimals = getTokenDecimals(selectedMarket?.quoteTokenName);
-    const baseDecimals = getTokenDecimals(selectedMarket?.baseTokenName);
+    // Use market decimals as source of truth
+    const quoteDecimals =
+      selectedMarket?.quoteDecimals ?? getTokenDecimals(selectedMarket?.quoteTokenName);
+    const baseDecimals =
+      selectedMarket?.baseDecimals ?? getTokenDecimals(selectedMarket?.baseTokenName);
     const formattedPrice = price.toFixed(quoteDecimals);
     const formattedQuantity = quantity.toFixed(baseDecimals);
     const formattedTotal = (price * quantity).toFixed(quoteDecimals);

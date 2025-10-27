@@ -86,8 +86,8 @@ export interface Market {
   kind: MarketKind;
   perp_config: PerpConfig | null;
   perp_state: PerpState | null;
-  // base_decimals: number;
-  // quote_decimals: number;
+  base_decimals: number;
+  quote_decimals: number;
 }
 
 // Enhanced market type with parsed token names
@@ -108,8 +108,8 @@ const memoizedEnhanceMarket = (market: Market): EnhancedMarket => {
     .split('/')
     .map((s: string) => s.trim());
 
-  const baseDecimals = getTokenDecimals(baseTokenName);
-  const quoteDecimals = getTokenDecimals(quoteTokenName);
+  const baseDecimals = market.base_decimals ?? getTokenDecimals(baseTokenName);
+  const quoteDecimals = market.quote_decimals ?? getTokenDecimals(quoteTokenName);
   // Create enhanced market with token names
   return {
     ...market,
