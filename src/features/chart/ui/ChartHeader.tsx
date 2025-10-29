@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { useSelectedMarket } from '@/entities/market';
 import { formatPrice, formatQuantity } from '@/features/orderbook-view/lib/processOrderbook';
+import { useMarketStats } from '@/shared/hooks/useMarketStats';
 
 const INTERVALS: { label: string; value: TimeInterval }[] = [
   { label: '1M', value: '1m' },
@@ -41,38 +42,44 @@ function ChartHeaderComponent({
 }: ChartHeaderProps) {
   const { selectedMarket } = useSelectedMarket();
 
-  // Calculate market stats directly from selectedMarket
+  // Fetch market stats using react-query
+  const { data: marketsData } = useMarketStats({
+    refetchInterval: 5000,
+    enabled: !!selectedMarketId,
+  });
+
+  // Calculate market stats from the fetched market data
   const marketStats = useMemo(() => {
-    if (!selectedMarket) return null;
+    if (!selectedMarketId || !marketsData) return null;
+
+    // Find the current market in the fetched data by selectedMarketId
+    const currentMarketData = marketsData.find(m => m.uuid === selectedMarketId);
+    if (!currentMarketData) return null;
 
     // Extract stats from perp_state for perp markets
-    if (
-      (selectedMarket.kind === 'perp' || selectedMarket.kind === 'Perpetual') &&
-      selectedMarket.perp_state
-    ) {
-      const perpState = selectedMarket.perp_state;
+    if (currentMarketData.kind === 'perp' && currentMarketData.perp_state) {
+      const perpState = currentMarketData.perp_state;
 
-      // Handle both new and old mark_price structure
+      // Mark price: keep as raw value (formatPrice will handle the decimal conversion)
       const markPriceRaw = perpState.mark_price ?? 0;
-      const markPrice = markPriceRaw / Math.pow(10, selectedMarket.quoteDecimals);
 
-      // Convert funding rate from bps to percentage (handle both structures)
+      // Funding rate: convert from bps to percentage
+      // Try funding_rate_bps first, fallback to last_funding_rate_bps
       const fundingRateBps = perpState.funding_rate_bps ?? perpState.last_funding_rate_bps ?? 0;
       const fundingRate = fundingRateBps / 10000;
 
-      // Open interest is at the market level (raw value with base_decimals)
-      const openInterestRaw = selectedMarket.open_interest ?? 0;
-      const openInterest = openInterestRaw / Math.pow(10, selectedMarket.baseDecimals);
+      // Open interest: keep as raw value (formatQuantity will handle the decimal conversion)
+      const openInterestRaw = currentMarketData.open_interest ?? 0;
 
       return {
-        mark_price: markPrice,
+        mark_price: markPriceRaw,
         funding_rate: fundingRate,
-        open_interest: openInterest,
+        open_interest: openInterestRaw,
       };
     }
 
     return null;
-  }, [selectedMarket]);
+  }, [selectedMarketId, marketsData]);
 
   if (!selectedMarket) return null;
 

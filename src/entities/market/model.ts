@@ -73,6 +73,7 @@ export interface PerpState {
   index_price_timestamp: number | null;
   last_premium_rate_bps: number | null;
   last_funding_rate_bps: number | null;
+  funding_rate_bps?: number | null;
   last_funding_timestamp: number | null;
   next_funding_timestamp: number | null;
 }
@@ -88,6 +89,10 @@ export interface Market {
   perp_state: PerpState | null;
   base_decimals: number;
   quote_decimals: number;
+  base_lot_size: number;
+  quote_lot_size: number;
+  price_decimals: number | null;
+  open_interest?: number;
 }
 
 // Enhanced market type with parsed token names
