@@ -7,7 +7,7 @@ import { PublicKey } from '@solana/web3.js';
 export const config = {
   devnet: {
     graphApiUrl: 'https://graphapi1.fermilabs.xyz/v2',
-    apiBaseUrl: 'https://internal-proxy.fermilabs.xyz/api/v1',
+    apiBaseUrl: 'https://api.fermi.trade/api/v1',
     // apiBaseUrl: 'http://localhost:3001',
     rpcUrl: 'https://api.devnet.solana.com',
     commitment: 'confirmed',
