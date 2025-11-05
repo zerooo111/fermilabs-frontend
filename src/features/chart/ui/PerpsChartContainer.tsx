@@ -81,7 +81,7 @@ function PerpsChartContainerComponent() {
         latestPrice={latestPrice}
       />
 
-      <div className="flex-1 relative min-h-[400px] overflow-hidden">
+      <div className="flex-1 relative min-h-[250px] md:min-h-[350px] lg:min-h-[400px] overflow-hidden">
         <PerpsChart
           className="h-full"
           data={data || []}

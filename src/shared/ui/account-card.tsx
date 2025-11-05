@@ -47,11 +47,11 @@ export function AccountCard() {
 
   return (
     <>
-      <h3 className="text-lg px-4 h-12 leading-12 bg-card border-b border-outline  font-medium">
+      <h3 className="text-base md:text-lg px-3 md:px-4 h-12 leading-12 bg-card border-b border-outline font-medium">
         Account
       </h3>
 
-      <div className="flex flex-col gap-2 p-4">
+      <div className="flex flex-col gap-2 p-3 md:p-4">
         {/* USDC Collateral */}
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">USDC Collateral</span>

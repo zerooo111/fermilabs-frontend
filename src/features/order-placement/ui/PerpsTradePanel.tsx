@@ -164,7 +164,7 @@ export function PerpsTradePanel() {
   const orderValue = priceValue * sizeValue;
 
   return (
-    <div className="flex flex-col w-xs overflow-hidden">
+    <div className="flex flex-col w-full lg:w-xs overflow-hidden">
       <Tabs
         value={formState.orderType}
         onValueChange={value => handleInputChange('orderType', value)}

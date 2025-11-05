@@ -65,7 +65,7 @@ export function Orderbook() {
   if (!processedOrderbook || !selectedMarket) return null;
 
   return (
-    <div className="w-[360px]">
+    <div className="w-full lg:w-[360px]">
       {/* Tabs Header */}
       <Tabs defaultValue="orderbook" className="h-full">
         <TabsList className="border-b border-outline w-full   ">
@@ -87,7 +87,7 @@ export function Orderbook() {
           </div>
 
           {/* Orderbook Content */}
-          <div className="flex flex-col h-[500px] overflow-hidden">
+          <div className="flex flex-col h-[300px] md:h-[400px] lg:h-[500px] overflow-hidden">
             {/* Sells (asks) */}
             <div className="flex-1 flex flex-col-reverse overflow-y-auto border-none">
               {processedOrderbook.sells.map((order, i) =>

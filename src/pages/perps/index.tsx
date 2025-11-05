@@ -66,15 +66,27 @@ function PerpsPage() {
   }, [selectedMarketId, navigate]);
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-60px)] border-outline">
-      <div className="flex mx-4 divide-x divide-outline border-x border-outline">
-        <div className="flex-1">
+    <div className="flex flex-col min-h-[calc(100vh-60px)] overflow-hidden">
+      {/* Main trading area - responsive layout */}
+      <div className="flex flex-col lg:flex-row mx-2 md:mx-4 border-x border-outline divide-y lg:divide-y-0 lg:divide-x divide-outline">
+        {/* Chart section - full width on mobile, flex-1 on desktop */}
+        <div className="flex-1 min-w-0 overflow-hidden">
           <MemoizedPerpsChartContainer />
         </div>
-        <MemoizedOrderbook />
-        <MemoizedPerpsTradePanel />
+
+        {/* Orderbook - stacks below chart on mobile, side panel on desktop */}
+        <div className="overflow-hidden">
+          <MemoizedOrderbook />
+        </div>
+
+        {/* Trade Panel - stacks below orderbook on mobile, side panel on desktop */}
+        <div className="overflow-hidden">
+          <MemoizedPerpsTradePanel />
+        </div>
       </div>
-      <div className="flex-1 flex flex-col  border-t border-outline">
+
+      {/* Portfolio section - always full width at bottom */}
+      <div className="flex-1 flex flex-col border-t border-outline overflow-hidden">
         <MemoizedPortfolioTabs />
       </div>
     </div>

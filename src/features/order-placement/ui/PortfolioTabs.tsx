@@ -12,11 +12,11 @@ export function PortfolioTabs() {
   const isPerpsMode = selectedMarket?.kind === 'perp';
 
   return (
-    <div className="flex flex-1 h-full mx-4 divide-x divide-outline border-x border-outline">
+    <div className="flex flex-col md:flex-row flex-1 h-full mx-2 md:mx-4 border-x border-outline divide-y md:divide-y-0 md:divide-x divide-outline overflow-hidden">
       {/* Left side - Portfolio Tabs */}
-      <div className="flex-1 min-w-0 ">
+      <div className="flex-1 min-w-0 overflow-hidden">
         <Tabs defaultValue="orders" className="h-full flex flex-col">
-          <TabsList className="w-full justify-start border-b border-outline rounded-none bg-transparent">
+          <TabsList className="w-full justify-start border-b border-outline rounded-none bg-transparent overflow-x-auto flex-shrink-0">
             <TabsTrigger value="orders">My Orders</TabsTrigger>
             {!isPerpsMode && <TabsTrigger value="trades">My Trades</TabsTrigger>}
             {isPerpsMode && <TabsTrigger value="positions">My Positions</TabsTrigger>}
@@ -44,7 +44,7 @@ export function PortfolioTabs() {
       </div>
 
       {/* Right side - Account Card */}
-      <div className="w-80 flex-shrink-0">
+      <div className="w-full md:w-80 flex-shrink-0 overflow-hidden">
         <AccountCard />
       </div>
     </div>
