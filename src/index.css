@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Archivo:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Archivo:wght@100..900&family=Arimo:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
 
 @import 'tailwindcss';
 @plugin 'tailwindcss-animate';
@@ -6,10 +6,18 @@
 @theme {
   --font-sans: 'Archivo', sans-serif;
   --font-mono: 'Geist Mono', monospace;
+  --font-display: 'Instrument Serif', serif;
+  --screen-sm: 640px;
+  --screen-md: 768px;
+  --screen-lg: 1024px;
+  --screen-xl: 1280px;
+  --screen-2xl: 1440px;
   --color-background: hsla(163, 90%, 5%, 1);
   --color-outline: rgba(255, 255, 255, 0.2);
   --color-card: rgba(255, 255, 255, 0.05);
-  --color-rock: hsla(56, 55%, 94%, 1);
+  --color-rock: #f8f7e7;
+  /* --color-dark-forest: #002513; */
+  --color-dark-forest: #185038;
   --color-buy: hsla(163, 90%, 5%, 1);
   --color-sell: hsla(348, 90%, 5%, 1);
   --color-success: #10b981;
@@ -17,7 +25,17 @@
 }
 
 body {
-  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+a {
+  cursor: pointer;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 .text-success {
@@ -26,4 +44,16 @@ body {
 
 .text-danger {
   color: #ef4444;
+}
+
+@layer components {
+  .glass-card {
+    @apply backdrop-brightness-80 backdrop-blur-md;
+  }
+}
+
+@layer utilities {
+  .container-2xl {
+    @apply container mx-auto max-w-screen-2xl;
+  }
 }

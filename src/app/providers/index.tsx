@@ -5,6 +5,7 @@
 import { WalletContextProvider } from '@/entities/wallet';
 import { QueryProvider } from './QueryProvider';
 import { ToastProvider } from './ToastProvider';
+import { PostHogProvider } from './PostHogProvider';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -12,11 +13,13 @@ interface AppProvidersProps {
 
 export const AppProviders = ({ children }: AppProvidersProps) => {
   return (
-    <QueryProvider>
-      <WalletContextProvider>
-        {children}
-        <ToastProvider />
-      </WalletContextProvider>
-    </QueryProvider>
+    <PostHogProvider>
+      <QueryProvider>
+        <WalletContextProvider>
+          {children}
+          <ToastProvider />
+        </WalletContextProvider>
+      </QueryProvider>
+    </PostHogProvider>
   );
 };

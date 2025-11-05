@@ -13,11 +13,20 @@ const LoadingPage = () => (
 );
 
 // Lazy-loaded page components
+export const HomePage = lazy(() => import('@/pages/home'));
 export const TradePage = lazy(() => import('@/pages/trade'));
 export const PerpsPage = lazy(() => import('@/pages/perps'));
 export const VaultPage = lazy(() => import('@/pages/vault'));
 
 // Wrapper components with Suspense and ErrorBoundary
+export const LazyHomePage = () => (
+  <ErrorBoundary>
+    <Suspense fallback={<LoadingPage />}>
+      <HomePage />
+    </Suspense>
+  </ErrorBoundary>
+);
+
 export const LazyTradePage = () => (
   <ErrorBoundary>
     <Suspense fallback={<LoadingPage />}>
