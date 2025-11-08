@@ -46,6 +46,12 @@ html {
   color: #ef4444;
 }
 
+@layer base {
+  html {
+    @apply !bg-dark-forest;
+  }
+}
+
 @layer components {
   .glass-card {
     @apply backdrop-brightness-80 backdrop-blur-md;

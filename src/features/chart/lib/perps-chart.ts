@@ -1,29 +1,20 @@
 /**
  * Perps chart library
  * Handles perps-specific candle data fetching and processing
+ * Uses the new Binance-style compact array format: [timestamp_ms, open, high, low, close]
  */
 import axios from 'axios';
 import { config, API_ROUTES } from '@/shared/config/constants';
 
-export interface PerpsCandleData {
-  t: string; // Timestamp in RFC3339 format
-  o: number; // Open price
-  h: number; // High price
-  l: number; // Low price
-  c: number; // Close price
-}
-
-export interface PerpsCandlesResponse {
-  data: PerpsCandleData[];
-  statusCode: number;
-  error?: string;
-}
+// Compact array format: [timestamp_ms, open, high, low, close]
+export type Candle = [number, number, number, number, number];
 
 export interface PerpsCandleParams {
   marketId: string;
   tf?: string; // Timeframe: 1m, 5m, 15m, 1h, 4h, 1d
   from?: string; // Start date in RFC3339 format
   to?: string; // End date in RFC3339 format
+  limit?: number; // Maximum number of candles (1-1000, default: 500)
 }
 
 export type PerpsTimeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
@@ -39,31 +30,35 @@ export interface ExtendedPerpsOHLCVData {
 
 /**
  * Fetch perps candle data from the API
+ * Returns data in compact array format: [[timestamp_ms, open, high, low, close], ...]
  */
-export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<PerpsCandleData[]> {
-  const { marketId, tf = '1h', from, to } = params;
+export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<Candle[]> {
+  const { marketId, tf = '1h', from, to, limit } = params;
 
   const queryParams = new URLSearchParams({ tf });
   if (from) queryParams.append('from', from);
   if (to) queryParams.append('to', to);
+  if (limit) queryParams.append('limit', limit.toString());
 
   try {
     const baseRoute = API_ROUTES.market_candles.split('?')[0].replace('{marketId}', marketId);
-    const response = await axios.get<PerpsCandlesResponse>(
+    const response = await axios.get<Candle[]>(
       `${config.devnet.apiBaseUrl}${baseRoute}?${queryParams}`
     );
 
-    const result = response.data;
-
-    if (result.statusCode !== 200) {
-      throw new Error(result.error || 'Failed to fetch candle data');
+    // Validate response is an array
+    if (!Array.isArray(response.data)) {
+      throw new Error('Invalid response format: expected an array');
     }
 
-    return result.data;
+    return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      const errorMessage = error.response?.data?.error || error.message;
-      throw new Error(errorMessage);
+      // Handle error response format: { data: null, statusCode: number, error: string }
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      throw new Error(error.message || 'Failed to fetch candle data');
     }
     throw new Error('Unknown error occurred while fetching candle data');
   }
@@ -71,6 +66,7 @@ export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<Perp
 
 /**
  * Get time range for a given timeframe
+ * Respects the 30-day API limit for date ranges
  */
 export function getPerpsTimeRangeForInterval(timeframe: PerpsTimeframe): {
   startTime: string;
@@ -80,6 +76,7 @@ export function getPerpsTimeRangeForInterval(timeframe: PerpsTimeframe): {
   const endTime = now.toISOString();
 
   let startTime: Date;
+  const maxDays = 30; // API limit: 30 days maximum
 
   switch (timeframe) {
     case '1m':
@@ -92,16 +89,16 @@ export function getPerpsTimeRangeForInterval(timeframe: PerpsTimeframe): {
       startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days
       break;
     case '1h':
-      startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days
+      startTime = new Date(now.getTime() - maxDays * 24 * 60 * 60 * 1000); // 30 days (API limit)
       break;
     case '4h':
-      startTime = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); // 90 days
+      startTime = new Date(now.getTime() - maxDays * 24 * 60 * 60 * 1000); // 30 days (API limit)
       break;
     case '1d':
-      startTime = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 1 year
+      startTime = new Date(now.getTime() - maxDays * 24 * 60 * 60 * 1000); // 30 days (API limit)
       break;
     default:
-      startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // Default to 30 days
+      startTime = new Date(now.getTime() - maxDays * 24 * 60 * 60 * 1000); // Default to 30 days
   }
 
   return {
@@ -111,24 +108,28 @@ export function getPerpsTimeRangeForInterval(timeframe: PerpsTimeframe): {
 }
 
 /**
- * Convert perps candle data to the format expected by TradingView charts
+ * Convert perps candle data from compact array format to the format expected by TradingView charts
+ * Input format: [timestamp_ms, open, high, low, close]
+ * Prices are scaled integers and need to be divided by 10^quoteDecimals
  */
 export function processPerpsCandleData(
-  candleData: PerpsCandleData[],
+  candleData: Candle[],
   quoteDecimals: number
 ): ExtendedPerpsOHLCVData[] {
-  return candleData.map(item => {
+  return candleData.map(([timestampMs, open, high, low, close]) => {
     try {
-      // Convert RFC3339 timestamp to Unix timestamp (seconds)
-      const time = Math.floor(new Date(item.t).getTime() / 1000);
+      // Convert milliseconds timestamp to Unix timestamp (seconds)
+      const time = Math.floor(timestampMs / 1000);
 
+      // Convert scaled integer prices to decimal values
+      const priceScale = Math.pow(10, quoteDecimals);
       return {
         time,
-        open: item.o / Math.pow(10, quoteDecimals),
-        high: item.h / Math.pow(10, quoteDecimals),
-        low: item.l / Math.pow(10, quoteDecimals),
-        close: item.c / Math.pow(10, quoteDecimals),
-        volume: 0, // Perps API doesn't provide volume, set to 0
+        open: open / priceScale,
+        high: high / priceScale,
+        low: low / priceScale,
+        close: close / priceScale,
+        volume: 0, // API doesn't provide volume, set to 0
       };
     } catch (error) {
       console.log(error);
