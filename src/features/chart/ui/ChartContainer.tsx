@@ -122,7 +122,7 @@ function ChartContainerComponent() {
 
       return processedData;
     },
-    refetchInterval: 500, // Refetch every 30 seconds
+    refetchInterval: 1000, // Refetch every 1 second
     enabled: !!selectedMarket?.uuid,
     retry: 2,
   });

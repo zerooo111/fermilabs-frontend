@@ -3,8 +3,9 @@
  * Main trading interface
  * Completely refactored to avoid circular dependencies
  */
-import { useLayoutEffect, useEffect, useRef, memo } from 'react';
+import { useLayoutEffect, useEffect, useRef, memo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 
 import { Orderbook } from '../../features/orderbook-view';
 import { ChartContainer } from '../../features/chart';
@@ -21,6 +22,7 @@ function TradePage() {
   const navigate = useNavigate();
   const params = useParams();
   const initialLoadRef = useRef(false);
+  const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
 
   const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
 
@@ -29,6 +31,7 @@ function TradePage() {
     const loadAndSetMarketOnFirstRender = async (urlMarketId: string | undefined) => {
       if (initialLoadRef.current) return;
 
+      setIsLoadingMarkets(true);
       try {
         const markets = await loadMarkets();
 
@@ -49,9 +52,11 @@ function TradePage() {
         Promise.resolve().then(() => {
           selectMarket(currentMarket?.uuid || firstSpotMarket?.uuid);
           initialLoadRef.current = true;
+          setIsLoadingMarkets(false);
         });
       } catch {
         // Silent error handling
+        setIsLoadingMarkets(false);
       }
     };
 
@@ -64,6 +69,18 @@ function TradePage() {
       navigate(`/spot/${selectedMarketId}`, { replace: true }); // Use replace to avoid browser history buildup
     }
   }, [selectedMarketId, navigate]);
+
+  // Show fullscreen loading while markets are loading
+  if (isLoadingMarkets) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="size-8 animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground">Loading markets...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-60px)] border-outline">

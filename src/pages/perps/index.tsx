@@ -3,8 +3,9 @@
  * Main perpetual contracts trading interface
  * Completely refactored to avoid circular dependencies
  */
-import { useLayoutEffect, useEffect, useRef, memo } from 'react';
+import { useLayoutEffect, useEffect, useRef, memo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 
 import { Orderbook } from '../../features/orderbook-view';
 import { PerpsChartContainer } from '../../features/chart/ui/PerpsChartContainer';
@@ -21,6 +22,7 @@ function PerpsPage() {
   const navigate = useNavigate();
   const params = useParams();
   const initialLoadRef = useRef(false);
+  const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
 
   const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
 
@@ -29,6 +31,7 @@ function PerpsPage() {
     const loadAndSetMarketOnFirstRender = async (urlMarketId: string | undefined) => {
       if (initialLoadRef.current) return;
 
+      setIsLoadingMarkets(true);
       try {
         const markets = await loadMarkets();
 
@@ -49,9 +52,11 @@ function PerpsPage() {
         Promise.resolve().then(() => {
           selectMarket(currentMarket?.uuid || firstPerpMarket?.uuid);
           initialLoadRef.current = true;
+          setIsLoadingMarkets(false);
         });
       } catch {
         // Silent error handling
+        setIsLoadingMarkets(false);
       }
     };
 
@@ -64,6 +69,18 @@ function PerpsPage() {
       navigate(`/perps/${selectedMarketId}`, { replace: true }); // Use replace to avoid browser history buildup
     }
   }, [selectedMarketId, navigate]);
+
+  // Show fullscreen loading while markets are loading
+  if (isLoadingMarkets) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="size-8 animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground">Loading ..</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-60px)] overflow-hidden">

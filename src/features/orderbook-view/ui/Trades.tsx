@@ -8,67 +8,139 @@ import { useAtomValue } from 'jotai';
 import { useQuery } from '@tanstack/react-query';
 
 import { selectedMarketAtom } from '@/entities/market';
-import { config } from '@/shared/config/constants';
+import { config, API_ROUTES } from '@/shared/config/constants';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 
 type Trade = {
-  id: string;
-  price: number; // already divided by decimals
-  quantity: number; // already divided by decimals
-  timestamp: string; // epoch seconds as string
-  txid: string;
-  market_id: string;
-};
-
-type RecentTradesResponse = {
-  trades: Trade[];
-  count: number;
-  limit: number;
-  marketId: string;
+  id?: string;
+  price: number; // raw/scaled integer value (needs to be divided by 10^quoteDecimals)
+  quantity: number; // raw/scaled integer value (needs to be divided by 10^baseDecimals)
+  timestamp: number | string; // epoch seconds as number or string
+  txid?: string;
+  market_id?: string;
+  buyer_owner?: string;
+  seller_owner?: string;
+  base_mint?: string;
+  quote_mint?: string;
 };
 
 const ROW_HEIGHT_CLASS = 'h-[26px]';
 
-export function Trades({ rows }: { rows: number }) {
+function formatTimestamp(timestamp: number | string): string {
+  const ts = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
+  const date = new Date(ts * 1000);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+
+  if (diffSecs < 60) return `${diffSecs}s ago`;
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return date.toLocaleDateString();
+}
+
+function formatAddress(address: string): string {
+  if (!address) return '-';
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+}
+
+export function Trades({ rows, fullView = false }: { rows: number; fullView?: boolean }) {
   const selectedMarket = useAtomValue(selectedMarketAtom);
   const marketId = selectedMarket?.uuid;
   const limit = rows; // Fetch exactly as many rows as we intend to show
 
-  const { data } = useQuery<RecentTradesResponse | undefined>({
+  const { data, isLoading } = useQuery<Trade[] | undefined>({
     queryKey: ['recent-trades', marketId, limit],
     queryFn: async () => {
       if (!marketId) return undefined;
-      const base = config.devnet.graphApiUrl;
-      const url = `${base}/trades/recent?limit=${encodeURIComponent(limit)}&marketId=${encodeURIComponent(
-        marketId
-      )}`;
+      const apiBaseUrl = config.devnet.apiBaseUrl;
+      const url = `${apiBaseUrl}${API_ROUTES.market_trades.replace('{marketId}', marketId)}?limit=${encodeURIComponent(limit)}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to load recent trades');
-      return (await res.json()) as RecentTradesResponse;
+      const response = await res.json();
+      // Handle both array response and wrapped { data: [...] } response
+      const trades = Array.isArray(response) ? response : response?.data || [];
+      // Ensure each trade has an id for React keys
+      return trades.map((trade: Trade, index: number) => ({
+        ...trade,
+        id: trade.id || `${trade.timestamp}-${index}`,
+        timestamp: typeof trade.timestamp === 'string' ? trade.timestamp : String(trade.timestamp),
+      }));
     },
     refetchInterval: 1000,
     enabled: !!marketId,
   });
 
-  const trades = useMemo(() => data?.trades ?? [], [data]);
+  const trades = useMemo(() => data ?? [], [data]);
 
   // Determine side (Buy/Sell) by comparing to adjacent trade price
   const visibleTrades = useMemo(() => (trades.length ? trades.slice(0, rows) : []), [trades, rows]);
 
   type Direction = 'up' | 'down' | 'flat';
 
-  function TradeRow({ trade, direction }: { trade: Trade; direction: Direction }) {
-    const { price, quantity } = trade;
+  function SkeletonRow() {
+    return (
+      <div className={`relative font-medium w-full select-none ${ROW_HEIGHT_CLASS}`}>
+        <div className="relative z-10 px-4 h-full flex items-center">
+          <div
+            className={`grid gap-4 items-center font-mono text-xs leading-none tracking-tight w-full ${
+              fullView ? 'grid-cols-6' : 'grid-cols-3'
+            }`}
+          >
+            {/* Price skeleton */}
+            <div className="text-left">
+              <div className="h-3 w-16 bg-white/10 rounded animate-pulse" />
+            </div>
+            {/* Size skeleton */}
+            <div className="text-right">
+              <div className="h-3 w-12 bg-white/10 rounded animate-pulse ml-auto" />
+            </div>
+            {/* Total skeleton */}
+            <div className="text-right">
+              <div className="h-3 w-14 bg-white/10 rounded animate-pulse ml-auto" />
+            </div>
+            {fullView && (
+              <>
+                {/* Buyer skeleton */}
+                <div className="text-left">
+                  <div className="h-3 w-20 bg-white/10 rounded animate-pulse" />
+                </div>
+                {/* Seller skeleton */}
+                <div className="text-left">
+                  <div className="h-3 w-20 bg-white/10 rounded animate-pulse" />
+                </div>
+                {/* Time skeleton */}
+                <div className="text-right">
+                  <div className="h-3 w-16 bg-white/10 rounded animate-pulse ml-auto" />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-    // Format values (already divided by decimals from API)
+  function TradeRow({ trade, direction }: { trade: Trade; direction: Direction }) {
+    const { price: rawPrice, quantity: rawQuantity, buyer_owner, seller_owner, timestamp } = trade;
+
     // Use market decimals as source of truth
     const quoteDecimals =
       selectedMarket?.quoteDecimals ?? getTokenDecimals(selectedMarket?.quoteTokenName);
     const baseDecimals =
       selectedMarket?.baseDecimals ?? getTokenDecimals(selectedMarket?.baseTokenName);
+
+    // Divide raw values by appropriate decimals to get human-readable values
+    const price = rawPrice / Math.pow(10, quoteDecimals);
+    const quantity = rawQuantity / Math.pow(10, baseDecimals);
+    const total = price * quantity;
+
+    // Format values for display
     const formattedPrice = price.toFixed(quoteDecimals);
     const formattedQuantity = quantity.toFixed(baseDecimals);
-    const formattedTotal = (price * quantity).toFixed(quoteDecimals);
+    const formattedTotal = total.toFixed(quoteDecimals);
 
     return (
       <div
@@ -78,7 +150,9 @@ export function Trades({ rows }: { rows: number }) {
         <div className="relative z-10 px-4 h-full flex items-center">
           <div
             className={cn(
-              'grid grid-cols-3 gap-4 items-center font-mono  text-xs leading-none opacity-50 tracking-tight w-full',
+              `grid gap-4 items-center font-mono text-xs leading-none tracking-tight w-full ${
+                fullView ? 'grid-cols-6' : 'grid-cols-3'
+              }`,
               direction === 'up' && 'text-success',
               direction === 'down' && 'text-danger'
             )}
@@ -89,14 +163,39 @@ export function Trades({ rows }: { rows: number }) {
             </div>
 
             {/* Size */}
-            <div className="text-right">
+            <div className={fullView ? 'text-center' : 'text-right'}>
               <span className="tabular-nums">{formattedQuantity}</span>
             </div>
 
             {/* Total */}
-            <div className="text-right">
+            <div className={fullView ? 'text-center' : 'text-right'}>
               <span className="tabular-nums">{formattedTotal}</span>
             </div>
+
+            {fullView && (
+              <>
+                {/* Buyer Owner */}
+                <div className="text-center">
+                  <span className="tabular-nums text-white/60">
+                    {buyer_owner ? formatAddress(buyer_owner) : '-'}
+                  </span>
+                </div>
+
+                {/* Seller Owner */}
+                <div className="text-center">
+                  <span className="tabular-nums text-white/60">
+                    {seller_owner ? formatAddress(seller_owner) : '-'}
+                  </span>
+                </div>
+
+                {/* Time */}
+                <div className="text-right">
+                  <span className="tabular-nums text-white/60">
+                    {timestamp ? formatTimestamp(timestamp) : '-'}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -104,21 +203,28 @@ export function Trades({ rows }: { rows: number }) {
   }
 
   return (
-    <div className="flex flex-col h-[500px] overflow-hidden py-2">
+    <div className="flex flex-col h-[500px] flex-1 min-h-0 overflow-hidden py-2">
       <div className="flex-1 flex flex-col overflow-y-auto divide-y divide-white/5  border-none">
-        {visibleTrades.map((t, i) => {
-          const next = visibleTrades[i + 1]; // next is the previous trade in time (older)
-          let direction: Direction = 'flat';
-          if (next) {
-            direction = t.price > next.price ? 'up' : t.price < next.price ? 'down' : 'flat';
-          }
-          return <TradeRow key={`${t.id}-${i}`} trade={t} direction={direction} />;
-        })}
+        {isLoading ? (
+          // Show skeleton rows when loading
+          Array.from({ length: rows }).map((_, i) => <SkeletonRow key={`skeleton-trade-${i}`} />)
+        ) : (
+          <>
+            {visibleTrades.map((t, i) => {
+              const next = visibleTrades[i + 1]; // next is the previous trade in time (older)
+              let direction: Direction = 'flat';
+              if (next) {
+                direction = t.price > next.price ? 'up' : t.price < next.price ? 'down' : 'flat';
+              }
+              return <TradeRow key={`${t.id}-${i}`} trade={t} direction={direction} />;
+            })}
 
-        {/* Pad with empty rows to keep height consistent */}
-        {Array.from({ length: Math.max(0, rows - trades.length) }).map((_, i) => (
-          <div key={`empty-trade-${i}`} className={ROW_HEIGHT_CLASS} />
-        ))}
+            {/* Pad with empty rows to keep height consistent */}
+            {Array.from({ length: Math.max(0, rows - trades.length) }).map((_, i) => (
+              <div key={`empty-trade-${i}`} className={ROW_HEIGHT_CLASS} />
+            ))}
+          </>
+        )}
       </div>
     </div>
   );
