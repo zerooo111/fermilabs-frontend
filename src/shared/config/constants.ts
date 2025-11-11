@@ -6,8 +6,8 @@ import { PublicKey } from '@solana/web3.js';
 // config -> network ( devnet / mainnet ) -> programId / rpcUrl , commitment , etc...
 export const config = {
   devnet: {
-    // apiBaseUrl: 'http://localhost:3000/api/v1',
-    apiBaseUrl: 'https://api.fermi.trade/api/v1',
+    apiBaseUrl: 'http://localhost:3000/api/v1',
+    // apiBaseUrl: 'https://api.fermi.trade/api/v1',
     rpcUrl: 'https://api.devnet.solana.com',
     commitment: 'confirmed',
     wsUrl: 'wss://api.devnet.solana.com',

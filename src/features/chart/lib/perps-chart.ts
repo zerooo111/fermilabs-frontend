@@ -110,25 +110,19 @@ export function getPerpsTimeRangeForInterval(timeframe: PerpsTimeframe): {
 /**
  * Convert perps candle data from compact array format to the format expected by TradingView charts
  * Input format: [timestamp_ms, open, high, low, close]
- * Prices are scaled integers and need to be divided by 10^quoteDecimals
  */
-export function processPerpsCandleData(
-  candleData: Candle[],
-  quoteDecimals: number
-): ExtendedPerpsOHLCVData[] {
+export function processPerpsCandleData(candleData: Candle[]): ExtendedPerpsOHLCVData[] {
   return candleData.map(([timestampMs, open, high, low, close]) => {
     try {
       // Convert milliseconds timestamp to Unix timestamp (seconds)
       const time = Math.floor(timestampMs / 1000);
 
-      // Convert scaled integer prices to decimal values
-      const priceScale = Math.pow(10, quoteDecimals);
       return {
         time,
-        open: open / priceScale,
-        high: high / priceScale,
-        low: low / priceScale,
-        close: close / priceScale,
+        open,
+        high,
+        low,
+        close,
         volume: 0, // API doesn't provide volume, set to 0
       };
     } catch (error) {

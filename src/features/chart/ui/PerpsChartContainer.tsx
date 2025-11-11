@@ -16,6 +16,10 @@ import {
 } from '@/features/chart/lib/perps-chart';
 import { useSelectedMarket, MarketKind } from '@/entities/market';
 import { toast } from 'sonner';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Button } from '@/shared/ui/button';
+import { CHART_CONFIG } from '@/features/chart/lib/chart-constants';
+import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
 function PerpsChartContainerComponent() {
   const [timeInterval, setTimeInterval] = useState<PerpsTimeframe>('1h');
@@ -26,7 +30,7 @@ function PerpsChartContainerComponent() {
     setTimeInterval(value as PerpsTimeframe);
   }, []);
 
-  const { data, refetch } = useQuery<ExtendedPerpsOHLCVData[]>({
+  const { data, refetch, isLoading, isFetching, error } = useQuery<ExtendedPerpsOHLCVData[]>({
     queryKey: ['perps-candlesticks', timeInterval, selectedMarket?.uuid],
     queryFn: async () => {
       if (!selectedMarket?.uuid) {
@@ -43,13 +47,10 @@ function PerpsChartContainerComponent() {
         to: endTime,
       });
 
-      // Use quote decimals from the selected market as source of truth
-      const quoteDecimals = selectedMarket.quote_decimals;
-
       // Process the data for TradingView charts
-      return processPerpsCandleData(candleData, quoteDecimals);
+      return processPerpsCandleData(candleData);
     },
-    refetchInterval: 5000, // Refetch every 5 seconds for perps
+    refetchInterval: CHART_CONFIG.REFETCH_INTERVAL_MS,
     enabled: !!selectedMarket?.uuid,
     retry: 2,
   });
@@ -70,6 +71,35 @@ function PerpsChartContainerComponent() {
     }
   }, [selectedMarket?.uuid, refetch]);
 
+  // Handle error state
+  if (error) {
+    return (
+      <div className="w-full h-full flex flex-col overflow-hidden">
+        <ChartHeader
+          selectedMarketId={selectedMarket?.uuid}
+          onMarketSelect={selectMarket}
+          marketKind={'perp' as MarketKind}
+          timeInterval={timeInterval}
+          onIntervalChange={handleIntervalChange}
+          latestPrice={latestPrice}
+        />
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <AlertCircle className="h-12 w-12 text-red-500" />
+          <div className="text-center">
+            <h3 className="text-lg font-medium text-red-500 mb-1">Failed to fetch chart data</h3>
+            <p className="text-sm text-muted-foreground max-w-md mb-4">
+              {error instanceof Error ? error.message : 'Unknown error'}
+            </p>
+          </div>
+          <Button onClick={() => refetch()} className="flex items-center gap-2" variant="outline">
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       <ChartHeader
@@ -82,12 +112,18 @@ function PerpsChartContainerComponent() {
       />
 
       <div className="flex-1 relative min-h-[250px] md:min-h-[350px] lg:min-h-[400px] overflow-hidden">
-        <PerpsChart
-          className="h-full"
-          data={data || []}
-          interval={timeInterval}
-          onLoadMoreData={handleLoadMoreData}
-        />
+        <ErrorBoundary>
+          <PerpsChart
+            className="h-full"
+            data={data || []}
+            interval={timeInterval}
+            onLoadMoreData={handleLoadMoreData}
+            isLoading={isLoading}
+            isRefreshing={isFetching && !isLoading}
+            error={error}
+            selectedMarketName={selectedMarket?.name}
+          />
+        </ErrorBoundary>
       </div>
     </div>
   );
