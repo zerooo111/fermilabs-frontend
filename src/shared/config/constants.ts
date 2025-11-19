@@ -57,6 +57,6 @@ export const API_ROUTES = {
   user_accounts: '/rollup/accounts/{pubkey}',
   positions: '/rollup/positions',
   liquidations: '/rollup/liquidations',
-  airdrop: '/rollup/airdrop/{receiverPubKey}/{tokenName}',
+  airdrop: '/rollup/airdrop',
   tx: '/continuum/tx',
 };

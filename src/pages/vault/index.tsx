@@ -25,7 +25,7 @@ import {
 } from '../../shared/lib/solana/helpers';
 import axios, { AxiosError } from 'axios';
 import { toast } from 'sonner';
-import { config } from '@/shared/config/constants';
+import { config, API_ROUTES } from '@/shared/config/constants';
 
 const tokens = [
   {
@@ -199,9 +199,11 @@ function VaultPage() {
     );
 
     try {
-      const response = await axios.post(`${config.devnet.graphApiUrl}/dev/airdrop`, {
-        mint: selectedTokenMint.toBase58(),
+      const airdropUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.airdrop}`;
+
+      const response = await axios.post(airdropUrl, {
         recipient: ata.toBase58(),
+        token_mint: selectedTokenMint.toBase58(),
         amount: 1000000000000,
       });
 
