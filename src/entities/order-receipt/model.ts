@@ -1,7 +1,7 @@
 import { atom } from 'jotai';
 import { API_ROUTES } from '@/shared/config/constants';
 
-// FermiLabs explorer URL constants
+// Fermi Trade explorer URL constants
 const FERMILABS_EXPLORER_URL = 'https://explorer-staging.fermilabs.xyz';
 
 export const getFermiLabsExplorerUrl = (path: string): string => {

@@ -59,7 +59,7 @@ export function LandingFooter() {
         <div className="flex items-center border-rock/20 pr-4 group hover:text-amber-200 gap-1">
           <Logo className="w-8 h-8 sm:w-10 sm:h-10 group-hover:rotate-360 duration-500" />
           <a className="text-2xl sm:text-3xl font-display tracking-wide" href="/">
-            FermiLabs
+            Fermi Trade
           </a>
         </div>
         <Copyright />
