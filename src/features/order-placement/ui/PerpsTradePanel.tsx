@@ -244,30 +244,6 @@ export function PerpsTradePanel() {
         {publicKey && selectedMarket && (
           <div className="space-y-2 bg-card border border-outline p-2">
             <div className="text-xs font-medium text-muted-foreground">Balances</div>
-            {/* Base Token Balance */}
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">{selectedMarket.baseTokenName}</span>
-              <div className="flex items-center gap-2">
-                <span className="font-mono tabular-nums">
-                  {balances && balances[selectedMarket.base_mint]
-                    ? (
-                        parseFloat(balances[selectedMarket.base_mint].available) /
-                        Math.pow(10, selectedMarket.baseDecimals)
-                      ).toFixed(6)
-                    : '0.000000000'}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={() =>
-                    requestAirdrop(selectedMarket.base_mint, selectedMarket.baseTokenName)
-                  }
-                >
-                  Airdrop
-                </Button>
-              </div>
-            </div>
             {/* Quote Token Balance */}
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">{selectedMarket.quoteTokenName}</span>
