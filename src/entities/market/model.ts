@@ -166,7 +166,18 @@ export const useSelectedMarket = () => {
       if (error) throw error;
 
       // Extract markets from response
-      const newMarkets = data.data || [];
+      const newMarkets = (data.data || []).map((market: Market) => {
+        if (market.uuid === '6f9ee497-1756-5bbd-b512-36cee35add8f') {
+          // Override the name to ensure base/quote are parsed as SOL/USDC
+          // Use market.kind to determine the suffix
+          const suffix = market.kind === 'perp' ? 'Perps' : '';
+          return {
+            ...market,
+            name: `SOL/USDC ${suffix}`.trim(),
+          };
+        }
+        return market;
+      });
 
       // Quick hash comparison using market IDs
       const newHash = newMarkets.map((m: Market) => m.uuid).join(',');
