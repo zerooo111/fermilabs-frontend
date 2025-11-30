@@ -419,22 +419,11 @@ export function PerpsTradePanel() {
         )}
         <div className="font-medium bg-card border border-outline p-2 text-xs space-y-1 mt-auto">
           <div className="flex items-center justify-between">
-            <span>Order Value</span>
-            <span className="tabular-nums">
-              {orderValue > 0
-                ? `${orderValue.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })} ${selectedMarket?.quoteTokenName || ''}`
-                : `0.00 ${selectedMarket?.quoteTokenName || ''}`}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
             <span>Position Size</span>
             <span className="tabular-nums">
               {sizeValue > 0
-                ? `${sizeValue.toFixed(getTokenDecimals(selectedMarket?.baseTokenName))} ${selectedMarket?.baseTokenName || ''}`
-                : `0.00 ${selectedMarket?.baseTokenName || ''}`}
+                ? `${sizeValue.toFixed(getTokenDecimals(selectedMarket?.baseTokenName))}`
+                : `0.00 `}
             </span>
           </div>
           <div className="flex items-center justify-between">
