@@ -5,9 +5,9 @@
 import { Button } from '@/shared/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpOrdersIntent';
-import { Loader2, Wallet } from 'lucide-react';
+import { Loader2, Wallet, Info } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
@@ -21,6 +21,7 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { config, API_ROUTES } from '@/shared/config/constants';
 import { toast } from 'sonner';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
 
 // Safe parsing functions to prevent NaN errors
 const safeParseFloat = (value: string, defaultValue: number = 0): number => {
@@ -107,13 +108,41 @@ export function PerpsTradePanel() {
     });
   };
 
-  // Get leverage limits from the selected market
+  // Calculate order value considering decimal inputs with safe parsing
+  const priceValue = safeParseFloat(formState.price);
+  const sizeValue = safeParseFloat(formState.size);
+  const leverageValue = safeParseFloat(formState.leverage, 1);
+  const orderValue = priceValue * sizeValue;
+
+  // Calculate notional in raw token units for leverage tier lookup
+  // Notional = price * size, where both are in human-readable units
+  // Then convert to raw quote units (lamports) for comparison with tier thresholds
+  const notionalRaw = useMemo(() => {
+    if (!selectedMarket || priceValue <= 0 || sizeValue <= 0) {
+      return 0;
+    }
+    const quoteDecimals = getTokenDecimals(selectedMarket.quoteTokenName);
+    // Calculate notional in human-readable units (quote token units)
+    const notionalHumanReadable = priceValue * sizeValue;
+    // Convert to raw quote units (lamports) - this is what the backend uses
+    // Example: 1000 USDC * 10^6 = 1000000000 (USDC lamports)
+    return Math.floor(notionalHumanReadable * Math.pow(10, quoteDecimals));
+  }, [selectedMarket, priceValue, sizeValue]);
+
+  // Get leverage limits from the selected market, considering notional-based tiers
   const leverageLimits = useMemo(() => {
     if (selectedMarket) {
-      return getLeverageLimitsFromMarket(selectedMarket);
+      return getLeverageLimitsFromMarket(selectedMarket, notionalRaw > 0 ? notionalRaw : undefined);
     }
     return null;
-  }, [selectedMarket]);
+  }, [selectedMarket, notionalRaw]);
+
+  // Clamp leverage value if it exceeds the new max leverage when limits change
+  useEffect(() => {
+    if (leverageLimits?.max && leverageValue > leverageLimits.max) {
+      setFormState(prev => ({ ...prev, leverage: leverageLimits.max.toString() }));
+    }
+  }, [leverageLimits?.max, leverageValue]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     console.log('[PerpsTradePanel] Form input changed:', { field, value });
@@ -131,7 +160,8 @@ export function PerpsTradePanel() {
     if (field === 'leverage') {
       const stringValue = value as string;
       const numValue = safeParseFloat(stringValue);
-      if (numValue < 1 || numValue > 100) {
+      const maxLeverage = leverageLimits?.max ?? 100;
+      if (numValue < 1 || numValue > maxLeverage) {
         return; // Reject invalid leverage values
       }
     }
@@ -157,11 +187,6 @@ export function PerpsTradePanel() {
     }
     setIsSubmitting(false);
   };
-  // Calculate order value considering decimal inputs with safe parsing
-  const priceValue = safeParseFloat(formState.price);
-  const sizeValue = safeParseFloat(formState.size);
-  const leverageValue = safeParseFloat(formState.leverage, 1);
-  const orderValue = priceValue * sizeValue;
 
   return (
     <div className="flex flex-col w-full lg:w-xs overflow-hidden">
@@ -208,19 +233,99 @@ export function PerpsTradePanel() {
           allowNegative={false}
         />
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">Leverage</label>
-            <span className="text-sm text-muted-foreground">{formState.leverage}x</span>
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-medium">Leverage</label>
+              {leverageLimits && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="size-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="space-y-1">
+                      <div className="font-medium">Leverage Limits</div>
+                      <div className="text-xs">
+                        Max leverage is based on position size (notional value). Larger positions
+                        have lower max leverage.
+                      </div>
+                      {orderValue > 0 && (
+                        <div className="text-xs pt-1 border-t border-outline">
+                          Current order value:{' '}
+                          {orderValue.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{' '}
+                          {selectedMarket?.quoteTokenName}
+                        </div>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-lg font-semibold tabular-nums">{formState.leverage}x</span>
+                {leverageLimits && (
+                  <span className="text-xs text-muted-foreground">/ {leverageLimits.max}x max</span>
+                )}
+              </div>
+              {/* Risk indicator */}
+              {(() => {
+                const riskLevel =
+                  leverageValue <= 2
+                    ? { label: 'Low Risk', color: 'text-green-500' }
+                    : leverageValue <= 10
+                      ? { label: 'Moderate', color: 'text-yellow-500' }
+                      : leverageValue <= 25
+                        ? { label: 'High Risk', color: 'text-orange-500' }
+                        : { label: 'Very High', color: 'text-red-500' };
+                return (
+                  <span className={`text-[10px] font-medium ${riskLevel.color}`}>
+                    {riskLevel.label}
+                  </span>
+                );
+              })()}
+            </div>
           </div>
-          <Slider
-            value={[leverageValue]}
-            onValueChange={([value]) => handleInputChange('leverage', value.toString())}
-            min={leverageLimits?.min ?? 1}
-            max={leverageLimits?.max ?? 100}
-            step={1}
-            className="w-full"
-          />
+
+          {/* Quick preset buttons */}
+          {leverageLimits &&
+            leverageLimits.recommended &&
+            leverageLimits.recommended.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {leverageLimits.recommended
+                  .filter(lev => lev <= leverageLimits.max)
+                  .map(lev => (
+                    <Button
+                      key={lev}
+                      variant={leverageValue === lev ? 'outline' : 'outline'}
+                      size="sm"
+                      className={`h-8 flex-1 text-xs transition-all ${
+                        leverageValue === lev
+                          ? 'bg-white text-black font-bold hover:bg-white/90'
+                          : 'hover:bg-accent/50'
+                      }`}
+                      onClick={() => handleInputChange('leverage', lev.toString())}
+                    >
+                      {lev}x
+                    </Button>
+                  ))}
+              </div>
+            )}
+
+          {/* Leverage slider */}
+          <div className="space-y-2">
+            <Slider
+              value={[leverageValue]}
+              onValueChange={([value]) => handleInputChange('leverage', value.toString())}
+              min={leverageLimits?.min ?? 1}
+              max={leverageLimits?.max ?? 100}
+              step={1}
+              className="w-full"
+            />
+          </div>
         </div>
 
         <div>
@@ -314,21 +419,52 @@ export function PerpsTradePanel() {
         )}
         <div className="font-medium bg-card border border-outline p-2 text-xs space-y-1 mt-auto">
           <div className="flex items-center justify-between">
-            <span>Margin</span>
+            <span>Order Value</span>
+            <span className="tabular-nums">
+              {orderValue > 0
+                ? `${orderValue.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })} ${selectedMarket?.quoteTokenName || ''}`
+                : `0.00 ${selectedMarket?.quoteTokenName || ''}`}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Position Size</span>
+            <span className="tabular-nums">
+              {sizeValue > 0
+                ? `${sizeValue.toFixed(getTokenDecimals(selectedMarket?.baseTokenName))} ${selectedMarket?.baseTokenName || ''}`
+                : `0.00 ${selectedMarket?.baseTokenName || ''}`}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Margin Required</span>
             <span className="tabular-nums">
               {orderValue > 0 && priceValue > 0 && sizeValue > 0 && leverageValue >= 1
                 ? (() => {
                     try {
+                      const quoteDecimals = getTokenDecimals(selectedMarket?.quoteTokenName);
+                      const baseDecimals = getTokenDecimals(selectedMarket?.baseTokenName);
+
+                      // Convert to raw token units to preserve decimal precision
+                      const priceRaw = Math.floor(priceValue * Math.pow(10, quoteDecimals));
+                      const sizeRaw = Math.floor(sizeValue * Math.pow(10, baseDecimals));
+
                       const marginResult = calculatePerpMargin({
-                        price: priceValue,
-                        quantity: sizeValue,
+                        price: priceRaw,
+                        quantity: sizeRaw,
                         leverage: leverageValue,
                         marketInitialMarginBps: selectedMarket?.perp_config?.initial_margin || 0,
                       });
-                      return (
+
+                      // The notional is in (quote * base) decimal units
+                      // Margin should be in quote token units only, so divide by base decimals
+                      // Then convert to human-readable by dividing by quote decimals
+                      const marginInQuoteUnits =
                         Number(marginResult.requiredMargin) /
-                        Math.pow(10, getTokenDecimals(selectedMarket?.quoteTokenName))
-                      ).toFixed(getTokenDecimals(selectedMarket?.quoteTokenName));
+                        Math.pow(10, baseDecimals + quoteDecimals);
+
+                      return marginInQuoteUnits.toFixed(quoteDecimals);
                     } catch (error) {
                       console.error('Margin calculation error:', error);
                       return '0.00';

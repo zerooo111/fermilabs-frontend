@@ -14,7 +14,7 @@ const buttonVariants = cva(
           'bg-danger text-white shadow-xs hover:brightness-125 focus-visible:ring-danger/20',
         success:
           'bg-success text-white shadow-xs hover:brightness-125 focus-visible:ring-success/20',
-        outline: 'border border-outline bg-background hover:bg-card shadow-xs',
+        outline: 'ring  ring-inset ring-outline bg-background hover:bg-card shadow-xs',
         secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
         link: 'text-primary underline-offset-4 hover:underline',

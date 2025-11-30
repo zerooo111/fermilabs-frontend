@@ -35,9 +35,46 @@ export interface LeverageLimits {
 }
 
 /**
- * Get leverage limits from market configuration
+ * Get max leverage for a specific notional value based on leverage tiers
+ * @param market - The market configuration
+ * @param notional - The notional value in raw token units (price * quantity in smallest units)
+ * @returns The maximum allowed leverage for this notional value
  */
-export function getLeverageLimitsFromMarket(market: Market): LeverageLimits | null {
+export function getMaxLeverageForNotional(market: Market, notional: number): number | null {
+  if (market.kind !== 'perp' || !market.perp_config) {
+    return null;
+  }
+
+  const tiers = market.perp_config.max_leverage_tiers;
+  if (!tiers || tiers.length === 0) {
+    return null;
+  }
+
+  // Sort tiers by notional size descending (highest first)
+  // We want to find the first tier where notional >= tier.notional
+  const sortedTiers = [...tiers].sort((a, b) => b.notional - a.notional);
+
+  // Find the appropriate tier - the first tier where our notional is >= tier threshold
+  for (const tier of sortedTiers) {
+    if (notional >= tier.notional) {
+      return tier.max_leverage;
+    }
+  }
+
+  // If notional is less than all tier thresholds, use the lowest tier's leverage
+  const lowestTier = sortedTiers[sortedTiers.length - 1];
+  return lowestTier.max_leverage;
+}
+
+/**
+ * Get leverage limits from market configuration
+ * @param market - The market configuration
+ * @param notional - Optional notional value to get dynamic max leverage
+ */
+export function getLeverageLimitsFromMarket(
+  market: Market,
+  notional?: number
+): LeverageLimits | null {
   if (market.kind !== 'perp' || !market.perp_config) {
     return null;
   }
@@ -50,8 +87,17 @@ export function getLeverageLimitsFromMarket(market: Market): LeverageLimits | nu
   // Sort tiers by notional size ascending
   const sortedTiers = [...tiers].sort((a, b) => a.notional - b.notional);
 
-  // The max leverage is the highest leverage available (typically from the highest tier)
-  const maxLeverage = Math.max(...sortedTiers.map(tier => tier.max_leverage));
+  // If notional is provided, get the max leverage for that specific notional
+  // Otherwise, use the highest leverage available
+  const maxLeverage =
+    notional !== undefined
+      ? (getMaxLeverageForNotional(market, notional) ??
+        Math.max(...sortedTiers.map(tier => tier.max_leverage)))
+      : Math.max(...sortedTiers.map(tier => tier.max_leverage));
+
+  if (maxLeverage === null) {
+    return null;
+  }
 
   // Min leverage is typically 1
   const minLeverage = 1;
