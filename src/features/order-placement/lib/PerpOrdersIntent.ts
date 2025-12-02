@@ -23,7 +23,9 @@ export class PerpOrderIntent {
     public readonly reduce_only: boolean,
     public readonly margin_mode: MarginMode | null,
     public readonly margin_amount: BN | null,
-    public readonly liquidation: boolean
+    public readonly liquidation: boolean,
+    public readonly stop_loss_price: BN | null,
+    public readonly take_profit_price: BN | null
   ) {}
 
   static layout(property?: string) {
@@ -44,6 +46,8 @@ export class PerpOrderIntent {
         borsh.option(borsh.u8(), 'margin_mode'),
         borsh.option(borsh.u64(), 'margin_amount'),
         borsh.bool('liquidation'),
+        borsh.option(borsh.u64(), 'stop_loss_price'),
+        borsh.option(borsh.u64(), 'take_profit_price'),
       ],
       property
     );
@@ -77,6 +81,8 @@ export class PerpOrderIntent {
       margin_mode: marginModeValue,
       margin_amount: intent.margin_amount,
       liquidation: intent.liquidation,
+      stop_loss_price: intent.stop_loss_price,
+      take_profit_price: intent.take_profit_price,
     };
 
     // Since borsh.option() creates variable-size structures, we need to encode first
@@ -115,7 +121,9 @@ export class PerpOrderIntent {
       decoded.reduce_only,
       margin_mode,
       decoded.margin_amount,
-      decoded.liquidation
+      decoded.liquidation,
+      decoded.stop_loss_price,
+      decoded.take_profit_price
     );
   }
 
@@ -142,6 +150,8 @@ export class PerpOrderIntent {
       margin_mode: this.margin_mode ? (this.margin_mode === 'cross' ? 'cross' : 'isolated') : null,
       margin_amount: this.margin_amount ? Number(this.margin_amount) : null,
       liquidation: this.liquidation,
+      stop_loss_price: this.stop_loss_price ? Number(this.stop_loss_price) : null,
+      take_profit_price: this.take_profit_price ? Number(this.take_profit_price) : null,
     };
   }
 }

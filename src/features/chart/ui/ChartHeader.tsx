@@ -44,7 +44,7 @@ function ChartHeaderComponent({
 
   // Fetch market stats using react-query
   const { data: marketsData } = useMarketStats({
-    refetchInterval: 5000,
+    refetchInterval: 1000,
     enabled: !!selectedMarketId,
   });
 

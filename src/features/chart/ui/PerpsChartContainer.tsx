@@ -71,7 +71,7 @@ function PerpsChartContainerComponent() {
 
   // Fetch market stats for real-time mark_price updates
   const { data: marketsData } = useMarketStats({
-    refetchInterval: 5000, // Poll mark_price every 5 seconds
+    refetchInterval: 1000, // Poll mark_price every 5 seconds
     enabled: !!selectedMarket?.uuid,
   });
 

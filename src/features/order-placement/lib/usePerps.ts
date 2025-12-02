@@ -21,6 +21,8 @@ interface PerpsSubmitOrderParams {
   size: string;
   leverage: string;
   marginMode: MarginMode;
+  stopLoss?: string;
+  takeProfit?: string;
 }
 
 export function usePerps() {
@@ -34,6 +36,8 @@ export function usePerps() {
     size,
     leverage,
     marginMode,
+    stopLoss,
+    takeProfit,
   }: PerpsSubmitOrderParams): Promise<{ success: boolean; error?: string }> => {
     try {
       if (!signMessage || !publicKey) {
@@ -84,6 +88,18 @@ export function usePerps() {
       // Apply quote token decimals to the margin result
       const marginAmount = marginResult.requiredMargin.mul(priceDecimals);
 
+      // Parse and convert stop loss and take profit prices to BN with decimals
+      const stopLossBN = stopLoss
+        ? new BN(
+            Math.floor(parseFloat(stopLoss) * Math.pow(10, selectedMarket?.quoteDecimals || 0))
+          )
+        : null;
+      const takeProfitBN = takeProfit
+        ? new BN(
+            Math.floor(parseFloat(takeProfit) * Math.pow(10, selectedMarket?.quoteDecimals || 0))
+          )
+        : null;
+
       const orderIntent = new PerpOrderIntent(
         orderId,
         publicKey,
@@ -99,7 +115,9 @@ export function usePerps() {
         false, // reduce_only - always false for open positions from PerpsTradePanel
         marginMode,
         marginAmount, // margin_amount
-        false // liquidation
+        false, // liquidation
+        stopLossBN, // stop_loss_price
+        takeProfitBN // take_profit_price
       );
 
       const serializedData = PerpOrderIntent.serialize(orderIntent);
@@ -127,6 +145,8 @@ export function usePerps() {
           margin_mode: orderIntent.margin_mode,
           margin_amount: orderIntent.margin_amount?.toNumber() || 0,
           liquidation: orderIntent.liquidation,
+          stop_loss_price: orderIntent.stop_loss_price?.toNumber() || null,
+          take_profit_price: orderIntent.take_profit_price?.toNumber() || null,
         },
         signature: Buffer.from(signatureBytes).toString('hex'),
         local_sequencer_id: 'continuum_client',
@@ -224,7 +244,9 @@ export function usePerps() {
         true, // reduce_only: true for closing positions
         'cross', // margin_mode: cross for closing
         new BN(0), // margin_amount: 0 for closing
-        false // liquidation
+        false, // liquidation
+        null, // stop_loss_price: null for closing
+        null // take_profit_price: null for closing
       );
 
       const serializedData = PerpOrderIntent.serialize(orderIntent);
@@ -252,6 +274,8 @@ export function usePerps() {
           margin_mode: orderIntent.margin_mode,
           margin_amount: orderIntent.margin_amount?.toNumber() || 0,
           liquidation: orderIntent.liquidation,
+          stop_loss_price: orderIntent.stop_loss_price?.toNumber() || null,
+          take_profit_price: orderIntent.take_profit_price?.toNumber() || null,
         },
         signature: Buffer.from(signatureBytes).toString('hex'),
         local_sequencer_id: 'continuum_client',
