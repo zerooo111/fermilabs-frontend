@@ -2,24 +2,31 @@
  * Application constants
  */
 import { PublicKey } from '@solana/web3.js';
+import type { Commitment } from '@solana/web3.js';
 
 // config -> network ( devnet / mainnet ) -> programId / rpcUrl , commitment , etc...
 export const config = {
   devnet: {
-    // apiBaseUrl: 'http://localhost:3000/api/v1',
-    apiBaseUrl: 'https://api.fermi.trade/api/v1',
-    rpcUrl: 'https://api.devnet.solana.com',
-    commitment: 'confirmed',
-    wsUrl: 'wss://api.devnet.solana.com',
-    defaultMarketAddress: 'GnDethiMd2Z1ANCeSAcP7fxRWXL64FM6dNJowho6Knxt',
-    vaultProgramId: 'CVB232NjzFcJUAcaEsbqTTAwGah37MYor57Vy97CCEx2',
-    fermiAuthority: '8bHSuk6dpjquTw44vwr3sLukDSMLNkQLTcttGtC5pJtb',
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'https://api.fermi.trade/api/v1',
+    rpcUrl: import.meta.env.VITE_RPC_URL || 'https://api.devnet.solana.com',
+    commitment: (import.meta.env.VITE_COMMITMENT || 'confirmed') as Commitment,
+    wsUrl: import.meta.env.VITE_WS_URL || 'wss://api.devnet.solana.com',
+    defaultMarketAddress:
+      import.meta.env.VITE_DEFAULT_MARKET_ADDRESS || 'GnDethiMd2Z1ANCeSAcP7fxRWXL64FM6dNJowho6Knxt',
+    vaultProgramId:
+      import.meta.env.VITE_VAULT_PROGRAM_ID || 'CVB232NjzFcJUAcaEsbqTTAwGah37MYor57Vy97CCEx2',
+    fermiAuthority:
+      import.meta.env.VITE_FERMI_AUTHORITY || '8bHSuk6dpjquTw44vwr3sLukDSMLNkQLTcttGtC5pJtb',
   },
 };
 
-export const marketId = '2a4b1a13-c18d-40f2-b387-d467474c30bf';
-export const baseMint = new PublicKey('fnUTeVwrsGgTHHLnr5x6ayDTJiuJbr9vNxi3SHoF5Gg');
-export const quoteMint = new PublicKey('Hf9KLE7pbHruArPXSVPn7sZ5iKt8Xxjmg2fCTzWUjEz8');
+export const marketId = import.meta.env.VITE_MARKET_ID || '2a4b1a13-c18d-40f2-b387-d467474c30bf';
+export const baseMint = new PublicKey(
+  import.meta.env.VITE_BASE_MINT || 'fnUTeVwrsGgTHHLnr5x6ayDTJiuJbr9vNxi3SHoF5Gg'
+);
+export const quoteMint = new PublicKey(
+  import.meta.env.VITE_QUOTE_MINT || 'Hf9KLE7pbHruArPXSVPn7sZ5iKt8Xxjmg2fCTzWUjEz8'
+);
 
 export const BASE_DECIMALS = 9;
 export const QUOTE_DECIMALS = 6;

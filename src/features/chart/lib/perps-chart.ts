@@ -167,3 +167,107 @@ export function calculatePerpsPriceChange(data: ExtendedPerpsOHLCVData[]) {
     percentChange: ((Math.abs(priceChange) / lastValidCandle.open) * 100).toFixed(1),
   };
 }
+
+/**
+ * Get the current candle timestamp for a given timeframe
+ * Returns the start timestamp (in seconds) of the current candle period
+ */
+export function getCurrentCandleTimestamp(timeframe: PerpsTimeframe): number {
+  const now = new Date();
+  const nowSeconds = Math.floor(now.getTime() / 1000);
+
+  let intervalSeconds: number;
+  switch (timeframe) {
+    case '1m':
+      intervalSeconds = 60;
+      break;
+    case '5m':
+      intervalSeconds = 5 * 60;
+      break;
+    case '15m':
+      intervalSeconds = 15 * 60;
+      break;
+    case '1h':
+      intervalSeconds = 60 * 60;
+      break;
+    case '4h':
+      intervalSeconds = 4 * 60 * 60;
+      break;
+    case '1d':
+      intervalSeconds = 24 * 60 * 60;
+      break;
+    default:
+      intervalSeconds = 60 * 60;
+  }
+
+  // Round down to the start of the current interval
+  return Math.floor(nowSeconds / intervalSeconds) * intervalSeconds;
+}
+
+/**
+ * Update candles array with a new mark price
+ * Intelligently updates the current candle or creates a new one if needed
+ */
+export function updateCandlesWithMarkPrice(
+  candles: ExtendedPerpsOHLCVData[],
+  markPrice: number,
+  timeframe: PerpsTimeframe
+): ExtendedPerpsOHLCVData[] {
+  if (!candles || candles.length === 0 || !markPrice || markPrice <= 0) {
+    return candles;
+  }
+
+  const currentCandleTimestamp = getCurrentCandleTimestamp(timeframe);
+  const candlesCopy = [...candles];
+
+  // Find the last candle
+  const lastCandle = candlesCopy[candlesCopy.length - 1];
+
+  if (!lastCandle) {
+    // No candles exist, create a new one
+    candlesCopy.push({
+      time: currentCandleTimestamp,
+      open: markPrice,
+      high: markPrice,
+      low: markPrice,
+      close: markPrice,
+    });
+    return candlesCopy;
+  }
+
+  // Check if the last candle is for the current period
+  if (lastCandle.time === currentCandleTimestamp) {
+    // Update existing current candle
+    const updatedCandle: ExtendedPerpsOHLCVData = {
+      ...lastCandle,
+      close: markPrice,
+      high: Math.max(lastCandle.high ?? markPrice, markPrice),
+      low: Math.min(lastCandle.low ?? markPrice, markPrice),
+      // Ensure open is set if it wasn't before
+      open: lastCandle.open ?? markPrice,
+    };
+    candlesCopy[candlesCopy.length - 1] = updatedCandle;
+  } else if (lastCandle.time < currentCandleTimestamp) {
+    // New candle period has started
+    // Close the previous candle if it doesn't have a close price
+    if (lastCandle.close === undefined && lastCandle.open !== undefined) {
+      candlesCopy[candlesCopy.length - 1] = {
+        ...lastCandle,
+        close: lastCandle.open,
+      };
+    }
+
+    // Create a new candle for the current period
+    candlesCopy.push({
+      time: currentCandleTimestamp,
+      open: markPrice,
+      high: markPrice,
+      low: markPrice,
+      close: markPrice,
+    });
+  }
+  // If lastCandle.time > currentCandleTimestamp, something is wrong (future candle)
+  // Just update the last candle in this case
+
+  return candlesCopy;
+}

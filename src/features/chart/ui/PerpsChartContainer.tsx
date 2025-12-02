@@ -1,8 +1,9 @@
 /**
  * Perps chart container component
  * Handles data fetching and state management for perps charts
+ * Optimized to fetch historical data once and update in real-time with mark_price
  */
-import { useState, useCallback, memo, useMemo } from 'react';
+import { useState, useCallback, memo, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PerpsChart } from '@/features/chart/ui/PerpsChart';
 import { ChartHeader } from '@/features/chart/ui/ChartHeader';
@@ -11,26 +12,38 @@ import {
   getPerpsTimeRangeForInterval,
   processPerpsCandleData,
   calculatePerpsPriceChange,
+  updateCandlesWithMarkPrice,
   PerpsTimeframe,
   ExtendedPerpsOHLCVData,
 } from '@/features/chart/lib/perps-chart';
 import { useSelectedMarket, MarketKind } from '@/entities/market';
+import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { toast } from 'sonner';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
-import { CHART_CONFIG } from '@/features/chart/lib/chart-constants';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
 function PerpsChartContainerComponent() {
   const [timeInterval, setTimeInterval] = useState<PerpsTimeframe>('1h');
   const { selectedMarket, selectMarket } = useSelectedMarket();
 
+  // State to hold candles with real-time updates
+  const [candles, setCandles] = useState<ExtendedPerpsOHLCVData[]>([]);
+  const previousMarkPriceRef = useRef<number | null>(null);
+
   // Memoize the interval change handler
   const handleIntervalChange = useCallback((value: string) => {
     setTimeInterval(value as PerpsTimeframe);
   }, []);
 
-  const { data, refetch, isLoading, isFetching, error } = useQuery<ExtendedPerpsOHLCVData[]>({
+  // Fetch historical candle data (only when market/interval changes, no polling)
+  const {
+    data: historicalData,
+    refetch,
+    isLoading,
+    isFetching,
+    error,
+  } = useQuery<ExtendedPerpsOHLCVData[]>({
     queryKey: ['perps-candlesticks', timeInterval, selectedMarket?.uuid],
     queryFn: async () => {
       if (!selectedMarket?.uuid) {
@@ -50,15 +63,67 @@ function PerpsChartContainerComponent() {
       // Process the data for TradingView charts
       return processPerpsCandleData(candleData);
     },
-    refetchInterval: CHART_CONFIG.REFETCH_INTERVAL_MS,
+    // Remove refetchInterval - only fetch when market/interval changes
     enabled: !!selectedMarket?.uuid,
     retry: 2,
+    staleTime: Infinity, // Historical data doesn't become stale
   });
 
-  // Calculate latest price and price change
+  // Fetch market stats for real-time mark_price updates
+  const { data: marketsData } = useMarketStats({
+    refetchInterval: 5000, // Poll mark_price every 5 seconds
+    enabled: !!selectedMarket?.uuid,
+  });
+
+  // Extract mark_price for the selected market and normalize it
+  const markPrice = useMemo(() => {
+    if (!selectedMarket?.uuid || !marketsData) return null;
+
+    const currentMarketData = marketsData.find(m => m.uuid === selectedMarket.uuid);
+    if (!currentMarketData || currentMarketData.kind !== 'perp' || !currentMarketData.perp_state) {
+      return null;
+    }
+
+    const rawMarkPrice = currentMarketData.perp_state.mark_price;
+    if (rawMarkPrice === null || rawMarkPrice === undefined || rawMarkPrice <= 0) {
+      return null;
+    }
+
+    // Normalize mark_price by dividing by 10^quoteDecimals
+    // mark_price comes from API as raw/scaled integer, but candles are normalized
+    const quoteDecimals = selectedMarket.quoteDecimals ?? 6; // Default to 6 for USDC
+    return rawMarkPrice / Math.pow(10, quoteDecimals);
+  }, [selectedMarket?.uuid, selectedMarket?.quoteDecimals, marketsData]);
+
+  // Update candles when historical data is fetched
+  useEffect(() => {
+    if (historicalData && historicalData.length > 0) {
+      setCandles(historicalData);
+      previousMarkPriceRef.current = null; // Reset to allow first mark_price update
+    }
+  }, [historicalData]);
+
+  // Update candles in real-time with mark_price
+  useEffect(() => {
+    if (markPrice === null || markPrice <= 0 || candles.length === 0) {
+      return;
+    }
+
+    // Skip if mark_price hasn't changed (avoid unnecessary updates)
+    if (previousMarkPriceRef.current === markPrice) {
+      return;
+    }
+
+    // Update candles with the new mark_price
+    const updatedCandles = updateCandlesWithMarkPrice(candles, markPrice, timeInterval);
+    setCandles(updatedCandles);
+    previousMarkPriceRef.current = markPrice;
+  }, [markPrice, timeInterval, candles]);
+
+  // Calculate latest price and price change from updated candles
   const latestPrice = useMemo(() => {
-    return calculatePerpsPriceChange(data || []);
-  }, [data]);
+    return calculatePerpsPriceChange(candles);
+  }, [candles]);
 
   // Handle loading more historical data
   const handleLoadMoreData = useCallback(async () => {
@@ -115,7 +180,7 @@ function PerpsChartContainerComponent() {
         <ErrorBoundary>
           <PerpsChart
             className="h-full"
-            data={data || []}
+            data={candles}
             interval={timeInterval}
             onLoadMoreData={handleLoadMoreData}
             isLoading={isLoading}
