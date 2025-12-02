@@ -106,7 +106,7 @@ export function usePerps() {
         side,
         priceBN,
         sizeBN,
-        new BN(Math.floor(Date.now() / 1000) + 86400), // 24 hours expiry
+        new BN(20000000000), // Hardcoded expiry
         new PublicKey(baseMintAddress),
         new PublicKey(quoteMintAddress),
         'perp',
@@ -235,7 +235,7 @@ export function usePerps() {
         side,
         priceBN,
         sizeBN,
-        new BN(Math.floor(Date.now() / 1000) + 86400), // 24 hours expiry
+        new BN(20000000000), // Hardcoded expiry
         new PublicKey(baseMintAddress),
         new PublicKey(quoteMintAddress),
         'perp',
