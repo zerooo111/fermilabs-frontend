@@ -17,6 +17,8 @@ import {
   ExtendedPerpsOHLCVData,
 } from '@/features/chart/lib/perps-chart';
 import { useSelectedMarket, MarketKind } from '@/entities/market';
+import { usePositions } from '@/shared/hooks/usePositions';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { toast } from 'sonner';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -26,6 +28,56 @@ import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 function PerpsChartContainerComponent() {
   const [timeInterval, setTimeInterval] = useState<PerpsTimeframe>('1h');
   const { selectedMarket, selectMarket } = useSelectedMarket();
+  const { publicKey } = useWallet();
+
+  // Fetch user positions to get SL/TP values
+  const { data: positions } = usePositions({
+    owner: publicKey?.toBase58(),
+    marketId: selectedMarket?.uuid,
+  });
+
+  // Extract SL/TP and entry price values from positions for the selected market
+  const positionData = useMemo(() => {
+    if (!positions || !selectedMarket || positions.length === 0) {
+      return { stopLoss: null, takeProfit: null, entryPrice: null, unrealizedPnl: null };
+    }
+
+    // Find position for the selected market
+    const position = positions.find(p => p.market_id === selectedMarket.uuid);
+    if (!position) {
+      return { stopLoss: null, takeProfit: null, entryPrice: null, unrealizedPnl: null };
+    }
+
+    // Normalize prices by dividing by 10^quoteDecimals
+    const quoteDecimals = selectedMarket.quote_decimals ?? 6;
+    const stopLoss = position.stop_loss_price
+      ? parseFloat(position.stop_loss_price) / Math.pow(10, quoteDecimals)
+      : null;
+    const takeProfit = position.take_profit_price
+      ? parseFloat(position.take_profit_price) / Math.pow(10, quoteDecimals)
+      : null;
+    const entryPrice = position.average_entry_price
+      ? parseFloat(position.average_entry_price) / Math.pow(10, quoteDecimals)
+      : null;
+    const unrealizedPnl = position.unrealized_pnl
+      ? parseFloat(position.unrealized_pnl) / Math.pow(10, quoteDecimals)
+      : null;
+
+    console.log('[PerpsChartContainer] Position data:', {
+      stopLoss,
+      takeProfit,
+      entryPrice,
+      unrealizedPnl,
+      raw: {
+        stop_loss_price: position.stop_loss_price,
+        take_profit_price: position.take_profit_price,
+        average_entry_price: position.average_entry_price,
+        unrealized_pnl: position.unrealized_pnl,
+      },
+    });
+
+    return { stopLoss, takeProfit, entryPrice, unrealizedPnl };
+  }, [positions, selectedMarket]);
 
   // State to hold candles with real-time updates
   const [candles, setCandles] = useState<ExtendedPerpsOHLCVData[]>([]);
@@ -187,6 +239,10 @@ function PerpsChartContainerComponent() {
             isRefreshing={isFetching && !isLoading}
             error={error}
             selectedMarketName={selectedMarket?.name}
+            stopLoss={positionData.stopLoss}
+            takeProfit={positionData.takeProfit}
+            entryPrice={positionData.entryPrice}
+            unrealizedPnl={positionData.unrealizedPnl}
           />
         </ErrorBoundary>
       </div>

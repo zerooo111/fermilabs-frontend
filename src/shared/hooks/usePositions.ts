@@ -13,6 +13,8 @@ export interface Position {
   realized_pnl: string;
   unrealized_pnl: string;
   cumulative_funding: string;
+  stop_loss_price?: string;
+  take_profit_price?: string;
   // Market metadata (if available from backend)
   base_decimals?: number;
   quote_decimals?: number;

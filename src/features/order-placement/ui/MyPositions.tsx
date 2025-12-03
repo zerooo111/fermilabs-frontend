@@ -78,12 +78,14 @@ export function MyPositions() {
             <TableHead className="text-right">Entry Price</TableHead>
             <TableHead className="text-right">Current Price</TableHead>
             <TableHead className="text-right">PnL</TableHead>
+            <TableHead className="text-right">Stop Loss</TableHead>
+            <TableHead className="text-right">Take Profit</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           <TableRow>
-            <TableCell colSpan={6} className="h-24 text-center">
+            <TableCell colSpan={8} className="h-24 text-center">
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
                 Loading positions...
@@ -99,7 +101,7 @@ export function MyPositions() {
     if (!positions || positions.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={6} className="h-24 text-center text-sm text-muted-foreground">
+          <TableCell colSpan={8} className="h-24 text-center text-sm text-muted-foreground">
             No open positions
           </TableCell>
         </TableRow>
@@ -112,6 +114,10 @@ export function MyPositions() {
       const averageEntryPrice = parseFloat(position.average_entry_price);
       const markPrice = parseFloat(position.mark_price);
       const unrealizedPnl = parseFloat(position.unrealized_pnl);
+      const stopLossPrice = position.stop_loss_price ? parseFloat(position.stop_loss_price) : null;
+      const takeProfitPrice = position.take_profit_price
+        ? parseFloat(position.take_profit_price)
+        : null;
 
       // Get the market data for this position
       const positionMarket = marketsMap.get(position.market_id);
@@ -136,6 +142,12 @@ export function MyPositions() {
             className={`text-center font-mono tabular-nums ${unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}
           >
             {formatPrice(unrealizedPnl, quoteDecimals)}
+          </TableCell>
+          <TableCell className="text-center font-mono tabular-nums">
+            {stopLossPrice !== null ? formatPrice(stopLossPrice, quoteDecimals) : '-'}
+          </TableCell>
+          <TableCell className="text-center font-mono tabular-nums">
+            {takeProfitPrice !== null ? formatPrice(takeProfitPrice, quoteDecimals) : '-'}
           </TableCell>
           <TableCell className="text-center">
             <Button
@@ -168,6 +180,8 @@ export function MyPositions() {
           <TableHead className="text-center">Entry Price</TableHead>
           <TableHead className="text-center">Current Price</TableHead>
           <TableHead className="text-center">PnL</TableHead>
+          <TableHead className="text-center">Stop Loss</TableHead>
+          <TableHead className="text-center">Take Profit</TableHead>
           <TableHead className="text-center">Actions</TableHead>
         </TableRow>
       </TableHeader>

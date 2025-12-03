@@ -13,7 +13,8 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
 import { Slider } from '@/shared/ui/slider';
-import { useSelectedMarket } from '@/entities/market';
+import { useSelectedMarket, sltpValuesAtom } from '@/entities/market';
+import { useSetAtom } from 'jotai';
 import { getLeverageLimitsFromMarket } from '@/entities/market/model';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
@@ -57,6 +58,7 @@ export function PerpsTradePanel() {
   const { setVisible } = useWalletModal();
   const { selectedMarket } = useSelectedMarket();
   const { openPosition } = usePerps();
+  const setSLTPValues = useSetAtom(sltpValuesAtom);
 
   // Fetch market stats to get mark price
   const { data: marketsData } = useMarketStats({
@@ -222,7 +224,25 @@ export function PerpsTradePanel() {
       }
     }
 
-    setFormState(prev => ({ ...prev, [field]: value }));
+    setFormState(prev => {
+      const newState = { ...prev, [field]: value };
+
+      // Update SL/TP atom when values change
+      if (field === 'stopLoss' || field === 'takeProfit') {
+        const stopLossValue = field === 'stopLoss' ? (value as string) : newState.stopLoss;
+        const takeProfitValue = field === 'takeProfit' ? (value as string) : newState.takeProfit;
+
+        const sltp = {
+          stopLoss: stopLossValue ? safeParseFloat(stopLossValue) : null,
+          takeProfit: takeProfitValue ? safeParseFloat(takeProfitValue) : null,
+        };
+
+        console.log('[PerpsTradePanel] Setting SL/TP values:', sltp);
+        setSLTPValues(sltp);
+      }
+
+      return newState;
+    });
   };
 
   const handleOpenPosition = async (side: OrderSide) => {
@@ -262,6 +282,7 @@ export function PerpsTradePanel() {
         stopLoss: '',
         takeProfit: '',
       }));
+      setSLTPValues({ stopLoss: null, takeProfit: null });
     }
     setIsSubmitting(false);
   };
@@ -480,6 +501,21 @@ export function PerpsTradePanel() {
                 setEnableSLTP(e.target.checked);
                 if (!e.target.checked) {
                   setFormState(prev => ({ ...prev, stopLoss: '', takeProfit: '' }));
+                  setSLTPValues({ stopLoss: null, takeProfit: null });
+                } else {
+                  // When enabling, sync existing values if any
+                  const stopLossValue = formState.stopLoss
+                    ? safeParseFloat(formState.stopLoss)
+                    : null;
+                  const takeProfitValue = formState.takeProfit
+                    ? safeParseFloat(formState.takeProfit)
+                    : null;
+                  if (stopLossValue || takeProfitValue) {
+                    setSLTPValues({
+                      stopLoss: stopLossValue,
+                      takeProfit: takeProfitValue,
+                    });
+                  }
                 }
               }}
               className="h-4 w-4 rounded border-outline"

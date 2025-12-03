@@ -149,6 +149,17 @@ export interface EnhancedMarket extends Market {
   quoteDecimals: number;
 }
 
+// Atom for sharing stop loss and take profit values between trade panel and chart
+export interface SLTPValues {
+  stopLoss: number | null;
+  takeProfit: number | null;
+}
+
+export const sltpValuesAtom = atom<SLTPValues>({
+  stopLoss: null,
+  takeProfit: null,
+});
+
 // Memoized market enhancement to avoid unnecessary object creation
 const memoizedEnhanceMarket = (market: Market): EnhancedMarket => {
   if (!market) return null as unknown as EnhancedMarket;

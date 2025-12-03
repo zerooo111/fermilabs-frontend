@@ -42,6 +42,10 @@ interface PerpsChartComponentProps {
   isRefreshing?: boolean;
   error?: Error | null;
   selectedMarketName?: string;
+  stopLoss?: number | null;
+  takeProfit?: number | null;
+  entryPrice?: number | null;
+  unrealizedPnl?: number | null;
   colors?: {
     backgroundColor?: string;
     upColor?: string;
@@ -127,6 +131,10 @@ function PerpsChartComponent({
   isRefreshing,
   error,
   selectedMarketName,
+  stopLoss,
+  takeProfit,
+  entryPrice,
+  unrealizedPnl,
 }: PerpsChartComponentProps) {
   const chartColors = useChartColors();
 
@@ -146,6 +154,26 @@ function PerpsChartComponent({
   const isInitialMountRef = useRef(true);
   const previousDataRef = useRef<CandlestickData<Time>[]>([]);
   const isMountedRef = useRef(true);
+  const stopLossLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(
+    null
+  );
+  const takeProfitLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(
+    null
+  );
+  const entryPriceLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(
+    null
+  );
+  const previousValuesRef = useRef<{
+    stopLoss: number | null | undefined;
+    takeProfit: number | null | undefined;
+    entryPrice: number | null | undefined;
+    unrealizedPnl: number | null | undefined;
+  }>({
+    stopLoss: undefined,
+    takeProfit: undefined,
+    entryPrice: undefined,
+    unrealizedPnl: undefined,
+  });
 
   // Use ResizeObserver for container-specific resizing
   const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(
@@ -310,6 +338,9 @@ function PerpsChartComponent({
       seriesRef.current = candlestickSeries as ISeriesApi<'Candlestick'>;
       isInitialMountRef.current = true;
       previousDataRef.current = [];
+      stopLossLineRef.current = null;
+      takeProfitLineRef.current = null;
+      entryPriceLineRef.current = null;
 
       // Note: Data will be set in the separate data update effect
       // This separation prevents chart recreation on data changes
@@ -321,6 +352,15 @@ function PerpsChartComponent({
       isMountedRef.current = false;
       try {
         if (chartRef.current) {
+          // Clean up price lines
+          if (seriesRef.current && stopLossLineRef.current) {
+            seriesRef.current.removePriceLine(stopLossLineRef.current);
+            stopLossLineRef.current = null;
+          }
+          if (seriesRef.current && takeProfitLineRef.current) {
+            seriesRef.current.removePriceLine(takeProfitLineRef.current);
+            takeProfitLineRef.current = null;
+          }
           chartRef.current.remove();
           chartRef.current = null;
           seriesRef.current = null;
@@ -486,6 +526,194 @@ function PerpsChartComponent({
       console.error('Error updating chart data:', error);
     }
   }, [data, transformData]);
+
+  // Update stop loss and take profit price lines
+  useEffect(() => {
+    if (!seriesRef.current) {
+      console.log('[PerpsChart] No series available for price lines');
+      return;
+    }
+
+    // Only create price lines if we have data
+    if (!data || data.length === 0) {
+      console.log('[PerpsChart] No data available, skipping price lines');
+      return;
+    }
+
+    // Check which specific price values have changed (ignore PnL changes for recreation)
+    const stopLossChanged = previousValuesRef.current.stopLoss !== stopLoss;
+    const takeProfitChanged = previousValuesRef.current.takeProfit !== takeProfit;
+    const entryPriceChanged = previousValuesRef.current.entryPrice !== entryPrice;
+
+    // Check if lines should exist based on current values
+    const shouldHaveStopLoss = stopLoss !== null && stopLoss !== undefined && stopLoss > 0;
+    const shouldHaveTakeProfit = takeProfit !== null && takeProfit !== undefined && takeProfit > 0;
+    const shouldHaveEntryPrice = entryPrice !== null && entryPrice !== undefined && entryPrice > 0;
+
+    // Check if we need to update anything - only recreate when price values change, not PnL
+    const needsStopLossUpdate =
+      stopLossChanged ||
+      (shouldHaveStopLoss && stopLossLineRef.current === null) ||
+      (!shouldHaveStopLoss && stopLossLineRef.current !== null);
+    const needsTakeProfitUpdate =
+      takeProfitChanged ||
+      (shouldHaveTakeProfit && takeProfitLineRef.current === null) ||
+      (!shouldHaveTakeProfit && takeProfitLineRef.current !== null);
+    const needsEntryPriceUpdate =
+      entryPriceChanged ||
+      (shouldHaveEntryPrice && entryPriceLineRef.current === null) ||
+      (!shouldHaveEntryPrice && entryPriceLineRef.current !== null);
+
+    // If nothing needs updating, skip
+    if (!needsStopLossUpdate && !needsTakeProfitUpdate && !needsEntryPriceUpdate) {
+      return;
+    }
+
+    // Update previous values (only track price values, not PnL for change detection)
+    previousValuesRef.current = {
+      stopLoss,
+      takeProfit,
+      entryPrice,
+      unrealizedPnl, // Store for label, but don't use for change detection
+    };
+
+    // Capture update flags in closure
+    const shouldUpdateStopLoss = needsStopLossUpdate;
+    const shouldUpdateTakeProfit = needsTakeProfitUpdate;
+    const shouldUpdateEntryPrice = needsEntryPriceUpdate;
+
+    // Wait a bit to ensure chart is fully initialized
+    const timeoutId = setTimeout(() => {
+      if (!seriesRef.current) return;
+
+      console.log('[PerpsChart] Updating price lines:', {
+        stopLoss,
+        takeProfit,
+        entryPrice,
+        unrealizedPnl,
+        hasData: data.length > 0,
+      });
+
+      // Remove and recreate stop loss line only if it changed
+      if (shouldUpdateStopLoss) {
+        if (stopLossLineRef.current) {
+          try {
+            seriesRef.current.removePriceLine(stopLossLineRef.current);
+          } catch (error) {
+            console.error('[PerpsChart] Error removing stop loss line:', error);
+          }
+          stopLossLineRef.current = null;
+        }
+      }
+
+      // Remove and recreate take profit line only if it changed
+      if (shouldUpdateTakeProfit) {
+        if (takeProfitLineRef.current) {
+          try {
+            seriesRef.current.removePriceLine(takeProfitLineRef.current);
+          } catch (error) {
+            console.error('[PerpsChart] Error removing take profit line:', error);
+          }
+          takeProfitLineRef.current = null;
+        }
+      }
+
+      // Remove and recreate entry price line only if entry price changed (not PnL)
+      if (shouldUpdateEntryPrice) {
+        if (entryPriceLineRef.current) {
+          try {
+            seriesRef.current.removePriceLine(entryPriceLineRef.current);
+          } catch (error) {
+            console.error('[PerpsChart] Error removing entry price line:', error);
+          }
+          entryPriceLineRef.current = null;
+        }
+      }
+
+      // Add stop loss line if value is provided and needs update
+      if (shouldUpdateStopLoss && stopLoss !== null && stopLoss !== undefined && stopLoss > 0) {
+        try {
+          console.log('[PerpsChart] Creating stop loss line at price:', stopLoss);
+          stopLossLineRef.current = seriesRef.current.createPriceLine({
+            price: stopLoss,
+            color: '#ef4444', // Red color for stop loss
+            lineWidth: 2,
+            lineStyle: 2, // Dashed line
+            axisLabelVisible: true,
+            title: 'Stop Loss',
+          });
+          console.log('[PerpsChart] Stop loss line created:', stopLossLineRef.current);
+        } catch (error) {
+          console.error('[PerpsChart] Error creating stop loss line:', error);
+        }
+      }
+
+      // Add take profit line if value is provided and needs update
+      if (
+        shouldUpdateTakeProfit &&
+        takeProfit !== null &&
+        takeProfit !== undefined &&
+        takeProfit > 0
+      ) {
+        try {
+          console.log('[PerpsChart] Creating take profit line at price:', takeProfit);
+          takeProfitLineRef.current = seriesRef.current.createPriceLine({
+            price: takeProfit,
+            color: '#10b981', // Green color for take profit
+            lineWidth: 2,
+            lineStyle: 0, // Solid line
+            axisLabelVisible: true,
+            title: 'Take Profit',
+          });
+          console.log('[PerpsChart] Take profit line created:', takeProfitLineRef.current);
+        } catch (error) {
+          console.error('[PerpsChart] Error creating take profit line:', error);
+        }
+      }
+
+      // Add entry price line if value is provided and needs update
+      // Note: We only recreate when entryPrice changes, not when PnL changes
+      if (
+        shouldUpdateEntryPrice &&
+        entryPrice !== null &&
+        entryPrice !== undefined &&
+        entryPrice > 0
+      ) {
+        try {
+          // Get current PnL value for the label (but don't recreate line just for PnL changes)
+          const pnlValue =
+            unrealizedPnl !== null && unrealizedPnl !== undefined ? unrealizedPnl : 0;
+          const pnlSign = pnlValue >= 0 ? '+' : '';
+          // Format PnL with proper decimals and sign
+          const pnlFormatted =
+            Math.abs(pnlValue) > 0.01
+              ? `${pnlSign}${pnlValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : '0.00';
+          const pnlText = ` PnL: ${pnlFormatted}`;
+
+          console.log(
+            '[PerpsChart] Creating entry price line at price:',
+            entryPrice,
+            'PnL:',
+            pnlValue
+          );
+          entryPriceLineRef.current = seriesRef.current.createPriceLine({
+            price: entryPrice,
+            color: '#1e40af', // Darker blue color for entry price
+            lineWidth: 2,
+            lineStyle: 0, // Solid line
+            axisLabelVisible: true,
+            title: `Entry${pnlText}`,
+          });
+          console.log('[PerpsChart] Entry price line created:', entryPriceLineRef.current);
+        } catch (error) {
+          console.error('[PerpsChart] Error creating entry price line:', error);
+        }
+      }
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [stopLoss, takeProfit, entryPrice, unrealizedPnl, data]);
 
   const hasNoData = !data || data.length === 0;
   const showLoading = isLoading && hasNoData;
