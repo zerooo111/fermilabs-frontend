@@ -28,7 +28,7 @@ export function Orderbook() {
   const { isLoading } = useQuery({
     queryKey: ['orderbook', selectedMarket?.uuid],
     queryFn: loadOrderbook,
-    refetchInterval: 1000,
+    refetchInterval: 500,
     enabled: !!selectedMarket?.uuid,
   });
 
