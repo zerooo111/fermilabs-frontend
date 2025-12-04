@@ -30,10 +30,11 @@ function PerpsChartContainerComponent() {
   const { selectedMarket, selectMarket } = useSelectedMarket();
   const { publicKey } = useWallet();
 
-  // Fetch user positions to get SL/TP values
+  // Fetch user positions to get SL/TP values (only if user is logged in)
   const { data: positions } = usePositions({
     owner: publicKey?.toBase58(),
     marketId: selectedMarket?.uuid,
+    enabled: !!publicKey, // Only fetch if user is logged in
   });
 
   // Extract SL/TP and entry price values from positions for the selected market

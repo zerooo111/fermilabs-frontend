@@ -586,6 +586,37 @@ function PerpsChartComponent({
     const timeoutId = setTimeout(() => {
       if (!seriesRef.current) return;
 
+      // Re-check if data exists before creating lines (data might have been cleared)
+      if (!data || data.length === 0) {
+        console.log('[PerpsChart] No data available in timeout, skipping price lines');
+        // Remove any existing lines if data was cleared
+        if (stopLossLineRef.current && seriesRef.current) {
+          try {
+            seriesRef.current.removePriceLine(stopLossLineRef.current);
+            stopLossLineRef.current = null;
+          } catch (error) {
+            console.error('[PerpsChart] Error removing stop loss line:', error);
+          }
+        }
+        if (takeProfitLineRef.current && seriesRef.current) {
+          try {
+            seriesRef.current.removePriceLine(takeProfitLineRef.current);
+            takeProfitLineRef.current = null;
+          } catch (error) {
+            console.error('[PerpsChart] Error removing take profit line:', error);
+          }
+        }
+        if (entryPriceLineRef.current && seriesRef.current) {
+          try {
+            seriesRef.current.removePriceLine(entryPriceLineRef.current);
+            entryPriceLineRef.current = null;
+          } catch (error) {
+            console.error('[PerpsChart] Error removing entry price line:', error);
+          }
+        }
+        return;
+      }
+
       console.log('[PerpsChart] Updating price lines:', {
         stopLoss,
         takeProfit,

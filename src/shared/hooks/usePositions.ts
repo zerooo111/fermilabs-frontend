@@ -25,6 +25,7 @@ export interface Position {
 interface UsePositionsParams {
   owner?: string;
   marketId?: string;
+  enabled?: boolean; // Optional override for query enabled state
 }
 
 /**
@@ -32,9 +33,10 @@ interface UsePositionsParams {
  * @param params - Query parameters for filtering positions
  * @param params.owner - Base58-encoded pubkey to filter by account owner (optional)
  * @param params.marketId - UUID to filter by specific market (optional)
+ * @param params.enabled - Override for query enabled state (optional)
  */
 export function usePositions(params: UsePositionsParams = {}) {
-  const { owner, marketId } = params;
+  const { owner, marketId, enabled } = params;
 
   return useQuery({
     queryKey: ['positions', owner, marketId],
@@ -57,7 +59,7 @@ export function usePositions(params: UsePositionsParams = {}) {
 
       return data.data || [];
     },
-    enabled: !!owner || !!marketId, // Only fetch if at least one parameter is provided
+    enabled: enabled !== undefined ? enabled : !!owner || !!marketId, // Use provided enabled or default to requiring at least one parameter
     refetchInterval: 1000, // 5 seconds
     refetchIntervalInBackground: false,
   });
