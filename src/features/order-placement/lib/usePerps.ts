@@ -106,7 +106,7 @@ export function usePerps() {
         side,
         priceBN,
         sizeBN,
-        new BN(50000000000), // Hardcoded expiry
+        new BN(500000000000),
         new PublicKey(baseMintAddress),
         new PublicKey(quoteMintAddress),
         'perp',
