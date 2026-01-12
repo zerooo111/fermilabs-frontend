@@ -23,9 +23,10 @@ import {
   checkOrCreateAssociatedTokenAccount,
   fetchTokenBalance,
 } from '../../shared/lib/solana/helpers';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
+import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { toast } from 'sonner';
-import { config, API_ROUTES } from '@/shared/config/constants';
+import { config } from '@/shared/config/constants';
 
 const tokens = [
   {
@@ -186,35 +187,49 @@ function VaultPage() {
   };
 
   const handleAirdrop = async () => {
-    if (!vaultClient) {
-      throw new Error('VAULT_CLIENT_NOT_FOUND');
-    }
+    if (!publicKey) return;
 
-    const selectedTokenMint = new PublicKey(selectedToken.publicKey);
+    const url = `${config.devnet.apiBaseUrl}/rollup/airdrop`;
 
-    const ata = await checkOrCreateAssociatedTokenAccount(
-      vaultClient.provider,
-      selectedTokenMint,
-      vaultClient.walletPk
-    );
+    // Default airdrop amount based on token decimals (e.g., 1000 tokens)
+    const decimals = getTokenDecimals(selectedToken.name);
+    const amount = 1000 * Math.pow(10, decimals);
 
-    try {
-      const airdropUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.airdrop}`;
+    const promise = axios
+      .post(url, {
+        recipient: publicKey.toBase58(),
+        token_mint: selectedToken.publicKey.toBase58(),
+        amount: amount,
+      })
+      .then(res => res.data);
 
-      const response = await axios.post(airdropUrl, {
-        recipient: ata.toBase58(),
-        token_mint: selectedTokenMint.toBase58(),
-        amount: 1000000000000,
-      });
-
-      if (response.data.signature) {
-        toast.success('Tokens airdropped successfully!');
+    toast.promise(promise, {
+      loading: 'Airdrop Request Initiated - Waiting for approval...',
+      success: data => {
         getData();
-      }
-    } catch (error) {
-      const axiosError = error as AxiosError<{ error: string }>;
-      toast.error(axiosError.response?.data?.error || 'Failed to airdrop tokens');
-    }
+        return (
+          <div className="flex flex-col gap-1">
+            <div>
+              <strong>Airdrop Request Confirmed</strong>
+            </div>
+            <div>
+              Sent {(amount / Math.pow(10, decimals)).toLocaleString()} {selectedToken.name}
+            </div>
+            {data?.transaction_id && (
+              <div className="text-xs">TX: {data.transaction_id.slice(0, 8)}...</div>
+            )}
+          </div>
+        );
+      },
+      error: (err: any) => (
+        <div className="flex flex-col gap-1">
+          <div>
+            <strong>Airdrop Request Failed</strong>
+          </div>
+          <div>{err?.response?.data?.error || err?.message || 'Request failed'}</div>
+        </div>
+      ),
+    });
   };
 
   const getData = useCallback(async () => {
