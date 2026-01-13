@@ -2,11 +2,12 @@
  * Vault page
  * Interface for interacting with the vault
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { ArrowRightCircleIcon, LockKeyhole, LockKeyholeOpen, PlusIcon } from 'lucide-react';
+import { ArrowDownIcon, ArrowUpIcon, WalletIcon } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 import {
   SelectContent,
@@ -19,175 +20,150 @@ import { Button } from '../../shared/ui/button';
 import { NumberInput } from '../../shared/ui/number-input';
 
 import { useVaultClient } from '../../features/vault-deposit';
-import {
-  checkOrCreateAssociatedTokenAccount,
-  fetchTokenBalance,
-} from '../../shared/lib/solana/helpers';
+import { checkOrCreateAssociatedTokenAccount } from '../../shared/lib/solana/helpers';
 import axios from 'axios';
-import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { toast } from 'sonner';
-import { config } from '@/shared/config/constants';
+import { config, API_ROUTES } from '@/shared/config/constants';
+import { Market } from '@/entities/market/model';
+import { getTokenDecimals } from '@/shared/lib/token-decimals';
 
-const tokens = [
-  {
-    publicKey: new PublicKey('AumtjAJgsrqE62YwMJAWwiMRwjdNYZ8QE9cN2wB5B4nw'),
-    name: 'USDC',
-  },
-  {
-    publicKey: new PublicKey('3QciYfuPwwPmneZroFpHnzkjJYrHq2Axnr45kF3c3Hxd'),
-    name: 'SOL',
-  },
-];
-
-type VaultStrategy = {
+interface Token {
+  mint: string;
   name: string;
-  // description: string;
-  tvl: number;
-  apr: number;
-  logo: string;
-  link: string;
-};
-
-const strategies: VaultStrategy[] = [
-  {
-    name: 'Kamino Finance',
-    tvl: 1000000,
-    apr: 10,
-    logo: 'https://avatars.githubusercontent.com/u/151163804?s=280&v=4',
-    link: 'https://kamino.finance',
-  },
-  {
-    name: 'Drift',
-    tvl: 2000000,
-    apr: 9,
-    logo: 'https://cryptocurrencyjobs.co/startups/assets/logos/drift-protocol.34f245fe34eb2fce4344bf10796187af86862783027318b633c7432ce49c7025.png',
-    link: 'https://drift.trade',
-  },
-  {
-    name: 'Marginfi',
-    tvl: 500000,
-    apr: 12,
-    logo: 'https://pbs.twimg.com/profile_images/1878915465398956032/CJY6t1KD_400x400.jpg',
-    link: 'https://www.marginfi.com/',
-  },
-];
-
-function VaultStrategyCard({ strategy }: { strategy: VaultStrategy }) {
-  return (
-    <a
-      href={strategy.link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block group p-5 transition-colors border border-outline hover:bg-card/30 duration-150"
-    >
-      <div className="flex items-start gap-4 justify-between">
-        <div className="flex flex-1 gap-4">
-          <img
-            src={strategy.logo}
-            alt={`${strategy.name} logo`}
-            className="w-12 h-12 object-cover"
-          />
-          <div className=" w-full">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-lg">{strategy.name}</h3>
-              <div className="text-white/40 group-hover:text-white/80 group-hover:translate-x-1 transition-transform">
-                <ArrowRightCircleIcon className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="w-full flex justify-between mt-2">
-              <div className="flex-1 p-1">
-                <p className="text-xs text-white/60 font-medium">TVL</p>
-                <p className="text-sm font-mono font-medium">${strategy.tvl.toLocaleString()}</p>
-              </div>
-              <div className="flex-1 p-1 text-right">
-                <p className="text-xs text-white/60 font-medium">APR</p>
-                <p className="text-sm font-mono font-medium text-success">{strategy.apr}%</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </a>
-  );
-}
-
-function VaultStrategyList() {
-  return (
-    <div className="mt-6">
-      <div className="mb-4 px-1">
-        <h2 className="text-xl font-semibold">Available Strategies</h2>
-        <p className="text-white/60 mt-1">Choose a strategy to optimize your yields</p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {strategies.map(strategy => (
-          <VaultStrategyCard key={strategy.name} strategy={strategy} />
-        ))}
-      </div>
-    </div>
-  );
+  decimals: number;
 }
 
 function VaultPage() {
-  const [selectedToken, setSelectedToken] = useState<{ publicKey: PublicKey; name: string }>(
-    tokens[0]
-  );
+  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+  const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw'>('deposit');
   const vaultClient = useVaultClient();
   const { publicKey } = useWallet();
   const [amountDeposited, setAmountDeposited] = useState<number>(0);
-  const [depositAmount, setDepositAmount] = useState<number>(0);
-  const [withdrawAmount, setWithdrawAmount] = useState<number>(0);
+  const [inputAmount, setInputAmount] = useState<number>(0);
   const [tvl, setTvl] = useState<number>(0);
-  const [walletBalance, setWalletBalance] = useState<number>(0);
+
+  // Fetch markets from API
+  const { data: markets } = useQuery({
+    queryKey: ['markets'],
+    queryFn: async () => {
+      const url = `${config.devnet.apiBaseUrl}${API_ROUTES.markets}`;
+      const response = await axios.get(url);
+      const rawMarkets = response.data as Market[];
+
+      // Apply same override as market model for consistent token names
+      return rawMarkets.map(market => {
+        if (market.uuid === '6f9ee497-1756-5bbd-b512-36cee35add8f') {
+          const suffix = market.kind === 'perp' ? 'Perps' : '';
+          return {
+            ...market,
+            name: `SOL/USDC ${suffix}`.trim(),
+          };
+        }
+        return market;
+      });
+    },
+    refetchInterval: 30000,
+  });
+
+  // Extract unique tokens from markets
+  const tokens = useMemo(() => {
+    if (!markets || markets.length === 0) return [];
+
+    const tokenMap = new Map<string, Token>();
+
+    markets.forEach(market => {
+      const [baseTokenName, quoteTokenName] = market.name
+        .split(' ')[0]
+        .split('/')
+        .map((s: string) => s.trim());
+
+      if (market.base_mint && !tokenMap.has(market.base_mint)) {
+        tokenMap.set(market.base_mint, {
+          mint: market.base_mint,
+          name: baseTokenName || 'BASE',
+          decimals: market.base_decimals,
+        });
+      }
+
+      if (market.quote_mint && !tokenMap.has(market.quote_mint)) {
+        tokenMap.set(market.quote_mint, {
+          mint: market.quote_mint,
+          name: quoteTokenName || 'QUOTE',
+          decimals: market.quote_decimals,
+        });
+      }
+    });
+
+    return Array.from(tokenMap.values());
+  }, [markets]);
+
+  // Set default selected token when tokens are loaded (prefer USDC)
+  useEffect(() => {
+    if (tokens.length > 0 && !selectedToken) {
+      const usdc = tokens.find(t => t.name === 'USDC');
+      setSelectedToken(usdc ?? tokens[0]);
+    }
+  }, [tokens, selectedToken]);
+
+  // Fetch user balances from API
+  const { data: balances } = useQuery({
+    queryKey: ['userBalances', publicKey?.toBase58()],
+    queryFn: async () => {
+      if (!publicKey) return null;
+      const url = `${config.devnet.apiBaseUrl}${API_ROUTES.user_balances.replace('{pubkey}', publicKey.toBase58())}`;
+      const response = await axios.get(url);
+      return response.data as Record<string, { available: string; reserved: string }>;
+    },
+    enabled: !!publicKey,
+    refetchInterval: 5000,
+  });
+
+  const tokenDecimals = selectedToken?.decimals ?? 6;
+  const walletBalance =
+    balances && selectedToken && balances[selectedToken.mint]
+      ? parseFloat(balances[selectedToken.mint].available) / Math.pow(10, tokenDecimals)
+      : 0;
 
   const depositTokens = async () => {
-    if (!vaultClient) {
+    if (!vaultClient || !selectedToken) {
       throw new Error('VAULT_CLIENT_NOT_FOUND');
     }
 
-    const amount = new BN(depositAmount).mul(new BN(10 ** 9));
+    const tokenMint = new PublicKey(selectedToken.mint);
+    const amount = new BN(inputAmount).mul(new BN(Math.pow(10, selectedToken.decimals)));
     const ata = await checkOrCreateAssociatedTokenAccount(
       vaultClient.provider,
-      new PublicKey(selectedToken.publicKey),
+      tokenMint,
       vaultClient.walletPk
     );
 
-    await vaultClient.deposit(
-      amount,
-      new PublicKey(selectedToken.publicKey),
-      ata,
-      vaultClient.walletPk
-    );
+    await vaultClient.deposit(amount, tokenMint, ata, vaultClient.walletPk);
 
-    setDepositAmount(0);
+    setInputAmount(0);
     getData();
   };
 
   const withdrawTokens = async () => {
-    if (!vaultClient) {
+    if (!vaultClient || !selectedToken) {
       throw new Error('VAULT_CLIENT_NOT_FOUND');
     }
 
-    const amount = new BN(withdrawAmount).mul(new BN(10 ** 9));
+    const tokenMint = new PublicKey(selectedToken.mint);
+    const amount = new BN(inputAmount).mul(new BN(Math.pow(10, selectedToken.decimals)));
     const ata = await checkOrCreateAssociatedTokenAccount(
       vaultClient.provider,
-      new PublicKey(selectedToken.publicKey),
+      tokenMint,
       vaultClient.walletPk
     );
 
-    await vaultClient.withdraw(
-      amount,
-      new PublicKey(selectedToken.publicKey),
-      ata,
-      vaultClient.walletPk
-    );
+    await vaultClient.withdraw(amount, tokenMint, ata, vaultClient.walletPk);
 
-    setWithdrawAmount(0);
-
+    setInputAmount(0);
     getData();
   };
 
   const handleAirdrop = async () => {
-    if (!publicKey) return;
+    if (!publicKey || !selectedToken) return;
 
     const url = `${config.devnet.apiBaseUrl}/rollup/airdrop`;
 
@@ -198,7 +174,7 @@ function VaultPage() {
     const promise = axios
       .post(url, {
         recipient: publicKey.toBase58(),
-        token_mint: selectedToken.publicKey.toBase58(),
+        token_mint: selectedToken.mint,
         amount: amount,
       })
       .then(res => res.data);
@@ -207,6 +183,8 @@ function VaultPage() {
       loading: 'Airdrop Request Initiated - Waiting for approval...',
       success: data => {
         getData();
+        // Refresh balance after 2 seconds to ensure API has updated
+        setTimeout(() => getData(), 2000);
         return (
           <div className="flex flex-col gap-1">
             <div>
@@ -234,32 +212,25 @@ function VaultPage() {
 
   const getData = useCallback(async () => {
     try {
-      if (!vaultClient) {
+      if (!vaultClient || !selectedToken) {
         return;
       }
 
-      setDepositAmount(0);
-      setWithdrawAmount(0);
+      setInputAmount(0);
       setTvl(0);
-      setWalletBalance(0);
       setAmountDeposited(0);
 
-      const tokenMint = new PublicKey(selectedToken.publicKey);
+      const tokenMint = new PublicKey(selectedToken.mint);
+      const decimals = selectedToken.decimals;
       const [vaultStatePda] = await vaultClient.getVaultStatePDA(tokenMint);
 
       vaultClient.getVaultTokenAccount(vaultStatePda).then(vaultTokenAccount => {
-        const tvl = Number(vaultTokenAccount.amount) / 10 ** 9;
+        const tvl = Number(vaultTokenAccount.amount) / Math.pow(10, decimals);
         setTvl(tvl);
       });
 
-      await fetchTokenBalance(
-        vaultClient.walletPk,
-        tokenMint,
-        vaultClient.provider.connection
-      ).then(balance => setWalletBalance(new BN(balance).div(new BN(10 ** 9)).toNumber()));
-
       await vaultClient?.getUserState(vaultClient.walletPk, vaultStatePda).then(userState => {
-        const userDeposit = new BN(userState?.amountDeposited).div(new BN(10 ** 9));
+        const userDeposit = new BN(userState?.amountDeposited).div(new BN(Math.pow(10, decimals)));
         setAmountDeposited(userDeposit.toNumber());
       });
     } catch {
@@ -271,131 +242,180 @@ function VaultPage() {
     getData();
   }, [getData]);
 
+  // Reset input when switching tabs
+  useEffect(() => {
+    setInputAmount(0);
+  }, [activeTab]);
+
+  const maxAmount = activeTab === 'deposit' ? walletBalance : amountDeposited;
+  const isButtonDisabled = inputAmount === 0 || inputAmount > maxAmount;
+
   return (
-    <div className="flex flex-col min-h-[calc(100vh-60px)]">
-      {/* Page frame mirrors /trade: side borders and inner divisions */}
-      <div className="mx-4 border-x border-outline">
-        {/* Header bar */}
-        <div className="flex flex-wrap items-center gap-3 justify-between px-4 py-4 border-b border-outline">
-          <h1 className="text-2xl md:text-3xl font-semibold">{selectedToken.name} Vault</h1>
-          <div className="flex items-center gap-2">
-            {publicKey && (
-              <Button onClick={handleAirdrop} variant="outline" className="bg-card/30">
-                <PlusIcon className="w-4 h-4" />
-                Airdrop {selectedToken.name}
-              </Button>
-            )}
+    <div className="flex flex-col min-h-[calc(100vh-60px)] px-4 py-8">
+      <div className="max-w-lg mx-auto w-full space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold">Vault</h1>
+          <p className="text-white/60">Deposit assets to earn yield</p>
+        </div>
+
+        {/* Main Card */}
+        <div className="border border-outline bg-card/20 backdrop-blur">
+          {/* Token Selector */}
+          <div className="p-4 border-b border-outline">
             <Select
-              defaultValue={selectedToken.publicKey.toBase58()}
+              value={selectedToken?.mint ?? ''}
               onValueChange={value => {
-                setSelectedToken(
-                  tokens.find(token => token.publicKey.toBase58() === value) ?? tokens[0]
-                );
+                const token = tokens.find(t => t.mint === value);
+                if (token) setSelectedToken(token);
               }}
             >
-              <SelectTrigger className="w-36 md:w-40">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select token" />
               </SelectTrigger>
               <SelectContent>
                 {tokens.map(token => (
-                  <SelectItem key={token.publicKey.toBase58()} value={token.publicKey.toBase58()}>
+                  <SelectItem key={token.mint} value={token.mint}>
                     {token.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-        </div>
 
-        {/* Content area */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-outline">
-          {/* Stats column */}
-          <div className="flex flex-col">
-            <div className="p-5 border-b border-outline">
-              <span className="text-sm text-white/60 font-medium">Vault TVL</span>
-              <div className="text-3xl tabular-nums font-mono font-semibold">
-                {tvl}
-                <span className="text-base pl-1 text-white/60 font-medium">
-                  {selectedToken?.name}
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 divide-x divide-outline border-b border-outline">
+            <div className="p-4 text-center">
+              <p className="text-xs text-white/50 uppercase tracking-wide mb-1">Total Deposited</p>
+              <p className="text-xl font-mono font-semibold">
+                {tvl.toLocaleString()}
+                <span className="text-sm text-white/50 ml-1">{selectedToken?.name}</span>
+              </p>
+            </div>
+            <div className="p-4 text-center">
+              <p className="text-xs text-white/50 uppercase tracking-wide mb-1">FLP APR</p>
+              <p className="text-xl font-mono font-semibold text-success">12%</p>
+            </div>
+          </div>
+
+          {/* Tab Switcher */}
+          <div className="grid grid-cols-2 border-b border-outline">
+            <button
+              onClick={() => setActiveTab('deposit')}
+              className={`py-3 text-sm font-medium transition-colors ${
+                activeTab === 'deposit'
+                  ? 'bg-white/5 text-white border-b-2 border-white'
+                  : 'text-white/50 hover:text-white/80'
+              }`}
+            >
+              <ArrowDownIcon className="w-4 h-4 inline-block mr-2" />
+              Deposit
+            </button>
+            <button
+              onClick={() => setActiveTab('withdraw')}
+              className={`py-3 text-sm font-medium transition-colors ${
+                activeTab === 'withdraw'
+                  ? 'bg-white/5 text-white border-b-2 border-white'
+                  : 'text-white/50 hover:text-white/80'
+              }`}
+            >
+              <ArrowUpIcon className="w-4 h-4 inline-block mr-2" />
+              Withdraw
+            </button>
+          </div>
+
+          {/* Input Section */}
+          <div className="p-4 space-y-4">
+            {/* Balance Display */}
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2 text-white/60">
+                <WalletIcon className="w-4 h-4" />
+                <span>{activeTab === 'deposit' ? 'Available' : 'Deposited'}</span>
+              </div>
+              <button
+                onClick={() => setInputAmount(maxAmount)}
+                className="font-mono hover:text-white transition-colors"
+              >
+                {maxAmount.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: tokenDecimals,
+                })}{' '}
+                {selectedToken?.name}
+              </button>
+            </div>
+
+            {/* Amount Input */}
+            <NumberInput
+              id="amount"
+              name="amount"
+              placeholder="0.00"
+              unit={selectedToken?.name}
+              value={inputAmount.toString()}
+              onValueChange={values => setInputAmount(values.floatValue ?? 0)}
+              decimalScale={tokenDecimals}
+              allowNegative={false}
+            />
+
+            {/* Quick Amount Buttons */}
+            <div className="grid grid-cols-4 gap-2">
+              {[25, 50, 75, 100].map(percent => (
+                <button
+                  key={percent}
+                  onClick={() => setInputAmount((maxAmount * percent) / 100)}
+                  className="py-2 text-xs font-medium bg-white/5 hover:bg-white/10 border border-outline transition-colors"
+                >
+                  {percent}%
+                </button>
+              ))}
+            </div>
+
+            {/* Action Button */}
+            {!publicKey ? (
+              <div className="py-3 text-center text-white/50 border border-outline bg-white/5">
+                Connect wallet to continue
+              </div>
+            ) : (
+              <Button
+                className="w-full"
+                onClick={activeTab === 'deposit' ? depositTokens : withdrawTokens}
+                disabled={isButtonDisabled}
+              >
+                {activeTab === 'deposit' ? (
+                  <>
+                    <ArrowDownIcon className="w-4 h-4 mr-2" />
+                    Deposit {selectedToken?.name}
+                  </>
+                ) : (
+                  <>
+                    <ArrowUpIcon className="w-4 h-4 mr-2" />
+                    Withdraw {selectedToken?.name}
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+
+          {/* Your Position */}
+          {publicKey && amountDeposited > 0 && (
+            <div className="p-4 border-t border-outline bg-white/5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/60">Your Position</span>
+                <span className="font-mono font-semibold">
+                  {amountDeposited.toLocaleString()} {selectedToken?.name}
                 </span>
               </div>
             </div>
-            <div className="p-5">
-              <span className="text-sm text-white/60 font-medium">Your Deposited</span>
-              <div className="text-3xl tabular-nums font-mono font-semibold">
-                {amountDeposited}
-                <span className="text-base pl-1 text-white/60 font-medium">
-                  {selectedToken?.name}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions column */}
-          <div className="flex flex-col">
-            {/* Wallet balance strip */}
-            <div className="flex items-center gap-2 px-5 py-4 border-b border-outline text-white/80">
-              <span className="font-medium">Wallet</span>
-              <div className="flex-1 h-px bg-white/20" />
-              <span className="tabular-nums font-mono font-semibold">
-                {walletBalance} {selectedToken?.name}
-              </span>
-            </div>
-
-            {/* Deposit */}
-            <div className="flex items-end gap-2.5 px-5 py-4 border-b border-outline">
-              <NumberInput
-                className="flex-1"
-                id="depositAmount"
-                name="depositAmount"
-                label="Deposit Amount"
-                unit={selectedToken?.name}
-                value={depositAmount.toString()}
-                onValueChange={values => setDepositAmount(values.floatValue ?? 0)}
-              />
-              <Button
-                className="w-36"
-                onClick={depositTokens}
-                disabled={depositAmount === 0 || depositAmount > walletBalance}
-              >
-                Deposit
-                <LockKeyhole className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Withdraw */}
-            <div className="flex items-end gap-2.5 px-5 py-4">
-              <NumberInput
-                className="flex-1"
-                id="withdrawAmount"
-                name="withdrawAmount"
-                label="Withdraw Amount"
-                unit={selectedToken?.name}
-                value={withdrawAmount.toString()}
-                onValueChange={values => setWithdrawAmount(values.floatValue ?? 0)}
-              />
-              <Button
-                className="w-36"
-                variant="secondary"
-                onClick={withdrawTokens}
-                disabled={withdrawAmount === 0 || withdrawAmount > amountDeposited}
-              >
-                Withdraw
-                <LockKeyholeOpen className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Strategies */}
-        {publicKey ? (
-          <div className="border-t border-outline px-4 pb-6">
-            <VaultStrategyList />
-          </div>
-        ) : (
-          <div className="px-4 py-6 border-t border-outline text-white/80">
-            Wallet not connected
-          </div>
+        {/* Airdrop Button (Devnet) */}
+        {publicKey && selectedToken && (
+          <button
+            onClick={handleAirdrop}
+            className="w-full py-3 text-sm text-white/60 hover:text-white border border-dashed border-outline hover:border-white/40 transition-colors"
+          >
+            Request {selectedToken.name} Airdrop (Devnet)
+          </button>
         )}
       </div>
     </div>
