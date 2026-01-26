@@ -101,7 +101,9 @@ export function MyOrders() {
 
       // Serialize and sign the transaction data
       const serializedData = Buffer.from(JSON.stringify(frmTransactionForSigning), 'utf-8');
-      const sha256Hash = createHash('sha256').update(new Uint8Array(serializedData)).digest();
+      const SIGNED_CANCEL_PREFIX = Buffer.from('FRM_DEX_CANCEL:');
+      const prefixedMessage = Buffer.concat([SIGNED_CANCEL_PREFIX, serializedData]);
+      const sha256Hash = createHash('sha256').update(new Uint8Array(prefixedMessage)).digest();
       const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
       const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
 
