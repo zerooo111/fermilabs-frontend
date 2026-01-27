@@ -7,7 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { getTokenDecimals } from '@/shared/lib/token-decimals';
+import {
+  getTokenNameFromMint,
+  getDecimalsFromMint,
+  getTokenDecimals,
+} from '@/shared/lib/token-decimals';
 import { config, API_ROUTES } from '@/shared/config/constants';
 import { Address } from '@coral-xyz/anchor';
 import { Button } from '@/shared/ui/button';
@@ -113,9 +117,9 @@ export function MyAssets() {
     }
 
     return assetEntries.map(([mint, balance]) => {
-      // Try to get token name from mint address (simplified - you may want a better lookup)
-      const tokenName = 'USDC'; // Default to USDC for now
-      const decimals = getTokenDecimals(tokenName);
+      // Get token name and decimals from mint address registry
+      const tokenName = getTokenNameFromMint(mint) ?? 'Unknown';
+      const decimals = getDecimalsFromMint(mint) ?? getTokenDecimals(tokenName);
 
       const available = parseFloat(balance.available);
       const reserved = parseFloat(balance.reserved);
