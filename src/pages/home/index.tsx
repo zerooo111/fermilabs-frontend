@@ -4,6 +4,7 @@ import HeroSection from './ui/HeroSection';
 import { LandingFooter } from './ui/LandingFooter';
 import NoiseOverlay from './ui/NoiseOverlay';
 import CTASection from './ui/CTASection';
+import BlogSection from './ui/BlogSection';
 
 const FeaturesSection = lazy(() => import('./ui/FeaturesSection'));
 
@@ -22,6 +23,7 @@ export default function HomePage() {
         >
           <FeaturesSection />
         </Suspense>
+        <BlogSection />
         <CTASection />
       </main>
       <LandingFooter />
