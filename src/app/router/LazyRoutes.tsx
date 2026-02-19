@@ -4,15 +4,17 @@
  */
 import { lazy, Suspense } from 'react';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
+import NoiseOverlay from '@/pages/home/ui/NoiseOverlay';
 
 // Loading component for Suspense fallback
 const LoadingPage = () => (
-  <div className="flex items-center justify-center min-h-[calc(100vh-60px)]">
-    <div className="text-lg text-muted-foreground">Loading...</div>
+  <div className="flex flex-col items-center justify-center min-h-screen bg-dark-forest text-rock font-[Arimo]">
+    <img src="/logo.svg" alt="Fermi" className="w-12 h-12 mb-4 animate-pulse" />
+    <span className="text-3xl font-display tracking-wide">Fermi Trade</span>
+    <NoiseOverlay />
   </div>
 );
 
-// Lazy-loaded page components
 export const HomePage = lazy(() => import('@/pages/home'));
 export const TradePage = lazy(() => import('@/pages/trade'));
 export const PerpsPage = lazy(() => import('@/pages/perps'));
