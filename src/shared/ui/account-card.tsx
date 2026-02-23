@@ -118,9 +118,9 @@ export function AccountCard() {
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">Unrealized PNL</span>
           <span
-            className={`text-sm font-mono ${(accountData.unrealized_pnl_snapshot ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}
+            className={`text-sm font-mono ${(accountData.unrealized_pnl ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}
           >
-            {formatCurrency(accountData.unrealized_pnl_snapshot)}
+            {formatCurrency(accountData.unrealized_pnl)}
           </span>
         </div>
 

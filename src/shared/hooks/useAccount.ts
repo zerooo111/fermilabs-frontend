@@ -18,14 +18,13 @@ export interface MarginAccount {
   realized_pnl_total: number;
   equity_snapshot: number;
   realized_pnl_snapshot: number;
-  unrealized_pnl_snapshot: number;
+  unrealized_pnl: number;
   funding_accrued_snapshot: number;
   initial_margin_snapshot: number;
   maintenance_margin_snapshot: number;
   free_collateral_snapshot: number;
   available_withdrawal_snapshot: number;
   per_market_delta_snapshot: any[];
-  covariance_snapshot: any[];
   portfolio_leverage_limit_snapshot: number;
 }
 
