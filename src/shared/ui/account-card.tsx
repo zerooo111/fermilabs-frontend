@@ -6,8 +6,8 @@ export function AccountCard() {
   const { publicKey } = useWallet();
   const { data: accountData, isLoading, error } = useAccount(publicKey?.toBase58() || '');
 
-  const formatCurrency = (value: number) => {
-    // Data is already normalized, no need to divide by decimals
+  const formatCurrency = (value: number | undefined | null) => {
+    if (value == null) return '0.00';
     return value.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 4,
@@ -41,8 +41,8 @@ export function AccountCard() {
 
   // Calculate margin usage percentage: (Used Margin / USDC Collateral) * 100
   const marginUsage =
-    accountData.usdc_collateral > 0
-      ? (accountData.initial_margin_snapshot / accountData.usdc_collateral) * 100
+    (accountData.usdc_collateral ?? 0) > 0
+      ? ((accountData.initial_margin_snapshot ?? 0) / accountData.usdc_collateral!) * 100
       : 0;
 
   return (
@@ -118,7 +118,7 @@ export function AccountCard() {
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">Unrealized PNL</span>
           <span
-            className={`text-sm font-mono ${accountData.unrealized_pnl_snapshot >= 0 ? 'text-green-400' : 'text-red-400'}`}
+            className={`text-sm font-mono ${(accountData.unrealized_pnl_snapshot ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}
           >
             {formatCurrency(accountData.unrealized_pnl_snapshot)}
           </span>
@@ -128,7 +128,7 @@ export function AccountCard() {
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">Realized PNL</span>
           <span
-            className={`text-sm font-mono ${accountData.realized_pnl_snapshot >= 0 ? 'text-green-400' : 'text-red-400'}`}
+            className={`text-sm font-mono ${(accountData.realized_pnl_snapshot ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}
           >
             {formatCurrency(accountData.realized_pnl_snapshot)}
           </span>
@@ -138,7 +138,7 @@ export function AccountCard() {
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">Total Realized PNL</span>
           <span
-            className={`text-sm font-mono ${accountData.realized_pnl_total >= 0 ? 'text-green-400' : 'text-red-400'}`}
+            className={`text-sm font-mono ${(accountData.realized_pnl_total ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}
           >
             {formatCurrency(accountData.realized_pnl_total)}
           </span>
@@ -148,7 +148,7 @@ export function AccountCard() {
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">Funding Accrued</span>
           <span
-            className={`text-sm font-mono ${accountData.funding_accrued_snapshot >= 0 ? 'text-green-400' : 'text-red-400'}`}
+            className={`text-sm font-mono ${(accountData.funding_accrued_snapshot ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}
           >
             {formatCurrency(accountData.funding_accrued_snapshot)}
           </span>

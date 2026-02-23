@@ -36,13 +36,16 @@ export interface MarginAccount {
 export function useAccount(owner: string) {
   return useQuery({
     queryKey: ['account', owner],
-    queryFn: async (): Promise<MarginAccount> => {
+    queryFn: async (): Promise<MarginAccount | null> => {
       const apiBaseUrl = config.devnet.apiBaseUrl;
       const url = `${apiBaseUrl}${API_ROUTES.user_accounts.replace('{pubkey}', owner)}`;
 
       const { data, error } = await tryCatch<axios.AxiosResponse<MarginAccount>>(axios.get(url));
 
       if (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          return null;
+        }
         throw error;
       }
 
