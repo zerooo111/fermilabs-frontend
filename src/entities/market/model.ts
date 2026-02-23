@@ -4,7 +4,7 @@
  * Completely refactored to avoid circular dependencies
  */
 import { API_ROUTES, config } from '@/shared/config/constants';
-import { getTokenDecimals } from '@/shared/lib/token-decimals';
+import { getTokenDecimals, getTokenNameFromMint } from '@/shared/lib/token-decimals';
 import { tryCatch } from '@/shared/lib/try-catch';
 import axios, { AxiosResponse } from 'axios';
 import { atom, useAtom } from 'jotai';
@@ -160,23 +160,60 @@ export const sltpValuesAtom = atom<SLTPValues>({
   takeProfit: null,
 });
 
+/**
+ * Parse market name to extract base and quote token names
+ * Handles both formats:
+ * - "SOL/USDC" or "SOL/USDC Perps" → base: SOL, quote: USDC
+ * - "ETH-PERP" → base: ETH, quote: from quote_mint
+ */
+const parseMarketName = (market: Market): { baseTokenName: string; quoteTokenName: string } => {
+  const name = market.name.split(' ')[0]; // Remove suffix like "Perps"
+
+  // Check for "BASE/QUOTE" format
+  if (name.includes('/')) {
+    const [base, quote] = name.split('/').map((s: string) => s.trim());
+    return {
+      baseTokenName: base || 'BASE',
+      quoteTokenName: quote || 'QUOTE',
+    };
+  }
+
+  // Check for "BASE-PERP" format (perps market)
+  if (name.includes('-PERP')) {
+    const base = name.replace('-PERP', '').trim();
+    // Get quote token from mint address
+    const quoteFromMint = getTokenNameFromMint(market.quote_mint);
+    return {
+      baseTokenName: base || 'BASE',
+      quoteTokenName: quoteFromMint || 'USDC', // Default to USDC for perps
+    };
+  }
+
+  // Fallback: try to get names from mint addresses
+  const baseFromMint = getTokenNameFromMint(market.base_mint);
+  const quoteFromMint = getTokenNameFromMint(market.quote_mint);
+
+  return {
+    baseTokenName: baseFromMint || 'BASE',
+    quoteTokenName: quoteFromMint || 'QUOTE',
+  };
+};
+
 // Memoized market enhancement to avoid unnecessary object creation
 const memoizedEnhanceMarket = (market: Market): EnhancedMarket => {
   if (!market) return null as unknown as EnhancedMarket;
 
   // Parse the market name to get base and quote token names
-  const [baseTokenName, quoteTokenName] = market.name
-    .split(' ')[0]
-    .split('/')
-    .map((s: string) => s.trim());
+  const { baseTokenName, quoteTokenName } = parseMarketName(market);
 
   const baseDecimals = market.base_decimals ?? getTokenDecimals(baseTokenName);
   const quoteDecimals = market.quote_decimals ?? getTokenDecimals(quoteTokenName);
+
   // Create enhanced market with token names
   return {
     ...market,
-    baseTokenName: baseTokenName || 'BASE',
-    quoteTokenName: quoteTokenName || 'QUOTE',
+    baseTokenName,
+    quoteTokenName,
     baseDecimals,
     quoteDecimals,
   };

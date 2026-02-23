@@ -540,10 +540,11 @@ function PerpsChartComponent({
       return;
     }
 
-    // Check which specific price values have changed (ignore PnL changes for recreation)
+    // Check which specific values have changed
     const stopLossChanged = previousValuesRef.current.stopLoss !== stopLoss;
     const takeProfitChanged = previousValuesRef.current.takeProfit !== takeProfit;
     const entryPriceChanged = previousValuesRef.current.entryPrice !== entryPrice;
+    const pnlChanged = previousValuesRef.current.unrealizedPnl !== unrealizedPnl;
 
     // Check if lines should exist based on current values
     const shouldHaveStopLoss = stopLoss !== null && stopLoss !== undefined && stopLoss > 0;
@@ -561,6 +562,7 @@ function PerpsChartComponent({
       (!shouldHaveTakeProfit && takeProfitLineRef.current !== null);
     const needsEntryPriceUpdate =
       entryPriceChanged ||
+      pnlChanged || // Recreate when PnL changes for dynamic color/label
       (shouldHaveEntryPrice && entryPriceLineRef.current === null) ||
       (!shouldHaveEntryPrice && entryPriceLineRef.current !== null);
 
@@ -569,12 +571,12 @@ function PerpsChartComponent({
       return;
     }
 
-    // Update previous values (only track price values, not PnL for change detection)
+    // Update previous values for change detection
     previousValuesRef.current = {
       stopLoss,
       takeProfit,
       entryPrice,
-      unrealizedPnl, // Store for label, but don't use for change detection
+      unrealizedPnl,
     };
 
     // Capture update flags in closure
@@ -621,7 +623,6 @@ function PerpsChartComponent({
         stopLoss,
         takeProfit,
         entryPrice,
-        unrealizedPnl,
         hasData: data.length > 0,
       });
 
@@ -668,10 +669,10 @@ function PerpsChartComponent({
           stopLossLineRef.current = seriesRef.current.createPriceLine({
             price: stopLoss,
             color: '#ef4444', // Red color for stop loss
-            lineWidth: 2,
+            lineWidth: 1,
             lineStyle: 2, // Dashed line
             axisLabelVisible: true,
-            title: 'Stop Loss',
+            title: 'SL',
           });
           console.log('[PerpsChart] Stop loss line created:', stopLossLineRef.current);
         } catch (error) {
@@ -691,10 +692,10 @@ function PerpsChartComponent({
           takeProfitLineRef.current = seriesRef.current.createPriceLine({
             price: takeProfit,
             color: '#10b981', // Green color for take profit
-            lineWidth: 2,
-            lineStyle: 0, // Solid line
+            lineWidth: 1,
+            lineStyle: 2, // Dashed line (consistent with SL)
             axisLabelVisible: true,
-            title: 'Take Profit',
+            title: 'TP',
           });
           console.log('[PerpsChart] Take profit line created:', takeProfitLineRef.current);
         } catch (error) {
@@ -703,7 +704,6 @@ function PerpsChartComponent({
       }
 
       // Add entry price line if value is provided and needs update
-      // Note: We only recreate when entryPrice changes, not when PnL changes
       if (
         shouldUpdateEntryPrice &&
         entryPrice !== null &&
@@ -711,16 +711,17 @@ function PerpsChartComponent({
         entryPrice > 0
       ) {
         try {
-          // Get current PnL value for the label (but don't recreate line just for PnL changes)
-          const pnlValue =
-            unrealizedPnl !== null && unrealizedPnl !== undefined ? unrealizedPnl : 0;
-          const pnlSign = pnlValue >= 0 ? '+' : '';
-          // Format PnL with proper decimals and sign
-          const pnlFormatted =
-            Math.abs(pnlValue) > 0.01
-              ? `${pnlSign}${pnlValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-              : '0.00';
-          const pnlText = ` PnL: ${pnlFormatted}`;
+          // Calculate PnL display with +/- prefix
+          const pnlValue = unrealizedPnl ?? 0;
+          const isProfit = pnlValue >= 0;
+          const pnlPrefix = isProfit ? '+' : '';
+          const pnlFormatted = `${pnlPrefix}${pnlValue.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`;
+
+          // Dynamic color based on PnL (green for profit, red for loss)
+          const entryColor = isProfit ? '#10b981' : '#ef4444';
 
           console.log(
             '[PerpsChart] Creating entry price line at price:',
@@ -730,11 +731,11 @@ function PerpsChartComponent({
           );
           entryPriceLineRef.current = seriesRef.current.createPriceLine({
             price: entryPrice,
-            color: '#1e40af', // Darker blue color for entry price
-            lineWidth: 2,
-            lineStyle: 0, // Solid line
+            color: entryColor,
+            lineWidth: 1,
+            lineStyle: 0, // Solid line (distinguishes from TP/SL)
             axisLabelVisible: true,
-            title: `Entry${pnlText}`,
+            title: pnlFormatted,
           });
           console.log('[PerpsChart] Entry price line created:', entryPriceLineRef.current);
         } catch (error) {

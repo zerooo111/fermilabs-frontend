@@ -18,14 +18,13 @@ export interface MarginAccount {
   realized_pnl_total: number;
   equity_snapshot: number;
   realized_pnl_snapshot: number;
-  unrealized_pnl_snapshot: number;
+  unrealized_pnl: number;
   funding_accrued_snapshot: number;
   initial_margin_snapshot: number;
   maintenance_margin_snapshot: number;
   free_collateral_snapshot: number;
   available_withdrawal_snapshot: number;
   per_market_delta_snapshot: any[];
-  covariance_snapshot: any[];
   portfolio_leverage_limit_snapshot: number;
 }
 
@@ -36,13 +35,16 @@ export interface MarginAccount {
 export function useAccount(owner: string) {
   return useQuery({
     queryKey: ['account', owner],
-    queryFn: async (): Promise<MarginAccount> => {
+    queryFn: async (): Promise<MarginAccount | null> => {
       const apiBaseUrl = config.devnet.apiBaseUrl;
       const url = `${apiBaseUrl}${API_ROUTES.user_accounts.replace('{pubkey}', owner)}`;
 
       const { data, error } = await tryCatch<axios.AxiosResponse<MarginAccount>>(axios.get(url));
 
       if (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          return null;
+        }
         throw error;
       }
 

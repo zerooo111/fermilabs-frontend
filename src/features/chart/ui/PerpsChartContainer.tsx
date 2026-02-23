@@ -49,19 +49,21 @@ function PerpsChartContainerComponent() {
       return { stopLoss: null, takeProfit: null, entryPrice: null, unrealizedPnl: null };
     }
 
-    // Normalize prices by dividing by 10^quoteDecimals
+    // Normalize all values by dividing by 10^quoteDecimals
     const quoteDecimals = selectedMarket.quote_decimals ?? 6;
+    const divisor = Math.pow(10, quoteDecimals);
+
     const stopLoss = position.stop_loss_price
-      ? parseFloat(position.stop_loss_price) / Math.pow(10, quoteDecimals)
+      ? parseFloat(position.stop_loss_price) / divisor
       : null;
     const takeProfit = position.take_profit_price
-      ? parseFloat(position.take_profit_price) / Math.pow(10, quoteDecimals)
+      ? parseFloat(position.take_profit_price) / divisor
       : null;
     const entryPrice = position.average_entry_price
-      ? parseFloat(position.average_entry_price) / Math.pow(10, quoteDecimals)
+      ? parseFloat(position.average_entry_price) / divisor
       : null;
     const unrealizedPnl = position.unrealized_pnl
-      ? parseFloat(position.unrealized_pnl) / Math.pow(10, quoteDecimals)
+      ? parseFloat(position.unrealized_pnl) / divisor
       : null;
 
     console.log('[PerpsChartContainer] Position data:', {

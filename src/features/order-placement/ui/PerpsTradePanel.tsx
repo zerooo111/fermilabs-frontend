@@ -265,6 +265,7 @@ export function PerpsTradePanel() {
     }
 
     setIsSubmitting(true);
+
     const result = await openPosition({
       side: side,
       leverage: formState.leverage,

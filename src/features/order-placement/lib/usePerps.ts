@@ -121,8 +121,9 @@ export function usePerps() {
       );
 
       const serializedData = PerpOrderIntent.serialize(orderIntent);
-      const encodedMessage = Buffer.concat([serializedData]);
-      const sha256Hash = createHash('sha256').update(new Uint8Array(encodedMessage)).digest();
+      const SIGNED_ORDER_PREFIX = Buffer.from('FRM_DEX_ORDER:');
+      const prefixedMessage = Buffer.concat([SIGNED_ORDER_PREFIX, serializedData]);
+      const sha256Hash = createHash('sha256').update(new Uint8Array(prefixedMessage)).digest();
       const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
 
       const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
@@ -250,8 +251,9 @@ export function usePerps() {
       );
 
       const serializedData = PerpOrderIntent.serialize(orderIntent);
-      const encodedMessage = Buffer.concat([serializedData]);
-      const sha256Hash = createHash('sha256').update(new Uint8Array(encodedMessage)).digest();
+      const SIGNED_ORDER_PREFIX = Buffer.from('FRM_DEX_ORDER:');
+      const prefixedMessage = Buffer.concat([SIGNED_ORDER_PREFIX, serializedData]);
+      const sha256Hash = createHash('sha256').update(new Uint8Array(prefixedMessage)).digest();
       const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
 
       const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
