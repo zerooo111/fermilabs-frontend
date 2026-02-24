@@ -6,7 +6,7 @@ import { Button } from '@/shared/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { useState, useEffect } from 'react';
-import { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpOrdersIntent';
+import { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 import { Loader2, Wallet, Info } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
@@ -44,6 +44,7 @@ export function PerpsTradePanel() {
     marginMode: MarginMode;
     stopLoss: string;
     takeProfit: string;
+    slippageBps: string;
   }>({
     price: '',
     size: '',
@@ -52,12 +53,13 @@ export function PerpsTradePanel() {
     marginMode: 'cross',
     stopLoss: '',
     takeProfit: '',
+    slippageBps: '100',
   });
 
   const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const { selectedMarket } = useSelectedMarket();
-  const { openPosition } = usePerps();
+  const { openPosition, openMarketPosition } = usePerps();
   const setSLTPValues = useSetAtom(sltpValuesAtom);
 
   // Fetch market stats to get mark price
@@ -246,8 +248,10 @@ export function PerpsTradePanel() {
   };
 
   const handleOpenPosition = async (side: OrderSide) => {
-    // Validate SL/TP before submitting
-    if (enableSLTP) {
+    const isMarketOrder = formState.orderType === 'market';
+
+    // Validate SL/TP before submitting (skip for market orders since price is unknown)
+    if (enableSLTP && !isMarketOrder) {
       const stopLossValue = safeParseFloat(formState.stopLoss);
       const takeProfitValue = safeParseFloat(formState.takeProfit);
 
@@ -266,15 +270,28 @@ export function PerpsTradePanel() {
 
     setIsSubmitting(true);
 
-    const result = await openPosition({
-      side: side,
-      leverage: formState.leverage,
-      marginMode: formState.marginMode,
-      price: formState.price,
-      size: formState.size,
-      stopLoss: enableSLTP && formState.stopLoss ? formState.stopLoss : undefined,
-      takeProfit: enableSLTP && formState.takeProfit ? formState.takeProfit : undefined,
-    });
+    let result: { success: boolean; error?: string };
+
+    if (isMarketOrder) {
+      result = await openMarketPosition({
+        side,
+        size: formState.size,
+        leverage: formState.leverage,
+        marginMode: formState.marginMode,
+        maxSlippageBps: safeParseFloat(formState.slippageBps, 100),
+      });
+    } else {
+      result = await openPosition({
+        side,
+        leverage: formState.leverage,
+        marginMode: formState.marginMode,
+        price: formState.price,
+        size: formState.size,
+        stopLoss: enableSLTP && formState.stopLoss ? formState.stopLoss : undefined,
+        takeProfit: enableSLTP && formState.takeProfit ? formState.takeProfit : undefined,
+      });
+    }
+
     if (result.success) {
       setFormState(prev => ({
         ...prev,
@@ -298,7 +315,7 @@ export function PerpsTradePanel() {
           <TabsTrigger value="limit" className="flex-1">
             Limit
           </TabsTrigger>
-          <TabsTrigger value="market" disabled className="flex-1">
+          <TabsTrigger value="market" className="flex-1">
             Market
           </TabsTrigger>
         </TabsList>
@@ -330,40 +347,79 @@ export function PerpsTradePanel() {
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <label htmlFor="price" className="text-sm font-medium">
-              Price
-            </label>
-            {markPrice !== null && (
-              <button
-                type="button"
-                onClick={() => {
-                  const formattedPrice = markPrice.toFixed(
-                    getTokenDecimals(selectedMarket?.quoteTokenName)
-                  );
-                  setFormState(prev => ({ ...prev, price: formattedPrice }));
-                }}
-                className="text-xs text-muted-foreground hover:text-foreground underline"
-              >
-                Market
-              </button>
-            )}
+        {formState.orderType !== 'market' && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <label htmlFor="price" className="text-sm font-medium">
+                Price
+              </label>
+              {markPrice !== null && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const formattedPrice = markPrice.toFixed(
+                      getTokenDecimals(selectedMarket?.quoteTokenName)
+                    );
+                    setFormState(prev => ({ ...prev, price: formattedPrice }));
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  Market
+                </button>
+              )}
+            </div>
+            <NumberInput
+              id="price"
+              name="price"
+              value={formState.price}
+              onValueChange={values =>
+                setFormState(prev => ({ ...prev, price: values.value || '' }))
+              }
+              min={0.01}
+              placeholder="0.00"
+              required
+              unit={selectedMarket?.quoteTokenName}
+              decimalScale={getTokenDecimals(selectedMarket?.quoteTokenName)}
+              allowNegative={false}
+            />
           </div>
-          <NumberInput
-            id="price"
-            name="price"
-            value={formState.price}
-            onValueChange={values => setFormState(prev => ({ ...prev, price: values.value || '' }))}
-            min={0.01}
-            placeholder="0.00"
-            required
-            unit={selectedMarket?.quoteTokenName}
-            decimalScale={getTokenDecimals(selectedMarket?.quoteTokenName)}
-            allowNegative={false}
-            disabled={formState.orderType === 'market'}
-          />
-        </div>
+        )}
+
+        {formState.orderType === 'market' && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-medium">Max Slippage</label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="size-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <div className="text-xs">
+                    Maximum acceptable price deviation in basis points. 100 bps = 1%. Order is
+                    cancelled if fill price exceeds this threshold.
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="flex gap-1.5">
+              {[50, 100, 200, 500].map(bps => (
+                <Button
+                  key={bps}
+                  variant="outline"
+                  size="sm"
+                  className={`h-8 flex-1 text-xs ${
+                    formState.slippageBps === bps.toString()
+                      ? 'bg-white text-black font-bold hover:bg-white/90'
+                      : 'hover:bg-accent/50'
+                  }`}
+                  onClick={() => setFormState(prev => ({ ...prev, slippageBps: bps.toString() }))}
+                >
+                  {(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <NumberInput
           id="size"
@@ -587,7 +643,11 @@ export function PerpsTradePanel() {
         ) : (
           <div className="grid grid-cols-2 gap-2">
             <Button
-              disabled={priceValue <= 0 || sizeValue <= 0 || isSubmitting}
+              disabled={
+                (formState.orderType !== 'market' && priceValue <= 0) ||
+                sizeValue <= 0 ||
+                isSubmitting
+              }
               variant="success"
               onClick={() => handleOpenPosition('Buy')}
             >
@@ -602,7 +662,11 @@ export function PerpsTradePanel() {
             </Button>
             <Button
               variant="destructive"
-              disabled={priceValue <= 0 || sizeValue <= 0 || isSubmitting}
+              disabled={
+                (formState.orderType !== 'market' && priceValue <= 0) ||
+                sizeValue <= 0 ||
+                isSubmitting
+              }
               onClick={() => handleOpenPosition('Sell')}
             >
               {isSubmitting ? (

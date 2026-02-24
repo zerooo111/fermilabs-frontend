@@ -1,8 +1,9 @@
 import {
-  PerpOrderIntent,
+  PerpLimitOrderIntent,
   OrderSide,
   MarginMode,
-} from '@/features/order-placement/lib/PerpOrdersIntent';
+} from '@/features/order-placement/lib/PerpLimitOrderIntent';
+import { PerpMarketOrderIntent } from '@/features/order-placement/lib/PerpMarketOrderIntent';
 import { BN } from '@coral-xyz/anchor';
 import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -25,10 +26,79 @@ interface PerpsSubmitOrderParams {
   takeProfit?: string;
 }
 
+interface PerpsMarketOrderParams {
+  side: OrderSide;
+  size: string;
+  leverage: string;
+  marginMode: MarginMode;
+  maxSlippageBps: number;
+}
+
 export function usePerps() {
   const { publicKey, signMessage } = useWallet();
   const { selectedMarket } = useSelectedMarket();
   const addOrderReceipt = useSetAtom(addOrderReceiptAtom);
+
+  const signAndSubmit = async (
+    serializedData: Buffer,
+    intentJson: Record<string, unknown>,
+    orderId: BN
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!signMessage || !publicKey) {
+      throw new Error('Wallet not connected');
+    }
+
+    const SIGNED_ORDER_PREFIX = Buffer.from('FRM_DEX_ORDER:');
+    const prefixedMessage = Buffer.concat([SIGNED_ORDER_PREFIX, serializedData]);
+    const sha256Hash = createHash('sha256').update(new Uint8Array(prefixedMessage)).digest();
+    const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
+
+    const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
+    const frmTransaction = {
+      version: '1.0',
+      type: 'order',
+      intent: intentJson,
+      signature: Buffer.from(signatureBytes).toString('hex'),
+      local_sequencer_id: 'continuum_client',
+      timestamp_ms: Date.now().toString(),
+    };
+
+    console.log('frmTransaction', frmTransaction);
+    const jsonFrm = JSON.stringify(frmTransaction);
+    const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
+
+    const payloadBytes = Buffer.from(frmPrefixedString, 'utf-8');
+    const tx_id = `frm_order_${orderId.toString()}_${Date.now()}`;
+    const transactionData = {
+      version: '1.0',
+      tx_id,
+      payload: Array.from(payloadBytes),
+      signature: Buffer.from(signatureBytes).toString('hex'),
+      public_key: publicKey,
+      nonce: orderId.toNumber(),
+      timestamp: Date.now().toString(),
+    };
+
+    const apiUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.tx}`;
+
+    const response = await axios.post(apiUrl, {
+      transaction: transactionData,
+    });
+
+    console.log('TX RESPONSE', response.data);
+    const receipt = response.data;
+
+    if (receipt.sequence_number && receipt.expected_tick && receipt.tx_hash) {
+      addOrderReceipt({
+        sequence_number: receipt.sequence_number,
+        expected_tick: receipt.expected_tick,
+        tx_hash: receipt.tx_hash,
+        order_id: orderId.toNumber(),
+      });
+    }
+
+    return { success: true };
+  };
 
   const openPosition = async ({
     side,
@@ -100,7 +170,7 @@ export function usePerps() {
           )
         : null;
 
-      const orderIntent = new PerpOrderIntent(
+      const orderIntent = new PerpLimitOrderIntent(
         orderId,
         publicKey,
         side,
@@ -120,78 +190,88 @@ export function usePerps() {
         takeProfitBN // take_profit_price
       );
 
-      const serializedData = PerpOrderIntent.serialize(orderIntent);
-      const SIGNED_ORDER_PREFIX = Buffer.from('FRM_DEX_ORDER:');
-      const prefixedMessage = Buffer.concat([SIGNED_ORDER_PREFIX, serializedData]);
-      const sha256Hash = createHash('sha256').update(new Uint8Array(prefixedMessage)).digest();
-      const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
-
-      const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
-      const frmTransaction = {
-        version: '1.0',
-        type: 'order',
-        intent: {
-          order_id: orderIntent.order_id.toNumber(),
-          owner: orderIntent.owner.toBase58(),
-          side: orderIntent.side,
-          price: orderIntent.price.toNumber(),
-          quantity: orderIntent.quantity.toNumber(),
-          expiry: orderIntent.expiry.toNumber(),
-          base_mint: orderIntent.base_mint.toBase58(),
-          quote_mint: orderIntent.quote_mint.toBase58(),
-          market_kind: orderIntent.market_kind,
-          leverage: orderIntent.leverage?.toNumber() || 1,
-          position_effect: orderIntent.position_effect,
-          reduce_only: orderIntent.reduce_only,
-          margin_mode: orderIntent.margin_mode,
-          margin_amount: orderIntent.margin_amount?.toNumber() || 0,
-          liquidation: orderIntent.liquidation,
-          stop_loss_price: orderIntent.stop_loss_price?.toNumber() || null,
-          take_profit_price: orderIntent.take_profit_price?.toNumber() || null,
-        },
-        signature: Buffer.from(signatureBytes).toString('hex'),
-        local_sequencer_id: 'continuum_client',
-        timestamp_ms: Date.now().toString(),
+      const serializedData = PerpLimitOrderIntent.serialize(orderIntent);
+      const intentJson = {
+        ...orderIntent.toJSON(),
+        order_type: 'limit',
       };
 
-      console.log('open position', frmTransaction);
-      const jsonFrm = JSON.stringify(frmTransaction);
-      const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
-
-      const payloadBytes = Buffer.from(frmPrefixedString, 'utf-8');
-      const tx_id = `frm_order_${orderIntent.order_id.toString()}_${Date.now()}`;
-      const transactionData = {
-        version: '1.0',
-        tx_id,
-        payload: Array.from(payloadBytes),
-        signature: Buffer.from(signatureBytes).toString('hex'),
-        public_key: publicKey,
-        nonce: frmTransaction.intent.order_id,
-        timestamp: Date.now().toString(),
-      };
-
-      const apiUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.tx}`;
-
-      const response = await axios.post(apiUrl, {
-        transaction: transactionData,
-      });
-
-      console.log('TX RESPONSE', response.data);
-      const receipt = response.data;
-
-      if (receipt.sequence_number && receipt.expected_tick && receipt.tx_hash) {
-        addOrderReceipt({
-          sequence_number: receipt.sequence_number,
-          expected_tick: receipt.expected_tick,
-          tx_hash: receipt.tx_hash,
-          order_id: orderIntent.order_id.toNumber(),
-        });
-      }
+      console.log('open position (limit)', intentJson);
+      await signAndSubmit(serializedData, intentJson, orderId);
 
       toast.success(`${side} order placed successfully`);
       return { success: true };
     } catch (error) {
       toast.error('Failed to place order');
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  };
+
+  const openMarketPosition = async ({
+    side,
+    size,
+    leverage,
+    marginMode,
+    maxSlippageBps,
+  }: PerpsMarketOrderParams): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!signMessage || !publicKey) {
+        throw new Error('Wallet not connected');
+      }
+
+      if (!selectedMarket) {
+        throw new Error('Selected market not found!');
+      }
+
+      const sizeValue = parseFloat(size);
+      const leverageValue = parseFloat(leverage);
+
+      if (isNaN(sizeValue) || sizeValue <= 0) {
+        throw new Error('Invalid size: must be a positive number');
+      }
+
+      if (isNaN(leverageValue) || leverageValue < 1) {
+        throw new Error('Invalid leverage: must be at least 1');
+      }
+
+      const orderId = new BN(Date.now());
+
+      const quantityDecimals = new BN(Math.pow(10, selectedMarket?.baseDecimals));
+      const sizeBN = new BN(Math.floor(sizeValue)).mul(quantityDecimals);
+
+      const baseMintAddress = selectedMarket?.base_mint || baseMint.toBase58();
+      const quoteMintAddress = selectedMarket?.quote_mint || quoteMint.toBase58();
+
+      const orderIntent = new PerpMarketOrderIntent(
+        orderId,
+        publicKey,
+        side,
+        sizeBN,
+        new BN(1500000000000),
+        new PublicKey(baseMintAddress),
+        new PublicKey(quoteMintAddress),
+        'perp',
+        new BN(leverageValue),
+        'open',
+        false, // reduce_only
+        marginMode,
+        false, // liquidation
+        maxSlippageBps,
+        selectedMarket?.uuid ?? null,
+        null, // stop_loss_price
+        null // take_profit_price
+      );
+
+      const serializedData = PerpMarketOrderIntent.serialize(orderIntent);
+      const intentJson = orderIntent.toJSON();
+
+      console.log('open position (market)', intentJson);
+      await signAndSubmit(serializedData, intentJson, orderId);
+
+      toast.success(`Market ${side} order placed successfully`);
+      return { success: true };
+    } catch (error) {
+      toast.error('Failed to place market order');
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   };
@@ -230,7 +310,7 @@ export function usePerps() {
       const baseMintAddress = selectedMarket?.base_mint || baseMint.toBase58();
       const quoteMintAddress = selectedMarket?.quote_mint || quoteMint.toBase58();
 
-      const orderIntent = new PerpOrderIntent(
+      const orderIntent = new PerpLimitOrderIntent(
         orderId,
         publicKey,
         side,
@@ -250,7 +330,7 @@ export function usePerps() {
         null // take_profit_price: null for closing
       );
 
-      const serializedData = PerpOrderIntent.serialize(orderIntent);
+      const serializedData = PerpLimitOrderIntent.serialize(orderIntent);
       const SIGNED_ORDER_PREFIX = Buffer.from('FRM_DEX_ORDER:');
       const prefixedMessage = Buffer.concat([SIGNED_ORDER_PREFIX, serializedData]);
       const sha256Hash = createHash('sha256').update(new Uint8Array(prefixedMessage)).digest();
@@ -332,6 +412,7 @@ export function usePerps() {
 
   return {
     openPosition,
+    openMarketPosition,
     closePosition,
   };
 }

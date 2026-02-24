@@ -7,7 +7,7 @@ export type MarketKind = 'perp';
 export type PositionEffect = 'open' | 'close';
 export type MarginMode = 'isolated' | 'cross';
 
-export class PerpOrderIntent {
+export class PerpLimitOrderIntent {
   constructor(
     public readonly order_id: BN,
     public readonly owner: PublicKey,
@@ -53,7 +53,7 @@ export class PerpOrderIntent {
     );
   }
 
-  static serialize(intent: PerpOrderIntent) {
+  static serialize(intent: PerpLimitOrderIntent) {
     const sideValue = intent.side === 'Buy' ? 0 : 1;
     // Rust MarketKind enum order is: Spot=0, Perp=1
     const marketKindValue = intent.market_kind === 'perp' ? 1 : 0;
@@ -88,15 +88,15 @@ export class PerpOrderIntent {
     // Since borsh.option() creates variable-size structures, we need to encode first
     // to determine the actual size, then return the properly sized buffer
     const tempBuffer = Buffer.alloc(1024); // Large enough buffer for any perp order
-    const layout = PerpOrderIntent.layout();
+    const layout = PerpLimitOrderIntent.layout();
     const span = layout.encode(serializable, tempBuffer);
     const resultBuffer = tempBuffer.subarray(0, span);
 
     return resultBuffer;
   }
 
-  static deserialize(buffer: Buffer): PerpOrderIntent {
-    const decoded = PerpOrderIntent.layout().decode(buffer);
+  static deserialize(buffer: Buffer): PerpLimitOrderIntent {
+    const decoded = PerpLimitOrderIntent.layout().decode(buffer);
 
     // Convert numeric values back to strings
     const side = decoded.side === 0 ? 'Buy' : 'Sell';
@@ -106,7 +106,7 @@ export class PerpOrderIntent {
     const margin_mode =
       decoded.margin_mode === null ? null : decoded.margin_mode === 0 ? 'cross' : 'isolated';
 
-    return new PerpOrderIntent(
+    return new PerpLimitOrderIntent(
       decoded.order_id,
       decoded.owner,
       side,

@@ -11,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { useSelectedMarket, marketsAtom } from '@/entities/market/model';
 import { usePositions } from '@/shared/hooks/usePositions';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
-import { OrderSide } from '@/features/order-placement/lib/PerpOrdersIntent';
+import { OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 import { useAtomValue } from 'jotai';
 
 export function MyPositions() {
