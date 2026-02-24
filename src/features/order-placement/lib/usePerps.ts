@@ -32,6 +32,7 @@ interface PerpsMarketOrderParams {
   leverage: string;
   marginMode: MarginMode;
   maxSlippageBps: number;
+  markPrice: number;
 }
 
 export function usePerps() {
@@ -213,6 +214,7 @@ export function usePerps() {
     leverage,
     marginMode,
     maxSlippageBps,
+    markPrice,
   }: PerpsMarketOrderParams): Promise<{ success: boolean; error?: string }> => {
     try {
       if (!signMessage || !publicKey) {
@@ -234,10 +236,21 @@ export function usePerps() {
         throw new Error('Invalid leverage: must be at least 1');
       }
 
+      if (!markPrice || markPrice <= 0) {
+        throw new Error('Mark price unavailable — cannot place market order');
+      }
+
       const orderId = new BN(Date.now());
 
+      const priceDecimals = new BN(Math.pow(10, selectedMarket?.quoteDecimals));
       const quantityDecimals = new BN(Math.pow(10, selectedMarket?.baseDecimals));
       const sizeBN = new BN(Math.floor(sizeValue)).mul(quantityDecimals);
+
+      // Set price to mark_price * 1.05 for buys, mark_price * 0.95 for sells
+      // This gives 5% headroom within the engine's 10% hard cap
+      const slippageMultiplier = side === 'Buy' ? 1.05 : 0.95;
+      const adjustedPrice = Math.floor(markPrice * slippageMultiplier);
+      const priceBN = new BN(adjustedPrice).mul(priceDecimals);
 
       const baseMintAddress = selectedMarket?.base_mint || baseMint.toBase58();
       const quoteMintAddress = selectedMarket?.quote_mint || quoteMint.toBase58();
@@ -246,6 +259,7 @@ export function usePerps() {
         orderId,
         publicKey,
         side,
+        priceBN,
         sizeBN,
         new BN(1500000000000),
         new PublicKey(baseMintAddress),

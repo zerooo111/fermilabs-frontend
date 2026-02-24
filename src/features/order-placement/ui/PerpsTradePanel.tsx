@@ -273,12 +273,18 @@ export function PerpsTradePanel() {
     let result: { success: boolean; error?: string };
 
     if (isMarketOrder) {
+      if (!markPrice || markPrice <= 0) {
+        toast.error('Mark price unavailable — cannot place market order');
+        setIsSubmitting(false);
+        return;
+      }
       result = await openMarketPosition({
         side,
         size: formState.size,
         leverage: formState.leverage,
         marginMode: formState.marginMode,
         maxSlippageBps: safeParseFloat(formState.slippageBps, 100),
+        markPrice,
       });
     } else {
       result = await openPosition({

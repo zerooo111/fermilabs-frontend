@@ -8,6 +8,7 @@ export class PerpMarketOrderIntent {
     public readonly order_id: BN,
     public readonly owner: PublicKey,
     public readonly side: OrderSide,
+    public readonly price: BN,
     public readonly quantity: BN,
     public readonly expiry: BN,
     public readonly base_mint: PublicKey,
@@ -63,7 +64,7 @@ export class PerpMarketOrderIntent {
       order_id: intent.order_id,
       owner: intent.owner,
       side: sideValue,
-      price: new BN(0), // Market orders always use price=0
+      price: intent.price, // Mark price with headroom for slippage validation
       quantity: intent.quantity,
       expiry: intent.expiry,
       base_mint: intent.base_mint,
@@ -92,7 +93,7 @@ export class PerpMarketOrderIntent {
       order_id: Number(this.order_id),
       owner: this.owner.toBase58(),
       side: this.side,
-      price: 0, // Market orders always use price=0
+      price: Number(this.price),
       quantity: Number(this.quantity),
       expiry: Number(this.expiry),
       base_mint: this.base_mint.toBase58(),
