@@ -106,7 +106,7 @@ export function usePerps() {
         side,
         priceBN,
         sizeBN,
-        new BN(900000000000),
+        new BN(1500000000000),
         new PublicKey(baseMintAddress),
         new PublicKey(quoteMintAddress),
         'perp',
