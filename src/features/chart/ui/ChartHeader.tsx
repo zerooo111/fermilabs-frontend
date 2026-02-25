@@ -93,7 +93,7 @@ function ChartHeaderComponent({
           marketKind={marketKind}
         />
       </div>
-      <div className="flex items-center overflow-x-scroll flex-1 h-full divide-x divide-outline">
+      <div className="flex items-center overflow-x-auto flex-1 h-full divide-x divide-outline">
         {/* Mark Price */}
         <div className="flex flex-col justify-center px-2 h-full border-r ">
           <span className="text-xs whitespace-nowrap font-medium text-white/50">Mark Price</span>
