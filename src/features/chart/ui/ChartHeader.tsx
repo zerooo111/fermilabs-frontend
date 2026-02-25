@@ -27,8 +27,8 @@ interface ChartHeaderProps {
   selectedMarketId?: string | null;
   onMarketSelect: (marketId: string) => void;
   marketKind: 'spot' | 'perp';
-  timeInterval: TimeInterval;
-  onIntervalChange: (interval: TimeInterval) => void;
+  timeInterval?: TimeInterval;
+  onIntervalChange?: (interval: TimeInterval) => void;
   latestPrice?: LatestPrice | null;
 }
 
@@ -150,18 +150,20 @@ function ChartHeaderComponent({
         </div>
       </div>
 
-      <Select value={timeInterval} onValueChange={onIntervalChange}>
-        <SelectTrigger className="w-[80px] !h-full border-none">
-          <SelectValue placeholder="Interval" />
-        </SelectTrigger>
-        <SelectContent align="end">
-          {INTERVALS.map(({ label, value }) => (
-            <SelectItem key={value} value={value}>
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {onIntervalChange && timeInterval && (
+        <Select value={timeInterval} onValueChange={onIntervalChange}>
+          <SelectTrigger className="w-[80px] !h-full border-none">
+            <SelectValue placeholder="Interval" />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {INTERVALS.map(({ label, value }) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
     </div>
   );
 }

@@ -5,8 +5,9 @@
  */
 import { useState, useCallback, memo, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { PerpsChart } from '@/features/chart/ui/PerpsChart';
+import { PerpsChart, PerpsChartType } from '@/features/chart/ui/PerpsChart';
 import { ChartHeader } from '@/features/chart/ui/ChartHeader';
+import { ChartToolbar } from '@/features/chart/ui/ChartToolbar';
 import {
   fetchPerpsCandles,
   getPerpsTimeRangeForInterval,
@@ -27,6 +28,7 @@ import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
 function PerpsChartContainerComponent() {
   const [timeInterval, setTimeInterval] = useState<PerpsTimeframe>('1h');
+  const [chartType, setChartType] = useState<PerpsChartType>('candlestick');
   const { selectedMarket, selectMarket } = useSelectedMarket();
   const { publicKey } = useWallet();
 
@@ -199,9 +201,13 @@ function PerpsChartContainerComponent() {
           selectedMarketId={selectedMarket?.uuid}
           onMarketSelect={selectMarket}
           marketKind={'perp' as MarketKind}
+          latestPrice={latestPrice}
+        />
+        <ChartToolbar
           timeInterval={timeInterval}
           onIntervalChange={handleIntervalChange}
-          latestPrice={latestPrice}
+          chartType={chartType}
+          onChartTypeChange={setChartType}
         />
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <AlertCircle className="h-12 w-12 text-red-500" />
@@ -226,9 +232,13 @@ function PerpsChartContainerComponent() {
         selectedMarketId={selectedMarket?.uuid}
         onMarketSelect={selectMarket}
         marketKind={'perp' as MarketKind}
+        latestPrice={latestPrice}
+      />
+      <ChartToolbar
         timeInterval={timeInterval}
         onIntervalChange={handleIntervalChange}
-        latestPrice={latestPrice}
+        chartType={chartType}
+        onChartTypeChange={setChartType}
       />
 
       <div className="flex-1 relative min-h-[250px] md:min-h-[350px] lg:min-h-[400px] overflow-hidden">
@@ -237,6 +247,7 @@ function PerpsChartContainerComponent() {
             className="h-full"
             data={candles}
             interval={timeInterval}
+            chartType={chartType}
             onLoadMoreData={handleLoadMoreData}
             isLoading={isLoading}
             isRefreshing={isFetching && !isLoading}

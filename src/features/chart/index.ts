@@ -5,6 +5,7 @@
 export { ChartContainer } from './ui/ChartContainer';
 export { PerpsChartContainer } from './ui/PerpsChartContainer';
 export { PerpsChart } from './ui/PerpsChart';
+export type { PerpsChartType } from './ui/PerpsChart';
 export { CandlestickChart } from './ui/CandlestickChart';
 export { fetchCandles, getTimeRangeForInterval } from './lib/chart';
 export {

@@ -11,6 +11,9 @@ import {
   Time,
   CandlestickData,
   CandlestickSeries,
+  LineSeries,
+  AreaSeries,
+  BarSeries,
   TimeScaleOptions,
   TickMarkFormatter,
   BusinessDay,
@@ -22,6 +25,8 @@ import { ExtendedPerpsOHLCVData, PerpsTimeframe } from '@/features/chart/lib/per
 import { Loader2, AlertCircle } from 'lucide-react';
 import { CHART_CONFIG } from '@/features/chart/lib/chart-constants';
 import { useResizeObserver } from '@/shared/hooks/useResizeObserver';
+
+export type PerpsChartType = 'candlestick' | 'line' | 'area' | 'bar';
 
 // Custom hook to get CSS custom properties
 const useChartColors = () => {
@@ -37,6 +42,7 @@ const useChartColors = () => {
 interface PerpsChartComponentProps {
   data: ExtendedPerpsOHLCVData[];
   interval: PerpsTimeframe;
+  chartType?: PerpsChartType;
   onLoadMoreData?: (startTime: number, endTime: number) => Promise<void>;
   isLoading?: boolean;
   isRefreshing?: boolean;
@@ -125,6 +131,7 @@ const isValidCandle = (item: ExtendedPerpsOHLCVData): boolean => {
 function PerpsChartComponent({
   data,
   interval,
+  chartType = 'candlestick',
   colors,
   className,
   isLoading,
@@ -150,19 +157,13 @@ function PerpsChartComponent({
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const seriesRef = useRef<ISeriesApi<any> | null>(null);
   const isInitialMountRef = useRef(true);
   const previousDataRef = useRef<CandlestickData<Time>[]>([]);
   const isMountedRef = useRef(true);
-  const stopLossLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(
-    null
-  );
-  const takeProfitLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(
-    null
-  );
-  const entryPriceLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(
-    null
-  );
+  const stopLossLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
+  const takeProfitLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
+  const entryPriceLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
   const previousValuesRef = useRef<{
     stopLoss: number | null | undefined;
     takeProfit: number | null | undefined;
@@ -320,22 +321,55 @@ function PerpsChartComponent({
       const chart = createChart(chartContainerRef.current, chartOptions);
       chartRef.current = chart;
 
-      // Create candlestick series for perps with type safety
-      const candlestickSeries = chart.addSeries(CandlestickSeries, {
-        upColor,
-        downColor,
-        borderVisible: false,
-        wickUpColor,
-        wickDownColor,
-        borderUpColor: upColor,
-        borderDownColor: downColor,
-      });
-
-      if (!candlestickSeries) {
-        throw new Error('Failed to create candlestick series');
+      // Create series based on chart type
+      let series: ISeriesApi<any>;
+      switch (chartType) {
+        case 'line':
+          series = chart.addSeries(LineSeries, {
+            color: upColor,
+            lineWidth: 2,
+            crosshairMarkerVisible: true,
+            lastValueVisible: true,
+            priceLineVisible: true,
+          });
+          break;
+        case 'area':
+          series = chart.addSeries(AreaSeries, {
+            lineColor: upColor,
+            topColor: `${upColor}40`,
+            bottomColor: `${upColor}05`,
+            lineWidth: 2,
+            crosshairMarkerVisible: true,
+            lastValueVisible: true,
+            priceLineVisible: true,
+          });
+          break;
+        case 'bar':
+          series = chart.addSeries(BarSeries, {
+            upColor,
+            downColor,
+            thinBars: false,
+          });
+          break;
+        case 'candlestick':
+        default:
+          series = chart.addSeries(CandlestickSeries, {
+            upColor,
+            downColor,
+            borderVisible: false,
+            wickUpColor,
+            wickDownColor,
+            borderUpColor: upColor,
+            borderDownColor: downColor,
+          });
+          break;
       }
 
-      seriesRef.current = candlestickSeries as ISeriesApi<'Candlestick'>;
+      if (!series) {
+        throw new Error('Failed to create chart series');
+      }
+
+      seriesRef.current = series;
       isInitialMountRef.current = true;
       previousDataRef.current = [];
       stopLossLineRef.current = null;
@@ -371,6 +405,7 @@ function PerpsChartComponent({
     };
   }, [
     interval,
+    chartType,
     backgroundColor,
     upColor,
     downColor,
@@ -388,10 +423,16 @@ function PerpsChartComponent({
       const timeScale = chartRef.current.timeScale();
 
       // Transform the data
-      const validTransformedData = transformData(data);
+      const candleData = transformData(data);
 
       // Only update if we have valid data
-      if (validTransformedData.length === 0) return;
+      if (candleData.length === 0) return;
+
+      // For line/area series, convert to { time, value } format using close price
+      const isLineType = chartType === 'line' || chartType === 'area';
+      const validTransformedData: any[] = isLineType
+        ? candleData.map(c => ({ time: c.time, value: c.close }))
+        : candleData;
 
       // Check if this is initial mount
       const isInitialMount = isInitialMountRef.current;
@@ -403,22 +444,21 @@ function PerpsChartComponent({
         const lastPrevious = previousData[previousData.length - 1];
         const lastNew = validTransformedData[validTransformedData.length - 1];
 
-        // Quick check: if last candle hasn't changed, likely no change
-        if (
-          lastPrevious &&
-          lastNew &&
-          lastPrevious.time === lastNew.time &&
-          lastPrevious.open === lastNew.open &&
-          lastPrevious.high === lastNew.high &&
-          lastPrevious.low === lastNew.low &&
-          lastPrevious.close === lastNew.close
-        ) {
-          // Last candle unchanged, check if any other candle changed
+        // Quick check: if last data point hasn't changed, likely no change
+        const lastUnchanged = isLineType
+          ? lastPrevious?.time === lastNew?.time && lastPrevious?.value === lastNew?.value
+          : lastPrevious?.time === lastNew?.time &&
+            lastPrevious?.open === lastNew?.open &&
+            lastPrevious?.high === lastNew?.high &&
+            lastPrevious?.low === lastNew?.low &&
+            lastPrevious?.close === lastNew?.close;
+
+        if (lastPrevious && lastNew && lastUnchanged) {
           const dataChanged = previousData.some((prev, idx) => {
             const curr = validTransformedData[idx];
+            if (!curr || prev.time !== curr.time) return true;
+            if (isLineType) return prev.value !== curr.value;
             return (
-              !curr ||
-              prev.time !== curr.time ||
               prev.open !== curr.open ||
               prev.high !== curr.high ||
               prev.low !== curr.low ||
@@ -427,7 +467,6 @@ function PerpsChartComponent({
           });
 
           if (!dataChanged) {
-            // Data hasn't changed, skip update
             return;
           }
         }
@@ -525,7 +564,7 @@ function PerpsChartComponent({
     } catch (error) {
       console.error('Error updating chart data:', error);
     }
-  }, [data, transformData]);
+  }, [data, chartType, transformData]);
 
   // Update stop loss and take profit price lines
   useEffect(() => {
