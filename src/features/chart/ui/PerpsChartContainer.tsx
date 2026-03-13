@@ -88,9 +88,11 @@ function PerpsChartContainerComponent() {
   // Keep candle state scoped to the market that produced it.
   const [candlesState, setCandlesState] = useState<{
     marketId: string | null;
+    interval: PerpsTimeframe | null;
     candles: ExtendedPerpsOHLCVData[];
   }>({
     marketId: null,
+    interval: null,
     candles: [],
   });
   const previousMarkPriceRef = useRef<number | null>(null);
@@ -161,11 +163,25 @@ function PerpsChartContainerComponent() {
 
   const candles = useMemo(
     () =>
-      selectedMarket?.uuid && candlesState.marketId === selectedMarket.uuid
+      selectedMarket?.uuid &&
+      candlesState.marketId === selectedMarket.uuid &&
+      candlesState.interval === timeInterval
         ? candlesState.candles
         : [],
-    [candlesState.candles, candlesState.marketId, selectedMarket?.uuid]
+    [
+      candlesState.candles,
+      candlesState.interval,
+      candlesState.marketId,
+      selectedMarket?.uuid,
+      timeInterval,
+    ]
   );
+
+  const isSwitchingTimeframe =
+    !!selectedMarket?.uuid &&
+    candlesState.marketId === selectedMarket.uuid &&
+    candlesState.interval !== null &&
+    candlesState.interval !== timeInterval;
 
   // Reset live-update guards when the source series changes.
   useEffect(() => {
@@ -177,11 +193,12 @@ function PerpsChartContainerComponent() {
     if (historicalData && selectedMarket?.uuid) {
       setCandlesState({
         marketId: selectedMarket.uuid,
+        interval: timeInterval,
         candles: historicalData,
       });
       previousMarkPriceRef.current = null; // Reset to allow first mark_price update
     }
-  }, [historicalData, selectedMarket?.uuid]);
+  }, [historicalData, selectedMarket?.uuid, timeInterval]);
 
   // Update candles in real-time with mark_price
   useEffect(() => {
@@ -191,6 +208,9 @@ function PerpsChartContainerComponent() {
 
     setCandlesState(previousState => {
       if (previousState.marketId !== selectedMarket.uuid || previousState.candles.length === 0) {
+        return previousState;
+      }
+      if (previousState.interval !== timeInterval) {
         return previousState;
       }
 
@@ -213,6 +233,7 @@ function PerpsChartContainerComponent() {
 
       return {
         marketId: previousState.marketId,
+        interval: previousState.interval,
         candles: updatedCandles,
       };
     });
@@ -290,8 +311,8 @@ function PerpsChartContainerComponent() {
             interval={timeInterval}
             chartType={chartType}
             onLoadMoreData={handleLoadMoreData}
-            isLoading={isLoading}
-            isRefreshing={isFetching && !isLoading}
+            isLoading={isLoading || isSwitchingTimeframe}
+            isRefreshing={isFetching && !isLoading && !isSwitchingTimeframe}
             error={error}
             selectedMarketName={selectedMarket?.name}
             stopLoss={positionData.stopLoss}
