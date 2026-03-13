@@ -152,9 +152,15 @@ function PerpsChartContainerComponent() {
     return rawMarkPrice / Math.pow(10, quoteDecimals);
   }, [selectedMarket?.uuid, selectedMarket?.quoteDecimals, marketsData]);
 
+  // Clear market-scoped chart state immediately on market or interval switch.
+  useEffect(() => {
+    setCandles([]);
+    previousMarkPriceRef.current = null;
+  }, [selectedMarket?.uuid, timeInterval]);
+
   // Update candles when historical data is fetched
   useEffect(() => {
-    if (historicalData && historicalData.length > 0) {
+    if (historicalData) {
       setCandles(historicalData);
       previousMarkPriceRef.current = null; // Reset to allow first mark_price update
     }
@@ -244,6 +250,7 @@ function PerpsChartContainerComponent() {
       <div className="flex-1 relative min-h-[250px] md:min-h-[350px] lg:min-h-[400px] overflow-hidden">
         <ErrorBoundary>
           <PerpsChart
+            key={selectedMarket?.uuid ?? 'no-market'}
             className="h-full"
             data={candles}
             interval={timeInterval}

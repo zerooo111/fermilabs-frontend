@@ -39,9 +39,9 @@ function PerpsPage() {
           throw new Error('No markets found!');
         }
 
-        const currentMarket = markets.find(m => m.uuid === urlMarketId);
         // Filter for perp markets only
         const perpMarkets = markets.filter(m => m.kind === 'perp');
+        const currentMarket = perpMarkets.find(m => m.uuid === urlMarketId);
         const firstPerpMarket = perpMarkets[0];
 
         if (!currentMarket && !firstPerpMarket) {

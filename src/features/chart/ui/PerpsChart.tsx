@@ -164,6 +164,8 @@ function PerpsChartComponent({
   const stopLossLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
   const takeProfitLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
   const entryPriceLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
+  const initialRangeFrameRef = useRef<number | null>(null);
+  const applyRangeFrameRef = useRef<number | null>(null);
   const previousValuesRef = useRef<{
     stopLoss: number | null | undefined;
     takeProfit: number | null | undefined;
@@ -197,6 +199,25 @@ function PerpsChartComponent({
   }, []);
 
   useResizeObserver(chartContainerRef, handleResize);
+
+  const removePriceLines = useCallback(() => {
+    if (!seriesRef.current) return;
+
+    if (stopLossLineRef.current) {
+      seriesRef.current.removePriceLine(stopLossLineRef.current);
+      stopLossLineRef.current = null;
+    }
+
+    if (takeProfitLineRef.current) {
+      seriesRef.current.removePriceLine(takeProfitLineRef.current);
+      takeProfitLineRef.current = null;
+    }
+
+    if (entryPriceLineRef.current) {
+      seriesRef.current.removePriceLine(entryPriceLineRef.current);
+      entryPriceLineRef.current = null;
+    }
+  }, []);
 
   // Handle resize with ResizeObserver
   useEffect(() => {
@@ -384,17 +405,17 @@ function PerpsChartComponent({
 
     return () => {
       isMountedRef.current = false;
+      if (initialRangeFrameRef.current !== null) {
+        cancelAnimationFrame(initialRangeFrameRef.current);
+        initialRangeFrameRef.current = null;
+      }
+      if (applyRangeFrameRef.current !== null) {
+        cancelAnimationFrame(applyRangeFrameRef.current);
+        applyRangeFrameRef.current = null;
+      }
       try {
         if (chartRef.current) {
-          // Clean up price lines
-          if (seriesRef.current && stopLossLineRef.current) {
-            seriesRef.current.removePriceLine(stopLossLineRef.current);
-            stopLossLineRef.current = null;
-          }
-          if (seriesRef.current && takeProfitLineRef.current) {
-            seriesRef.current.removePriceLine(takeProfitLineRef.current);
-            takeProfitLineRef.current = null;
-          }
+          removePriceLines();
           chartRef.current.remove();
           chartRef.current = null;
           seriesRef.current = null;
@@ -413,6 +434,7 @@ function PerpsChartComponent({
     wickUpColor,
     wickDownColor,
     gridColor,
+    removePriceLines,
   ]);
 
   // Update data separately
@@ -526,8 +548,8 @@ function PerpsChartComponent({
 
         // Use double requestAnimationFrame to ensure chart has fully processed setData
         // and completed its internal layout calculations before we override with visible range
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
+        initialRangeFrameRef.current = requestAnimationFrame(() => {
+          applyRangeFrameRef.current = requestAnimationFrame(() => {
             try {
               if (!isMountedRef.current || !chartRef.current) return;
 
@@ -549,8 +571,11 @@ function PerpsChartComponent({
               } catch (scrollError) {
                 console.error('Error scrolling chart:', scrollError);
               }
+            } finally {
+              applyRangeFrameRef.current = null;
             }
           });
+          initialRangeFrameRef.current = null;
         });
 
         isInitialMountRef.current = false;
@@ -575,6 +600,7 @@ function PerpsChartComponent({
 
     // Only create price lines if we have data
     if (!data || data.length === 0) {
+      removePriceLines();
       console.log('[PerpsChart] No data available, skipping price lines');
       return;
     }
@@ -631,29 +657,10 @@ function PerpsChartComponent({
       if (!data || data.length === 0) {
         console.log('[PerpsChart] No data available in timeout, skipping price lines');
         // Remove any existing lines if data was cleared
-        if (stopLossLineRef.current && seriesRef.current) {
-          try {
-            seriesRef.current.removePriceLine(stopLossLineRef.current);
-            stopLossLineRef.current = null;
-          } catch (error) {
-            console.error('[PerpsChart] Error removing stop loss line:', error);
-          }
-        }
-        if (takeProfitLineRef.current && seriesRef.current) {
-          try {
-            seriesRef.current.removePriceLine(takeProfitLineRef.current);
-            takeProfitLineRef.current = null;
-          } catch (error) {
-            console.error('[PerpsChart] Error removing take profit line:', error);
-          }
-        }
-        if (entryPriceLineRef.current && seriesRef.current) {
-          try {
-            seriesRef.current.removePriceLine(entryPriceLineRef.current);
-            entryPriceLineRef.current = null;
-          } catch (error) {
-            console.error('[PerpsChart] Error removing entry price line:', error);
-          }
+        try {
+          removePriceLines();
+        } catch (error) {
+          console.error('[PerpsChart] Error removing price lines:', error);
         }
         return;
       }
@@ -784,7 +791,7 @@ function PerpsChartComponent({
     }, 100);
 
     return () => clearTimeout(timeoutId);
-  }, [stopLoss, takeProfit, entryPrice, unrealizedPnl, data]);
+  }, [stopLoss, takeProfit, entryPrice, unrealizedPnl, data, removePriceLines]);
 
   const hasNoData = !data || data.length === 0;
   const showLoading = isLoading && hasNoData;
