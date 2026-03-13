@@ -11,6 +11,7 @@ import { ChartToolbar } from '@/features/chart/ui/ChartToolbar';
 import {
   fetchPerpsCandles,
   getPerpsTimeRangeForInterval,
+  getCurrentCandleTimestamp,
   processPerpsCandleData,
   calculatePerpsPriceChange,
   updateCandlesWithMarkPrice,
@@ -84,8 +85,14 @@ function PerpsChartContainerComponent() {
     return { stopLoss, takeProfit, entryPrice, unrealizedPnl };
   }, [positions, selectedMarket]);
 
-  // State to hold candles with real-time updates
-  const [candles, setCandles] = useState<ExtendedPerpsOHLCVData[]>([]);
+  // Keep candle state scoped to the market that produced it.
+  const [candlesState, setCandlesState] = useState<{
+    marketId: string | null;
+    candles: ExtendedPerpsOHLCVData[];
+  }>({
+    marketId: null,
+    candles: [],
+  });
   const previousMarkPriceRef = useRef<number | null>(null);
 
   // Memoize the interval change handler
@@ -152,36 +159,64 @@ function PerpsChartContainerComponent() {
     return rawMarkPrice / Math.pow(10, quoteDecimals);
   }, [selectedMarket?.uuid, selectedMarket?.quoteDecimals, marketsData]);
 
-  // Clear market-scoped chart state immediately on market or interval switch.
+  const candles = useMemo(
+    () =>
+      selectedMarket?.uuid && candlesState.marketId === selectedMarket.uuid
+        ? candlesState.candles
+        : [],
+    [candlesState.candles, candlesState.marketId, selectedMarket?.uuid]
+  );
+
+  // Reset live-update guards when the source series changes.
   useEffect(() => {
-    setCandles([]);
     previousMarkPriceRef.current = null;
   }, [selectedMarket?.uuid, timeInterval]);
 
   // Update candles when historical data is fetched
   useEffect(() => {
-    if (historicalData) {
-      setCandles(historicalData);
+    if (historicalData && selectedMarket?.uuid) {
+      setCandlesState({
+        marketId: selectedMarket.uuid,
+        candles: historicalData,
+      });
       previousMarkPriceRef.current = null; // Reset to allow first mark_price update
     }
-  }, [historicalData]);
+  }, [historicalData, selectedMarket?.uuid]);
 
   // Update candles in real-time with mark_price
   useEffect(() => {
-    if (markPrice === null || markPrice <= 0 || candles.length === 0) {
+    if (markPrice === null || markPrice <= 0 || !selectedMarket?.uuid) {
       return;
     }
 
-    // Skip if mark_price hasn't changed (avoid unnecessary updates)
-    if (previousMarkPriceRef.current === markPrice) {
-      return;
-    }
+    setCandlesState(previousState => {
+      if (previousState.marketId !== selectedMarket.uuid || previousState.candles.length === 0) {
+        return previousState;
+      }
 
-    // Update candles with the new mark_price
-    const updatedCandles = updateCandlesWithMarkPrice(candles, markPrice, timeInterval);
-    setCandles(updatedCandles);
-    previousMarkPriceRef.current = markPrice;
-  }, [markPrice, timeInterval, candles]);
+      const currentCandleTimestamp = getCurrentCandleTimestamp(timeInterval);
+      const lastCandle = previousState.candles[previousState.candles.length - 1];
+      const isCurrentCandleOpen = lastCandle?.time === currentCandleTimestamp;
+
+      // Skip identical updates only when we are still inside the current candle.
+      if (previousMarkPriceRef.current === markPrice && isCurrentCandleOpen) {
+        return previousState;
+      }
+
+      const updatedCandles = updateCandlesWithMarkPrice(
+        previousState.candles,
+        markPrice,
+        timeInterval
+      );
+
+      previousMarkPriceRef.current = markPrice;
+
+      return {
+        marketId: previousState.marketId,
+        candles: updatedCandles,
+      };
+    });
+  }, [markPrice, selectedMarket?.uuid, timeInterval]);
 
   // Calculate latest price and price change from updated candles
   const latestPrice = useMemo(() => {
@@ -250,7 +285,6 @@ function PerpsChartContainerComponent() {
       <div className="flex-1 relative min-h-[250px] md:min-h-[350px] lg:min-h-[400px] overflow-hidden">
         <ErrorBoundary>
           <PerpsChart
-            key={selectedMarket?.uuid ?? 'no-market'}
             className="h-full"
             data={candles}
             interval={timeInterval}
