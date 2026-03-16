@@ -4,14 +4,16 @@
  */
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
 import { Badge } from '@/shared/ui/badge';
 import { createHash } from 'crypto';
 import { BN } from '@coral-xyz/anchor';
+import { PublicKey } from '@solana/web3.js';
 import { toast } from 'sonner';
 import { useSelectedMarket } from '@/entities/market';
+import { CancelOrderData } from '@/features/order-placement/lib/CancelOrderData';
 import { orderReceiptsAtom } from '@/entities/order-receipt';
 import { OrderReceipt } from './OrderReceipt';
 import {
@@ -20,13 +22,12 @@ import {
   formatTotal,
 } from '@/features/orderbook-view/lib/processOrderbook';
 import axios from 'axios';
-import { config, API_ROUTES } from '@/shared/config/constants';
+import { baseMint, quoteMint, config, API_ROUTES } from '@/shared/config/constants';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { useQuery } from '@tanstack/react-query';
 
 export function MyOrders() {
   const { publicKey, signMessage } = useWallet();
-  const [cancellingOrders, setCancellingOrders] = useState<Set<number>>(new Set());
   const { selectedMarket } = useSelectedMarket();
   const orderReceipts = useAtomValue(orderReceiptsAtom);
   const { fetchUserOrders } = useSequencerApi();
@@ -49,10 +50,8 @@ export function MyOrders() {
   const myOrders = useMemo(() => {
     if (!userOrders || !publicKey) return [];
 
-    return userOrders
-      .filter(order => order.market_id === selectedMarket?.uuid)
-      .filter(order => !cancellingOrders.has(order.order_id));
-  }, [userOrders, publicKey, selectedMarket?.uuid, cancellingOrders]);
+    return userOrders.filter(order => order.market_id === selectedMarket?.uuid);
+  }, [userOrders, publicKey, selectedMarket?.uuid]);
 
   // Helper function to find receipt by order_id
   const getReceiptForOrder = (orderId: number) => {
@@ -77,87 +76,63 @@ export function MyOrders() {
     try {
       if (!signMessage) return;
 
-      // Optimistically update UI
-      setCancellingOrders(prev => new Set(prev).add(orderId));
+      const baseMintAddress = selectedMarket?.base_mint || baseMint.toBase58();
+      const quoteMintAddress = selectedMarket?.quote_mint || quoteMint.toBase58();
 
-      const cancelData = {
-        order_id: new BN(orderId).toNumber(),
-        owner: publicKey.toBase58(),
-        market_id: selectedMarket?.uuid,
-        signature: '', // Will be filled after signing
-        local_sequencer_id: 'continuum_client',
-        timestamp_ms: Date.now().toString(),
-      };
+      // Build the CancelOrderData struct matching the rollup spec
+      const cancelOrderData = new CancelOrderData(
+        new BN(orderId),
+        publicKey,
+        new PublicKey(baseMintAddress),
+        new PublicKey(quoteMintAddress)
+      );
 
-      const frmTransactionForSigning = {
-        version: '1.0',
-        type: 'cancel',
-        order_id: cancelData.order_id,
-        owner: cancelData.owner,
-        market_id: cancelData.market_id,
-        local_sequencer_id: cancelData.local_sequencer_id,
-        timestamp_ms: cancelData.timestamp_ms,
-      };
-
-      // Serialize and sign the transaction data
-      const serializedData = Buffer.from(JSON.stringify(frmTransactionForSigning), 'utf-8');
+      // Borsh-serialize and sign per spec:
+      // message = b"FRM_DEX_CANCEL:" || borsh_serialize(CancelOrderData)
+      const serializedData = CancelOrderData.serialize(cancelOrderData);
       const SIGNED_CANCEL_PREFIX = Buffer.from('FRM_DEX_CANCEL:');
       const prefixedMessage = Buffer.concat([SIGNED_CANCEL_PREFIX, serializedData]);
       const sha256Hash = createHash('sha256').update(new Uint8Array(prefixedMessage)).digest();
       const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
       const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
+      const signatureHex = Buffer.from(signatureBytes).toString('hex');
+      const timestampMs = Date.now().toString();
 
-      // Update the cancel data with signature
-      cancelData.signature = Buffer.from(signatureBytes).toString('hex');
-
-      // Create the complete FRM transaction
+      // Build the FRM transaction with cancel fields at top level
       const frmTransaction = {
         version: '1.0',
         type: 'cancel',
-        order_id: cancelData.order_id,
-        owner: cancelData.owner,
-        market_id: cancelData.market_id,
-        signature: cancelData.signature,
-        local_sequencer_id: cancelData.local_sequencer_id,
-        timestamp_ms: cancelData.timestamp_ms,
+        order_id: orderId,
+        owner: publicKey.toBase58(),
+        market_id: selectedMarket?.uuid,
+        signature: signatureHex,
+        local_sequencer_id: 'continuum_client',
+        timestamp_ms: timestampMs,
       };
 
-      // Create the prefixed payload for continuum
       const jsonFrm = JSON.stringify(frmTransaction);
       const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
       const payloadBytes = Buffer.from(frmPrefixedString, 'utf-8');
 
-      // Generate transaction ID
       const tx_id = `frm_cancel_${orderId.toString()}_${Date.now()}`;
 
-      // Create the transaction data for continuum submission
       const transactionData = {
         version: '1.0',
         tx_id,
         payload: Array.from(payloadBytes),
-        signature: Buffer.from(signatureBytes).toString('hex'),
+        signature: signatureHex,
         public_key: publicKey,
-        nonce: cancelData.order_id,
-        timestamp: cancelData.timestamp_ms,
+        nonce: orderId,
+        timestamp: timestampMs,
       };
 
-      // Submit to continuum via the explorer API
       const apiBaseUrl = config.devnet.apiBaseUrl;
-      await axios
-        .post(`${apiBaseUrl}${API_ROUTES.tx}`, {
-          transaction: transactionData,
-        })
-        .then(res => res.data);
+      await axios.post(`${apiBaseUrl}${API_ROUTES.tx}`, {
+        transaction: transactionData,
+      });
 
       toast.success('Order cancelled');
     } catch {
-      // Silent error handling
-      // Rollback optimistic update
-      setCancellingOrders(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(orderId);
-        return newSet;
-      });
       toast.error('Failed to cancel order');
     }
   };
@@ -214,13 +189,8 @@ export function MyOrders() {
               {getReceiptForOrder(order.order_id) && (
                 <OrderReceipt receipt={getReceiptForOrder(order.order_id)!} />
               )}
-              <Button
-                onClick={() => cancelOrder(order.order_id)}
-                variant="outline"
-                size="sm"
-                disabled={cancellingOrders.has(order.order_id)}
-              >
-                {cancellingOrders.has(order.order_id) ? 'Cancelling...' : 'Cancel'}
+              <Button onClick={() => cancelOrder(order.order_id)} variant="outline" size="sm">
+                Cancel
               </Button>
             </div>
           </TableCell>
