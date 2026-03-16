@@ -25,7 +25,7 @@ async function checkServerLatency(
 ): Promise<{ latency: number; isHealthy: boolean }> {
   const startTime = performance.now();
   try {
-    await axios.get(`${server.url}/health`, { timeout: 5000 });
+    await axios.get(`${server.url}/healthz`, { timeout: 5000 });
     return { latency: performance.now() - startTime, isHealthy: true };
   } catch {
     if (logError) {

@@ -1,20 +1,24 @@
-import {
-  PerpLimitOrderIntent,
-  OrderSide,
-  MarginMode,
-} from '@/features/order-placement/lib/PerpLimitOrderIntent';
-import { PerpMarketOrderIntent } from '@/features/order-placement/lib/PerpMarketOrderIntent';
-import { BN } from '@coral-xyz/anchor';
 import { toast } from 'sonner';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { PublicKey } from '@solana/web3.js';
-import { createHash } from 'crypto';
-import { baseMint, config, quoteMint, API_ROUTES } from '@/shared/config/constants';
-import { useSelectedMarket } from '@/entities/market';
-import { addOrderReceiptAtom } from '@/entities/order-receipt';
-import { useSetAtom } from 'jotai';
 import axios from 'axios';
-import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
+import { useWallet } from '@solana/wallet-adapter-react';
+import bs58 from 'bs58';
+import { useRef } from 'react';
+import { useSelectedMarket } from '@/entities/market';
+import { config, API_ROUTES } from '@/shared/config/constants';
+import {
+  buildExecutionQueueUserIntent,
+  bytesToBase64,
+  encodePerpCancelOrderQueuePayload,
+  encodePerpPlaceOrderV2QueuePayload,
+  QueuePlaceOrderType,
+  QueueSelfTradeBehavior,
+  QueueSide,
+  uiBaseToLots,
+  uiPriceToLots,
+  uiQuoteToLots,
+} from '@/shared/lib/mango-execution-queue';
+import type { HarnessMarketMetadata } from '@/shared/lib/harness-market';
+import type { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 
 interface PerpsSubmitOrderParams {
   side: OrderSide;
@@ -35,258 +39,828 @@ interface PerpsMarketOrderParams {
   markPrice: number;
 }
 
-export function usePerps() {
-  const { publicKey, signMessage } = useWallet();
-  const { selectedMarket } = useSelectedMarket();
-  const addOrderReceipt = useSetAtom(addOrderReceiptAtom);
+type RelayConfigResponse = {
+  group: string | null;
+  execution_queue: string | null;
+  market: string;
+  mango_account: string | null;
+  owner_to_mango_account: Record<string, string>;
+  lanes: Array<{
+    name: string;
+    remaining_accounts: Array<{
+      pubkey: string;
+      is_signer: boolean;
+      is_writable: boolean;
+    }>;
+  }>;
+};
 
-  const signAndSubmit = async (
-    serializedData: Buffer,
-    intentJson: Record<string, unknown>,
-    orderId: BN
-  ): Promise<{ success: boolean; error?: string }> => {
-    if (!signMessage || !publicKey) {
+type HarnessOwnerBalancesResponse = {
+  data?: {
+    mango_accounts?: string[];
+  };
+};
+
+type DepositContextResponse = {
+  owner: string;
+  mango_account: string;
+  mango_account_exists: boolean;
+};
+
+type ResolvedRelayConfig = {
+  configData: RelayConfigResponse;
+  group: string;
+  executionQueue: string;
+  market: string;
+  mangoAccount: string;
+};
+
+type HarnessFullMarketsResponse = {
+  market_metadata?: Record<string, HarnessMarketMetadata>;
+};
+
+const RELAY_CONFIG_CACHE_TTL_MS = 5000;
+const RELAY_DUPLICATE_SEQUENCE_RETRIES = 2;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function isDuplicateSequenceRelayError(detail: string): boolean {
+  const normalized = detail.toLowerCase();
+  return (
+    normalized.includes('duplicate sequence') || normalized.includes('relayer cursor reconciled')
+  );
+}
+
+function sideToQueueSide(side: OrderSide): QueueSide {
+  return side === 'Buy' ? QueueSide.Bid : QueueSide.Ask;
+}
+
+function pickPlaceLane(
+  lanes: RelayConfigResponse['lanes'],
+  side: OrderSide
+): RelayConfigResponse['lanes'][number] | null {
+  if (!lanes.length) return null;
+  if (side === 'Buy') {
+    return (
+      lanes.find(lane => /bid|buy|maker/i.test(lane.name)) ||
+      lanes.find(lane => /place/i.test(lane.name)) ||
+      lanes[0]
+    );
+  }
+  return (
+    lanes.find(lane => /ask|sell|taker/i.test(lane.name)) ||
+    lanes.find(lane => /place/i.test(lane.name)) ||
+    lanes[0]
+  );
+}
+
+function pickCancelLane(
+  lanes: RelayConfigResponse['lanes']
+): RelayConfigResponse['lanes'][number] | null {
+  if (!lanes.length) return null;
+  return lanes.find(lane => /cancel/i.test(lane.name)) || lanes[0];
+}
+
+function remapLaneAccountsForOwner(
+  laneAccounts: RelayConfigResponse['lanes'][number]['remaining_accounts'],
+  configData: RelayConfigResponse,
+  ownerPubkey: string,
+  ownerMangoAccount: string
+): RelayConfigResponse['lanes'][number]['remaining_accounts'] {
+  if (!ownerMangoAccount) return laneAccounts;
+  const knownMangoAccounts = new Set<string>();
+  const knownOwners = new Set<string>();
+  if (configData.mango_account) knownMangoAccounts.add(configData.mango_account);
+  Object.entries(configData.owner_to_mango_account || {}).forEach(([owner, pk]) => {
+    if (owner) knownOwners.add(owner);
+    if (pk) knownMangoAccounts.add(pk);
+  });
+
+  if (
+    (!knownMangoAccounts.size || knownMangoAccounts.has(ownerMangoAccount)) &&
+    (!knownOwners.size || knownOwners.has(ownerPubkey))
+  ) {
+    return laneAccounts;
+  }
+
+  return laneAccounts.map(account =>
+    knownMangoAccounts.has(account.pubkey)
+      ? { ...account, pubkey: ownerMangoAccount }
+      : knownOwners.has(account.pubkey)
+        ? { ...account, pubkey: ownerPubkey }
+        : account
+  );
+}
+
+export function usePerps() {
+  const { publicKey, signMessage, wallet } = useWallet();
+  const { selectedMarket } = useSelectedMarket();
+  const relayConfigCacheRef = useRef<{
+    owner: string;
+    market: string;
+    value: ResolvedRelayConfig;
+    fetchedAtMs: number;
+  } | null>(null);
+  const marketMetaCacheRef = useRef<{
+    market: string;
+    value: Pick<
+      HarnessMarketMetadata,
+      'base_decimals' | 'quote_decimals' | 'base_lot_size' | 'quote_lot_size'
+    >;
+    fetchedAtMs: number;
+  } | null>(null);
+
+  const logPerf = (label: string, data: Record<string, number | string>) => {
+    if (import.meta.env.DEV) {
+      console.info(`[perps-timing] ${label}`, data);
+    }
+  };
+
+  const normalizeWalletSignature = (value: unknown): Uint8Array | null => {
+    if (value instanceof Uint8Array) return value;
+    if (value && typeof value === 'object' && 'signature' in value) {
+      const sig = (value as { signature?: unknown }).signature;
+      if (sig instanceof Uint8Array) return sig;
+    }
+    return null;
+  };
+
+  const signIntentMessage = async (message: Uint8Array): Promise<Uint8Array> => {
+    if (!publicKey || !signMessage) {
       throw new Error('Wallet not connected');
     }
 
-    const SIGNED_ORDER_PREFIX = Buffer.from('FRM_DEX_ORDER:');
-    const prefixedMessage = Buffer.concat([SIGNED_ORDER_PREFIX, serializedData]);
-    const sha256Hash = createHash('sha256').update(new Uint8Array(prefixedMessage)).digest();
-    const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
+    const startedAt = performance.now();
+    const adapterAny = wallet?.adapter as any;
+    const maybeWindow = globalThis as any;
+    const intentHex = Buffer.from(message).toString('hex');
+    const intentBase58 = bs58.encode(message);
+    const intentHexUtf8Bytes = new TextEncoder().encode(intentHex);
+    const providerCandidates = [
+      adapterAny?._wallet,
+      maybeWindow?.phantom?.solana,
+      maybeWindow?.solana,
+    ].filter(Boolean) as any[];
 
-    const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
-    const frmTransaction = {
-      version: '1.0',
-      type: 'order',
-      intent: intentJson,
-      signature: Buffer.from(signatureBytes).toString('hex'),
-      local_sequencer_id: 'continuum_client',
-      timestamp_ms: Date.now().toString(),
+    const attemptedErrors: string[] = [];
+    const trySign = async (
+      label: string,
+      fn: () => Promise<unknown>
+    ): Promise<Uint8Array | null> => {
+      try {
+        const result = await fn();
+        const signature = normalizeWalletSignature(result);
+        if (signature) return signature;
+      } catch (error) {
+        attemptedErrors.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      return null;
     };
 
-    console.log('frmTransaction', frmTransaction);
-    const jsonFrm = JSON.stringify(frmTransaction);
-    const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
-
-    const payloadBytes = Buffer.from(frmPrefixedString, 'utf-8');
-    const tx_id = `frm_order_${orderId.toString()}_${Date.now()}`;
-    const transactionData = {
-      version: '1.0',
-      tx_id,
-      payload: Array.from(payloadBytes),
-      signature: Buffer.from(signatureBytes).toString('hex'),
-      public_key: publicKey,
-      nonce: orderId.toNumber(),
-      timestamp: Date.now().toString(),
-    };
-
-    const apiUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.tx}`;
-
-    const response = await axios.post(apiUrl, {
-      transaction: transactionData,
-    });
-
-    console.log('TX RESPONSE', response.data);
-    const receipt = response.data;
-
-    if (receipt.sequence_number && receipt.expected_tick && receipt.tx_hash) {
-      addOrderReceipt({
-        sequence_number: receipt.sequence_number,
-        expected_tick: receipt.expected_tick,
-        tx_hash: receipt.tx_hash,
-        order_id: orderId.toNumber(),
+    const adapterSig = await trySign('walletAdapter.signMessage', () => signMessage(message));
+    if (adapterSig) {
+      logPerf('wallet-sign', {
+        strategy: 'wallet-adapter',
+        sign_ms: Math.round(performance.now() - startedAt),
       });
+      return adapterSig;
     }
 
-    return { success: true };
+    // Fallback path for providers that do not work through wallet-adapter.
+    for (const provider of providerCandidates) {
+      if (provider?.signMessage) {
+        const sigHexUtf8 = await trySign('provider.signMessage(hexUtf8Bytes,hex)', () =>
+          provider.signMessage(intentHexUtf8Bytes, 'hex')
+        );
+        if (sigHexUtf8) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.signMessage(hexUtf8Bytes,hex)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return sigHexUtf8;
+        }
+
+        const sigHexObj = await trySign('provider.signMessage({display:hex})', () =>
+          provider.signMessage(message, { display: 'hex' })
+        );
+        if (sigHexObj) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.signMessage({display:hex})',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return sigHexObj;
+        }
+
+        const sigHex = await trySign('provider.signMessage(hex)', () =>
+          provider.signMessage(message, 'hex')
+        );
+        if (sigHex) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.signMessage(hex)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return sigHex;
+        }
+
+        const sigHexString = await trySign('provider.signMessage(hexString,hex)', () =>
+          provider.signMessage(intentHex, 'hex')
+        );
+        if (sigHexString) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.signMessage(hexString,hex)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return sigHexString;
+        }
+
+        const sigBase58String = await trySign('provider.signMessage(base58String,hex)', () =>
+          provider.signMessage(intentBase58, 'hex')
+        );
+        if (sigBase58String) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.signMessage(base58String,hex)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return sigBase58String;
+        }
+
+        const sigHexObjString = await trySign(
+          'provider.signMessage({message:hexString,display:hex})',
+          () => provider.signMessage({ message: intentHex, display: 'hex' })
+        );
+        if (sigHexObjString) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.signMessage({message:hexString,display:hex})',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return sigHexObjString;
+        }
+
+        const sigDefault = await trySign('provider.signMessage(default)', () =>
+          provider.signMessage(message)
+        );
+        if (sigDefault) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.signMessage(default)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return sigDefault;
+        }
+      }
+
+      if (provider?.request) {
+        const req1 = await trySign('provider.request(signMessage, object bytes)', () =>
+          provider.request({
+            method: 'signMessage',
+            params: { message, display: 'hex' },
+          })
+        );
+        if (req1) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.request(object)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return req1;
+        }
+
+        const req2 = await trySign('provider.request(signMessage, object array)', () =>
+          provider.request({
+            method: 'signMessage',
+            params: { message: Array.from(message), display: 'hex' },
+          })
+        );
+        if (req2) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.request(object-array)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return req2;
+        }
+
+        const req3 = await trySign('provider.request(signMessage, tuple)', () =>
+          provider.request({
+            method: 'signMessage',
+            params: [message, 'hex'],
+          })
+        );
+        if (req3) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.request(tuple)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return req3;
+        }
+
+        const reqHexUtf8 = await trySign('provider.request(signMessage, object hexUtf8Bytes)', () =>
+          provider.request({
+            method: 'signMessage',
+            params: { message: intentHexUtf8Bytes, display: 'hex' },
+          })
+        );
+        if (reqHexUtf8) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.request(object-hexUtf8Bytes)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return reqHexUtf8;
+        }
+
+        const reqHexString = await trySign('provider.request(signMessage, object hexString)', () =>
+          provider.request({
+            method: 'signMessage',
+            params: { message: intentHex, display: 'hex' },
+          })
+        );
+        if (reqHexString) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.request(object-hexString)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return reqHexString;
+        }
+
+        const reqBase58String = await trySign(
+          'provider.request(signMessage, object base58String)',
+          () =>
+            provider.request({
+              method: 'signMessage',
+              params: { message: intentBase58, display: 'hex' },
+            })
+        );
+        if (reqBase58String) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.request(object-base58String)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return reqBase58String;
+        }
+
+        const reqTupleHexString = await trySign(
+          'provider.request(signMessage, tuple hexString)',
+          () =>
+            provider.request({
+              method: 'signMessage',
+              params: [intentHex, 'hex'],
+            })
+        );
+        if (reqTupleHexString) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.request(tuple-hexString)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return reqTupleHexString;
+        }
+      }
+    }
+
+    const adapterName = wallet?.adapter?.name || 'unknown';
+    throw new Error(
+      `Failed to sign canonical intent message (${message.length} bytes) via ${adapterName}. ${attemptedErrors.join(' | ') || 'No signer returned a signature'}`
+    );
+  };
+
+  const resolveRelayConfig = async (): Promise<ResolvedRelayConfig> => {
+    if (!publicKey) {
+      throw new Error('Wallet not connected');
+    }
+
+    const startedAt = performance.now();
+    const bridgeUrl = config.devnet.relayBridgeUrl;
+    const owner = publicKey.toBase58();
+    const market = selectedMarket?.uuid || config.devnet.defaultHarnessMarketId;
+    const cached = relayConfigCacheRef.current;
+    if (
+      cached &&
+      cached.owner === owner &&
+      cached.market === market &&
+      Date.now() - cached.fetchedAtMs < RELAY_CONFIG_CACHE_TTL_MS
+    ) {
+      logPerf('relay-config', {
+        strategy: 'cache-hit',
+        resolve_ms: Math.round(performance.now() - startedAt),
+      });
+      return cached.value;
+    }
+
+    const response = await axios.get<RelayConfigResponse>(
+      `${bridgeUrl}${API_ROUTES.relay_config}?owner=${encodeURIComponent(owner)}`
+    );
+    const configData = response.data;
+
+    const group = configData.group || config.devnet.mangoGroupPk;
+    const executionQueue = configData.execution_queue || config.devnet.mangoExecutionQueuePk;
+    const resolvedMarket = market || configData.market || config.devnet.defaultHarnessMarketId;
+    let mangoAccount = configData.owner_to_mango_account?.[owner] || '';
+
+    try {
+      const depositContextResponse = await axios.get<DepositContextResponse>(
+        `${config.devnet.apiBaseUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner)}`
+      );
+      const depositContext = depositContextResponse.data;
+      if (depositContext?.mango_account) {
+        if (!depositContext.mango_account_exists) {
+          throw new Error('Mango account missing; deposit first');
+        }
+        mangoAccount = depositContext.mango_account;
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Mango account missing; deposit first') {
+        throw error;
+      }
+    }
+
+    if (!mangoAccount && !configData.owner_to_mango_account?.[owner]) {
+      try {
+        const balancesResponse = await axios.get<HarnessOwnerBalancesResponse>(
+          `${config.devnet.apiBaseUrl}${API_ROUTES.user_balances.replace('{pubkey}', owner)}?view=optimistic&onchain=false`
+        );
+        const ownerMangoAccount = balancesResponse.data?.data?.mango_accounts?.[0];
+        if (ownerMangoAccount) {
+          mangoAccount = ownerMangoAccount;
+        }
+      } catch {
+        // Keep existing relay-config fallback when harness lookup fails.
+      }
+    }
+
+    if (!mangoAccount) {
+      mangoAccount = configData.mango_account || config.devnet.defaultMangoAccountPk;
+    }
+
+    if (!group || !executionQueue || !mangoAccount) {
+      throw new Error('Missing relay bridge configuration (group/execution_queue/mango_account)');
+    }
+
+    const resolved: ResolvedRelayConfig = {
+      configData,
+      group,
+      executionQueue,
+      market: resolvedMarket,
+      mangoAccount,
+    };
+
+    relayConfigCacheRef.current = {
+      owner,
+      market,
+      value: resolved,
+      fetchedAtMs: Date.now(),
+    };
+    logPerf('relay-config', {
+      strategy: 'network',
+      resolve_ms: Math.round(performance.now() - startedAt),
+    });
+    return resolved;
+  };
+
+  const resolveExecutionMarketParams = async (): Promise<{
+    base_decimals: number;
+    quote_decimals: number;
+    base_lot_size: number;
+    quote_lot_size: number;
+  }> => {
+    if (!selectedMarket) {
+      throw new Error('Selected market not found');
+    }
+
+    const marketId = selectedMarket.uuid || config.devnet.defaultHarnessMarketId;
+    const cached = marketMetaCacheRef.current;
+    if (
+      cached &&
+      cached.market === marketId &&
+      Date.now() - cached.fetchedAtMs < RELAY_CONFIG_CACHE_TTL_MS
+    ) {
+      return {
+        base_decimals: Number(cached.value.base_decimals),
+        quote_decimals: Number(cached.value.quote_decimals),
+        base_lot_size: Number(cached.value.base_lot_size),
+        quote_lot_size: Number(cached.value.quote_lot_size),
+      };
+    }
+
+    try {
+      const response = await axios.get<HarnessFullMarketsResponse>(
+        `${config.devnet.apiBaseUrl}${API_ROUTES.markets}?view=optimistic`
+      );
+      const marketMeta = response.data?.market_metadata?.[marketId];
+      if (marketMeta) {
+        marketMetaCacheRef.current = {
+          market: marketId,
+          value: {
+            base_decimals: marketMeta.base_decimals,
+            quote_decimals: marketMeta.quote_decimals,
+            base_lot_size: marketMeta.base_lot_size,
+            quote_lot_size: marketMeta.quote_lot_size,
+          },
+          fetchedAtMs: Date.now(),
+        };
+        return {
+          base_decimals: Number(marketMeta.base_decimals),
+          quote_decimals: Number(marketMeta.quote_decimals),
+          base_lot_size: Number(marketMeta.base_lot_size),
+          quote_lot_size: Number(marketMeta.quote_lot_size),
+        };
+      }
+    } catch {
+      // Fall back to the selected market snapshot if the harness metadata request fails.
+    }
+
+    return {
+      base_decimals: Number(selectedMarket.base_decimals ?? config.devnet.baseDecimals),
+      quote_decimals: Number(selectedMarket.quote_decimals ?? config.devnet.quoteDecimals),
+      base_lot_size: Number(selectedMarket.base_lot_size ?? config.devnet.baseLotSize),
+      quote_lot_size: Number(selectedMarket.quote_lot_size ?? config.devnet.quoteLotSize),
+    };
+  };
+
+  const submitIntent = async (params: {
+    payloadBytes: Uint8Array;
+    remainingAccounts: Array<{
+      pubkey: string;
+      is_signer: boolean;
+      is_writable: boolean;
+    }>;
+    group: string;
+    executionQueue: string;
+    market: string;
+    mangoAccount: string;
+    priceForTick: number;
+    sizeForTick: number;
+  }): Promise<{ success: boolean; txSignature?: string; error?: string }> => {
+    if (!publicKey || !signMessage) {
+      throw new Error('Wallet not connected');
+    }
+
+    const startedAt = performance.now();
+    const intent = await buildExecutionQueueUserIntent({
+      group: params.group,
+      executionQueue: params.executionQueue,
+      mangoAccount: params.mangoAccount,
+      userOwner: publicKey.toBase58(),
+      payload: params.payloadBytes,
+      remainingAccounts: params.remainingAccounts,
+    });
+    const builtIntentAt = performance.now();
+    const signatureBytes = await signIntentMessage(intent.userIntentMessage);
+    const signedIntentAt = performance.now();
+
+    const bridgeUrl = config.devnet.relayBridgeUrl;
+    const relayPayload = {
+      group: params.group,
+      execution_queue: params.executionQueue,
+      market: params.market,
+      payload_b64: bytesToBase64(params.payloadBytes),
+      remaining_accounts: params.remainingAccounts,
+      min_execute_slot: '0',
+      expires_at_slot: '0',
+      user_owner: publicKey.toBase58(),
+      mango_account: params.mangoAccount,
+      user_signature_b64: bytesToBase64(signatureBytes),
+    };
+    let relayResponse;
+    for (let attempt = 0; attempt <= RELAY_DUPLICATE_SEQUENCE_RETRIES; attempt += 1) {
+      try {
+        relayResponse = await axios.post(`${bridgeUrl}${API_ROUTES.tx}`, relayPayload);
+        break;
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          const detail =
+            (error.response?.data as { error?: string } | undefined)?.error ||
+            error.response?.statusText ||
+            error.message;
+          const shouldRetry =
+            attempt < RELAY_DUPLICATE_SEQUENCE_RETRIES && isDuplicateSequenceRelayError(detail);
+          if (shouldRetry) {
+            await sleep(150 * (attempt + 1));
+            continue;
+          }
+          throw new Error(`relay submit failed: ${detail}`);
+        }
+        throw error;
+      }
+    }
+    const relaySubmittedAt = performance.now();
+
+    // Record submitted price ticks into local TimeScaleDB bridge.
+    try {
+      await axios.post(`${bridgeUrl}${API_ROUTES.candles_ingest}`, {
+        market: params.market,
+        price: params.priceForTick,
+        size: params.sizeForTick,
+        timestamp_ms: Date.now(),
+        source: 'frontend-intent',
+      });
+    } catch {
+      // Non-blocking: charting persistence should not block order flow.
+    }
+
+    logPerf('submit-intent', {
+      build_intent_ms: Math.round(builtIntentAt - startedAt),
+      sign_intent_ms: Math.round(signedIntentAt - builtIntentAt),
+      relay_submit_ms: Math.round(relaySubmittedAt - signedIntentAt),
+      total_ms: Math.round(relaySubmittedAt - startedAt),
+    });
+
+    return {
+      success: true,
+      txSignature: relayResponse.data?.tx_signature,
+    };
+  };
+
+  const buildPlacePayload = (params: {
+    side: OrderSide;
+    price: number;
+    size: number;
+    reduceOnly: boolean;
+    orderType: QueuePlaceOrderType;
+    clientOrderId: bigint;
+    marketMeta: {
+      base_decimals: number;
+      quote_decimals: number;
+      base_lot_size: number;
+      quote_lot_size: number;
+    };
+  }): Uint8Array => {
+    if (!selectedMarket) {
+      throw new Error('Selected market not found');
+    }
+
+    const baseDecimals = params.marketMeta.base_decimals;
+    const quoteDecimals = params.marketMeta.quote_decimals;
+    const baseLotSize = params.marketMeta.base_lot_size;
+    const quoteLotSize = params.marketMeta.quote_lot_size;
+
+    const priceLots = uiPriceToLots({
+      uiPrice: params.price,
+      baseDecimals,
+      quoteDecimals,
+      baseLotSize,
+      quoteLotSize,
+    });
+    const maxBaseLots = uiBaseToLots({
+      uiQuantity: params.size,
+      baseDecimals,
+      baseLotSize,
+    });
+
+    const quoteValue = Math.max(params.price * params.size * 1.1, 0);
+    const maxQuoteLots = uiQuoteToLots({
+      uiQuote: quoteValue,
+      quoteDecimals,
+      quoteLotSize,
+    });
+
+    return encodePerpPlaceOrderV2QueuePayload({
+      side: sideToQueueSide(params.side),
+      priceLots,
+      maxBaseLots,
+      maxQuoteLots,
+      clientOrderId: params.clientOrderId,
+      orderType: params.orderType,
+      selfTradeBehavior: QueueSelfTradeBehavior.DecrementTake,
+      reduceOnly: params.reduceOnly,
+      expiryTimestamp: 0n,
+      limit: 20,
+    });
   };
 
   const openPosition = async ({
     side,
     price,
     size,
-    leverage,
-    marginMode,
-    stopLoss,
-    takeProfit,
   }: PerpsSubmitOrderParams): Promise<{ success: boolean; error?: string }> => {
     try {
-      if (!signMessage || !publicKey) {
+      if (!publicKey || !signMessage) {
         throw new Error('Wallet not connected');
       }
-
       if (!selectedMarket) {
-        throw new Error('Selected market not found!');
+        throw new Error('Selected market not found');
       }
 
-      // Validate input parameters
-      const priceValue = parseFloat(price);
-      const sizeValue = parseFloat(size);
-      const leverageValue = parseFloat(leverage);
-
-      if (isNaN(priceValue) || priceValue <= 0) {
-        throw new Error('Invalid price: must be a positive number');
+      const priceValue = Number(price);
+      const sizeValue = Number(size);
+      if (!Number.isFinite(priceValue) || priceValue <= 0) {
+        throw new Error('Invalid price');
+      }
+      if (!Number.isFinite(sizeValue) || sizeValue <= 0) {
+        throw new Error('Invalid size');
       }
 
-      if (isNaN(sizeValue) || sizeValue <= 0) {
-        throw new Error('Invalid size: must be a positive number');
+      const relay = await resolveRelayConfig();
+      const marketMeta = await resolveExecutionMarketParams();
+      const lane = pickPlaceLane(relay.configData.lanes, side);
+      if (!lane) {
+        throw new Error('No relay lane is configured for place-order');
       }
-
-      if (isNaN(leverageValue) || leverageValue < 1) {
-        throw new Error('Invalid leverage: must be at least 1');
-      }
-
-      const orderId = new BN(Date.now());
-
-      const priceDecimals = new BN(Math.pow(10, selectedMarket?.quoteDecimals));
-      const quantityDecimals = new BN(Math.pow(10, selectedMarket?.baseDecimals));
-
-      console.log({ priceDecimals, quantityDecimals });
-      const priceBN = new BN(Math.floor(priceValue)).mul(priceDecimals);
-      const sizeBN = new BN(Math.floor(sizeValue)).mul(quantityDecimals);
-
-      const baseMintAddress = selectedMarket?.base_mint || baseMint.toBase58();
-      const quoteMintAddress = selectedMarket?.quote_mint || quoteMint.toBase58();
-
-      // Calculate margin using the utility function
-      const marginResult = calculatePerpMargin({
-        price: Math.floor(priceValue), // Raw price without decimals
-        quantity: Math.floor(sizeValue), // Raw quantity without decimals
-        leverage: leverageValue,
-        marketInitialMarginBps: selectedMarket?.perp_config?.initial_margin || 0,
-      });
-
-      // Apply quote token decimals to the margin result
-      const marginAmount = marginResult.requiredMargin.mul(priceDecimals);
-
-      // Parse and convert stop loss and take profit prices to BN with decimals
-      const stopLossBN = stopLoss
-        ? new BN(
-            Math.floor(parseFloat(stopLoss) * Math.pow(10, selectedMarket?.quoteDecimals || 0))
-          )
-        : null;
-      const takeProfitBN = takeProfit
-        ? new BN(
-            Math.floor(parseFloat(takeProfit) * Math.pow(10, selectedMarket?.quoteDecimals || 0))
-          )
-        : null;
-
-      const orderIntent = new PerpLimitOrderIntent(
-        orderId,
-        publicKey,
-        side,
-        priceBN,
-        sizeBN,
-        new BN(1500000000000),
-        new PublicKey(baseMintAddress),
-        new PublicKey(quoteMintAddress),
-        'perp',
-        new BN(leverageValue),
-        'open',
-        false, // reduce_only - always false for open positions from PerpsTradePanel
-        marginMode,
-        marginAmount, // margin_amount
-        false, // liquidation
-        stopLossBN, // stop_loss_price
-        takeProfitBN // take_profit_price
+      const remainingAccounts = remapLaneAccountsForOwner(
+        lane.remaining_accounts,
+        relay.configData,
+        publicKey.toBase58(),
+        relay.mangoAccount
       );
 
-      const serializedData = PerpLimitOrderIntent.serialize(orderIntent);
-      const intentJson = {
-        ...orderIntent.toJSON(),
-        order_type: 'limit',
-      };
+      const payloadBytes = buildPlacePayload({
+        side,
+        price: priceValue,
+        size: sizeValue,
+        reduceOnly: false,
+        orderType: QueuePlaceOrderType.Limit,
+        clientOrderId: BigInt(Date.now()),
+        marketMeta,
+      });
 
-      console.log('open position (limit)', intentJson);
-      await signAndSubmit(serializedData, intentJson, orderId);
+      await submitIntent({
+        payloadBytes,
+        remainingAccounts,
+        group: relay.group,
+        executionQueue: relay.executionQueue,
+        market: relay.market,
+        mangoAccount: relay.mangoAccount,
+        priceForTick: priceValue,
+        sizeForTick: sizeValue,
+      });
 
       toast.success(`${side} order placed successfully`);
       return { success: true };
     } catch (error) {
-      toast.error('Failed to place order');
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      toast.error(error instanceof Error ? error.message : 'Failed to place order');
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   };
 
   const openMarketPosition = async ({
     side,
     size,
-    leverage,
-    marginMode,
     maxSlippageBps,
     markPrice,
   }: PerpsMarketOrderParams): Promise<{ success: boolean; error?: string }> => {
     try {
-      if (!signMessage || !publicKey) {
+      if (!publicKey || !signMessage) {
         throw new Error('Wallet not connected');
       }
-
       if (!selectedMarket) {
-        throw new Error('Selected market not found!');
+        throw new Error('Selected market not found');
       }
 
-      const sizeValue = parseFloat(size);
-      const leverageValue = parseFloat(leverage);
-
-      if (isNaN(sizeValue) || sizeValue <= 0) {
-        throw new Error('Invalid size: must be a positive number');
+      const sizeValue = Number(size);
+      if (!Number.isFinite(sizeValue) || sizeValue <= 0) {
+        throw new Error('Invalid size');
+      }
+      if (!Number.isFinite(markPrice) || markPrice <= 0) {
+        throw new Error('Mark price unavailable');
       }
 
-      if (isNaN(leverageValue) || leverageValue < 1) {
-        throw new Error('Invalid leverage: must be at least 1');
+      const relay = await resolveRelayConfig();
+      const marketMeta = await resolveExecutionMarketParams();
+      const lane = pickPlaceLane(relay.configData.lanes, side);
+      if (!lane) {
+        throw new Error('No relay lane is configured for market-order');
       }
-
-      if (!markPrice || markPrice <= 0) {
-        throw new Error('Mark price unavailable — cannot place market order');
-      }
-
-      const orderId = new BN(Date.now());
-
-      const priceDecimals = new BN(Math.pow(10, selectedMarket?.quoteDecimals));
-      const quantityDecimals = new BN(Math.pow(10, selectedMarket?.baseDecimals));
-      const sizeBN = new BN(Math.floor(sizeValue)).mul(quantityDecimals);
-
-      // Set price to mark_price * 1.05 for buys, mark_price * 0.95 for sells
-      // This gives 5% headroom within the engine's 10% hard cap
-      const slippageMultiplier = side === 'Buy' ? 1.05 : 0.95;
-      const adjustedPrice = Math.floor(markPrice * slippageMultiplier);
-      const priceBN = new BN(adjustedPrice).mul(priceDecimals);
-
-      const baseMintAddress = selectedMarket?.base_mint || baseMint.toBase58();
-      const quoteMintAddress = selectedMarket?.quote_mint || quoteMint.toBase58();
-
-      const orderIntent = new PerpMarketOrderIntent(
-        orderId,
-        publicKey,
-        side,
-        priceBN,
-        sizeBN,
-        new BN(1500000000000),
-        new PublicKey(baseMintAddress),
-        new PublicKey(quoteMintAddress),
-        'perp',
-        new BN(leverageValue),
-        'open',
-        false, // reduce_only
-        marginMode,
-        false, // liquidation
-        maxSlippageBps,
-        selectedMarket?.uuid ?? null,
-        null, // stop_loss_price
-        null // take_profit_price
+      const remainingAccounts = remapLaneAccountsForOwner(
+        lane.remaining_accounts,
+        relay.configData,
+        publicKey.toBase58(),
+        relay.mangoAccount
       );
 
-      const serializedData = PerpMarketOrderIntent.serialize(orderIntent);
-      const intentJson = orderIntent.toJSON();
+      const slippageFraction = Math.max(0, maxSlippageBps) / 10_000;
+      const slippageMultiplier = side === 'Buy' ? 1 + slippageFraction : 1 - slippageFraction;
+      const effectivePrice = markPrice * slippageMultiplier;
+      const payloadBytes = buildPlacePayload({
+        side,
+        price: effectivePrice,
+        size: sizeValue,
+        reduceOnly: false,
+        orderType: QueuePlaceOrderType.Market,
+        clientOrderId: BigInt(Date.now()),
+        marketMeta,
+      });
 
-      console.log('open position (market)', intentJson);
-      await signAndSubmit(serializedData, intentJson, orderId);
+      await submitIntent({
+        payloadBytes,
+        remainingAccounts,
+        group: relay.group,
+        executionQueue: relay.executionQueue,
+        market: relay.market,
+        mangoAccount: relay.mangoAccount,
+        priceForTick: markPrice,
+        sizeForTick: sizeValue,
+      });
 
       toast.success(`Market ${side} order placed successfully`);
       return { success: true };
     } catch (error) {
-      toast.error('Failed to place market order');
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      toast.error(error instanceof Error ? error.message : 'Failed to place market order');
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   };
 
@@ -300,123 +874,104 @@ export function usePerps() {
     size: string;
   }): Promise<{ success: boolean; error?: string }> => {
     try {
-      if (!signMessage || !publicKey) {
+      if (!publicKey || !signMessage) {
         throw new Error('Wallet not connected');
       }
-
       if (!selectedMarket) {
-        throw new Error('Selected market not found!');
+        throw new Error('Selected market not found');
       }
 
-      const orderId = new BN(Date.now());
+      const priceValue = Number(price);
+      const sizeValue = Number(size);
+      if (!Number.isFinite(priceValue) || priceValue <= 0) {
+        throw new Error('Invalid close price');
+      }
+      if (!Number.isFinite(sizeValue) || sizeValue <= 0) {
+        throw new Error('Invalid close size');
+      }
 
-      // Convert form values to proper BN values with decimal scaling
-      const priceValue = parseFloat(price);
-      const sizeValue = parseFloat(size);
-
-      // const priceDecimals = new BN(Math.pow(10, selectedMarket?.quoteDecimals));
-      // const quantityDecimals = new BN(Math.pow(10, selectedMarket?.baseDecimals));
-      // commentintg out decimal part because the positions api gives lamports and wedirectly use that
-
-      const priceBN = new BN(Math.floor(priceValue));
-      const sizeBN = new BN(Math.floor(sizeValue));
-
-      const baseMintAddress = selectedMarket?.base_mint || baseMint.toBase58();
-      const quoteMintAddress = selectedMarket?.quote_mint || quoteMint.toBase58();
-
-      const orderIntent = new PerpLimitOrderIntent(
-        orderId,
-        publicKey,
-        side,
-        priceBN,
-        sizeBN,
-        new BN(20000000000), // Hardcoded expiry
-        new PublicKey(baseMintAddress),
-        new PublicKey(quoteMintAddress),
-        'perp',
-        new BN(1), // leverage doesn't matter for closing
-        'close', // position_effect: close
-        true, // reduce_only: true for closing positions
-        'cross', // margin_mode: cross for closing
-        new BN(0), // margin_amount: 0 for closing
-        false, // liquidation
-        null, // stop_loss_price: null for closing
-        null // take_profit_price: null for closing
+      const relay = await resolveRelayConfig();
+      const marketMeta = await resolveExecutionMarketParams();
+      const lane = pickPlaceLane(relay.configData.lanes, side);
+      if (!lane) {
+        throw new Error('No relay lane is configured for close-position');
+      }
+      const remainingAccounts = remapLaneAccountsForOwner(
+        lane.remaining_accounts,
+        relay.configData,
+        publicKey.toBase58(),
+        relay.mangoAccount
       );
 
-      const serializedData = PerpLimitOrderIntent.serialize(orderIntent);
-      const SIGNED_ORDER_PREFIX = Buffer.from('FRM_DEX_ORDER:');
-      const prefixedMessage = Buffer.concat([SIGNED_ORDER_PREFIX, serializedData]);
-      const sha256Hash = createHash('sha256').update(new Uint8Array(prefixedMessage)).digest();
-      const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
-
-      const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
-      const frmTransaction = {
-        version: '1.0',
-        type: 'order',
-        intent: {
-          order_id: orderIntent.order_id.toNumber(),
-          owner: orderIntent.owner.toBase58(),
-          side: orderIntent.side,
-          price: orderIntent.price.toNumber(),
-          quantity: orderIntent.quantity.toNumber(),
-          expiry: orderIntent.expiry.toNumber(),
-          base_mint: orderIntent.base_mint.toBase58(),
-          quote_mint: orderIntent.quote_mint.toBase58(),
-          market_kind: orderIntent.market_kind,
-          leverage: orderIntent.leverage?.toNumber() || 1,
-          position_effect: orderIntent.position_effect,
-          reduce_only: orderIntent.reduce_only,
-          margin_mode: orderIntent.margin_mode,
-          margin_amount: orderIntent.margin_amount?.toNumber() || 0,
-          liquidation: orderIntent.liquidation,
-          stop_loss_price: orderIntent.stop_loss_price?.toNumber() || null,
-          take_profit_price: orderIntent.take_profit_price?.toNumber() || null,
-        },
-        signature: Buffer.from(signatureBytes).toString('hex'),
-        local_sequencer_id: 'continuum_client',
-        timestamp_ms: Date.now().toString(),
-      };
-
-      console.log('closePosition', frmTransaction);
-      const jsonFrm = JSON.stringify(frmTransaction);
-      const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
-
-      const payloadBytes = Buffer.from(frmPrefixedString, 'utf-8');
-      const tx_id = `frm_order_${orderIntent.order_id.toString()}_${Date.now()}`;
-      const transactionData = {
-        version: '1.0',
-        tx_id,
-        payload: Array.from(payloadBytes),
-        signature: Buffer.from(signatureBytes).toString('hex'),
-        public_key: publicKey,
-        nonce: frmTransaction.intent.order_id,
-        timestamp: Date.now().toString(),
-      };
-
-      const apiUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.tx}`;
-
-      const response = await axios.post(apiUrl, {
-        transaction: transactionData,
+      const payloadBytes = buildPlacePayload({
+        side,
+        price: priceValue,
+        size: sizeValue,
+        reduceOnly: true,
+        orderType: QueuePlaceOrderType.Market,
+        clientOrderId: BigInt(Date.now()),
+        marketMeta,
       });
 
-      const receipt = response.data;
+      await submitIntent({
+        payloadBytes,
+        remainingAccounts,
+        group: relay.group,
+        executionQueue: relay.executionQueue,
+        market: relay.market,
+        mangoAccount: relay.mangoAccount,
+        priceForTick: priceValue,
+        sizeForTick: sizeValue,
+      });
 
-      console.log('CLOSE TX', receipt);
-
-      if (receipt.sequence_number && receipt.expected_tick && receipt.tx_hash) {
-        addOrderReceipt({
-          sequence_number: receipt.sequence_number,
-          expected_tick: receipt.expected_tick,
-          tx_hash: receipt.tx_hash,
-          order_id: orderIntent.order_id.toNumber(),
-        });
-      }
-
-      toast.success(`Closed position`);
+      toast.success('Closed position');
       return { success: true };
     } catch (error) {
-      toast.error('Failed to place close order');
+      toast.error(error instanceof Error ? error.message : 'Failed to close position');
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  };
+
+  const cancelOrder = async (orderId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!publicKey || !signMessage) {
+        throw new Error('Wallet not connected');
+      }
+      if (!selectedMarket) {
+        throw new Error('Selected market not found');
+      }
+
+      const relay = await resolveRelayConfig();
+      const lane = pickCancelLane(relay.configData.lanes);
+      if (!lane) {
+        throw new Error('No relay lane is configured for cancel-order');
+      }
+      const remainingAccounts = remapLaneAccountsForOwner(
+        lane.remaining_accounts,
+        relay.configData,
+        publicKey.toBase58(),
+        relay.mangoAccount
+      );
+
+      const payloadBytes = encodePerpCancelOrderQueuePayload(BigInt(orderId));
+      await submitIntent({
+        payloadBytes,
+        remainingAccounts,
+        group: relay.group,
+        executionQueue: relay.executionQueue,
+        market: relay.market,
+        mangoAccount: relay.mangoAccount,
+        priceForTick: 0,
+        sizeForTick: 0,
+      });
+
+      toast.success('Order cancelled');
+      return { success: true };
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to cancel order');
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -428,5 +983,6 @@ export function usePerps() {
     openPosition,
     openMarketPosition,
     closePosition,
+    cancelOrder,
   };
 }

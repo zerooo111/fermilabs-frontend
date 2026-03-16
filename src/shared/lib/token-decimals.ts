@@ -20,6 +20,12 @@ export const TOKEN_REGISTRY: Record<string, TokenInfo> = {
     symbol: 'USDC',
     decimals: 6,
   },
+  // Devnet/test USDC used by the FIFO perps e2e deployment
+  Cpd41XpM9H7mjfyPgNsh3UscD2A1WmGaCW1xnjuzZn55: {
+    name: 'USD Coin',
+    symbol: 'USDC',
+    decimals: 6,
+  },
   // USDC placeholder for perps base mint
   '11111111111111111111111111111111': {
     name: 'USD Coin',

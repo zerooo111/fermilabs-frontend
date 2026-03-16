@@ -18,13 +18,13 @@ import { useSetAtom } from 'jotai';
 import { getLeverageLimitsFromMarket } from '@/entities/market/model';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-import { config, API_ROUTES } from '@/shared/config/constants';
 import { toast } from 'sonner';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { useMemo } from 'react';
+import { useSequencerApi } from '@/shared/api/useSequencerApi';
+import { useAccount } from '@/shared/hooks/useAccount';
+import { useMangoMarginDeposit } from '@/shared/hooks/useMangoMarginDeposit';
 
 // Safe parsing functions to prevent NaN errors
 const safeParseFloat = (value: string, defaultValue: number = 0): number => {
@@ -32,6 +32,22 @@ const safeParseFloat = (value: string, defaultValue: number = 0): number => {
   const parsed = parseFloat(value);
   return isNaN(parsed) ? defaultValue : parsed;
 };
+
+const marketQuoteDecimals = (selectedMarket: any): number =>
+  Math.max(
+    0,
+    selectedMarket?.quoteDecimals ??
+      selectedMarket?.quote_decimals ??
+      getTokenDecimals(selectedMarket?.quoteTokenName)
+  );
+
+const marketBaseDecimals = (selectedMarket: any): number =>
+  Math.max(
+    0,
+    selectedMarket?.baseDecimals ??
+      selectedMarket?.base_decimals ??
+      getTokenDecimals(selectedMarket?.baseTokenName)
+  );
 
 export function PerpsTradePanel() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,10 +77,13 @@ export function PerpsTradePanel() {
   const { selectedMarket } = useSelectedMarket();
   const { openPosition, openMarketPosition } = usePerps();
   const setSLTPValues = useSetAtom(sltpValuesAtom);
+  const { requestAirdrop } = useSequencerApi();
+  const { depositMargin } = useMangoMarginDeposit();
+  const { data: accountData } = useAccount(publicKey?.toBase58() || '');
 
   // Fetch market stats to get mark price
   const { data: marketsData } = useMarketStats({
-    refetchInterval: 5000,
+    refetchInterval: 1000,
     enabled: !!selectedMarket,
   });
 
@@ -83,60 +102,63 @@ export function PerpsTradePanel() {
     }
 
     // Normalize mark_price by dividing by 10^quoteDecimals
-    const quoteDecimals = selectedMarket.quoteDecimals ?? 6;
+    const quoteDecimals = marketQuoteDecimals(selectedMarket);
     return rawMarkPrice / Math.pow(10, quoteDecimals);
   }, [selectedMarket?.uuid, selectedMarket?.quoteDecimals, marketsData]);
 
-  // Fetch user balances from API
-  const { data: balances } = useQuery({
-    queryKey: ['userBalances', publicKey?.toBase58()],
-    queryFn: async () => {
-      if (!publicKey) return null;
-      const url = `${config.devnet.apiBaseUrl}${API_ROUTES.user_balances.replace('{pubkey}', publicKey.toBase58())}`;
-      const response = await axios.get(url);
-      return response.data as Record<string, { available: string; reserved: string }>;
-    },
-    enabled: !!publicKey,
-    refetchInterval: 5000,
-  });
-
-  // Airdrop function
-  const requestAirdrop = async (mintAddress: string, tokenName: string) => {
+  const handleTokenAirdrop = async () => {
     if (!publicKey) return;
-
-    const url = `${config.devnet.apiBaseUrl}/rollup/airdrop`;
-
-    // Default airdrop amount based on token decimals (e.g., 1000 tokens)
-    const decimals = getTokenDecimals(tokenName);
-    const amount = 1000 * Math.pow(10, decimals);
-
-    const promise = axios
-      .post(url, {
-        recipient: publicKey.toBase58(),
-        token_mint: mintAddress,
-        amount: amount,
-      })
-      .then(res => res.data);
+    const promise = requestAirdrop(publicKey.toBase58());
 
     toast.promise(promise, {
-      loading: 'Airdrop Request Initiated - Waiting for approval...',
+      loading: 'Minting test USDC...',
       success: data => (
         <div className="flex flex-col gap-1">
           <div>
-            <strong>Airdrop Request Confirmed</strong>
+            <strong>Airdrop Complete</strong>
           </div>
           <div>
-            Sent {(amount / Math.pow(10, decimals)).toLocaleString()} {tokenName}
+            Minted {(data?.ui_amount ?? 0).toLocaleString()}{' '}
+            {selectedMarket?.quoteTokenName ?? 'USDC'}
           </div>
-          {data?.transaction_id && (
-            <div className="text-xs">TX: {data.transaction_id.slice(0, 8)}...</div>
+        </div>
+      ),
+      error: (err: any) => (
+        <div className="flex flex-col gap-1">
+          <div>
+            <strong>Airdrop Failed</strong>
+          </div>
+          <div>{err?.response?.data?.error || err?.message || 'Request failed'}</div>
+        </div>
+      ),
+    });
+  };
+
+  const handleMarginDeposit = async () => {
+    if (!publicKey) return;
+    const promise = depositMargin();
+
+    toast.promise(promise, {
+      loading: 'Funding margin account...',
+      success: data => (
+        <div className="flex flex-col gap-1">
+          <div>
+            <strong>Margin Funded</strong>
+          </div>
+          <div>
+            Deposited {(data?.uiAmount ?? 0).toLocaleString()}{' '}
+            {selectedMarket?.quoteTokenName ?? 'USDC'}
+          </div>
+          {data?.autoCreatedMangoAccount && <div className="text-xs">Created Mango account</div>}
+          {data?.txSignature && (
+            <div className="text-xs">TX: {data.txSignature.slice(0, 8)}...</div>
           )}
         </div>
       ),
       error: (err: any) => (
         <div className="flex flex-col gap-1">
           <div>
-            <strong>Airdrop Request Failed</strong>
+            <strong>Funding Failed</strong>
           </div>
           <div>{err?.response?.data?.error || err?.message || 'Request failed'}</div>
         </div>
@@ -157,7 +179,7 @@ export function PerpsTradePanel() {
     if (!selectedMarket || priceValue <= 0 || sizeValue <= 0) {
       return 0;
     }
-    const quoteDecimals = getTokenDecimals(selectedMarket.quoteTokenName);
+    const quoteDecimals = marketQuoteDecimals(selectedMarket);
     // Calculate notional in human-readable units (quote token units)
     const notionalHumanReadable = priceValue * sizeValue;
     // Convert to raw quote units (lamports) - this is what the backend uses
@@ -329,25 +351,26 @@ export function PerpsTradePanel() {
       <div className="flex flex-col p-3 gap-2 flex-1">
         {publicKey && selectedMarket && (
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Available {selectedMarket.quoteTokenName}</span>
+            <span className="text-muted-foreground">Available Margin</span>
             <div className="flex items-center gap-2">
               <span className="font-mono tabular-nums">
-                {balances && balances[selectedMarket.quote_mint]
-                  ? (
-                      parseFloat(balances[selectedMarket.quote_mint].available) /
-                      Math.pow(10, selectedMarket.quoteDecimals)
-                    ).toFixed(selectedMarket.quoteDecimals)
-                  : '0.000000'}
+                {(accountData?.free_collateral_snapshot ?? 0).toFixed(selectedMarket.quoteDecimals)}
               </span>
               <Button
                 variant="outline"
                 size="sm"
                 className="h-6 px-2 text-xs"
-                onClick={() =>
-                  requestAirdrop(selectedMarket.quote_mint, selectedMarket.quoteTokenName)
-                }
+                onClick={handleTokenAirdrop}
               >
                 Airdrop
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={handleMarginDeposit}
+              >
+                Deposit
               </Button>
             </div>
           </div>
@@ -363,9 +386,7 @@ export function PerpsTradePanel() {
                 <button
                   type="button"
                   onClick={() => {
-                    const formattedPrice = markPrice.toFixed(
-                      getTokenDecimals(selectedMarket?.quoteTokenName)
-                    );
+                    const formattedPrice = markPrice.toFixed(marketQuoteDecimals(selectedMarket));
                     setFormState(prev => ({ ...prev, price: formattedPrice }));
                   }}
                   className="text-xs text-muted-foreground hover:text-foreground underline"
@@ -385,7 +406,7 @@ export function PerpsTradePanel() {
               placeholder="0.00"
               required
               unit={selectedMarket?.quoteTokenName}
-              decimalScale={getTokenDecimals(selectedMarket?.quoteTokenName)}
+              decimalScale={marketQuoteDecimals(selectedMarket)}
               allowNegative={false}
             />
           </div>
@@ -437,7 +458,7 @@ export function PerpsTradePanel() {
           placeholder="0.00"
           required
           unit={selectedMarket?.baseTokenName}
-          decimalScale={getTokenDecimals(selectedMarket?.baseTokenName)}
+          decimalScale={marketBaseDecimals(selectedMarket)}
           allowNegative={false}
         />
 
@@ -614,7 +635,7 @@ export function PerpsTradePanel() {
                 }
                 placeholder="Price level"
                 unit={selectedMarket?.quoteTokenName}
-                decimalScale={getTokenDecimals(selectedMarket?.quoteTokenName)}
+                decimalScale={marketQuoteDecimals(selectedMarket)}
                 allowNegative={false}
                 disabled={formState.orderType === 'market'}
               />
@@ -629,7 +650,7 @@ export function PerpsTradePanel() {
                 }
                 placeholder="Price level"
                 unit={selectedMarket?.quoteTokenName}
-                decimalScale={getTokenDecimals(selectedMarket?.quoteTokenName)}
+                decimalScale={marketQuoteDecimals(selectedMarket)}
                 allowNegative={false}
                 disabled={formState.orderType === 'market'}
               />
@@ -690,9 +711,7 @@ export function PerpsTradePanel() {
           <div className="flex items-center justify-between">
             <span>Position Size</span>
             <span className="tabular-nums">
-              {sizeValue > 0
-                ? `${sizeValue.toFixed(getTokenDecimals(selectedMarket?.baseTokenName))}`
-                : `0.00 `}
+              {sizeValue > 0 ? `${sizeValue.toFixed(marketBaseDecimals(selectedMarket))}` : `0.00 `}
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -701,8 +720,8 @@ export function PerpsTradePanel() {
               {orderValue > 0 && priceValue > 0 && sizeValue > 0 && leverageValue >= 1
                 ? (() => {
                     try {
-                      const quoteDecimals = getTokenDecimals(selectedMarket?.quoteTokenName);
-                      const baseDecimals = getTokenDecimals(selectedMarket?.baseTokenName);
+                      const quoteDecimals = marketQuoteDecimals(selectedMarket);
+                      const baseDecimals = marketBaseDecimals(selectedMarket);
 
                       // Convert to raw token units to preserve decimal precision
                       const priceRaw = Math.floor(priceValue * Math.pow(10, quoteDecimals));
@@ -738,7 +757,7 @@ export function PerpsTradePanel() {
                 ? (() => {
                     try {
                       const liqPrice = priceValue * (1 - 1 / leverageValue);
-                      return liqPrice.toFixed(getTokenDecimals(selectedMarket?.quoteTokenName));
+                      return liqPrice.toFixed(marketQuoteDecimals(selectedMarket));
                     } catch (error) {
                       console.error('Liquidation price calculation error:', error);
                       return '0.00';

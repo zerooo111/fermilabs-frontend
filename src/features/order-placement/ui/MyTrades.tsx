@@ -10,6 +10,11 @@ import { selectedMarketAtom } from '@/entities/market/model';
 import { useAtomValue } from 'jotai';
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import {
+  formatPrice,
+  formatQuantity,
+  formatTotal,
+} from '@/features/orderbook-view/lib/processOrderbook';
 
 export function MyTrades() {
   const { publicKey } = useWallet();
@@ -20,11 +25,11 @@ export function MyTrades() {
     queryKey: ['trades', publicKey?.toBase58(), selectedMarket?.uuid],
     queryFn: async () => {
       if (!publicKey || !selectedMarket) return [];
-      return fetchTrades(publicKey.toBase58(), selectedMarket.uuid);
+      return fetchTrades(publicKey.toBase58(), selectedMarket.uuid, 100, selectedMarket);
     },
     enabled: !!publicKey && !!selectedMarket,
-    refetchInterval: 1000, // Refetch every 1 second
-    staleTime: 5000, // Consider data stale after 5 seconds
+    refetchInterval: 500, // Refetch every 0.5 seconds
+    staleTime: 500, // Keep cache fresh when switching tabs
   });
 
   if (!publicKey) {
@@ -90,10 +95,12 @@ export function MyTrades() {
             <Badge variant={side === 'Buy' ? 'success' : 'danger'}>{side}</Badge>
           </TableCell>
           <TableCell className="font-mono">
-            {trade.price} {selectedMarket?.quoteTokenName}
+            {formatPrice(trade.price, selectedMarket?.quoteDecimals ?? 6)}{' '}
+            {selectedMarket?.quoteTokenName}
           </TableCell>
           <TableCell className="font-mono">
-            {trade.quantity} {selectedMarket?.baseTokenName}
+            {formatQuantity(trade.quantity, selectedMarket?.baseDecimals ?? 9)}{' '}
+            {selectedMarket?.baseTokenName}
           </TableCell>
           <TableCell className="font-mono">
             <span className={isBuyer ? 'text-success' : ''}>
@@ -106,7 +113,13 @@ export function MyTrades() {
             </span>
           </TableCell>
           <TableCell className="text-right font-mono">
-            {trade.price * trade.quantity} {selectedMarket?.quoteTokenName}
+            {formatTotal(
+              trade.price,
+              trade.quantity,
+              selectedMarket?.quoteDecimals ?? 6,
+              selectedMarket?.baseDecimals ?? 9
+            )}{' '}
+            {selectedMarket?.quoteTokenName}
           </TableCell>
         </TableRow>
       );

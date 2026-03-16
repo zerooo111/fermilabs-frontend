@@ -57,7 +57,7 @@ export const useOrderbook = () => {
       return null;
     }
 
-    const depthData = await fetchOrderbookDepth(selectedMarket.uuid);
+    const depthData = await fetchOrderbookDepth(selectedMarket.uuid, selectedMarket);
 
     // Check if this response is still relevant
     if (fetchStartTime > lastUpdateTimeRef.current) {

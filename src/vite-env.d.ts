@@ -5,6 +5,9 @@ interface ImportMetaEnv {
   readonly VITE_RPC_URL?: string;
   readonly VITE_WS_URL?: string;
   readonly VITE_COMMITMENT?: string;
+  readonly VITE_MANGO_PROGRAM_ID?: string;
+  readonly VITE_MANGO_GROUP_PK?: string;
+  readonly VITE_MANGO_DEPOSIT_UI_AMOUNT?: string;
   readonly VITE_MARKET_ID?: string;
   readonly VITE_DEFAULT_MARKET_ADDRESS?: string;
   readonly VITE_BASE_MINT?: string;

@@ -6,16 +6,16 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import {
   getTokenNameFromMint,
   getDecimalsFromMint,
   getTokenDecimals,
 } from '@/shared/lib/token-decimals';
-import { config, API_ROUTES } from '@/shared/config/constants';
-import { Address } from '@coral-xyz/anchor';
 import { Button } from '@/shared/ui/button';
 import { toast } from 'sonner';
+import { useSequencerApi } from '@/shared/api/useSequencerApi';
+import { useSelectedMarket } from '@/entities/market';
+import { useMangoMarginDeposit } from '@/shared/hooks/useMangoMarginDeposit';
 
 interface TokenBalance {
   available: string;
@@ -26,42 +26,77 @@ type BalanceData = Record<string, TokenBalance>;
 
 export function MyAssets() {
   const { publicKey } = useWallet();
+  const { selectedMarket } = useSelectedMarket();
+  const { fetchUserBalances, requestAirdrop } = useSequencerApi();
+  const { depositMargin } = useMangoMarginDeposit();
 
   const { data, isLoading } = useQuery({
     queryKey: ['userBalances', publicKey?.toBase58()],
     queryFn: async () => {
       if (!publicKey) return null;
-      const url = `${config.devnet.apiBaseUrl}${API_ROUTES.user_balances.replace('{pubkey}', publicKey.toBase58())}`;
-      const response = await axios.get(url);
-      return response.data as BalanceData;
+      return (await fetchUserBalances(publicKey.toBase58())) as BalanceData;
     },
     enabled: !!publicKey,
-    refetchInterval: 5000, // Refetch every 5 seconds
-    staleTime: 10000, // Consider data stale after 10 seconds
+    refetchInterval: 1000, // Refetch every 1 second
+    staleTime: 1000, // Keep cache fresh when switching tabs
   });
 
-  const requestAirdrop = async (mintAddress: Address) => {
-    const url = `${config.devnet.apiBaseUrl}${API_ROUTES.airdrop
-      .replace('{receiverPubKey}', publicKey?.toBase58() || '')
-      .replace('{tokenName}', mintAddress)}`;
-    const promise = axios.post(url).then(res => res.data.data);
+  const handleAirdrop = async () => {
+    if (!publicKey) {
+      return;
+    }
+    const promise = requestAirdrop(publicKey.toBase58());
 
     toast.promise(promise, {
-      loading: 'Airdrop Request Initiated - Waiting for approval...',
-      success: () => (
+      loading: 'Minting test USDC...',
+      success: data => (
         <div className="flex flex-col gap-1">
           <div>
-            <strong>Airdrop Request Confirmed</strong>
+            <strong>Airdrop Complete</strong>
           </div>
-          <div>Request completed successfully</div>
+          <div>
+            Minted {(data?.ui_amount ?? 0).toLocaleString()}{' '}
+            {selectedMarket?.quoteTokenName ?? 'USDC'}
+          </div>
         </div>
       ),
-      error: (err: Error) => (
+      error: (err: any) => (
         <div className="flex flex-col gap-1">
           <div>
-            <strong>Airdrop Request Failed</strong>
+            <strong>Airdrop Failed</strong>
           </div>
-          <div>{err?.message || 'Request failed'}</div>
+          <div>{err?.response?.data?.error || err?.message || 'Request failed'}</div>
+        </div>
+      ),
+    });
+  };
+
+  const handleFundMargin = async () => {
+    if (!publicKey) {
+      return;
+    }
+    const promise = depositMargin();
+
+    toast.promise(promise, {
+      loading: 'Funding margin account...',
+      success: data => (
+        <div className="flex flex-col gap-1">
+          <div>
+            <strong>Margin Funded</strong>
+          </div>
+          <div>
+            Deposited {(data?.uiAmount ?? 0).toLocaleString()}{' '}
+            {selectedMarket?.quoteTokenName ?? 'USDC'}
+          </div>
+          {data?.autoCreatedMangoAccount && <div className="text-xs">Created Mango account</div>}
+        </div>
+      ),
+      error: (err: any) => (
+        <div className="flex flex-col gap-1">
+          <div>
+            <strong>Funding Failed</strong>
+          </div>
+          <div>{err?.response?.data?.error || err?.message || 'Request failed'}</div>
         </div>
       ),
     });
@@ -129,6 +164,8 @@ export function MyAssets() {
       const reservedFormatted = (reserved / Math.pow(10, decimals)).toFixed(decimals);
       const totalFormatted = (total / Math.pow(10, decimals)).toFixed(decimals);
 
+      const isQuoteAsset = mint === selectedMarket?.quote_mint;
+
       return (
         <TableRow key={mint} className="text-white/90">
           <TableCell className="font-medium">{tokenName}</TableCell>
@@ -138,9 +175,16 @@ export function MyAssets() {
           <TableCell className="font-mono text-right">
             <div className="flex items-center justify-end gap-2">
               {mint.slice(0, 8)}...{mint.slice(-8)}
-              <Button variant={'outline'} size="sm" onClick={() => requestAirdrop(mint as Address)}>
-                Request airdrop
-              </Button>
+              {isQuoteAsset && (
+                <>
+                  <Button variant="outline" size="sm" onClick={handleAirdrop}>
+                    Airdrop
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleFundMargin}>
+                    Deposit
+                  </Button>
+                </>
+              )}
             </div>
           </TableCell>
         </TableRow>

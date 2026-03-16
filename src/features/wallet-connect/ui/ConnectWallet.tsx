@@ -8,6 +8,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useCallback, useMemo, useState } from 'react';
 import { Copy, LogOut, Wallet } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +32,7 @@ const LABELS = {
  * Handles wallet selection and connection state
  */
 export function ConnectWallet() {
-  const { wallet, disconnect, connected, connecting, publicKey } = useWallet();
+  const { wallet, connect, disconnect, connected, connecting, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const [copied, setCopied] = useState(false);
 
@@ -54,16 +55,29 @@ export function ConnectWallet() {
     return LABELS['no-wallet'];
   }, [connecting, publicKey, wallet]);
 
+  const handleConnectClick = useCallback(async () => {
+    if (connected || connecting) return;
+    if (!wallet) {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+      if (typeof window !== 'undefined' && !window.isSecureContext && !isLocalHost) {
+        toast.error('Wallet extensions require HTTPS (or localhost/127.0.0.1) to connect.');
+      }
+      setVisible(true);
+      return;
+    }
+    try {
+      await connect();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to connect wallet';
+      toast.error(message);
+      // If provider is unavailable or authorization was rejected, allow wallet re-selection.
+      setVisible(true);
+    }
+  }, [connected, connecting, wallet, connect, setVisible]);
+
   const baseButton = (
-    <Button
-      variant="default"
-      onClick={() => {
-        if (!connected) {
-          setVisible(true);
-        }
-      }}
-      disabled={connecting}
-    >
+    <Button variant="default" onClick={handleConnectClick}>
       {connected && <div className="w-2 h-2 bg-green-400 animate-pulse" />}
       {buttonContent}
     </Button>

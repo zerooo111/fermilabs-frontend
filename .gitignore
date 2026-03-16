@@ -23,3 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Unused lockfiles (project uses pnpm)
+package-lock.json
+bun.lock
+
+# Local dev
+.localdev

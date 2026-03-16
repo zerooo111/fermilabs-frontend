@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { selectedMarketAtom } from '@/entities/market';
 import { config, API_ROUTES } from '@/shared/config/constants';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
+import { baseLotsToUi, priceLotsToUi, uiToNativeScaled } from '@/shared/lib/mango-sdk-conversions';
 
 type Trade = {
   id?: string;
@@ -22,6 +23,20 @@ type Trade = {
   seller_owner?: string;
   base_mint?: string;
   quote_mint?: string;
+};
+
+type HarnessTrade = {
+  trade_id: string;
+  market: string;
+  price_lots: string;
+  base_lots: string;
+  quote_lots: string;
+  taker_side: 'bid' | 'ask';
+  maker_owner: string;
+  taker_owner: string;
+  maker_order_id: string;
+  taker_sequence: string;
+  ts_ms: number;
 };
 
 const ROW_HEIGHT_CLASS = 'h-[26px]';
@@ -56,17 +71,40 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
     queryFn: async () => {
       if (!marketId) return undefined;
       const apiBaseUrl = config.devnet.apiBaseUrl;
-      const url = `${apiBaseUrl}${API_ROUTES.market_trades.replace('{marketId}', marketId)}?limit=${encodeURIComponent(limit)}`;
+      const url = `${apiBaseUrl}${API_ROUTES.market_trades.replace('{marketId}', marketId)}?view=optimistic&limit=${encodeURIComponent(limit)}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to load recent trades');
       const response = await res.json();
-      // Handle both array response and wrapped { data: [...] } response
-      const trades = Array.isArray(response) ? response : response?.data || [];
-      // Ensure each trade has an id for React keys
-      return trades.map((trade: Trade, index: number) => ({
-        ...trade,
-        id: trade.id || `${trade.timestamp}-${index}`,
-        timestamp: typeof trade.timestamp === 'string' ? trade.timestamp : String(trade.timestamp),
+      const trades: HarnessTrade[] = response?.data || [];
+      const quoteLotSize = selectedMarket?.quote_lot_size ?? config.devnet.quoteLotSize;
+      const baseLotSize = selectedMarket?.base_lot_size ?? config.devnet.baseLotSize;
+      const quoteDecimals = selectedMarket?.quote_decimals ?? config.devnet.quoteDecimals;
+      const baseDecimals = selectedMarket?.base_decimals ?? 9;
+      const lotsPriceToNative = (priceLots: string | number): number =>
+        uiToNativeScaled(
+          priceLotsToUi(priceLots, {
+            baseDecimals,
+            quoteDecimals,
+            baseLotSize,
+            quoteLotSize,
+          }),
+          quoteDecimals
+        );
+      const lotsBaseToNative = (baseLots: string | number): number =>
+        uiToNativeScaled(
+          baseLotsToUi(baseLots, {
+            baseDecimals,
+            baseLotSize,
+          }),
+          baseDecimals
+        );
+      return trades.map((trade, index: number) => ({
+        id: trade.trade_id || `${trade.ts_ms}-${index}`,
+        price: lotsPriceToNative(trade.price_lots),
+        quantity: lotsBaseToNative(trade.base_lots),
+        timestamp: String(Math.floor(Number(trade.ts_ms) / 1000)),
+        buyer_owner: trade.taker_side === 'bid' ? trade.taker_owner : trade.maker_owner,
+        seller_owner: trade.taker_side === 'ask' ? trade.taker_owner : trade.maker_owner,
       }));
     },
     refetchInterval: 1000,

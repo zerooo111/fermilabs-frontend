@@ -13,6 +13,7 @@ import { usePositions } from '@/shared/hooks/usePositions';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
 import { OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 import { useAtomValue } from 'jotai';
+import { nativeToUiNumber } from '@/shared/lib/harness-market';
 
 export function MyPositions() {
   const { publicKey } = useWallet();
@@ -31,10 +32,16 @@ export function MyPositions() {
     setClosingPositionIndex(index);
 
     try {
+      const positionMarket = marketsMap.get(position.market_id);
+      const baseDecimals = positionMarket?.base_decimals ?? position.base_decimals ?? 9;
+      const quoteDecimals = positionMarket?.quote_decimals ?? position.quote_decimals ?? 6;
+      const basePositionUi = nativeToUiNumber(position.base_position, baseDecimals);
+      const markPriceUi = nativeToUiNumber(position.mark_price, quoteDecimals);
+
       // Determine side: if base_position > 0 (long), sell to close; if < 0 (short), buy to close
-      const side: OrderSide = parseFloat(position.base_position) > 0 ? 'Sell' : 'Buy';
-      const size = Math.abs(parseFloat(position.base_position)).toString();
-      const price = position.mark_price;
+      const side: OrderSide = basePositionUi > 0 ? 'Sell' : 'Buy';
+      const size = Math.abs(basePositionUi).toString();
+      const price = markPriceUi.toString();
 
       const result = await closePosition({
         side,

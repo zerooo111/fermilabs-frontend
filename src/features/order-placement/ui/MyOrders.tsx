@@ -8,8 +8,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
 import { Badge } from '@/shared/ui/badge';
-import { createHash } from 'crypto';
-import { BN } from '@coral-xyz/anchor';
 import { toast } from 'sonner';
 import { useSelectedMarket } from '@/entities/market';
 import { orderReceiptsAtom } from '@/entities/order-receipt';
@@ -19,27 +17,31 @@ import {
   formatQuantity,
   formatTotal,
 } from '@/features/orderbook-view/lib/processOrderbook';
-import axios from 'axios';
-import { config, API_ROUTES } from '@/shared/config/constants';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { useQuery } from '@tanstack/react-query';
+import { usePerps } from '@/features/order-placement/lib/usePerps';
 
 export function MyOrders() {
-  const { publicKey, signMessage } = useWallet();
-  const [cancellingOrders, setCancellingOrders] = useState<Set<number>>(new Set());
+  const { publicKey } = useWallet();
+  const [cancellingOrders, setCancellingOrders] = useState<Set<string>>(new Set());
   const { selectedMarket } = useSelectedMarket();
   const orderReceipts = useAtomValue(orderReceiptsAtom);
   const { fetchUserOrders } = useSequencerApi();
+  const { cancelOrder } = usePerps();
 
   const { data: userOrders } = useQuery({
     queryKey: ['userOrders', publicKey?.toBase58(), selectedMarket?.uuid],
     queryFn: async () => {
       if (!publicKey) return [];
-      return await fetchUserOrders(publicKey.toBase58());
+      return await fetchUserOrders(
+        publicKey.toBase58(),
+        selectedMarket?.uuid,
+        selectedMarket || undefined
+      );
     },
     enabled: !!publicKey && !!selectedMarket,
-    refetchInterval: 1000, // Refetch every 1 second
-    staleTime: 5000, // Consider data stale after 5 seconds
+    refetchInterval: 500, // Refetch every 0.5 seconds
+    staleTime: 500, // Keep cache fresh when switching tabs
   });
 
   useEffect(() => {
@@ -51,14 +53,14 @@ export function MyOrders() {
 
     return userOrders
       .filter(order => order.market_id === selectedMarket?.uuid)
-      .filter(order => !cancellingOrders.has(order.order_id));
+      .filter(order => !cancellingOrders.has(String(order.order_id)));
   }, [userOrders, publicKey, selectedMarket?.uuid, cancellingOrders]);
 
   // Helper function to find receipt by order_id
-  const getReceiptForOrder = (orderId: number) => {
+  const getReceiptForOrder = (orderId: string) => {
     // Find receipt by matching order_id
     for (const [, receipt] of orderReceipts.entries()) {
-      if (receipt.order_id === orderId) {
+      if (String(receipt.order_id) === String(orderId)) {
         return receipt;
       }
     }
@@ -73,83 +75,14 @@ export function MyOrders() {
     );
   }
 
-  const cancelOrder = async (orderId: number) => {
+  const handleCancelOrder = async (orderId: string) => {
     try {
-      if (!signMessage) return;
-
       // Optimistically update UI
       setCancellingOrders(prev => new Set(prev).add(orderId));
-
-      const cancelData = {
-        order_id: new BN(orderId).toNumber(),
-        owner: publicKey.toBase58(),
-        market_id: selectedMarket?.uuid,
-        signature: '', // Will be filled after signing
-        local_sequencer_id: 'continuum_client',
-        timestamp_ms: Date.now().toString(),
-      };
-
-      const frmTransactionForSigning = {
-        version: '1.0',
-        type: 'cancel',
-        order_id: cancelData.order_id,
-        owner: cancelData.owner,
-        market_id: cancelData.market_id,
-        local_sequencer_id: cancelData.local_sequencer_id,
-        timestamp_ms: cancelData.timestamp_ms,
-      };
-
-      // Serialize and sign the transaction data
-      const serializedData = Buffer.from(JSON.stringify(frmTransactionForSigning), 'utf-8');
-      const SIGNED_CANCEL_PREFIX = Buffer.from('FRM_DEX_CANCEL:');
-      const prefixedMessage = Buffer.concat([SIGNED_CANCEL_PREFIX, serializedData]);
-      const sha256Hash = createHash('sha256').update(new Uint8Array(prefixedMessage)).digest();
-      const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
-      const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
-
-      // Update the cancel data with signature
-      cancelData.signature = Buffer.from(signatureBytes).toString('hex');
-
-      // Create the complete FRM transaction
-      const frmTransaction = {
-        version: '1.0',
-        type: 'cancel',
-        order_id: cancelData.order_id,
-        owner: cancelData.owner,
-        market_id: cancelData.market_id,
-        signature: cancelData.signature,
-        local_sequencer_id: cancelData.local_sequencer_id,
-        timestamp_ms: cancelData.timestamp_ms,
-      };
-
-      // Create the prefixed payload for continuum
-      const jsonFrm = JSON.stringify(frmTransaction);
-      const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
-      const payloadBytes = Buffer.from(frmPrefixedString, 'utf-8');
-
-      // Generate transaction ID
-      const tx_id = `frm_cancel_${orderId.toString()}_${Date.now()}`;
-
-      // Create the transaction data for continuum submission
-      const transactionData = {
-        version: '1.0',
-        tx_id,
-        payload: Array.from(payloadBytes),
-        signature: Buffer.from(signatureBytes).toString('hex'),
-        public_key: publicKey,
-        nonce: cancelData.order_id,
-        timestamp: cancelData.timestamp_ms,
-      };
-
-      // Submit to continuum via the explorer API
-      const apiBaseUrl = config.devnet.apiBaseUrl;
-      await axios
-        .post(`${apiBaseUrl}${API_ROUTES.tx}`, {
-          transaction: transactionData,
-        })
-        .then(res => res.data);
-
-      toast.success('Order cancelled');
+      const result = await cancelOrder(orderId);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to cancel order');
+      }
     } catch {
       // Silent error handling
       // Rollback optimistic update
@@ -199,15 +132,17 @@ export function MyOrders() {
             {selectedMarket?.quoteTokenName}
           </TableCell>
           <TableCell className="font-mono">
-            {new Date(order.expiry).toLocaleString(undefined, {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: false,
-            })}
+            {order.expiry > 0
+              ? new Date(order.expiry).toLocaleString(undefined, {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false,
+                })
+              : '-'}
           </TableCell>
           <TableCell className="text-right">
             <div className="flex gap-1.5 justify-end">
@@ -215,7 +150,7 @@ export function MyOrders() {
                 <OrderReceipt receipt={getReceiptForOrder(order.order_id)!} />
               )}
               <Button
-                onClick={() => cancelOrder(order.order_id)}
+                onClick={() => handleCancelOrder(order.order_id)}
                 variant="outline"
                 size="sm"
                 disabled={cancellingOrders.has(order.order_id)}

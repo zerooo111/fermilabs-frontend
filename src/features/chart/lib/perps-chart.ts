@@ -1,20 +1,22 @@
 /**
  * Perps chart library
  * Handles perps-specific candle data fetching and processing
- * Uses the new Binance-style compact array format: [timestamp_ms, open, high, low, close]
+ * Uses harness candles endpoint and converts to compact format:
+ * [timestamp_ms, open_price_lots, high_price_lots, low_price_lots, close_price_lots]
  */
 import axios from 'axios';
 import { config, API_ROUTES } from '@/shared/config/constants';
+import { priceLotsToUi } from '@/shared/lib/mango-sdk-conversions';
 
 // Compact array format: [timestamp_ms, open, high, low, close]
 export type Candle = [number, number, number, number, number];
 
 export interface PerpsCandleParams {
   marketId: string;
-  tf?: string; // Timeframe: 1m, 5m, 15m, 1h, 4h, 1d
-  from?: string; // Start date in RFC3339 format
-  to?: string; // End date in RFC3339 format
-  limit?: number; // Maximum number of candles (1-1000, default: 500)
+  tf?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
 }
 
 export type PerpsTimeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
@@ -28,33 +30,107 @@ export interface ExtendedPerpsOHLCVData {
   volume?: number;
 }
 
+interface HarnessCandleResponse {
+  view: 'optimistic' | 'confirmed';
+  market: string;
+  resolution_sec: number;
+  data: Array<{
+    market: string;
+    bucket_start_ts_ms: number;
+    resolution_sec: number;
+    open_price_lots: string;
+    high_price_lots: string;
+    low_price_lots: string;
+    close_price_lots: string;
+    base_volume_lots: string;
+    quote_volume_lots: string;
+    trade_count: number;
+    view: 'optimistic' | 'confirmed';
+  }>;
+}
+
+function timeframeToResolutionSec(tf: PerpsTimeframe): number {
+  switch (tf) {
+    case '1m':
+      return 60;
+    case '5m':
+      return 300;
+    case '15m':
+      return 900;
+    case '1h':
+      return 3600;
+    case '4h':
+      return 14400;
+    case '1d':
+      return 86400;
+    default:
+      return 3600;
+  }
+}
+
 /**
  * Fetch perps candle data from the API
  * Returns data in compact array format: [[timestamp_ms, open, high, low, close], ...]
  */
 export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<Candle[]> {
-  const { marketId, tf = '1h', from, to, limit } = params;
+  const { marketId, tf = '1h', limit, from, to } = params;
 
-  const queryParams = new URLSearchParams({ tf });
-  if (from) queryParams.append('from', from);
-  if (to) queryParams.append('to', to);
+  const queryParams = new URLSearchParams({
+    view: 'optimistic',
+    resolution_sec: String(timeframeToResolutionSec(tf as PerpsTimeframe)),
+  });
   if (limit) queryParams.append('limit', limit.toString());
 
   try {
-    const baseRoute = API_ROUTES.market_candles.split('?')[0].replace('{marketId}', marketId);
-    const response = await axios.get<Candle[]>(
-      `${config.devnet.apiBaseUrl}${baseRoute}?${queryParams}`
+    const route = API_ROUTES.market_candles.replace('{marketId}', marketId);
+    const response = await axios.get<HarnessCandleResponse>(
+      `${config.devnet.apiBaseUrl}${route}?${queryParams.toString()}`
     );
 
-    // Validate response is an array
-    if (!Array.isArray(response.data)) {
-      throw new Error('Invalid response format: expected an array');
-    }
+    const harnessCandles = (response.data.data || []).map(candle => [
+      Number(candle.bucket_start_ts_ms),
+      Number(candle.open_price_lots),
+      Number(candle.high_price_lots),
+      Number(candle.low_price_lots),
+      Number(candle.close_price_lots),
+    ]);
 
-    return response.data;
+    if (harnessCandles.length > 0) {
+      return harnessCandles;
+    }
+  } catch (error) {
+    // Fallback to local TimeScaleDB bridge when harness candles are unavailable.
+    if (!axios.isAxiosError(error) || !error.response) {
+      throw new Error('Unknown error occurred while fetching candle data');
+    }
+  }
+
+  try {
+    const nowMs = Date.now();
+    const parsedTo = to ? Date.parse(to) : nowMs;
+    const toMs = Number.isFinite(parsedTo) ? parsedTo : nowMs;
+    const parsedFrom = from ? Date.parse(from) : toMs - 30 * 24 * 60 * 60 * 1000;
+    const fromMs = Number.isFinite(parsedFrom) ? parsedFrom : toMs - 30 * 24 * 60 * 60 * 1000;
+    const fallbackUrl = new URL(
+      `${config.devnet.timescaleApiUrl}/candles/${encodeURIComponent(marketId)}`
+    );
+    fallbackUrl.searchParams.set('tf', tf);
+    fallbackUrl.searchParams.set('from', String(fromMs));
+    fallbackUrl.searchParams.set('to', String(toMs));
+    if (limit) fallbackUrl.searchParams.set('limit', String(limit));
+
+    const response = await axios.get<Array<[number, number, number, number, number]>>(
+      fallbackUrl.toString()
+    );
+    return (response.data || []).map(row => [
+      Number(row[0]),
+      Number(row[1]),
+      Number(row[2]),
+      Number(row[3]),
+      Number(row[4]),
+    ]);
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      // Handle error response format: { data: null, statusCode: number, error: string }
       if (error.response?.data?.error) {
         throw new Error(error.response.data.error);
       }
@@ -112,6 +188,15 @@ export function getPerpsTimeRangeForInterval(timeframe: PerpsTimeframe): {
  * Input format: [timestamp_ms, open, high, low, close]
  */
 export function processPerpsCandleData(candleData: Candle[]): ExtendedPerpsOHLCVData[] {
+  const lotsToUi = (priceLots: number): number => {
+    return priceLotsToUi(priceLots, {
+      baseDecimals: config.devnet.baseDecimals,
+      quoteDecimals: config.devnet.quoteDecimals,
+      baseLotSize: config.devnet.baseLotSize,
+      quoteLotSize: config.devnet.quoteLotSize,
+    });
+  };
+
   return candleData.map(([timestampMs, open, high, low, close]) => {
     try {
       // Convert milliseconds timestamp to Unix timestamp (seconds)
@@ -119,10 +204,10 @@ export function processPerpsCandleData(candleData: Candle[]): ExtendedPerpsOHLCV
 
       return {
         time,
-        open,
-        high,
-        low,
-        close,
+        open: lotsToUi(open),
+        high: lotsToUi(high),
+        low: lotsToUi(low),
+        close: lotsToUi(close),
         volume: 0, // API doesn't provide volume, set to 0
       };
     } catch (error) {

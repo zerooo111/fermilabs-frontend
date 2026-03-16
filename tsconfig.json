@@ -4,7 +4,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@mango-v4-client/*": ["../mng-v4/ts/client/src/*"]
     }
   }
 }
