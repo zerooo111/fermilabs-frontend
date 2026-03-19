@@ -6,7 +6,10 @@
  */
 import axios from 'axios';
 import { config, API_ROUTES } from '@/shared/config/constants';
-import { priceLotsToUi } from '@/shared/lib/mango-sdk-conversions';
+import {
+  HarnessMarketConversionParams,
+  lotsPriceToUiWithMarket,
+} from '@/shared/lib/harness-market';
 
 // Compact array format: [timestamp_ms, open, high, low, close]
 export type Candle = [number, number, number, number, number];
@@ -187,16 +190,10 @@ export function getPerpsTimeRangeForInterval(timeframe: PerpsTimeframe): {
  * Convert perps candle data from compact array format to the format expected by TradingView charts
  * Input format: [timestamp_ms, open, high, low, close]
  */
-export function processPerpsCandleData(candleData: Candle[]): ExtendedPerpsOHLCVData[] {
-  const lotsToUi = (priceLots: number): number => {
-    return priceLotsToUi(priceLots, {
-      baseDecimals: config.devnet.baseDecimals,
-      quoteDecimals: config.devnet.quoteDecimals,
-      baseLotSize: config.devnet.baseLotSize,
-      quoteLotSize: config.devnet.quoteLotSize,
-    });
-  };
-
+export function processPerpsCandleData(
+  candleData: Candle[],
+  market?: HarnessMarketConversionParams | null
+): ExtendedPerpsOHLCVData[] {
   return candleData.map(([timestampMs, open, high, low, close]) => {
     try {
       // Convert milliseconds timestamp to Unix timestamp (seconds)
@@ -204,10 +201,10 @@ export function processPerpsCandleData(candleData: Candle[]): ExtendedPerpsOHLCV
 
       return {
         time,
-        open: lotsToUi(open),
-        high: lotsToUi(high),
-        low: lotsToUi(low),
-        close: lotsToUi(close),
+        open: lotsPriceToUiWithMarket(open, market),
+        high: lotsPriceToUiWithMarket(high, market),
+        low: lotsPriceToUiWithMarket(low, market),
+        close: lotsPriceToUiWithMarket(close, market),
         volume: 0, // API doesn't provide volume, set to 0
       };
     } catch (error) {

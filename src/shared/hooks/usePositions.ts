@@ -6,6 +6,7 @@ import { baseLotsToUi, uiToNativeScaled } from '../lib/mango-sdk-conversions';
 import {
   HarnessMarketMetadata,
   lotsPriceToNative,
+  lotsQuoteToNative,
   resolveMarketConversionParams,
 } from '../lib/harness-market';
 
@@ -165,7 +166,12 @@ export function usePositions(params: UsePositionsParams = {}) {
                 params.base_decimals
               )
             );
-            const quotePositionNative = BigInt(entry.quote_position_native || '0');
+            // Harness queue-replay currently labels this field as native, but it is
+            // accumulated in quote lots. Convert it to quote-native units before
+            // deriving entry price and PnL.
+            const quotePositionNative = BigInt(
+              lotsQuoteToNative(entry.quote_position_native || '0', marketMeta)
+            );
             const markPriceNative = BigInt(lotsPriceToNative(selectedPriceLots, marketMeta));
             const averageEntryNative =
               basePositionNative !== 0n

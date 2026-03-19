@@ -118,7 +118,14 @@ function PerpsChartContainerComponent() {
       });
 
       // Process the data for TradingView charts
-      return processPerpsCandleData(candleData);
+      return processPerpsCandleData(candleData, {
+        base_mint: selectedMarket.base_mint,
+        quote_mint: selectedMarket.quote_mint,
+        base_decimals: selectedMarket.base_decimals,
+        quote_decimals: selectedMarket.quote_decimals,
+        base_lot_size: selectedMarket.base_lot_size,
+        quote_lot_size: selectedMarket.quote_lot_size,
+      });
     },
     // Remove refetchInterval - only fetch when market/interval changes
     enabled: !!selectedMarket?.uuid,

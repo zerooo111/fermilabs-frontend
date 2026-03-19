@@ -28,6 +28,7 @@ export interface MarginAccount {
   available_withdrawal_snapshot: number;
   per_market_delta_snapshot: any[];
   portfolio_leverage_limit_snapshot: number;
+  margin_usage_fraction: number;
 }
 
 interface HarnessFullStateResponse {
@@ -105,10 +106,17 @@ export function useAccount(owner: string) {
         quoteDecimals
       );
       const assets = nativeToUiNumber(marginTotals?.assets_native_quote || '0', quoteDecimals);
+      const liabs = nativeToUiNumber(marginTotals?.liabs_native_quote || '0', quoteDecimals);
       const equityOrAssets = equity !== 0 ? equity : assets;
       const initialMarginUsed = Math.max(equityOrAssets - initHealth, 0);
       const maintenanceMarginUsed = Math.max(equityOrAssets - maintHealth, 0);
       const freeCollateral = Math.max(initHealth, 0);
+      const marginUsageFraction =
+        typeof marginTotals?.margin_usage_fraction === 'number'
+          ? marginTotals.margin_usage_fraction
+          : assets > 0
+            ? Math.max(liabs / assets, 0)
+            : 0;
 
       // TODO: Replace remaining placeholders with richer margin/PnL endpoints when available.
       return {
@@ -127,6 +135,7 @@ export function useAccount(owner: string) {
         available_withdrawal_snapshot: freeCollateral,
         per_market_delta_snapshot: [],
         portfolio_leverage_limit_snapshot: 0,
+        margin_usage_fraction: marginUsageFraction,
       };
     },
     enabled: !!owner,

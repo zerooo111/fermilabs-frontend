@@ -39,11 +39,7 @@ export function AccountCard() {
     return null;
   }
 
-  // Calculate margin usage percentage: (Used Margin / USDC Collateral) * 100
-  const marginUsage =
-    (accountData.usdc_collateral ?? 0) > 0
-      ? ((accountData.initial_margin_snapshot ?? 0) / accountData.usdc_collateral!) * 100
-      : 0;
+  const marginUsage = Math.max(accountData.margin_usage_fraction ?? 0, 0) * 100;
 
   return (
     <>

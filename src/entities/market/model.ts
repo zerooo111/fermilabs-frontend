@@ -245,12 +245,18 @@ export const useSelectedMarket = () => {
   const [selectedMarket] = useAtom(selectedMarketAtom);
   const [markets, setMarkets] = useAtom(marketsAtom);
   const marketsLoadedRef = useRef(false);
+  const marketsLoadedAtRef = useRef(0);
   const marketsHashRef = useRef('');
+  const MARKETS_CACHE_TTL_MS = 5000;
 
   // Memoize the market loading function
   const loadMarkets = useCallback(async (): Promise<Market[]> => {
     // Skip if markets are already loaded
-    if (marketsLoadedRef.current && markets.length > 0) {
+    if (
+      marketsLoadedRef.current &&
+      markets.length > 0 &&
+      Date.now() - marketsLoadedAtRef.current < MARKETS_CACHE_TTL_MS
+    ) {
       return markets;
     }
 
@@ -403,8 +409,23 @@ export const useSelectedMarket = () => {
 
       const newMarkets = mappedFromHarness.length > 0 ? mappedFromHarness : fallbackMarket;
 
-      // Quick hash comparison using market IDs
-      const newHash = newMarkets.map((m: Market) => m.uuid).join(',');
+      // Include conversion-critical market fields so restarts with the same market ID
+      // still refresh the frontend's decimal and lot-size metadata.
+      const newHash = newMarkets
+        .map((m: Market) =>
+          [
+            m.uuid,
+            m.name,
+            m.base_mint,
+            m.quote_mint,
+            m.base_decimals,
+            m.quote_decimals,
+            m.base_lot_size,
+            m.quote_lot_size,
+            m.price_decimals,
+          ].join(':')
+        )
+        .join('|');
 
       // Only update if markets have actually changed
       if (newHash !== marketsHashRef.current) {
@@ -413,6 +434,7 @@ export const useSelectedMarket = () => {
       }
 
       marketsLoadedRef.current = true;
+      marketsLoadedAtRef.current = Date.now();
       return newMarkets;
     } catch {
       return markets; // Return existing markets on error

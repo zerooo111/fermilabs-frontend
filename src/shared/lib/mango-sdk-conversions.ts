@@ -18,7 +18,7 @@ function pow10(decimals: number): number {
 // priceLotsToUiConverter = 10^(baseDecimals-quoteDecimals) * quoteLotSize / baseLotSize
 export function priceLotsToUi(priceLots: string | number, params: LotConversionParams): number {
   const lots = toFiniteNumber(priceLots);
-  if (lots <= 0) return 0;
+  if (lots === 0) return 0;
   const baseLotSize = Math.max(1, toFiniteNumber(params.baseLotSize));
   const quoteLotSize = Math.max(1, toFiniteNumber(params.quoteLotSize));
   const converter =
@@ -33,7 +33,7 @@ export function baseLotsToUi(
   params: Pick<LotConversionParams, 'baseDecimals' | 'baseLotSize'>
 ): number {
   const lots = toFiniteNumber(baseLots);
-  if (lots <= 0) return 0;
+  if (lots === 0) return 0;
   const baseLotSize = Math.max(1, toFiniteNumber(params.baseLotSize));
   return lots * (baseLotSize / pow10(params.baseDecimals));
 }
@@ -45,12 +45,12 @@ export function quoteLotsToUi(
   params: Pick<LotConversionParams, 'quoteDecimals' | 'quoteLotSize'>
 ): number {
   const lots = toFiniteNumber(quoteLots);
-  if (lots <= 0) return 0;
+  if (lots === 0) return 0;
   const quoteLotSize = Math.max(1, toFiniteNumber(params.quoteLotSize));
   return lots * (quoteLotSize / pow10(params.quoteDecimals));
 }
 
 export function uiToNativeScaled(uiAmount: number, decimals: number): number {
-  if (!Number.isFinite(uiAmount) || uiAmount <= 0) return 0;
+  if (!Number.isFinite(uiAmount) || uiAmount === 0) return 0;
   return Math.round(uiAmount * pow10(decimals));
 }

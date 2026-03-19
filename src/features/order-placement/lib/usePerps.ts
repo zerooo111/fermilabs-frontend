@@ -644,19 +644,6 @@ export function usePerps() {
     }
     const relaySubmittedAt = performance.now();
 
-    // Record submitted price ticks into local TimeScaleDB bridge.
-    try {
-      await axios.post(`${bridgeUrl}${API_ROUTES.candles_ingest}`, {
-        market: params.market,
-        price: params.priceForTick,
-        size: params.sizeForTick,
-        timestamp_ms: Date.now(),
-        source: 'frontend-intent',
-      });
-    } catch {
-      // Non-blocking: charting persistence should not block order flow.
-    }
-
     logPerf('submit-intent', {
       build_intent_ms: Math.round(builtIntentAt - startedAt),
       sign_intent_ms: Math.round(signedIntentAt - builtIntentAt),
