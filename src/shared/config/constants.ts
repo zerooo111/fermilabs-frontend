@@ -26,11 +26,11 @@ export const config = {
     mangoExecutionQueuePk: import.meta.env.VITE_MANGO_EXECUTION_QUEUE_PK || '',
     defaultMangoAccountPk: import.meta.env.VITE_MANGO_ACCOUNT_PK || '',
     mangoDepositUiAmount: Number(import.meta.env.VITE_MANGO_DEPOSIT_UI_AMOUNT || '1000'),
-    // Harness defaults are lot-native integers; override via env for full on-chain unit scaling.
-    baseDecimals: Number(import.meta.env.VITE_BASE_DECIMALS || 0),
-    quoteDecimals: Number(import.meta.env.VITE_QUOTE_DECIMALS || 0),
-    baseLotSize: Number(import.meta.env.VITE_BASE_LOT_SIZE || 1),
-    quoteLotSize: Number(import.meta.env.VITE_QUOTE_LOT_SIZE || 1),
+    // Fallback to the active SOL/USDC perp defaults when harness metadata is unavailable.
+    baseDecimals: Number(import.meta.env.VITE_BASE_DECIMALS || 9),
+    quoteDecimals: Number(import.meta.env.VITE_QUOTE_DECIMALS || 6),
+    baseLotSize: Number(import.meta.env.VITE_BASE_LOT_SIZE || 100000),
+    quoteLotSize: Number(import.meta.env.VITE_QUOTE_LOT_SIZE || 10),
     quoteTokenName: import.meta.env.VITE_QUOTE_TOKEN_SYMBOL || 'USDC',
     baseTokenName: import.meta.env.VITE_BASE_TOKEN_SYMBOL || 'SOL',
   },
