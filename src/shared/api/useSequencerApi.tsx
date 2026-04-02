@@ -6,11 +6,7 @@ import { useCallback } from 'react';
 import axios, { AxiosResponse } from 'axios';
 import { tryCatch } from '@/shared/lib/try-catch';
 import { config, quoteMint, API_ROUTES } from '../config/constants';
-import {
-  lotsBaseToNative,
-  lotsPriceToNative,
-  lotsQuoteToNative,
-} from '@/shared/lib/harness-market';
+import { lotsQuoteToNative } from '@/shared/lib/harness-market';
 
 export interface Market {
   uuid: string;
@@ -133,51 +129,6 @@ export interface AirdropResponse {
   transaction_hash?: string;
 }
 
-interface HarnessMarketStateResponse {
-  view: 'optimistic' | 'confirmed';
-  data: {
-    market: string;
-    bids: Array<{ price_lots: string; base_lots: string }>;
-    asks: Array<{ price_lots: string; base_lots: string }>;
-    open_orders: Array<{
-      order_id: string;
-      owner: string;
-      mango_account: string;
-      market: string;
-      side: 'bid' | 'ask';
-      price_lots: string;
-      base_lots: string;
-      quote_lots: string;
-      client_order_id: string;
-      sequence: string;
-      status: 'open';
-    }>;
-  };
-}
-
-interface HarnessOrdersResponse {
-  view: 'optimistic' | 'confirmed';
-  market: string;
-  owner: string | null;
-  data: HarnessMarketStateResponse['data']['open_orders'];
-}
-
-interface HarnessTradesResponse {
-  view: 'optimistic' | 'confirmed';
-  market: string;
-  data: Array<{
-    trade_id: string;
-    market: string;
-    price_lots: string;
-    base_lots: string;
-    quote_lots: string;
-    taker_side: 'bid' | 'ask';
-    maker_owner: string;
-    taker_owner: string;
-    ts_ms: number;
-  }>;
-}
-
 interface HarnessBalancesResponse {
   view: 'optimistic' | 'confirmed';
   data: {
@@ -211,10 +162,6 @@ interface HarnessBalancesResponse {
   };
 }
 
-function marketIdOrDefault(marketId?: string): string {
-  return marketId || config.devnet.defaultHarnessMarketId;
-}
-
 function uiToNativeString(uiAmount: number, decimals: number): string {
   if (!Number.isFinite(uiAmount)) return '0';
   const scaled = uiAmount * Math.pow(10, Math.max(0, decimals));
@@ -229,169 +176,6 @@ export function useSequencerApi() {
     const healthCheck = await axios.get(`${harnessUrl}${API_ROUTES.health}`);
     return healthCheck;
   }, [harnessUrl]);
-
-  const submitCancelOrderToSequencer = useCallback(async () => {
-    throw new Error('Cancel endpoint moved to relay bridge intent flow');
-  }, []);
-
-  const fetchOrderbook = useCallback(
-    async (
-      marketId: string,
-      market?: Pick<Market, 'base_decimals' | 'quote_decimals' | 'base_lot_size' | 'quote_lot_size'>
-    ): Promise<OrderbookSummary> => {
-      const resolvedMarket = marketIdOrDefault(marketId);
-      const url = `${harnessUrl}${API_ROUTES.market_orderbook_summary.replace('{marketId}', resolvedMarket)}?view=optimistic`;
-
-      const { data, error } = await tryCatch<AxiosResponse<HarnessMarketStateResponse>>(
-        axios.get(url)
-      );
-
-      if (error) {
-        throw error;
-      }
-
-      const bids = data.data.data.bids;
-      const asks = data.data.data.asks;
-      const bestBid = bids.length > 0 ? lotsPriceToNative(bids[0].price_lots, market) : null;
-      const bestAsk = asks.length > 0 ? lotsPriceToNative(asks[0].price_lots, market) : null;
-
-      return {
-        market_id: resolvedMarket,
-        bid_count: bids.length,
-        ask_count: asks.length,
-        best_bid: bestBid,
-        best_ask: bestAsk,
-        spread: bestBid !== null && bestAsk !== null ? bestAsk - bestBid : null,
-        total_bid_volume: bids
-          .reduce((acc, b) => acc + BigInt(lotsBaseToNative(b.base_lots, market)), 0n)
-          .toString(),
-        total_ask_volume: asks
-          .reduce((acc, a) => acc + BigInt(lotsBaseToNative(a.base_lots, market)), 0n)
-          .toString(),
-      };
-    },
-    [harnessUrl]
-  );
-
-  const fetchOrderbookDepth = useCallback(
-    async (
-      marketId: string,
-      market?: Pick<Market, 'base_decimals' | 'quote_decimals' | 'base_lot_size' | 'quote_lot_size'>
-    ): Promise<OrderbookDepth> => {
-      const resolvedMarket = marketIdOrDefault(marketId);
-      const url = `${harnessUrl}${API_ROUTES.market_orderbook_depth.replace('{marketId}', resolvedMarket)}?view=optimistic`;
-
-      const { data, error } = await tryCatch<AxiosResponse<HarnessMarketStateResponse>>(
-        axios.get(url)
-      );
-
-      if (error) {
-        throw error;
-      }
-
-      const bids = data.data.data.bids.map(
-        b =>
-          [
-            String(lotsPriceToNative(b.price_lots, market)),
-            String(lotsBaseToNative(b.base_lots, market)),
-          ] as [string, string]
-      );
-      const asks = data.data.data.asks.map(
-        a =>
-          [
-            String(lotsPriceToNative(a.price_lots, market)),
-            String(lotsBaseToNative(a.base_lots, market)),
-          ] as [string, string]
-      );
-
-      return {
-        lastUpdateId: Date.now(),
-        bids,
-        asks,
-      };
-    },
-    [harnessUrl]
-  );
-
-  const fetchUserOrders = useCallback(
-    async (
-      pubkey: string,
-      marketId?: string,
-      market?: Pick<
-        Market,
-        | 'name'
-        | 'base_mint'
-        | 'quote_mint'
-        | 'base_decimals'
-        | 'quote_decimals'
-        | 'base_lot_size'
-        | 'quote_lot_size'
-      >
-    ): Promise<Order[]> => {
-      const resolvedMarket = marketIdOrDefault(marketId);
-      const url = `${harnessUrl}${API_ROUTES.user_orders.replace('{marketId}', resolvedMarket)}?owner=${encodeURIComponent(pubkey)}&view=optimistic`;
-
-      const { data, error } = await tryCatch<AxiosResponse<HarnessOrdersResponse>>(axios.get(url));
-
-      if (error) {
-        throw error;
-      }
-
-      return (data.data.data || []).map(order => ({
-        order_id: order.order_id,
-        market_id: order.market,
-        market_name: market?.name || `Market ${order.market}`,
-        owner: order.owner,
-        side: order.side === 'bid' ? 'Buy' : 'Sell',
-        price: lotsPriceToNative(order.price_lots, market),
-        quantity: lotsBaseToNative(order.base_lots, market),
-        expiry: 0,
-        timestamp: Number(order.sequence),
-        base_mint: market?.base_mint || '',
-        quote_mint: market?.quote_mint || '',
-      }));
-    },
-    [harnessUrl]
-  );
-
-  const fetchTrades = useCallback(
-    async (
-      owner: string,
-      marketId: string,
-      limit: number = 100,
-      market?: Pick<
-        Market,
-        | 'base_mint'
-        | 'quote_mint'
-        | 'base_decimals'
-        | 'quote_decimals'
-        | 'base_lot_size'
-        | 'quote_lot_size'
-      >
-    ): Promise<Trade[]> => {
-      const resolvedMarket = marketIdOrDefault(marketId);
-      const url = `${harnessUrl}${API_ROUTES.market_trades.replace('{marketId}', resolvedMarket)}?view=optimistic&limit=${encodeURIComponent(limit)}`;
-      const { data, error } = await tryCatch<AxiosResponse<HarnessTradesResponse>>(axios.get(url));
-
-      if (error) {
-        throw error;
-      }
-
-      return (data.data.data || [])
-        .filter(trade => trade.maker_owner === owner || trade.taker_owner === owner)
-        .map(trade => ({
-          id: trade.trade_id,
-          buyer_owner: trade.taker_side === 'bid' ? trade.taker_owner : trade.maker_owner,
-          seller_owner: trade.taker_side === 'ask' ? trade.taker_owner : trade.maker_owner,
-          price: lotsPriceToNative(trade.price_lots, market),
-          quantity: lotsBaseToNative(trade.base_lots, market),
-          timestamp: Math.floor(trade.ts_ms / 1000),
-          base_mint: market?.base_mint || '',
-          quote_mint: market?.quote_mint || '',
-        }));
-    },
-    [harnessUrl]
-  );
 
   const fetchUserBalances = useCallback(
     async (pubkey: string): Promise<UserBalancesResponse> => {
@@ -477,11 +261,6 @@ export function useSequencerApi() {
 
   return {
     ping,
-    fetchOrderbook,
-    fetchOrderbookDepth,
-    fetchUserOrders,
-    submitCancelOrderToSequencer,
-    fetchTrades,
     fetchUserBalances,
     requestAirdrop,
     requestAirdropDeposit,

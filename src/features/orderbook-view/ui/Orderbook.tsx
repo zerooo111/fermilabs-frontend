@@ -2,10 +2,11 @@
  * Orderbook component
  * Displays the orderbook for the selected market
  */
-import { useEffect, useMemo, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useRef } from 'react';
 import { isEqual } from 'lodash';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useAtomValue } from 'jotai';
+import { sseConnectionStateAtom } from '@/shared/api/sse-atoms';
 
 import { useSelectedMarket } from '@/entities/market';
 import { useOrderbook } from '@/entities/orderbook';
@@ -14,23 +15,19 @@ import { processOrderbook, formatPrice } from '../lib/processOrderbook';
 import { OrderbookRow } from './OrderbookRow';
 import { Trades } from './Trades';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
+import { ConnectionIndicator } from '@/shared/ui/ConnectionIndicator';
 
 const orderbookRows = 10;
 
 export function Orderbook() {
   const { selectedMarket } = useSelectedMarket();
-  const { orderbook, loadOrderbook } = useOrderbook();
+  const { orderbook } = useOrderbook();
   const { publicKey } = useWallet();
+  const connectionState = useAtomValue(sseConnectionStateAtom);
   const lastProcessedRef = useRef<ReturnType<typeof processOrderbook> | null>(null);
-  const showTradesTab = !!publicKey; // Hide trades tab when wallet not connected (shown in PortfolioTabs instead)
-
-  // Setup orderbook polling
-  const { isLoading } = useQuery({
-    queryKey: ['orderbook', selectedMarket?.uuid],
-    queryFn: loadOrderbook,
-    refetchInterval: 500,
-    enabled: !!selectedMarket?.uuid,
-  });
+  const showTradesTab = !!publicKey;
+  const isLoading =
+    connectionState === 'connecting' && orderbook.bids.length === 0 && orderbook.asks.length === 0;
 
   // Process orderbook with memoization to prevent unnecessary re-renders
   const processedOrderbook = useMemo(() => {
@@ -58,12 +55,6 @@ export function Orderbook() {
     selectedMarket?.baseDecimals,
     selectedMarket?.quoteDecimals,
   ]);
-
-  useEffect(() => {
-    if (selectedMarket) {
-      // Orderbook effect
-    }
-  }, [selectedMarket, processedOrderbook]);
 
   const ROW_HEIGHT_CLASS = 'h-[26px]';
 
@@ -96,7 +87,9 @@ export function Orderbook() {
     <>
       {/* Column Headers */}
       <div className="grid grid-cols-3 px-4 py-2 text-xs bg-card border-b border-outline shrink-0">
-        <div className="text-left font-mono">Price</div>
+        <div className="text-left font-mono flex items-center gap-1.5">
+          Price <ConnectionIndicator />
+        </div>
         <div className="text-right font-mono">Size</div>
         <div className="text-right font-mono">Total</div>
       </div>

@@ -17,6 +17,7 @@ import {
   marketsAtom,
 } from '@/entities/market';
 import { useAtomValue } from 'jotai';
+import { useSSEStream } from '@/shared/hooks/useSSEStream';
 
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
@@ -31,6 +32,7 @@ function PerpsPage() {
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
 
   const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
+  useSSEStream();
   const markets = useAtomValue(marketsAtom);
   const marketsRef = useRef(markets);
   marketsRef.current = markets;

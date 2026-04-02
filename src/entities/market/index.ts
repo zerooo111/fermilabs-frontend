@@ -4,6 +4,7 @@
  */
 export {
   marketsAtom,
+  selectedMarketIdAtom,
   selectedMarketAtom,
   useSelectedMarket,
   MarketModel,

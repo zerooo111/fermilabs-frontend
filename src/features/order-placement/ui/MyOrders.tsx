@@ -4,7 +4,7 @@
  */
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
 import { Badge } from '@/shared/ui/badge';
@@ -17,8 +17,7 @@ import {
   formatQuantity,
   formatTotal,
 } from '@/features/orderbook-view/lib/processOrderbook';
-import { useSequencerApi } from '@/shared/api/useSequencerApi';
-import { useQuery } from '@tanstack/react-query';
+import { userOpenOrdersAtom } from '@/shared/api/sse-atoms';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
 
 export function MyOrders() {
@@ -26,27 +25,8 @@ export function MyOrders() {
   const [cancellingOrders, setCancellingOrders] = useState<Set<string>>(new Set());
   const { selectedMarket } = useSelectedMarket();
   const orderReceipts = useAtomValue(orderReceiptsAtom);
-  const { fetchUserOrders } = useSequencerApi();
+  const userOrders = useAtomValue(userOpenOrdersAtom);
   const { cancelOrder } = usePerps();
-
-  const { data: userOrders } = useQuery({
-    queryKey: ['userOrders', publicKey?.toBase58(), selectedMarket?.uuid],
-    queryFn: async () => {
-      if (!publicKey) return [];
-      return await fetchUserOrders(
-        publicKey.toBase58(),
-        selectedMarket?.uuid,
-        selectedMarket || undefined
-      );
-    },
-    enabled: !!publicKey && !!selectedMarket,
-    refetchInterval: 500, // Refetch every 0.5 seconds
-    staleTime: 500, // Keep cache fresh when switching tabs
-  });
-
-  useEffect(() => {
-    // User orders effect
-  }, [userOrders]);
 
   const myOrders = useMemo(() => {
     if (!userOrders || !publicKey) return [];

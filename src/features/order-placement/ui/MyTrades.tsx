@@ -5,66 +5,25 @@
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Badge } from '@/shared/ui/badge';
-import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { selectedMarketAtom } from '@/entities/market/model';
 import { useAtomValue } from 'jotai';
-import { Loader2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
 import {
   formatPrice,
   formatQuantity,
   formatTotal,
 } from '@/features/orderbook-view/lib/processOrderbook';
+import { userTradesAtom } from '@/shared/api/sse-atoms';
 
 export function MyTrades() {
   const { publicKey } = useWallet();
-  const { fetchTrades } = useSequencerApi();
   const selectedMarket = useAtomValue(selectedMarketAtom);
-
-  const { data: trades = [], isLoading } = useQuery({
-    queryKey: ['trades', publicKey?.toBase58(), selectedMarket?.uuid],
-    queryFn: async () => {
-      if (!publicKey || !selectedMarket) return [];
-      return fetchTrades(publicKey.toBase58(), selectedMarket.uuid, 100, selectedMarket);
-    },
-    enabled: !!publicKey && !!selectedMarket,
-    refetchInterval: 500, // Refetch every 0.5 seconds
-    staleTime: 500, // Keep cache fresh when switching tabs
-  });
+  const trades = useAtomValue(userTradesAtom);
 
   if (!publicKey) {
     return (
       <div>
         <h2 className="text-lg font-medium">Please connect your wallet</h2>
       </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Time</TableHead>
-            <TableHead>Side</TableHead>
-            <TableHead>Price</TableHead>
-            <TableHead>Size</TableHead>
-            <TableHead>Buyer</TableHead>
-            <TableHead>Seller</TableHead>
-            <TableHead className="text-right">Total</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow>
-            <TableCell colSpan={7} className="h-24 text-center">
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Loading trades...
-              </div>
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
     );
   }
 
