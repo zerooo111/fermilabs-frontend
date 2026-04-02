@@ -100,7 +100,7 @@ export function usePositions(params: UsePositionsParams = {}) {
     queryKey: ['positions', owner, marketId],
     queryFn: async (): Promise<Position[]> => {
       if (!owner && !marketId) return [];
-      const url = `${config.devnet.apiBaseUrl}${API_ROUTES.markets}?view=optimistic`;
+      const url = `${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`;
       const { data, error } = await tryCatch<AxiosResponse<HarnessFullStateResponse>>(
         axios.get(url)
       );
@@ -125,7 +125,7 @@ export function usePositions(params: UsePositionsParams = {}) {
 
       await Promise.all(
         candidateMarkets.map(async candidateMarket => {
-          const tradesUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.market_trades.replace('{marketId}', candidateMarket)}?view=optimistic&limit=200`;
+          const tradesUrl = `${config.devnet.gatewayUrl}${API_ROUTES.market_trades.replace('{marketId}', candidateMarket)}?view=optimistic&limit=200`;
           const tradesResult = await tryCatch<AxiosResponse<HarnessTradesResponse>>(
             axios.get(tradesUrl)
           );

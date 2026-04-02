@@ -73,7 +73,7 @@ export function useAccount(owner: string) {
   return useQuery({
     queryKey: ['account', owner],
     queryFn: async (): Promise<MarginAccount | null> => {
-      const url = `${config.devnet.apiBaseUrl}${API_ROUTES.user_balances.replace('{pubkey}', owner)}?view=optimistic`;
+      const url = `${config.devnet.gatewayUrl}${API_ROUTES.user_balances.replace('{pubkey}', owner)}?view=optimistic`;
       const { data, error } = await tryCatch<axios.AxiosResponse<HarnessFullStateResponse>>(
         axios.get(url)
       );

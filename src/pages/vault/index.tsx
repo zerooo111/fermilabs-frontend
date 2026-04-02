@@ -46,7 +46,7 @@ function VaultPage() {
   const { data: markets } = useQuery({
     queryKey: ['markets'],
     queryFn: async () => {
-      const url = `${config.devnet.apiBaseUrl}${API_ROUTES.markets}`;
+      const url = `${config.devnet.gatewayUrl}${API_ROUTES.markets}`;
       const response = await axios.get(url);
       const rawMarkets = response.data as Market[];
 
@@ -110,7 +110,7 @@ function VaultPage() {
     queryKey: ['userBalances', publicKey?.toBase58()],
     queryFn: async () => {
       if (!publicKey) return null;
-      const url = `${config.devnet.apiBaseUrl}${API_ROUTES.user_balances.replace('{pubkey}', publicKey.toBase58())}`;
+      const url = `${config.devnet.gatewayUrl}${API_ROUTES.user_balances.replace('{pubkey}', publicKey.toBase58())}`;
       const response = await axios.get(url);
       return response.data as Record<string, { available: string; reserved: string }>;
     },
@@ -165,7 +165,7 @@ function VaultPage() {
   const handleAirdrop = async () => {
     if (!publicKey || !selectedToken) return;
 
-    const url = `${config.devnet.apiBaseUrl}/rollup/airdrop`;
+    const url = `${config.devnet.gatewayUrl}/rollup/airdrop`;
 
     // Default airdrop amount based on token decimals (e.g., 1000 tokens)
     const decimals = getTokenDecimals(selectedToken.name);

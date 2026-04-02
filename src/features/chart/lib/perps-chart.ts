@@ -87,7 +87,7 @@ export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<Cand
   try {
     const route = API_ROUTES.market_candles.replace('{marketId}', marketId);
     const response = await axios.get<HarnessCandleResponse>(
-      `${config.devnet.apiBaseUrl}${route}?${queryParams.toString()}`
+      `${config.devnet.gatewayUrl}${route}?${queryParams.toString()}`
     );
 
     const harnessCandles = (response.data.data || []).map(candle => [
@@ -115,7 +115,7 @@ export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<Cand
     const parsedFrom = from ? Date.parse(from) : toMs - 30 * 24 * 60 * 60 * 1000;
     const fromMs = Number.isFinite(parsedFrom) ? parsedFrom : toMs - 30 * 24 * 60 * 60 * 1000;
     const fallbackUrl = new URL(
-      `${config.devnet.timescaleApiUrl}/candles/${encodeURIComponent(marketId)}`
+      `${config.devnet.gatewayUrl}/candles/${encodeURIComponent(marketId)}`
     );
     fallbackUrl.searchParams.set('tf', tf);
     fallbackUrl.searchParams.set('from', String(fromMs));

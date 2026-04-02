@@ -67,7 +67,7 @@ export function useMarketStats(options: UseMarketStatsOptions = {}) {
   return useQuery({
     queryKey: ['marketStats'],
     queryFn: async (): Promise<Market[]> => {
-      const url = `${config.devnet.apiBaseUrl}${API_ROUTES.markets}?view=optimistic`;
+      const url = `${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`;
       const { data, error } = await tryCatch<AxiosResponse<HarnessFullStateResponse>>(
         axios.get(url)
       );
@@ -81,7 +81,7 @@ export function useMarketStats(options: UseMarketStatsOptions = {}) {
       const latestTradePriceLotsByMarket = new Map<string, number>();
       await Promise.all(
         markets.map(async ([marketId]) => {
-          const tradesUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.market_trades.replace('{marketId}', marketId)}?view=optimistic&limit=200`;
+          const tradesUrl = `${config.devnet.gatewayUrl}${API_ROUTES.market_trades.replace('{marketId}', marketId)}?view=optimistic&limit=200`;
           const tradesResult = await tryCatch<AxiosResponse<HarnessTradesResponse>>(
             axios.get(tradesUrl)
           );

@@ -10,7 +10,13 @@ import { Loader2 } from 'lucide-react';
 import { Orderbook } from '../../features/orderbook-view';
 import { PerpsChartContainer } from '../../features/chart/ui/PerpsChartContainer';
 import { PerpsTradePanel, PortfolioTabs } from '../../features/order-placement';
-import { useSelectedMarket } from '@/entities/market';
+import {
+  useSelectedMarket,
+  marketNameToSlug,
+  findMarketBySlug,
+  marketsAtom,
+} from '@/entities/market';
+import { useAtomValue } from 'jotai';
 
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
@@ -25,10 +31,13 @@ function PerpsPage() {
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
 
   const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
+  const markets = useAtomValue(marketsAtom);
+  const marketsRef = useRef(markets);
+  marketsRef.current = markets;
 
   // Handle URL-based market selection - only on first render
   useLayoutEffect(() => {
-    const loadAndSetMarketOnFirstRender = async (urlMarketId: string | undefined) => {
+    const loadAndSetMarketOnFirstRender = async (urlSlug: string | undefined) => {
       if (initialLoadRef.current) return;
 
       setIsLoadingMarkets(true);
@@ -39,7 +48,10 @@ function PerpsPage() {
           throw new Error('No markets found!');
         }
 
-        const currentMarket = markets.find(m => m.uuid === urlMarketId);
+        // Resolve by slug first, then fall back to UUID for backwards compat
+        const currentMarket = urlSlug
+          ? findMarketBySlug(markets, urlSlug) || markets.find(m => m.uuid === urlSlug)
+          : undefined;
         // Filter for perp markets only
         const perpMarkets = markets.filter(m => m.kind === 'perp');
         const firstPerpMarket = perpMarkets[0];
@@ -61,12 +73,15 @@ function PerpsPage() {
     };
 
     loadAndSetMarketOnFirstRender(params.id);
-  }, [loadMarkets, params.id, selectMarket]); // Empty deps since we only want this on mount
+  }, [loadMarkets, params.id, selectMarket]);
 
   // Update URL when selected market changes - but only after initial load
   useEffect(() => {
     if (selectedMarketId && initialLoadRef.current) {
-      navigate(`/perps/${selectedMarketId}`, { replace: true }); // Use replace to avoid browser history buildup
+      const markets = marketsRef.current;
+      const market = markets.find(m => m.uuid === selectedMarketId);
+      const slug = market ? marketNameToSlug(market.name) : selectedMarketId;
+      navigate(`/perps/${slug}`, { replace: true });
     }
   }, [selectedMarketId, navigate]);
 

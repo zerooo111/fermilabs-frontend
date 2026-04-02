@@ -262,7 +262,7 @@ export const useSelectedMarket = () => {
 
     try {
       const { data, error } = await tryCatch<AxiosResponse<any>>(
-        axios.get(`${config.devnet.apiBaseUrl}${API_ROUTES.markets}?view=optimistic`)
+        axios.get(`${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`)
       );
 
       if (error) throw error;
@@ -293,7 +293,7 @@ export const useSelectedMarket = () => {
       const latestTradePriceLotsByMarket = new Map<string, number>();
       await Promise.all(
         marketIds.map(async (marketId: string) => {
-          const tradesUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.market_trades.replace('{marketId}', marketId)}?view=optimistic&limit=200`;
+          const tradesUrl = `${config.devnet.gatewayUrl}${API_ROUTES.market_trades.replace('{marketId}', marketId)}?view=optimistic&limit=200`;
           const tradesResult = await tryCatch<AxiosResponse<any>>(axios.get(tradesUrl));
           if (tradesResult.error) return;
           const trades = tradesResult.data.data?.data || [];
@@ -473,8 +473,29 @@ export const useSelectedMarket = () => {
   );
 };
 
+/**
+ * Convert a market name to a URL-friendly slug.
+ * "SOL/USDC Perps" → "SOL-USDC"
+ * "ETH-PERP" → "ETH-PERP"
+ */
+export function marketNameToSlug(name: string): string {
+  return name
+    .split(' ')[0] // Remove suffix like "Perps"
+    .replace(/\//g, '-') // "SOL/USDC" → "SOL-USDC"
+    .toUpperCase();
+}
+
+/**
+ * Find a market by its URL slug.
+ */
+export function findMarketBySlug(markets: Market[], slug: string): Market | undefined {
+  return markets.find(m => marketNameToSlug(m.name) === slug.toUpperCase());
+}
+
 // Export market model
 export const MarketModel = {
   useSelectedMarket,
   enhanceMarket: memoizedEnhanceMarket,
+  marketNameToSlug,
+  findMarketBySlug,
 };

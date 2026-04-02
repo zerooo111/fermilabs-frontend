@@ -63,7 +63,7 @@ export interface CandleParams {
  */
 export async function fetchCandles(params: CandleParams): Promise<OHLCVData[]> {
   try {
-    const response = await axios.get(`${config.devnet.graphApiUrl}/candles`, { params });
+    const response = await axios.get(`${config.devnet.gatewayUrl}/candles`, { params });
 
     // Validate the response data
     if (!Array.isArray(response.data)) {

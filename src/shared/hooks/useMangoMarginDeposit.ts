@@ -60,7 +60,7 @@ export function useMangoMarginDeposit() {
       }
 
       const owner = wallet.publicKey;
-      const contextUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner.toBase58())}`;
+      const contextUrl = `${config.devnet.gatewayUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner.toBase58())}`;
       const { data: depositContext } = await axios.get<DepositContextResponse>(contextUrl);
 
       const [{ AnchorProvider, BN, Program }, { IDL: MANGO_V4_IDL }] = await Promise.all([

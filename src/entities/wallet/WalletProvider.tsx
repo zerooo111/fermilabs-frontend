@@ -20,30 +20,8 @@ interface WalletContextProviderProps {
 }
 
 export function WalletContextProvider({ children }: WalletContextProviderProps) {
-  const endpoint = useMemo(() => {
-    const configured = config.devnet.rpcUrl;
-    if (/^https?:\/\//i.test(configured)) {
-      return configured;
-    }
-    if (typeof window !== 'undefined') {
-      const path = configured.startsWith('/') ? configured : `/${configured}`;
-      return `${window.location.origin}${path}`;
-    }
-    return 'http://127.0.0.1:8899';
-  }, []);
-
-  const wsEndpoint = useMemo(() => {
-    const configured = config.devnet.wsUrl;
-    if (/^wss?:\/\//i.test(configured)) {
-      return configured;
-    }
-    if (typeof window !== 'undefined') {
-      const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const path = configured.startsWith('/') ? configured : `/${configured}`;
-      return `${scheme}//${window.location.host}${path}`;
-    }
-    return 'ws://127.0.0.1:8900';
-  }, []);
+  const endpoint = config.devnet.rpcUrl;
+  const wsEndpoint = config.devnet.wsUrl;
 
   const autoConnect =
     String(import.meta.env.VITE_WALLET_AUTOCONNECT || 'false').toLowerCase() === 'true';

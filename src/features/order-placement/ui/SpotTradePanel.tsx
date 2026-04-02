@@ -109,7 +109,7 @@ export function SpotTradePanel() {
     };
 
     const receipt = await axios
-      .post(`${config.devnet.apiBaseUrl}/tx`, {
+      .post(`${config.devnet.gatewayUrl}/tx`, {
         transaction: transactionData,
       })
       .then(res => res.data);

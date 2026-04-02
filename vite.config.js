@@ -14,29 +14,6 @@ export default defineConfig({
     fs: {
       allow: [path.resolve(__dirname, '..')],
     },
-    proxy: {
-      '/harness': {
-        target: 'http://127.0.0.1:9091',
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/harness/, ''),
-      },
-      '/bridge': {
-        target: 'http://127.0.0.1:9092',
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/bridge/, ''),
-      },
-      '/solana-rpc': {
-        target: 'http://127.0.0.1:8899',
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/solana-rpc/, ''),
-      },
-      '/solana-ws': {
-        target: 'ws://127.0.0.1:8900',
-        ws: true,
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/solana-ws/, ''),
-      },
-    },
   },
   preview: {
     host: '0.0.0.0',

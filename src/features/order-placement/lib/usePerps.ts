@@ -429,7 +429,7 @@ export function usePerps() {
     }
 
     const startedAt = performance.now();
-    const bridgeUrl = config.devnet.relayBridgeUrl;
+    const bridgeUrl = config.devnet.gatewayUrl;
     const owner = publicKey.toBase58();
     const market = selectedMarket?.uuid || config.devnet.defaultHarnessMarketId;
     const cached = relayConfigCacheRef.current;
@@ -458,7 +458,7 @@ export function usePerps() {
 
     try {
       const depositContextResponse = await axios.get<DepositContextResponse>(
-        `${config.devnet.apiBaseUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner)}`
+        `${config.devnet.gatewayUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner)}`
       );
       const depositContext = depositContextResponse.data;
       if (depositContext?.mango_account) {
@@ -476,7 +476,7 @@ export function usePerps() {
     if (!mangoAccount && !configData.owner_to_mango_account?.[owner]) {
       try {
         const balancesResponse = await axios.get<HarnessOwnerBalancesResponse>(
-          `${config.devnet.apiBaseUrl}${API_ROUTES.user_balances.replace('{pubkey}', owner)}?view=optimistic&onchain=false`
+          `${config.devnet.gatewayUrl}${API_ROUTES.user_balances.replace('{pubkey}', owner)}?view=optimistic&onchain=false`
         );
         const ownerMangoAccount = balancesResponse.data?.data?.mango_accounts?.[0];
         if (ownerMangoAccount) {
@@ -543,7 +543,7 @@ export function usePerps() {
 
     try {
       const response = await axios.get<HarnessFullMarketsResponse>(
-        `${config.devnet.apiBaseUrl}${API_ROUTES.markets}?view=optimistic`
+        `${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`
       );
       const marketMeta = response.data?.market_metadata?.[marketId];
       if (marketMeta) {
@@ -607,7 +607,7 @@ export function usePerps() {
     const signatureBytes = await signIntentMessage(intent.userIntentMessage);
     const signedIntentAt = performance.now();
 
-    const bridgeUrl = config.devnet.relayBridgeUrl;
+    const bridgeUrl = config.devnet.gatewayUrl;
     const relayPayload = {
       group: params.group,
       execution_queue: params.executionQueue,

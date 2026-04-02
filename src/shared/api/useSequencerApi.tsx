@@ -223,7 +223,7 @@ function uiToNativeString(uiAmount: number, decimals: number): string {
 }
 
 export function useSequencerApi() {
-  const harnessUrl = config.devnet.apiBaseUrl;
+  const harnessUrl = config.devnet.gatewayUrl;
 
   const ping = useCallback(async () => {
     const healthCheck = await axios.get(`${harnessUrl}${API_ROUTES.health}`);

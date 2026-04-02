@@ -70,7 +70,7 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
     queryKey: ['recent-trades', marketId, limit],
     queryFn: async () => {
       if (!marketId) return undefined;
-      const apiBaseUrl = config.devnet.apiBaseUrl;
+      const apiBaseUrl = config.devnet.gatewayUrl;
       const url = `${apiBaseUrl}${API_ROUTES.market_trades.replace('{marketId}', marketId)}?view=optimistic&limit=${encodeURIComponent(limit)}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to load recent trades');

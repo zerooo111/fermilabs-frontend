@@ -7,17 +7,11 @@ import type { Commitment } from '@solana/web3.js';
 // config -> network ( devnet / mainnet ) -> programId / rpcUrl , commitment , etc...
 export const config = {
   devnet: {
-    // Default to same-origin proxy paths (configured in vite.config.js) to avoid CORS issues.
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/harness',
-    // Local HTTP bridge proxy path for relay submit + TimeScaleDB candle fallback.
-    relayBridgeUrl: import.meta.env.VITE_RELAY_BRIDGE_URL || '/bridge',
-    timescaleApiUrl: import.meta.env.VITE_TIMESCALE_API_URL || '/bridge',
-    // Optional, currently unused by harness reads.
-    graphApiUrl: import.meta.env.VITE_GRAPH_API_URL || '/harness',
-    // Route RPC/WS through frontend origin by default (see vite proxy config).
-    rpcUrl: import.meta.env.VITE_RPC_URL || '/solana-rpc',
+    // Unified API gateway for all backend services (state harness, relay bridge, candles).
+    gatewayUrl: import.meta.env.VITE_GATEWAY_URL || 'https://v1.fermi.trade',
+    rpcUrl: import.meta.env.VITE_RPC_URL || 'https://api.devnet.solana.com',
     commitment: (import.meta.env.VITE_COMMITMENT || 'confirmed') as Commitment,
-    wsUrl: import.meta.env.VITE_WS_URL || '/solana-ws',
+    wsUrl: import.meta.env.VITE_WS_URL || 'wss://api.devnet.solana.com',
     // Mango queue/harness defaults
     defaultHarnessMarketId: import.meta.env.VITE_HARNESS_MARKET_ID || '0',
     defaultMarketName: import.meta.env.VITE_MARKET_NAME || 'SOL/USDC Perps',
