@@ -65,7 +65,7 @@ export function useMangoMarginDeposit() {
 
       const [{ AnchorProvider, BN, Program }, { IDL: MANGO_V4_IDL }] = await Promise.all([
         import('@coral-xyz/anchor'),
-        import('@mango-v4-client/mango_v4'),
+        import('@/shared/lib/mango-v4-idl'),
       ]);
       const provider = new AnchorProvider(connection, wallet, {
         commitment: config.devnet.commitment,

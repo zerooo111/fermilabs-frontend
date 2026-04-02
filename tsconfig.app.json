@@ -20,8 +20,7 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@mango-v4-client/*": ["../mng-v4/ts/client/src/*"]
+      "@/*": ["src/*"]
     },
 
     /* Blockchain Development Optimizations */

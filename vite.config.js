@@ -11,9 +11,6 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 8070,
     strictPort: true,
-    fs: {
-      allow: [path.resolve(__dirname, '..')],
-    },
   },
   preview: {
     host: '0.0.0.0',
@@ -23,7 +20,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@mango-v4-client': path.resolve(__dirname, '../mng-v4/ts/client/src'),
     },
   },
 });
