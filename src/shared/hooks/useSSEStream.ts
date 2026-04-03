@@ -110,21 +110,21 @@ export function useSSEStream() {
   }
 
   function handleAccountUpdate(data: SSEAccountUpdateEvent) {
+    if (!data?.owner) return;
     const ctxMap = ctxMapRef.current;
     const fallback = ctxMap.values().next().value ?? DEFAULT_CTX;
 
-    setUserOrders(mapOpenOrders(data.open_orders, ctxMap, fallback));
-    setUserTrades(mapUserTrades(data.trades, ctxMap, fallback));
-    setUserPositions(mapPositions(data.positions, data.owner, ctxMap, markPriceRef.current));
+    setUserOrders(mapOpenOrders(data.open_orders ?? [], ctxMap, fallback));
+    setUserTrades(mapUserTrades(data.trades ?? [], ctxMap, fallback));
+    setUserPositions(mapPositions(data.positions ?? [], data.owner, ctxMap, markPriceRef.current));
 
     const quoteDecimals = fallback.quoteDecimals;
     setAccountMetrics(mapAccountMetrics(data, quoteDecimals));
   }
 
   function handleSnapshot(data: SSESnapshotEvent) {
-    // Snapshot overwrites all state atomically — no eager clear needed.
-    handleMarketUpdate(data.market);
-    handleAccountUpdate(data.owner);
+    if (data.market) handleMarketUpdate(data.market);
+    if (data.owner) handleAccountUpdate(data.owner);
   }
 
   // --- Wire callbacks into the singleton clients via mutable ref ---
