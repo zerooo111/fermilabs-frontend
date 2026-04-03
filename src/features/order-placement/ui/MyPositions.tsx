@@ -7,6 +7,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { formatQuantity, formatPrice } from '@/features/orderbook-view/lib/processOrderbook';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
+import { Badge } from '@/shared/ui/badge';
 import { Loader2 } from 'lucide-react';
 import { useSelectedMarket, marketsAtom } from '@/entities/market/model';
 import { usePositions } from '@/shared/hooks/usePositions';
@@ -79,12 +80,13 @@ export function MyPositions() {
     return (
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Market</TableHead>
-            <TableHead className="text-right">Size</TableHead>
-            <TableHead className="text-right">Entry Price</TableHead>
-            <TableHead className="text-right">Current Price</TableHead>
-            <TableHead className="text-right">PnL</TableHead>
+            <TableRow>
+              <TableHead className="text-center">Side</TableHead>
+              <TableHead>Market</TableHead>
+              <TableHead className="text-right">Size</TableHead>
+              <TableHead className="text-right">Entry Price</TableHead>
+              <TableHead className="text-right">Current Price</TableHead>
+              <TableHead className="text-right">PnL</TableHead>
             <TableHead className="text-right">Stop Loss</TableHead>
             <TableHead className="text-right">Take Profit</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -92,7 +94,7 @@ export function MyPositions() {
         </TableHeader>
         <TableBody>
           <TableRow>
-            <TableCell colSpan={8} className="h-24 text-center">
+            <TableCell colSpan={9} className="h-24 text-center">
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
                 Loading positions...
@@ -108,19 +110,20 @@ export function MyPositions() {
     if (!positions || positions.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={8} className="h-24 text-center text-sm text-muted-foreground">
+          <TableCell colSpan={9} className="h-24 text-center text-sm text-muted-foreground">
             No open positions
           </TableCell>
         </TableRow>
       );
     }
 
-    return positions.map((position, index) => {
-      // Convert string values to numbers for formatting
-      const basePosition = parseFloat(position.base_position);
-      const averageEntryPrice = parseFloat(position.average_entry_price);
-      const markPrice = parseFloat(position.mark_price);
-      const unrealizedPnl = parseFloat(position.unrealized_pnl);
+      return positions.map((position, index) => {
+        // Convert string values to numbers for formatting
+        const basePosition = parseFloat(position.base_position);
+        const sideLabel = basePosition >= 0 ? 'Long' : 'Short';
+        const averageEntryPrice = parseFloat(position.average_entry_price);
+        const markPrice = parseFloat(position.mark_price);
+        const unrealizedPnl = parseFloat(position.unrealized_pnl);
       const stopLossPrice = position.stop_loss_price ? parseFloat(position.stop_loss_price) : null;
       const takeProfitPrice = position.take_profit_price
         ? parseFloat(position.take_profit_price)
@@ -133,14 +136,17 @@ export function MyPositions() {
       const baseDecimals = positionMarket?.base_decimals ?? 9;
       const quoteDecimals = positionMarket?.quote_decimals ?? 6;
 
-      return (
-        <TableRow key={index} className="text-white/90">
-          <TableCell className="font-medium">{position.market_name}</TableCell>
-          <TableCell className="text-center font-mono tabular-nums">
-            {formatQuantity(basePosition, baseDecimals)}
-          </TableCell>
-          <TableCell className="text-center font-mono tabular-nums">
-            {formatPrice(averageEntryPrice, quoteDecimals)}
+        return (
+          <TableRow key={index} className="text-white/90">
+            <TableCell className="text-center">
+              <Badge variant={basePosition >= 0 ? 'success' : 'danger'}>{sideLabel}</Badge>
+            </TableCell>
+            <TableCell className="font-medium">{position.market_name}</TableCell>
+            <TableCell className="text-center font-mono tabular-nums">
+              {formatQuantity(Math.abs(basePosition), baseDecimals)}
+            </TableCell>
+            <TableCell className="text-center font-mono tabular-nums">
+              {formatPrice(averageEntryPrice, quoteDecimals)}
           </TableCell>
           <TableCell className="text-center font-mono tabular-nums">
             {formatPrice(markPrice, quoteDecimals)}
@@ -182,6 +188,7 @@ export function MyPositions() {
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="text-center">Side</TableHead>
           <TableHead>Market</TableHead>
           <TableHead className="text-center">Size</TableHead>
           <TableHead className="text-center">Entry Price</TableHead>

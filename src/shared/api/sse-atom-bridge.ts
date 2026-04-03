@@ -35,17 +35,21 @@ function lotsToNative(
   priceLots: string,
   quoteLotSize: number,
   baseScale: number,
-  baseLotSize: number,
-  quoteScale: number
+  baseLotSize: number
 ): number {
   return Number(
-    (BigInt(priceLots) * BigInt(quoteLotSize) * BigInt(baseScale)) /
-      (BigInt(baseLotSize) * BigInt(quoteScale))
+    (BigInt(priceLots) * BigInt(quoteLotSize) * BigInt(baseScale)) / BigInt(baseLotSize)
   );
 }
 
-function baseLotsToNative(baseLots: string, baseLotSize: number, baseScale: number): number {
-  return Number((BigInt(baseLots) * BigInt(baseLotSize)) / BigInt(baseScale));
+function baseLotsToNative(baseLots: string, baseLotSize: number): number {
+  return Number(BigInt(baseLots) * BigInt(baseLotSize));
+}
+
+function parseFiniteNumber(value: string | number | undefined, fallback: number = 0): number {
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 export function buildMarketContext(data: SSEMarketUpdateEvent): MarketContext {
@@ -111,13 +115,12 @@ export function mapOpenOrders(
               order.price_lots,
               ctx.quoteLotSize,
               baseScale,
-              ctx.baseLotSize,
-              quoteScale
+              ctx.baseLotSize
             ),
       quantity:
         order.qty_ui !== undefined
           ? uiToNative(order.qty_ui, baseScale)
-          : baseLotsToNative(order.base_lots, ctx.baseLotSize, baseScale),
+          : baseLotsToNative(order.base_lots, ctx.baseLotSize),
       expiry: 0,
       timestamp: Number(order.sequence),
       base_mint: ctx.baseMint,
@@ -149,13 +152,12 @@ export function mapUserTrades(
               trade.price_lots,
               ctx.quoteLotSize,
               baseScale,
-              ctx.baseLotSize,
-              quoteScale
+              ctx.baseLotSize
             ),
       quantity:
         trade.qty_ui !== undefined
           ? uiToNative(trade.qty_ui, baseScale)
-          : baseLotsToNative(trade.base_lots, ctx.baseLotSize, baseScale),
+          : baseLotsToNative(trade.base_lots, ctx.baseLotSize),
       timestamp: Math.floor(trade.ts_ms / 1000),
       base_mint: ctx.baseMint,
       quote_mint: ctx.quoteMint,
@@ -177,30 +179,42 @@ export function mapPositions(
       const meta = ctxMap.get(p.market);
       const baseDecimals = meta?.baseDecimals ?? 6;
       const quoteDecimals = meta?.quoteDecimals ?? 6;
+      const baseLotSize = meta?.baseLotSize ?? 1;
       const quoteScale = 10 ** quoteDecimals;
       const baseScale = 10 ** baseDecimals;
+      const basePositionNative =
+        p.base_position_ui !== undefined
+          ? uiToNative(p.base_position_ui, baseScale)
+          : baseLotsToNative(p.base_position_lots, baseLotSize);
+      const quotePositionNative = parseFiniteNumber(p.quote_position_native);
+      const markPriceNative =
+        p.mark_price_ui !== undefined
+          ? uiToNative(p.mark_price_ui, quoteScale)
+          : uiToNative(markPriceByMarket.get(p.market) ?? 0, quoteScale);
+      const basePositionUi = basePositionNative / baseScale;
+      const quotePositionUi = quotePositionNative / quoteScale;
+      const markPriceUi = markPriceNative / quoteScale;
+      const averageEntryPriceUi =
+        basePositionUi !== 0 ? Math.abs(quotePositionUi / basePositionUi) : 0;
+      const unrealizedPnlUi = quotePositionUi + basePositionUi * markPriceUi;
 
       return {
         owner,
         market_id: p.market,
         market_name: meta?.name || `Market ${p.market}`,
-        base_position: String(
-          p.base_position_ui !== undefined ? uiToNative(p.base_position_ui, baseScale) : 0
-        ),
+        base_position: String(basePositionNative),
         average_entry_price: String(
           p.average_entry_price_ui !== undefined
             ? uiToNative(p.average_entry_price_ui, quoteScale)
-            : 0
+            : uiToNative(averageEntryPriceUi, quoteScale)
         ),
-        mark_price: String(
-          p.mark_price_ui !== undefined
-            ? uiToNative(p.mark_price_ui, quoteScale)
-            : uiToNative(markPriceByMarket.get(p.market) ?? 0, quoteScale)
-        ),
+        mark_price: String(markPriceNative),
         realized_pnl:
           p.realized_pnl_ui !== undefined ? String(uiToNative(p.realized_pnl_ui, quoteScale)) : '0',
         unrealized_pnl: String(
-          p.unrealized_pnl_ui !== undefined ? uiToNative(p.unrealized_pnl_ui, quoteScale) : 0
+          p.unrealized_pnl_ui !== undefined
+            ? uiToNative(p.unrealized_pnl_ui, quoteScale)
+            : uiToNative(unrealizedPnlUi, quoteScale)
         ),
         cumulative_funding: '0',
         base_decimals: baseDecimals,
@@ -311,11 +325,11 @@ export function mapRecentTrades(
     price:
       trade.price_ui !== undefined
         ? uiToNative(trade.price_ui, quoteScale)
-        : lotsToNative(trade.price_lots, ctx.quoteLotSize, baseScale, ctx.baseLotSize, quoteScale),
+        : lotsToNative(trade.price_lots, ctx.quoteLotSize, baseScale, ctx.baseLotSize),
     quantity:
       trade.qty_ui !== undefined
         ? uiToNative(trade.qty_ui, baseScale)
-        : baseLotsToNative(trade.base_lots, ctx.baseLotSize, baseScale),
+        : baseLotsToNative(trade.base_lots, ctx.baseLotSize),
     timestamp: Math.floor(trade.ts_ms / 1000),
     buyer_owner: trade.taker_side === 'bid' ? trade.taker_owner : trade.maker_owner,
     seller_owner: trade.taker_side === 'ask' ? trade.taker_owner : trade.maker_owner,

@@ -2,7 +2,7 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import { useWallet } from '@solana/wallet-adapter-react';
 import bs58 from 'bs58';
-import { useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useSelectedMarket } from '@/entities/market';
 import { config, API_ROUTES } from '@/shared/config/constants';
 import {
@@ -75,11 +75,19 @@ type ResolvedRelayConfig = {
   mangoAccount: string;
 };
 
+type ExecutionMarketParams = {
+  base_decimals: number;
+  quote_decimals: number;
+  base_lot_size: number;
+  quote_lot_size: number;
+};
+
 type HarnessFullMarketsResponse = {
   market_metadata?: Record<string, HarnessMarketMetadata>;
 };
 
-const RELAY_CONFIG_CACHE_TTL_MS = 5000;
+const RELAY_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
+const MARKET_META_CACHE_TTL_MS = 60 * 60 * 1000;
 const RELAY_DUPLICATE_SEQUENCE_RETRIES = 2;
 
 function sleep(ms: number): Promise<void> {
@@ -159,26 +167,39 @@ function remapLaneAccountsForOwner(
 export function usePerps() {
   const { publicKey, signMessage, wallet } = useWallet();
   const { selectedMarket } = useSelectedMarket();
+  const owner = publicKey?.toBase58() || '';
+  const selectedMarketId = selectedMarket?.uuid || config.devnet.defaultHarnessMarketId;
+  const hasSelectedMarket = Boolean(selectedMarket);
+  const fallbackBaseDecimals = Number(selectedMarket?.base_decimals ?? config.devnet.baseDecimals);
+  const fallbackQuoteDecimals = Number(selectedMarket?.quote_decimals ?? config.devnet.quoteDecimals);
+  const fallbackBaseLotSize = Number(selectedMarket?.base_lot_size ?? config.devnet.baseLotSize);
+  const fallbackQuoteLotSize = Number(selectedMarket?.quote_lot_size ?? config.devnet.quoteLotSize);
   const relayConfigCacheRef = useRef<{
     owner: string;
     market: string;
     value: ResolvedRelayConfig;
     fetchedAtMs: number;
   } | null>(null);
+  const relayConfigRequestRef = useRef<{
+    owner: string;
+    market: string;
+    promise: Promise<ResolvedRelayConfig>;
+  } | null>(null);
   const marketMetaCacheRef = useRef<{
     market: string;
-    value: Pick<
-      HarnessMarketMetadata,
-      'base_decimals' | 'quote_decimals' | 'base_lot_size' | 'quote_lot_size'
-    >;
+    value: ExecutionMarketParams;
     fetchedAtMs: number;
   } | null>(null);
+  const marketMetaRequestRef = useRef<{
+    market: string;
+    promise: Promise<ExecutionMarketParams>;
+  } | null>(null);
 
-  const logPerf = (label: string, data: Record<string, number | string>) => {
+  const logPerf = useCallback((label: string, data: Record<string, number | string>) => {
     if (import.meta.env.DEV) {
       console.info(`[perps-timing] ${label}`, data);
     }
-  };
+  }, []);
 
   const normalizeWalletSignature = (value: unknown): Uint8Array | null => {
     if (value instanceof Uint8Array) return value;
@@ -187,6 +208,28 @@ export function usePerps() {
       if (sig instanceof Uint8Array) return sig;
     }
     return null;
+  };
+
+  const isUserRejectedSignatureError = (error: unknown): boolean => {
+    const code = (error as { code?: unknown })?.code;
+    if (code === 4001 || code === '4001' || code === 'ACTION_REJECTED') {
+      return true;
+    }
+
+    const message = error instanceof Error ? error.message : String(error ?? '');
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('user rejected') ||
+      normalized.includes('user denied') ||
+      normalized.includes('request rejected') ||
+      normalized.includes('request denied') ||
+      normalized.includes('transaction rejected') ||
+      normalized.includes('signature rejected') ||
+      normalized.includes('signature denied') ||
+      normalized.includes('cancelled') ||
+      normalized.includes('canceled') ||
+      normalized.includes('declined')
+    );
   };
 
   const signIntentMessage = async (message: Uint8Array): Promise<Uint8Array> => {
@@ -216,6 +259,9 @@ export function usePerps() {
         const signature = normalizeWalletSignature(result);
         if (signature) return signature;
       } catch (error) {
+        if (isUserRejectedSignatureError(error)) {
+          throw new Error('Signature request rejected');
+        }
         attemptedErrors.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
       }
       return null;
@@ -423,15 +469,14 @@ export function usePerps() {
     );
   };
 
-  const resolveRelayConfig = async (): Promise<ResolvedRelayConfig> => {
-    if (!publicKey) {
+  const resolveRelayConfig = useCallback(async (): Promise<ResolvedRelayConfig> => {
+    if (!owner) {
       throw new Error('Wallet not connected');
     }
 
     const startedAt = performance.now();
     const bridgeUrl = config.devnet.gatewayUrl;
-    const owner = publicKey.toBase58();
-    const market = selectedMarket?.uuid || config.devnet.defaultHarnessMarketId;
+    const market = selectedMarketId;
     const cached = relayConfigCacheRef.current;
     if (
       cached &&
@@ -446,135 +491,184 @@ export function usePerps() {
       return cached.value;
     }
 
-    const response = await axios.get<RelayConfigResponse>(
-      `${bridgeUrl}${API_ROUTES.relay_config}?owner=${encodeURIComponent(owner)}`
-    );
-    const configData = response.data;
+    const inFlight = relayConfigRequestRef.current;
+    if (inFlight && inFlight.owner === owner && inFlight.market === market) {
+      logPerf('relay-config', {
+        strategy: 'in-flight',
+        resolve_ms: Math.round(performance.now() - startedAt),
+      });
+      return inFlight.promise;
+    }
 
-    const group = configData.group || config.devnet.mangoGroupPk;
-    const executionQueue = configData.execution_queue || config.devnet.mangoExecutionQueuePk;
-    const resolvedMarket = market || configData.market || config.devnet.defaultHarnessMarketId;
-    let mangoAccount = configData.owner_to_mango_account?.[owner] || '';
-
-    try {
-      const depositContextResponse = await axios.get<DepositContextResponse>(
-        `${config.devnet.gatewayUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner)}`
+    const request = (async (): Promise<ResolvedRelayConfig> => {
+      const response = await axios.get<RelayConfigResponse>(
+        `${bridgeUrl}${API_ROUTES.relay_config}?owner=${encodeURIComponent(owner)}`
       );
-      const depositContext = depositContextResponse.data;
-      if (depositContext?.mango_account) {
-        if (!depositContext.mango_account_exists) {
-          throw new Error('Mango account missing; deposit first');
+      const configData = response.data;
+
+      const group = configData.group || config.devnet.mangoGroupPk;
+      const executionQueue = configData.execution_queue || config.devnet.mangoExecutionQueuePk;
+      const resolvedMarket = market || configData.market || config.devnet.defaultHarnessMarketId;
+      let mangoAccount = configData.owner_to_mango_account?.[owner] || '';
+
+      if (!mangoAccount) {
+        try {
+          const depositContextResponse = await axios.get<DepositContextResponse>(
+            `${config.devnet.gatewayUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner)}`
+          );
+          const depositContext = depositContextResponse.data;
+          if (depositContext && !depositContext.mango_account_exists) {
+            throw new Error('Mango account missing; deposit first');
+          }
+          if (depositContext?.mango_account) {
+            mangoAccount = depositContext.mango_account;
+          }
+        } catch (error) {
+          if (error instanceof Error && error.message === 'Mango account missing; deposit first') {
+            throw error;
+          }
         }
-        mangoAccount = depositContext.mango_account;
       }
-    } catch (error) {
-      if (error instanceof Error && error.message === 'Mango account missing; deposit first') {
-        throw error;
-      }
-    }
 
-    if (!mangoAccount && !configData.owner_to_mango_account?.[owner]) {
-      try {
-        const balancesResponse = await axios.get<HarnessOwnerBalancesResponse>(
-          `${config.devnet.gatewayUrl}${API_ROUTES.user_balances.replace('{pubkey}', owner)}?view=optimistic&onchain=false`
-        );
-        const ownerMangoAccount = balancesResponse.data?.data?.mango_accounts?.[0];
-        if (ownerMangoAccount) {
-          mangoAccount = ownerMangoAccount;
+      if (!mangoAccount) {
+        try {
+          const balancesResponse = await axios.get<HarnessOwnerBalancesResponse>(
+            `${config.devnet.gatewayUrl}${API_ROUTES.user_balances.replace('{pubkey}', owner)}?view=optimistic&onchain=false`
+          );
+          const ownerMangoAccount = balancesResponse.data?.data?.mango_accounts?.[0];
+          if (ownerMangoAccount) {
+            mangoAccount = ownerMangoAccount;
+          }
+        } catch {
+          // Keep existing relay-config fallback when harness lookup fails.
         }
-      } catch {
-        // Keep existing relay-config fallback when harness lookup fails.
       }
-    }
 
-    if (!mangoAccount) {
-      mangoAccount = configData.mango_account || config.devnet.defaultMangoAccountPk;
-    }
+      if (!mangoAccount) {
+        mangoAccount = configData.mango_account || config.devnet.defaultMangoAccountPk;
+      }
 
-    if (!group || !executionQueue || !mangoAccount) {
-      throw new Error('Missing relay bridge configuration (group/execution_queue/mango_account)');
-    }
+      if (!group || !executionQueue || !mangoAccount) {
+        throw new Error('Missing relay bridge configuration (group/execution_queue/mango_account)');
+      }
 
-    const resolved: ResolvedRelayConfig = {
-      configData,
-      group,
-      executionQueue,
-      market: resolvedMarket,
-      mangoAccount,
-    };
+      const resolved: ResolvedRelayConfig = {
+        configData,
+        group,
+        executionQueue,
+        market: resolvedMarket,
+        mangoAccount,
+      };
 
-    relayConfigCacheRef.current = {
+      relayConfigCacheRef.current = {
+        owner,
+        market,
+        value: resolved,
+        fetchedAtMs: Date.now(),
+      };
+      logPerf('relay-config', {
+        strategy: 'network',
+        resolve_ms: Math.round(performance.now() - startedAt),
+      });
+      return resolved;
+    })();
+    relayConfigRequestRef.current = {
       owner,
       market,
-      value: resolved,
-      fetchedAtMs: Date.now(),
+      promise: request,
     };
-    logPerf('relay-config', {
-      strategy: 'network',
-      resolve_ms: Math.round(performance.now() - startedAt),
-    });
-    return resolved;
-  };
+    try {
+      return await request;
+    } finally {
+      if (relayConfigRequestRef.current?.promise === request) {
+        relayConfigRequestRef.current = null;
+      }
+    }
+  }, [logPerf, owner, selectedMarketId]);
 
-  const resolveExecutionMarketParams = async (): Promise<{
-    base_decimals: number;
-    quote_decimals: number;
-    base_lot_size: number;
-    quote_lot_size: number;
-  }> => {
-    if (!selectedMarket) {
+  const resolveExecutionMarketParams = useCallback(async (): Promise<ExecutionMarketParams> => {
+    if (!hasSelectedMarket) {
       throw new Error('Selected market not found');
     }
 
-    const marketId = selectedMarket.uuid || config.devnet.defaultHarnessMarketId;
+    const marketId = selectedMarketId;
     const cached = marketMetaCacheRef.current;
     if (
       cached &&
       cached.market === marketId &&
-      Date.now() - cached.fetchedAtMs < RELAY_CONFIG_CACHE_TTL_MS
+      Date.now() - cached.fetchedAtMs < MARKET_META_CACHE_TTL_MS
     ) {
-      return {
-        base_decimals: Number(cached.value.base_decimals),
-        quote_decimals: Number(cached.value.quote_decimals),
-        base_lot_size: Number(cached.value.base_lot_size),
-        quote_lot_size: Number(cached.value.quote_lot_size),
-      };
+      return cached.value;
     }
 
-    try {
-      const response = await axios.get<HarnessFullMarketsResponse>(
-        `${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`
-      );
-      const marketMeta = response.data?.market_metadata?.[marketId];
-      if (marketMeta) {
-        marketMetaCacheRef.current = {
-          market: marketId,
-          value: {
-            base_decimals: marketMeta.base_decimals,
-            quote_decimals: marketMeta.quote_decimals,
-            base_lot_size: marketMeta.base_lot_size,
-            quote_lot_size: marketMeta.quote_lot_size,
-          },
-          fetchedAtMs: Date.now(),
-        };
-        return {
-          base_decimals: Number(marketMeta.base_decimals),
-          quote_decimals: Number(marketMeta.quote_decimals),
-          base_lot_size: Number(marketMeta.base_lot_size),
-          quote_lot_size: Number(marketMeta.quote_lot_size),
-        };
+    const inFlight = marketMetaRequestRef.current;
+    if (inFlight && inFlight.market === marketId) {
+      return inFlight.promise;
+    }
+
+    const request = (async (): Promise<ExecutionMarketParams> => {
+      try {
+        const response = await axios.get<HarnessFullMarketsResponse>(
+          `${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`
+        );
+        const marketMeta = response.data?.market_metadata?.[marketId];
+        if (marketMeta) {
+          const resolved = {
+            base_decimals: Number(marketMeta.base_decimals),
+            quote_decimals: Number(marketMeta.quote_decimals),
+            base_lot_size: Number(marketMeta.base_lot_size),
+            quote_lot_size: Number(marketMeta.quote_lot_size),
+          };
+          marketMetaCacheRef.current = {
+            market: marketId,
+            value: resolved,
+            fetchedAtMs: Date.now(),
+          };
+          return resolved;
+        }
+      } catch {
+        // Fall back to the selected market snapshot if the harness metadata request fails.
       }
-    } catch {
-      // Fall back to the selected market snapshot if the harness metadata request fails.
-    }
 
-    return {
-      base_decimals: Number(selectedMarket.base_decimals ?? config.devnet.baseDecimals),
-      quote_decimals: Number(selectedMarket.quote_decimals ?? config.devnet.quoteDecimals),
-      base_lot_size: Number(selectedMarket.base_lot_size ?? config.devnet.baseLotSize),
-      quote_lot_size: Number(selectedMarket.quote_lot_size ?? config.devnet.quoteLotSize),
+      return {
+        base_decimals: fallbackBaseDecimals,
+        quote_decimals: fallbackQuoteDecimals,
+        base_lot_size: fallbackBaseLotSize,
+        quote_lot_size: fallbackQuoteLotSize,
+      };
+    })();
+    marketMetaRequestRef.current = {
+      market: marketId,
+      promise: request,
     };
-  };
+    try {
+      return await request;
+    } finally {
+      if (marketMetaRequestRef.current?.promise === request) {
+        marketMetaRequestRef.current = null;
+      }
+    }
+  }, [
+    fallbackBaseDecimals,
+    fallbackBaseLotSize,
+    fallbackQuoteDecimals,
+    fallbackQuoteLotSize,
+    hasSelectedMarket,
+    selectedMarketId,
+  ]);
+
+  useEffect(() => {
+    if (!owner) return;
+    void resolveRelayConfig().catch(() => undefined);
+  }, [owner, resolveRelayConfig]);
+
+  useEffect(() => {
+    if (!hasSelectedMarket) return;
+    void resolveExecutionMarketParams().catch(() => undefined);
+    if (owner) {
+      void resolveRelayConfig().catch(() => undefined);
+    }
+  }, [hasSelectedMarket, owner, resolveExecutionMarketParams, resolveRelayConfig]);
 
   const submitIntent = async (params: {
     payloadBytes: Uint8Array;
