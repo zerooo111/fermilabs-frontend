@@ -39,6 +39,15 @@ interface PerpsMarketOrderParams {
   markPrice: number;
 }
 
+interface PerpsClosePositionParams {
+  side: OrderSide;
+  size: string;
+  mode: 'market' | 'limit';
+  markPrice: number;
+  maxSlippageBps?: number;
+  limitPrice?: string;
+}
+
 type RelayConfigResponse = {
   group: string | null;
   execution_queue: string | null;
@@ -947,13 +956,12 @@ export function usePerps() {
 
   const closePosition = async ({
     side,
-    price,
     size,
-  }: {
-    side: OrderSide;
-    price: string;
-    size: string;
-  }): Promise<{ success: boolean; error?: string }> => {
+    mode,
+    markPrice,
+    maxSlippageBps,
+    limitPrice,
+  }: PerpsClosePositionParams): Promise<{ success: boolean; error?: string }> => {
     try {
       if (!publicKey || !signMessage) {
         throw new Error('Wallet not connected');
@@ -962,13 +970,32 @@ export function usePerps() {
         throw new Error('Selected market not found');
       }
 
-      const priceValue = Number(price);
       const sizeValue = Number(size);
-      if (!Number.isFinite(priceValue) || priceValue <= 0) {
-        throw new Error('Invalid close price');
-      }
       if (!Number.isFinite(sizeValue) || sizeValue <= 0) {
         throw new Error('Invalid close size');
+      }
+
+      const closeMode = mode === 'market' ? 'market' : 'limit';
+      let priceValue: number;
+      let orderType: QueuePlaceOrderType;
+
+      if (closeMode === 'market') {
+        if (!Number.isFinite(markPrice) || markPrice <= 0) {
+          throw new Error('Invalid close mark price');
+        }
+        const slippageBps = Number.isFinite(maxSlippageBps) ? Math.max(0, maxSlippageBps) : 50;
+        const slippageFraction = slippageBps / 10_000;
+        priceValue = markPrice * (side === 'Buy' ? 1 + slippageFraction : 1 - slippageFraction);
+        if (!Number.isFinite(priceValue) || priceValue <= 0) {
+          throw new Error('Invalid close price');
+        }
+        orderType = QueuePlaceOrderType.ImmediateOrCancel;
+      } else {
+        priceValue = Number(limitPrice);
+        if (!Number.isFinite(priceValue) || priceValue <= 0) {
+          throw new Error('Invalid close limit price');
+        }
+        orderType = QueuePlaceOrderType.Limit;
       }
 
       const relay = await resolveRelayConfig();
@@ -989,7 +1016,7 @@ export function usePerps() {
         price: priceValue,
         size: sizeValue,
         reduceOnly: true,
-        orderType: QueuePlaceOrderType.Market,
+        orderType,
         clientOrderId: BigInt(Date.now()),
         marketMeta,
       });
@@ -1001,11 +1028,13 @@ export function usePerps() {
         executionQueue: relay.executionQueue,
         market: relay.market,
         mangoAccount: relay.mangoAccount,
-        priceForTick: priceValue,
+        priceForTick: closeMode === 'market' ? markPrice : priceValue,
         sizeForTick: sizeValue,
       });
 
-      toast.success('Closed position');
+      toast.success(
+        closeMode === 'market' ? 'Close market order submitted' : 'Close limit order submitted'
+      );
       return { success: true };
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to close position');
