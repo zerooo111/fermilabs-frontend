@@ -157,20 +157,23 @@ function remapLaneAccountsForOwner(
     if (pk) knownMangoAccounts.add(pk);
   });
 
-  if (
-    (!knownMangoAccounts.size || knownMangoAccounts.has(ownerMangoAccount)) &&
-    (!knownOwners.size || knownOwners.has(ownerPubkey))
-  ) {
-    return laneAccounts;
-  }
-
-  return laneAccounts.map(account =>
+  const remappedAccounts = laneAccounts.map(account =>
     knownMangoAccounts.has(account.pubkey)
       ? { ...account, pubkey: ownerMangoAccount }
       : knownOwners.has(account.pubkey)
         ? { ...account, pubkey: ownerPubkey }
         : account
   );
+
+  // For execution-queue place/cancel lanes, slot [1] is the user's mango account
+  // and slot [2] is the owner. Force those slots so stale lane templates do not
+  // survive if the backend serves an outdated lane file.
+  if (remappedAccounts.length >= 3) {
+    remappedAccounts[1] = { ...remappedAccounts[1], pubkey: ownerMangoAccount };
+    remappedAccounts[2] = { ...remappedAccounts[2], pubkey: ownerPubkey };
+  }
+
+  return remappedAccounts;
 }
 
 export function usePerps() {
@@ -715,6 +718,7 @@ export function usePerps() {
       group: params.group,
       execution_queue: params.executionQueue,
       market: params.market,
+      _base_fee: 'AUTO',
       payload_b64: bytesToBase64(params.payloadBytes),
       remaining_accounts: params.remainingAccounts,
       min_execute_slot: '0',
