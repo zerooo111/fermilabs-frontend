@@ -5,11 +5,10 @@
  */
 import { useLayoutEffect, useEffect, useRef, memo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
-
 import { Orderbook } from '../../features/orderbook-view';
 import { PerpsChartContainer } from '../../features/chart/ui/PerpsChartContainer';
 import { PerpsTradePanel, PortfolioTabs } from '../../features/order-placement';
+import { TradingSkeleton } from '@/shared/ui/TradingSkeleton';
 import {
   useSelectedMarket,
   marketNameToSlug,
@@ -87,16 +86,9 @@ function PerpsPage() {
     }
   }, [selectedMarketId, navigate]);
 
-  // Show fullscreen loading while markets are loading
+  // Show inline skeleton while markets are loading
   if (isLoadingMarkets) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="size-8 animate-spin text-primary" />
-          <span className="text-sm text-muted-foreground">Loading ..</span>
-        </div>
-      </div>
-    );
+    return <TradingSkeleton />;
   }
 
   return (

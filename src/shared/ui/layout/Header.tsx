@@ -6,7 +6,7 @@ import FermiLogo3d from './FermiLogo';
 export function Header() {
   const location = useLocation();
   return (
-    <nav className="w-full h-14  flex items-center p-3 border-b border-outline">
+    <nav className="w-full h-14 flex items-center p-3 border-b border-outline bg-background">
       <div className="flex items-center justify-between flex-1">
         <div className="flex items-center gap-3 relative">
           <Link

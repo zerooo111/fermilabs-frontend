@@ -1,12 +1,13 @@
 /**
  * LazyRoutes.tsx
- * Defines lazy-loaded route components for code splitting
+ * Defines lazy-loaded route components with skeleton loading states
  */
 import { lazy, Suspense } from 'react';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
+import { TradingSkeleton } from '@/shared/ui/TradingSkeleton';
 import NoiseOverlay from '@/pages/home/ui/NoiseOverlay';
 
-// Loading component for Suspense fallback
+// Landing page loading — branded splash
 const LoadingPage = () => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-dark-forest text-rock font-[Arimo]">
     <img src="/logo.svg" alt="Fermi" className="w-12 h-12 mb-4 animate-pulse" />
@@ -31,7 +32,7 @@ export const LazyHomePage = () => (
 
 export const LazyTradePage = () => (
   <ErrorBoundary>
-    <Suspense fallback={<LoadingPage />}>
+    <Suspense fallback={<TradingSkeleton />}>
       <TradePage />
     </Suspense>
   </ErrorBoundary>
@@ -39,7 +40,7 @@ export const LazyTradePage = () => (
 
 export const LazyPerpsPage = () => (
   <ErrorBoundary>
-    <Suspense fallback={<LoadingPage />}>
+    <Suspense fallback={<TradingSkeleton />}>
       <PerpsPage />
     </Suspense>
   </ErrorBoundary>
@@ -47,7 +48,7 @@ export const LazyPerpsPage = () => (
 
 export const LazyVaultPage = () => (
   <ErrorBoundary>
-    <Suspense fallback={<LoadingPage />}>
+    <Suspense fallback={<TradingSkeleton />}>
       <VaultPage />
     </Suspense>
   </ErrorBoundary>
