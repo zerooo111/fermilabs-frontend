@@ -86,10 +86,15 @@ function PerpsChartContainerComponent() {
 
   // State to hold candles with real-time updates
   const [candles, setCandles] = useState<ExtendedPerpsOHLCVData[]>([]);
+  const candlesRef = useRef<ExtendedPerpsOHLCVData[]>([]);
   const previousMarkPriceRef = useRef<number | null>(null);
 
   // Memoize the interval change handler
   const handleIntervalChange = useCallback((value: string) => {
+    // Clear candles immediately to avoid flashing old timeframe data
+    setCandles([]);
+    candlesRef.current = [];
+    previousMarkPriceRef.current = null;
     setTimeInterval(value as PerpsTimeframe);
   }, []);
 
@@ -130,7 +135,8 @@ function PerpsChartContainerComponent() {
     // Remove refetchInterval - only fetch when market/interval changes
     enabled: !!selectedMarket?.uuid,
     retry: 2,
-    staleTime: Infinity, // Historical data doesn't become stale
+    staleTime: 30_000, // Refetch if data is older than 30s (e.g. switching back to a timeframe)
+    placeholderData: undefined, // Don't show stale data from a different queryKey
   });
 
   // Fetch market stats for real-time mark_price updates
@@ -163,13 +169,15 @@ function PerpsChartContainerComponent() {
   useEffect(() => {
     if (historicalData && historicalData.length > 0) {
       setCandles(historicalData);
+      candlesRef.current = historicalData;
       previousMarkPriceRef.current = null; // Reset to allow first mark_price update
     }
   }, [historicalData]);
 
   // Update candles in real-time with mark_price
+  // Uses candlesRef to avoid circular dependency (effect sets candles, depends on candles)
   useEffect(() => {
-    if (markPrice === null || markPrice <= 0 || candles.length === 0) {
+    if (markPrice === null || markPrice <= 0 || candlesRef.current.length === 0) {
       return;
     }
 
@@ -179,10 +187,11 @@ function PerpsChartContainerComponent() {
     }
 
     // Update candles with the new mark_price
-    const updatedCandles = updateCandlesWithMarkPrice(candles, markPrice, timeInterval);
+    const updatedCandles = updateCandlesWithMarkPrice(candlesRef.current, markPrice, timeInterval);
+    candlesRef.current = updatedCandles;
     setCandles(updatedCandles);
     previousMarkPriceRef.current = markPrice;
-  }, [markPrice, timeInterval, candles]);
+  }, [markPrice, timeInterval]);
 
   // Calculate latest price and price change from updated candles
   const latestPrice = useMemo(() => {
