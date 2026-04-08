@@ -19,6 +19,7 @@ import { getLeverageLimitsFromMarket } from '@/entities/market/model';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { useMemo } from 'react';
@@ -132,6 +133,21 @@ export function PerpsTradePanel() {
         </div>
       ),
     });
+    promise
+      .then(data => {
+        posthog.capture('airdrop_requested', {
+          token: selectedMarket?.quoteTokenName ?? 'USDC',
+          amount: data?.ui_amount,
+          wallet: publicKey?.toBase58(),
+        });
+      })
+      .catch((err: any) => {
+        posthog.capture('airdrop_failed', {
+          token: selectedMarket?.quoteTokenName ?? 'USDC',
+          error_message: err?.response?.data?.error || err?.message || 'Unknown error',
+          wallet: publicKey?.toBase58(),
+        });
+      });
   };
 
   const handleMarginDeposit = async () => {
@@ -164,6 +180,22 @@ export function PerpsTradePanel() {
         </div>
       ),
     });
+    promise
+      .then(data => {
+        posthog.capture('margin_deposit', {
+          token: selectedMarket?.quoteTokenName ?? 'USDC',
+          amount: data?.uiAmount,
+          auto_created_mango_account: data?.autoCreatedMangoAccount ?? false,
+          wallet: publicKey?.toBase58(),
+        });
+      })
+      .catch((err: any) => {
+        posthog.capture('margin_deposit_failed', {
+          token: selectedMarket?.quoteTokenName ?? 'USDC',
+          error_message: err?.response?.data?.error || err?.message || 'Unknown error',
+          wallet: publicKey?.toBase58(),
+        });
+      });
   };
 
   // Calculate order value considering decimal inputs with safe parsing

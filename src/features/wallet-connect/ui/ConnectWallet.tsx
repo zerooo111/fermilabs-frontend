@@ -6,9 +6,10 @@
 
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Copy, LogOut, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +36,21 @@ export function ConnectWallet() {
   const { wallet, connect, disconnect, connected, connecting, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const [copied, setCopied] = useState(false);
+
+  // Identify user and capture wallet_connected when wallet connects
+  useEffect(() => {
+    if (connected && publicKey) {
+      const walletAddress = publicKey.toBase58();
+      posthog.identify(walletAddress, {
+        wallet_address: walletAddress,
+        wallet_name: wallet?.adapter?.name,
+      });
+      posthog.capture('wallet_connected', {
+        wallet_address: walletAddress,
+        wallet_name: wallet?.adapter?.name,
+      });
+    }
+  }, [connected, publicKey, wallet]);
 
   // Handle copy address
   const handleCopyAddress = useCallback(async () => {
@@ -71,6 +87,10 @@ export function ConnectWallet() {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to connect wallet';
       toast.error(message);
+      posthog.capture('wallet_connection_failed', {
+        error_message: message,
+        wallet_name: wallet?.adapter?.name,
+      });
       // If provider is unavailable or authorization was rejected, allow wallet re-selection.
       setVisible(true);
     }
@@ -99,7 +119,17 @@ export function ConnectWallet() {
           <Wallet className="size-4" />
           {LABELS['change-wallet']}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={disconnect} className="text-red-600">
+        <DropdownMenuItem
+          onClick={() => {
+            posthog.capture('wallet_disconnected', {
+              wallet_address: publicKey?.toBase58(),
+              wallet_name: wallet?.adapter?.name,
+            });
+            posthog.reset();
+            disconnect();
+          }}
+          className="text-red-600"
+        >
           <LogOut className="size-4" />
           {LABELS['disconnect']}
         </DropdownMenuItem>

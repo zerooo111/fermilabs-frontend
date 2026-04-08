@@ -23,6 +23,7 @@ import { useVaultClient } from '../../features/vault-deposit';
 import { checkOrCreateAssociatedTokenAccount } from '../../shared/lib/solana/helpers';
 import axios from 'axios';
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 import { config, API_ROUTES } from '@/shared/config/constants';
 import { Market } from '@/entities/market/model';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
@@ -137,10 +138,27 @@ function VaultPage() {
       vaultClient.walletPk
     );
 
-    await vaultClient.deposit(amount, tokenMint, ata, vaultClient.walletPk);
-
-    setInputAmount(0);
-    getData();
+    try {
+      await vaultClient.deposit(amount, tokenMint, ata, vaultClient.walletPk);
+      posthog.capture('vault_deposit', {
+        token: selectedToken?.name,
+        token_mint: selectedToken?.mint,
+        amount: inputAmount,
+        wallet: publicKey?.toBase58(),
+      });
+      setInputAmount(0);
+      getData();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(errorMessage);
+      posthog.capture('vault_deposit_failed', {
+        token: selectedToken?.name,
+        token_mint: selectedToken?.mint,
+        amount: inputAmount,
+        error_message: errorMessage,
+        wallet: publicKey?.toBase58(),
+      });
+    }
   };
 
   const withdrawTokens = async () => {
@@ -156,10 +174,27 @@ function VaultPage() {
       vaultClient.walletPk
     );
 
-    await vaultClient.withdraw(amount, tokenMint, ata, vaultClient.walletPk);
-
-    setInputAmount(0);
-    getData();
+    try {
+      await vaultClient.withdraw(amount, tokenMint, ata, vaultClient.walletPk);
+      posthog.capture('vault_withdraw', {
+        token: selectedToken?.name,
+        token_mint: selectedToken?.mint,
+        amount: inputAmount,
+        wallet: publicKey?.toBase58(),
+      });
+      setInputAmount(0);
+      getData();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(errorMessage);
+      posthog.capture('vault_withdraw_failed', {
+        token: selectedToken?.name,
+        token_mint: selectedToken?.mint,
+        amount: inputAmount,
+        error_message: errorMessage,
+        wallet: publicKey?.toBase58(),
+      });
+    }
   };
 
   const handleAirdrop = async () => {

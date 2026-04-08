@@ -1,5 +1,6 @@
 import { toast } from 'sonner';
 import axios from 'axios';
+import posthog from 'posthog-js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import bs58 from 'bs58';
 import { useCallback, useEffect, useRef } from 'react';
@@ -183,7 +184,9 @@ export function usePerps() {
   const selectedMarketId = selectedMarket?.uuid || config.devnet.defaultHarnessMarketId;
   const hasSelectedMarket = Boolean(selectedMarket);
   const fallbackBaseDecimals = Number(selectedMarket?.base_decimals ?? config.devnet.baseDecimals);
-  const fallbackQuoteDecimals = Number(selectedMarket?.quote_decimals ?? config.devnet.quoteDecimals);
+  const fallbackQuoteDecimals = Number(
+    selectedMarket?.quote_decimals ?? config.devnet.quoteDecimals
+  );
   const fallbackBaseLotSize = Number(selectedMarket?.base_lot_size ?? config.devnet.baseLotSize);
   const fallbackQuoteLotSize = Number(selectedMarket?.quote_lot_size ?? config.devnet.quoteLotSize);
   const relayConfigCacheRef = useRef<{
@@ -878,13 +881,28 @@ export function usePerps() {
       });
 
       toast.success(`${side} order placed successfully`);
+      posthog.capture('perp_limit_order_placed', {
+        market: selectedMarket?.name,
+        market_id: selectedMarket?.uuid,
+        side,
+        price: priceValue,
+        size: sizeValue,
+        wallet: publicKey?.toBase58(),
+      });
       return { success: true };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast.error(error instanceof Error ? error.message : 'Failed to place order');
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      posthog.capture('perp_limit_order_failed', {
+        market: selectedMarket?.name,
+        market_id: selectedMarket?.uuid,
+        side,
+        price: priceValue,
+        size: sizeValue,
+        error_message: errorMessage,
+        wallet: publicKey?.toBase58(),
+      });
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -948,13 +966,30 @@ export function usePerps() {
       });
 
       toast.success(`Market ${side} order placed successfully`);
+      posthog.capture('perp_market_order_placed', {
+        market: selectedMarket?.name,
+        market_id: selectedMarket?.uuid,
+        side,
+        size: sizeValue,
+        mark_price: markPrice,
+        max_slippage_bps: maxSlippageBps,
+        wallet: publicKey?.toBase58(),
+      });
       return { success: true };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast.error(error instanceof Error ? error.message : 'Failed to place market order');
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      posthog.capture('perp_market_order_failed', {
+        market: selectedMarket?.name,
+        market_id: selectedMarket?.uuid,
+        side,
+        size: sizeValue,
+        mark_price: markPrice,
+        max_slippage_bps: maxSlippageBps,
+        error_message: errorMessage,
+        wallet: publicKey?.toBase58(),
+      });
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -1039,13 +1074,28 @@ export function usePerps() {
       toast.success(
         closeMode === 'market' ? 'Close market order submitted' : 'Close limit order submitted'
       );
+      posthog.capture('perp_position_closed', {
+        market: selectedMarket?.name,
+        market_id: selectedMarket?.uuid,
+        side,
+        size: sizeValue,
+        close_mode: closeMode,
+        wallet: publicKey?.toBase58(),
+      });
       return { success: true };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast.error(error instanceof Error ? error.message : 'Failed to close position');
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      posthog.capture('perp_position_close_failed', {
+        market: selectedMarket?.name,
+        market_id: selectedMarket?.uuid,
+        side,
+        size: sizeValue,
+        close_mode: closeMode,
+        error_message: errorMessage,
+        wallet: publicKey?.toBase58(),
+      });
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -1083,13 +1133,24 @@ export function usePerps() {
       });
 
       toast.success('Order cancelled');
+      posthog.capture('perp_order_cancelled', {
+        market: selectedMarket?.name,
+        market_id: selectedMarket?.uuid,
+        order_id: orderId,
+        wallet: publicKey?.toBase58(),
+      });
       return { success: true };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast.error(error instanceof Error ? error.message : 'Failed to cancel order');
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      posthog.capture('perp_order_cancel_failed', {
+        market: selectedMarket?.name,
+        market_id: selectedMarket?.uuid,
+        order_id: orderId,
+        error_message: errorMessage,
+        wallet: publicKey?.toBase58(),
+      });
+      return { success: false, error: errorMessage };
     }
   };
 

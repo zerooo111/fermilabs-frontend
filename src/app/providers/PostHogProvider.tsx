@@ -27,6 +27,11 @@ export const PostHogProvider = ({ children }: PostHogProviderProps) => {
           }
         },
       });
+
+      // Register environment as a super property on all events
+      const environment =
+        import.meta.env.VITE_ENVIRONMENT || (import.meta.env.DEV ? 'development' : 'production');
+      posthog.register({ environment });
     }
 
     return () => {
