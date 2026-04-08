@@ -28,6 +28,10 @@ import { useResizeObserver } from '@/shared/hooks/useResizeObserver';
 
 export type PerpsChartType = 'candlestick' | 'line' | 'area' | 'bar';
 
+// Offset UTC timestamps so lightweight-charts (which assumes UTC) displays local time
+const tzOffsetSeconds = new Date().getTimezoneOffset() * -60;
+const toLocalTimestamp = (utcSeconds: number): number => utcSeconds + tzOffsetSeconds;
+
 // Custom hook to get CSS custom properties
 const useChartColors = () => {
   return useMemo(() => {
@@ -65,6 +69,7 @@ interface PerpsChartComponentProps {
 }
 
 const getPerpsTimeScaleOptions = (interval: PerpsTimeframe): Partial<TimeScaleOptions> => {
+  // Timestamps are pre-shifted by local tz offset, so use UTC methods to read them
   const formatTime: TickMarkFormatter = (time: Time) => {
     let timestamp: number;
     if (typeof time === 'number') {
@@ -72,25 +77,28 @@ const getPerpsTimeScaleOptions = (interval: PerpsTimeframe): Partial<TimeScaleOp
     } else if (typeof time === 'string') {
       timestamp = Math.floor(new Date(time).getTime() / 1000);
     } else {
-      // Handle BusinessDay format
       const { year, month, day } = time as BusinessDay;
-      timestamp = Math.floor(new Date(year, month - 1, day).getTime() / 1000);
+      timestamp = Math.floor(Date.UTC(year, month - 1, day) / 1000);
     }
 
     const date = new Date(timestamp * 1000);
+    const hh = date.getUTCHours().toString().padStart(2, '0');
+    const mm = date.getUTCMinutes().toString().padStart(2, '0');
+    const mo = date.getUTCMonth() + 1;
+    const dd = date.getUTCDate();
 
     switch (interval) {
       case '1m':
       case '5m':
       case '15m':
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `${hh}:${mm}`;
       case '1h':
       case '4h':
-        return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:00`;
+        return `${mo}/${dd} ${hh}:00`;
       case '1d':
-        return `${date.getMonth() + 1}/${date.getDate()}`;
+        return `${mo}/${dd}`;
       default:
-        return date.toLocaleDateString();
+        return `${mo}/${dd}`;
     }
   };
 
@@ -220,11 +228,12 @@ function PerpsChartComponent({
           continue;
         }
 
-        const timeValue = typeof item.time === 'number' ? item.time : Number(item.time);
-        if (isNaN(timeValue)) {
+        const rawTime = typeof item.time === 'number' ? item.time : Number(item.time);
+        if (isNaN(rawTime)) {
           continue;
         }
 
+        const timeValue = toLocalTimestamp(rawTime);
         const time = timeValue as Time;
         const candle: CandlestickData<Time> = {
           time,
