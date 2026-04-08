@@ -30,3 +30,6 @@ bun.lock
 
 # Local dev
 .localdev
+
+# Claude Code
+.claude
