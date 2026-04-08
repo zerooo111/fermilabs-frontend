@@ -61,14 +61,9 @@ function PerpsPage() {
           throw new Error('No perp markets found!');
         }
 
-        // Batch these operations
-        Promise.resolve().then(() => {
-          selectMarket(currentMarket?.uuid || firstPerpMarket?.uuid);
-          initialLoadRef.current = true;
-          setIsLoadingMarkets(false);
-        });
-      } catch {
-        // Silent error handling
+        selectMarket(currentMarket?.uuid || firstPerpMarket?.uuid);
+        initialLoadRef.current = true;
+      } finally {
         setIsLoadingMarkets(false);
       }
     };

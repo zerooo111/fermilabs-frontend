@@ -48,14 +48,9 @@ function TradePage() {
           throw new Error('No spot markets found!');
         }
 
-        // Batch these operations
-        Promise.resolve().then(() => {
-          selectMarket(currentMarket?.uuid || firstSpotMarket?.uuid);
-          initialLoadRef.current = true;
-          setIsLoadingMarkets(false);
-        });
-      } catch {
-        // Silent error handling
+        selectMarket(currentMarket?.uuid || firstSpotMarket?.uuid);
+        initialLoadRef.current = true;
+      } finally {
         setIsLoadingMarkets(false);
       }
     };

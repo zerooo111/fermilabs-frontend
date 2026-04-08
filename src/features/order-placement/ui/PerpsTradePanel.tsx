@@ -311,58 +311,61 @@ export function PerpsTradePanel() {
 
       if (formState.stopLoss && stopLossValue > priceValue) {
         toast.error('Stop Loss cannot be above entry price');
-        setIsSubmitting(false);
         return;
       }
 
       if (formState.takeProfit && takeProfitValue < priceValue) {
         toast.error('Take Profit cannot be below entry price');
-        setIsSubmitting(false);
         return;
       }
+    }
+
+    if (isMarketOrder && (!markPrice || markPrice <= 0)) {
+      toast.error('Mark price unavailable — cannot place market order');
+      return;
     }
 
     setIsSubmitting(true);
 
-    let result: { success: boolean; error?: string };
+    try {
+      let result: { success: boolean; error?: string };
 
-    if (isMarketOrder) {
-      if (!markPrice || markPrice <= 0) {
-        toast.error('Mark price unavailable — cannot place market order');
-        setIsSubmitting(false);
-        return;
+      if (isMarketOrder) {
+        result = await openMarketPosition({
+          side,
+          size: formState.size,
+          leverage: formState.leverage,
+          marginMode: formState.marginMode,
+          maxSlippageBps: safeParseFloat(formState.slippageBps, 100),
+          markPrice: markPrice!,
+        });
+      } else {
+        result = await openPosition({
+          side,
+          leverage: formState.leverage,
+          marginMode: formState.marginMode,
+          price: formState.price,
+          size: formState.size,
+          stopLoss: enableSLTP && formState.stopLoss ? formState.stopLoss : undefined,
+          takeProfit: enableSLTP && formState.takeProfit ? formState.takeProfit : undefined,
+        });
       }
-      result = await openMarketPosition({
-        side,
-        size: formState.size,
-        leverage: formState.leverage,
-        marginMode: formState.marginMode,
-        maxSlippageBps: safeParseFloat(formState.slippageBps, 100),
-        markPrice,
-      });
-    } else {
-      result = await openPosition({
-        side,
-        leverage: formState.leverage,
-        marginMode: formState.marginMode,
-        price: formState.price,
-        size: formState.size,
-        stopLoss: enableSLTP && formState.stopLoss ? formState.stopLoss : undefined,
-        takeProfit: enableSLTP && formState.takeProfit ? formState.takeProfit : undefined,
-      });
-    }
 
-    if (result.success) {
-      setFormState(prev => ({
-        ...prev,
-        price: '',
-        size: '',
-        stopLoss: '',
-        takeProfit: '',
-      }));
-      setSLTPValues({ stopLoss: null, takeProfit: null });
+      if (result.success) {
+        setFormState(prev => ({
+          ...prev,
+          price: '',
+          size: '',
+          stopLoss: '',
+          takeProfit: '',
+        }));
+        setSLTPValues({ stopLoss: null, takeProfit: null });
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to place order');
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (

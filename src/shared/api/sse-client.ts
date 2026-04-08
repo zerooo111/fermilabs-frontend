@@ -261,7 +261,6 @@ export class TradesSSEClient {
   private state: SSEConnectionState = 'disconnected';
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private staleTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
 
   callbacks: SSETradesCallbacks = {};
@@ -275,7 +274,6 @@ export class TradesSSEClient {
   disconnect() {
     this.closeConnection();
     this.clearReconnectTimer();
-    this.clearStaleTimer();
     this.setState('disconnected');
   }
 
@@ -317,7 +315,6 @@ export class TradesSSEClient {
       } catch {
         /* ignore parse errors */
       }
-      this.resetStaleTimer();
     });
 
     es.addEventListener('snapshot', (e: MessageEvent) => {
@@ -326,7 +323,6 @@ export class TradesSSEClient {
       } catch {
         /* ignore */
       }
-      this.resetStaleTimer();
     });
 
     es.addEventListener('trade', (e: MessageEvent) => {
@@ -335,7 +331,6 @@ export class TradesSSEClient {
       } catch {
         /* ignore */
       }
-      this.resetStaleTimer();
     });
 
     // Also listen for 'trades' in case the server uses plural
@@ -345,15 +340,12 @@ export class TradesSSEClient {
       } catch {
         /* ignore */
       }
-      this.resetStaleTimer();
     });
 
     es.onerror = () => {
       this.closeConnection();
       this.scheduleReconnect();
     };
-
-    this.resetStaleTimer();
   }
 
   private closeConnection() {
@@ -361,7 +353,6 @@ export class TradesSSEClient {
       this.eventSource.close();
       this.eventSource = null;
     }
-    this.clearStaleTimer();
   }
 
   private scheduleReconnect() {
@@ -381,22 +372,6 @@ export class TradesSSEClient {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
-    }
-  }
-
-  private resetStaleTimer() {
-    this.clearStaleTimer();
-    this.staleTimer = setTimeout(() => {
-      this.closeConnection();
-      this.clearReconnectTimer();
-      this.openConnection();
-    }, STALE_TIMEOUT_MS);
-  }
-
-  private clearStaleTimer() {
-    if (this.staleTimer) {
-      clearTimeout(this.staleTimer);
-      this.staleTimer = null;
     }
   }
 

@@ -30,8 +30,8 @@ export function MintTokens() {
   const { connection } = useConnection();
 
   const fetchBalances = async (tokenMint: PublicKey) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
       if (!wallet) {
         throw new Error('Wallet not connected');
       }
@@ -46,16 +46,16 @@ export function MintTokens() {
 
       setWalletBalance(fetchWalletBalance);
     } catch (err) {
-      // Silent error handling
       // @ts-expect-error : err is not defined
       toast.error(err?.message ?? 'Unknown error:: check console');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const mintTokens = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
       if (!wallet) {
         throw new Error('Wallet not connected');
       }
@@ -87,11 +87,11 @@ export function MintTokens() {
 
       setMintTx(mintTx);
     } catch (err) {
-      // Silent error handling
       // @ts-expect-error : err is not defined
       toast.error(err?.message ?? 'Unknown error:: check console');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
