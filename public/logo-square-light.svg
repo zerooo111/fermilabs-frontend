@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7 4" shape-rendering="crispEdges" role="img" aria-label="Logo">
-  <rect width="7" height="4" fill="none"/>
-  <g fill="#ffffff">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11" shape-rendering="crispEdges" role="img" aria-label="Logo">
+  <rect width="11" height="11" fill="#ffffff"/>
+  <g fill="#000000" transform="translate(2 3.5)">
     <rect x="3" y="0" width="1" height="1"/>
     <rect x="2" y="1" width="3" height="1"/>
     <rect x="1" y="2" width="2" height="1"/>
