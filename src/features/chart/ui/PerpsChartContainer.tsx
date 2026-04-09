@@ -89,6 +89,20 @@ function PerpsChartContainerComponent() {
   const candlesRef = useRef<ExtendedPerpsOHLCVData[]>([]);
   const previousMarkPriceRef = useRef<number | null>(null);
 
+  // Clear candles when market changes to prevent stale data leaking across markets
+  const previousMarketRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (selectedMarket?.uuid !== previousMarketRef.current) {
+      if (previousMarketRef.current !== undefined) {
+        // Market changed — clear all candle state immediately
+        setCandles([]);
+        candlesRef.current = [];
+        previousMarkPriceRef.current = null;
+      }
+      previousMarketRef.current = selectedMarket?.uuid;
+    }
+  }, [selectedMarket?.uuid]);
+
   // Memoize the interval change handler
   const handleIntervalChange = useCallback((value: string) => {
     // Clear candles immediately to avoid flashing old timeframe data
@@ -260,6 +274,7 @@ function PerpsChartContainerComponent() {
       <div className="flex-1 relative min-h-[250px] md:min-h-[350px] lg:min-h-[400px] overflow-hidden">
         <ErrorBoundary>
           <PerpsChart
+            key={selectedMarket?.uuid}
             className="h-full"
             data={candles}
             interval={timeInterval}
