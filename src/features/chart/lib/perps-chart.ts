@@ -49,6 +49,8 @@ type RawKline = [
  * Fetch perps candle data from the /ohlc/:market endpoint.
  * Returns data in compact array format: [[timestamp_ms, open_lots, high_lots, low_lots, close_lots], ...]
  */
+const MAX_OHLC_LIMIT = 1500;
+
 export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<Candle[]> {
   const { marketId, tf = '1h', limit, from, to } = params;
 
@@ -69,9 +71,10 @@ export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<Cand
       url.searchParams.set('to', String(Math.floor(parsed / 1000)));
     }
   }
-  if (limit) {
-    url.searchParams.set('limit', String(Math.min(limit, 1500)));
-  }
+  // Server default limit is 500 with ORDER BY bucket ASC, which silently
+  // truncates wide windows to the oldest 500 buckets and hides the latest
+  // candle. Always request the max so the window end stays visible.
+  url.searchParams.set('limit', String(Math.min(limit ?? MAX_OHLC_LIMIT, MAX_OHLC_LIMIT)));
 
   const response = await axios.get<RawKline[]>(url.toString());
   const klines = response.data;
@@ -122,6 +125,27 @@ export function getPerpsTimeRangeForInterval(timeframe: PerpsTimeframe): {
 }
 
 /**
+ * Span (in seconds) to request per loadMore call. Matches the span used for
+ * the initial fetch for the same timeframe.
+ */
+export function getPerpsLoadMoreWindowSeconds(timeframe: PerpsTimeframe): number {
+  const DAY = 24 * 60 * 60;
+  switch (timeframe) {
+    case '1m':
+      return 1 * DAY;
+    case '5m':
+      return 3 * DAY;
+    case '15m':
+      return 7 * DAY;
+    case '1h':
+    case '4h':
+    case '1d':
+    default:
+      return 30 * DAY;
+  }
+}
+
+/**
  * Convert perps candle data from compact array format to the format expected by TradingView charts.
  * Input format: [timestamp_ms, open_lots, high_lots, low_lots, close_lots]
  */
@@ -146,29 +170,62 @@ export function processPerpsCandleData(
 }
 
 /**
- * Calculate latest price and price change for perps data
+ * Calculate latest price and the rolling 24h change for perps data.
+ * Reference price is the close of the candle whose bucket is closest to
+ * (latestTime - 24h); falls back to the oldest available candle if 24h of
+ * history isn't present yet.
  */
+const TWENTY_FOUR_HOURS_SECONDS = 24 * 60 * 60;
+
 export function calculatePerpsPriceChange(data: ExtendedPerpsOHLCVData[]) {
   if (!data || data.length === 0) return null;
 
-  let lastValidCandle: ExtendedPerpsOHLCVData | null = null;
+  let latest: ExtendedPerpsOHLCVData | null = null;
   for (let i = data.length - 1; i >= 0; i--) {
     if (data[i].close !== undefined && data[i].open !== undefined) {
-      lastValidCandle = data[i];
+      latest = data[i];
       break;
     }
   }
+  if (!latest?.close) return null;
 
-  if (!lastValidCandle?.open || !lastValidCandle?.close || lastValidCandle.open === 0) {
-    return null;
+  const targetTime = latest.time - TWENTY_FOUR_HOURS_SECONDS;
+  let reference: ExtendedPerpsOHLCVData | null = null;
+  for (let i = 0; i < data.length; i++) {
+    const candle = data[i];
+    if (candle.close === undefined) continue;
+    if (candle.time >= targetTime) {
+      reference = candle;
+      break;
+    }
+  }
+  // No candle within the 24h window — fall back to the oldest available.
+  if (!reference) {
+    for (let i = 0; i < data.length; i++) {
+      if (data[i].close !== undefined) {
+        reference = data[i];
+        break;
+      }
+    }
+  }
+  if (!reference?.close || reference === latest) {
+    return {
+      price: latest.close,
+      isPositive: true,
+      change: 0,
+      percentChange: '0.0',
+    };
   }
 
-  const priceChange = lastValidCandle.close - lastValidCandle.open;
+  const referencePrice = reference.close;
+  const priceChange = latest.close - referencePrice;
   return {
-    price: lastValidCandle.close,
+    price: latest.close,
     isPositive: priceChange >= 0,
     change: Math.abs(priceChange),
-    percentChange: ((Math.abs(priceChange) / lastValidCandle.open) * 100).toFixed(1),
+    percentChange: referencePrice
+      ? ((Math.abs(priceChange) / referencePrice) * 100).toFixed(1)
+      : '0.0',
   };
 }
 
@@ -246,11 +303,14 @@ export function updateCandlesWithMarkPrice(
     if (lastCandle.close === undefined && lastCandle.open !== undefined) {
       candlesCopy[candlesCopy.length - 1] = { ...lastCandle, close: lastCandle.open };
     }
+    // Seed the new bucket's open with the prior close so the line stays
+    // continuous instead of opening as a flat dot at the live mark price.
+    const priorClose = candlesCopy[candlesCopy.length - 1]?.close ?? markPrice;
     candlesCopy.push({
       time: currentCandleTimestamp,
-      open: markPrice,
-      high: markPrice,
-      low: markPrice,
+      open: priorClose,
+      high: Math.max(priorClose, markPrice),
+      low: Math.min(priorClose, markPrice),
       close: markPrice,
     });
   }

@@ -47,7 +47,7 @@ interface PerpsChartComponentProps {
   data: ExtendedPerpsOHLCVData[];
   interval: PerpsTimeframe;
   chartType?: PerpsChartType;
-  onLoadMoreData?: (startTime: number, endTime: number) => Promise<void>;
+  onLoadMoreData?: (earliestLoadedTime: number) => Promise<void>;
   isLoading?: boolean;
   isRefreshing?: boolean;
   error?: Error | null;
@@ -150,6 +150,7 @@ function PerpsChartComponent({
   takeProfit,
   entryPrice,
   unrealizedPnl,
+  onLoadMoreData,
 }: PerpsChartComponentProps) {
   const chartColors = useChartColors();
 
@@ -169,6 +170,16 @@ function PerpsChartComponent({
   const isInitialMountRef = useRef(true);
   const previousDataRef = useRef<CandlestickData<Time>[]>([]);
   const isMountedRef = useRef(true);
+  const loadMoreInFlightRef = useRef(false);
+  const lastLoadMoreEarliestRef = useRef<number | null>(null);
+  const onLoadMoreDataRef = useRef(onLoadMoreData);
+  const dataRef = useRef(data);
+  useEffect(() => {
+    onLoadMoreDataRef.current = onLoadMoreData;
+  }, [onLoadMoreData]);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
   const stopLossLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
   const takeProfitLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
   const entryPriceLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
@@ -384,6 +395,39 @@ function PerpsChartComponent({
       stopLossLineRef.current = null;
       takeProfitLineRef.current = null;
       entryPriceLineRef.current = null;
+      lastLoadMoreEarliestRef.current = null;
+      loadMoreInFlightRef.current = false;
+
+      // Subscribe to visible-range changes so we can request more history
+      // when the user scrolls past the currently loaded left edge.
+      const timeScale = chart.timeScale();
+      const handleVisibleLogicalRangeChange = (
+        range: { from: number; to: number } | null
+      ): void => {
+        if (!range || loadMoreInFlightRef.current) return;
+        const loadedCount = previousDataRef.current.length;
+        if (loadedCount === 0) return;
+        if (range.from > CHART_CONFIG.LOAD_MORE_THRESHOLD_BARS) return;
+
+        const currentData = dataRef.current;
+        if (!currentData || currentData.length === 0) return;
+        const earliestTime = currentData[0]?.time;
+        if (typeof earliestTime !== 'number') return;
+
+        // Don't re-request the same boundary repeatedly — the effect would
+        // otherwise fire on every scroll tick until new data arrives.
+        if (lastLoadMoreEarliestRef.current === earliestTime) return;
+        lastLoadMoreEarliestRef.current = earliestTime;
+
+        const cb = onLoadMoreDataRef.current;
+        if (!cb) return;
+
+        loadMoreInFlightRef.current = true;
+        Promise.resolve(cb(earliestTime)).finally(() => {
+          loadMoreInFlightRef.current = false;
+        });
+      };
+      timeScale.subscribeVisibleLogicalRangeChange(handleVisibleLogicalRangeChange);
 
       // Note: Data will be set in the separate data update effect
       // This separation prevents chart recreation on data changes
@@ -446,6 +490,18 @@ function PerpsChartComponent({
       // Check if this is initial mount
       const isInitialMount = isInitialMountRef.current;
       const previousData = previousDataRef.current;
+
+      // If older candles were prepended (earliest time moved back), allow
+      // subsequent loadMore requests for the new boundary.
+      const newEarliest = validTransformedData[0]?.time;
+      const prevEarliest = previousData[0]?.time;
+      if (
+        typeof newEarliest === 'number' &&
+        typeof prevEarliest === 'number' &&
+        newEarliest < prevEarliest
+      ) {
+        lastLoadMoreEarliestRef.current = null;
+      }
 
       // Check if data actually changed (skip update if identical)
       // Optimized: Compare length and last candle only for better performance
