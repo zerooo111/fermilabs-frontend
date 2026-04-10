@@ -2,7 +2,6 @@
  * Chart feature
  * Provides chart visualization for market data
  */
-export { ChartContainer } from './ui/ChartContainer';
 export { PerpsChartContainer } from './ui/PerpsChartContainer';
 export { PerpsChart } from './ui/PerpsChart';
 export type { PerpsChartType } from './ui/PerpsChart';

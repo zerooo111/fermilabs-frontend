@@ -4,7 +4,7 @@
  */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from '@/shared/ui/layout/Layout';
-import { LazyHomePage, LazyTradePage, LazyPerpsPage, LazyVaultPage } from './LazyRoutes';
+import { LazyHomePage, LazyPerpsPage, LazyVaultPage } from './LazyRoutes';
 
 export const AppRouter = () => {
   return (
@@ -13,8 +13,6 @@ export const AppRouter = () => {
         <Route path="/" element={<LazyHomePage />} />
 
         <Route element={<Layout />}>
-          <Route path="/spot" element={<LazyTradePage />} />
-          <Route path="/spot/:id" element={<LazyTradePage />} />
           <Route path="/perps" element={<LazyPerpsPage />} />
           <Route path="/perps/:id" element={<LazyPerpsPage />} />
           <Route path="/vault" element={<LazyVaultPage />} />

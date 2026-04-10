@@ -18,7 +18,7 @@ type Orderbook = {
   lastUpdated: Date;
 };
 
-type MarketKind = 'spot' | 'perp';
+type MarketKind = 'perp';
 
 type PerpConfig = {
   initial_margin: number;

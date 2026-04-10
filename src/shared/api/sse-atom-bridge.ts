@@ -138,6 +138,12 @@ export function mapOpenOrders(
 
 // --- User Trades ---
 
+export function mapWalletTradesForMarket(sseTrades: SSETrade[], market: Market): Trade[] {
+  const ctx = buildContextFromMarket(market);
+  const ctxMap = new Map([[market.uuid, ctx]]);
+  return mapUserTrades(sseTrades, ctxMap, ctx);
+}
+
 export function mapUserTrades(
   sseTrades: SSETrade[],
   ctxMap: Map<string, MarketContext>,

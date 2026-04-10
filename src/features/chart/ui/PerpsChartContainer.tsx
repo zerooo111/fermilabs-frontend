@@ -18,7 +18,7 @@ import {
   PerpsTimeframe,
   ExtendedPerpsOHLCVData,
 } from '@/features/chart/lib/perps-chart';
-import { useSelectedMarket, MarketKind } from '@/entities/market';
+import { useSelectedMarket } from '@/entities/market';
 import { usePositions } from '@/shared/hooks/usePositions';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
@@ -425,7 +425,6 @@ function PerpsChartContainerComponent() {
         <ChartHeader
           selectedMarketId={selectedMarket?.uuid}
           onMarketSelect={selectMarket}
-          marketKind={'perp' as MarketKind}
           latestPrice={latestPrice}
         />
         <ChartToolbar
@@ -462,7 +461,6 @@ function PerpsChartContainerComponent() {
       <ChartHeader
         selectedMarketId={selectedMarket?.uuid}
         onMarketSelect={selectMarket}
-        marketKind={'perp' as MarketKind}
         latestPrice={latestPrice}
       />
       <ChartToolbar

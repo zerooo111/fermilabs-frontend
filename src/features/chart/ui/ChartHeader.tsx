@@ -15,16 +15,10 @@ interface LatestPrice {
 interface ChartHeaderProps {
   selectedMarketId?: string | null;
   onMarketSelect: (marketId: string) => void;
-  marketKind: 'spot' | 'perp';
   latestPrice?: LatestPrice | null;
 }
 
-function ChartHeaderComponent({
-  selectedMarketId,
-  onMarketSelect,
-  marketKind,
-  latestPrice,
-}: ChartHeaderProps) {
+function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }: ChartHeaderProps) {
   const { selectedMarket } = useSelectedMarket();
 
   // Fetch market stats using react-query
@@ -75,7 +69,7 @@ function ChartHeaderComponent({
           isLoading={false}
           selectedMarketId={selectedMarketId ?? null}
           onMarketSelect={onMarketSelect}
-          marketKind={marketKind}
+          marketKind="perp"
         />
       </div>
       <div className="flex items-center overflow-x-auto flex-1 h-full divide-x divide-outline">
@@ -110,26 +104,21 @@ function ChartHeaderComponent({
           })()}
         </div>
 
-        {/* Funding Rate (for perp markets) */}
-        {marketKind === 'perp' && (
-          <div className="flex flex-col justify-center px-2 h-full ">
-            <span className="text-xs whitespace-nowrap font-medium text-white/50">
-              Funding Rate
-            </span>
-            <span
-              className={cn(
-                'font-mono font-semibold text-base',
-                marketStats?.funding_rate && marketStats.funding_rate > 0
-                  ? 'text-danger'
-                  : 'text-white'
-              )}
-            >
-              {marketStats?.funding_rate !== undefined
-                ? `${marketStats.funding_rate.toFixed(4)}%`
-                : '0.0000%'}
-            </span>
-          </div>
-        )}
+        <div className="flex flex-col justify-center px-2 h-full ">
+          <span className="text-xs whitespace-nowrap font-medium text-white/50">Funding Rate</span>
+          <span
+            className={cn(
+              'font-mono font-semibold text-base',
+              marketStats?.funding_rate && marketStats.funding_rate > 0
+                ? 'text-danger'
+                : 'text-white'
+            )}
+          >
+            {marketStats?.funding_rate !== undefined
+              ? `${marketStats.funding_rate.toFixed(4)}%`
+              : '0.0000%'}
+          </span>
+        </div>
 
         {/* Open Interest */}
         <div className="flex flex-col justify-center px-2 h-full ">

@@ -1,5 +1,4 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
-import { useAtomValue } from 'jotai';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { MyOrders } from './MyOrders';
 import { MyTrades } from './MyTrades';
@@ -7,11 +6,8 @@ import { MyAssets } from './MyAssets';
 import { MyPositions } from './MyPositions';
 import { AccountCard } from '@/shared/ui/account-card';
 import { Trades } from '@/features/orderbook-view/ui/Trades';
-import { selectedMarketAtom } from '@/entities/market/model';
 
 export function PortfolioTabs() {
-  const selectedMarket = useAtomValue(selectedMarketAtom);
-  const isPerpsMode = selectedMarket?.kind === 'perp';
   const { publicKey } = useWallet();
 
   return (
@@ -22,24 +18,20 @@ export function PortfolioTabs() {
           <Tabs defaultValue="orders" className="h-full flex flex-col">
             <TabsList className="w-full justify-start border-b border-outline rounded-none bg-transparent overflow-x-auto flex-shrink-0">
               <TabsTrigger value="orders">My Orders</TabsTrigger>
-              {!isPerpsMode && <TabsTrigger value="trades">My Trades</TabsTrigger>}
-              {isPerpsMode && <TabsTrigger value="positions">My Positions</TabsTrigger>}
+              <TabsTrigger value="positions">My Positions</TabsTrigger>
+              <TabsTrigger value="trades">My Trades</TabsTrigger>
               <TabsTrigger value="assets">Assets</TabsTrigger>
             </TabsList>
             <div className="flex-1 overflow-hidden">
               <TabsContent value="orders" className="mt-0 h-full overflow-auto">
                 <MyOrders />
               </TabsContent>
-              {!isPerpsMode && (
-                <TabsContent value="trades" className="mt-0 h-full overflow-auto">
-                  <MyTrades />
-                </TabsContent>
-              )}
-              {isPerpsMode && (
-                <TabsContent value="positions" className="mt-0 h-full overflow-auto">
-                  <MyPositions />
-                </TabsContent>
-              )}
+              <TabsContent value="positions" className="mt-0 h-full overflow-auto">
+                <MyPositions />
+              </TabsContent>
+              <TabsContent value="trades" className="mt-0 h-full overflow-auto">
+                <MyTrades />
+              </TabsContent>
               <TabsContent value="assets" className="mt-0 h-full overflow-auto">
                 <MyAssets />
               </TabsContent>

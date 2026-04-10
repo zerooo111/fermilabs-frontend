@@ -16,15 +16,6 @@ export function Header() {
             <FermiLogo3d className="w-6 h-6 " />
             Fermi Trade
           </Link>
-          {/* <Link
-            to="/spot"
-            className={cn(
-              'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
-              location.pathname === '/spot' && 'text-white'
-            )}
-          >
-            Spot
-          </Link> */}
           <Link
             to="/perps"
             className={cn(

@@ -13,7 +13,7 @@ import { atom, useAtom } from 'jotai';
 import { useCallback, useRef, useMemo } from 'react';
 
 // Market types
-export type MarketKind = 'spot' | 'perp';
+export type MarketKind = 'perp';
 
 export interface PerpConfig {
   initial_margin: number;
