@@ -829,6 +829,10 @@ export function usePerps() {
     price,
     size,
   }: PerpsSubmitOrderParams): Promise<{ success: boolean; error?: string }> => {
+    // Hoisted so the catch block can always read them regardless of where
+    // the throw fires.
+    const priceValue = Number(price);
+    const sizeValue = Number(size);
     try {
       if (!publicKey || !signMessage) {
         throw new Error('Wallet not connected');
@@ -836,9 +840,6 @@ export function usePerps() {
       if (!selectedMarket) {
         throw new Error('Selected market not found');
       }
-
-      const priceValue = Number(price);
-      const sizeValue = Number(size);
       if (!Number.isFinite(priceValue) || priceValue <= 0) {
         throw new Error('Invalid price');
       }
@@ -912,6 +913,7 @@ export function usePerps() {
     maxSlippageBps,
     markPrice,
   }: PerpsMarketOrderParams): Promise<{ success: boolean; error?: string }> => {
+    const sizeValue = Number(size);
     try {
       if (!publicKey || !signMessage) {
         throw new Error('Wallet not connected');
@@ -919,8 +921,6 @@ export function usePerps() {
       if (!selectedMarket) {
         throw new Error('Selected market not found');
       }
-
-      const sizeValue = Number(size);
       if (!Number.isFinite(sizeValue) || sizeValue <= 0) {
         throw new Error('Invalid size');
       }
@@ -1001,6 +1001,8 @@ export function usePerps() {
     maxSlippageBps,
     limitPrice,
   }: PerpsClosePositionParams): Promise<{ success: boolean; error?: string }> => {
+    const sizeValue = Number(size);
+    const closeMode: 'market' | 'limit' = mode === 'market' ? 'market' : 'limit';
     try {
       if (!publicKey || !signMessage) {
         throw new Error('Wallet not connected');
@@ -1008,13 +1010,10 @@ export function usePerps() {
       if (!selectedMarket) {
         throw new Error('Selected market not found');
       }
-
-      const sizeValue = Number(size);
       if (!Number.isFinite(sizeValue) || sizeValue <= 0) {
         throw new Error('Invalid close size');
       }
 
-      const closeMode = mode === 'market' ? 'market' : 'limit';
       let priceValue: number;
       let orderType: QueuePlaceOrderType;
 
