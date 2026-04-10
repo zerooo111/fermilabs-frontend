@@ -8,9 +8,9 @@ export default function LandingHeader() {
   return (
     <header className="sticky top-0 w-full left-0 bg-dark-forest/60 backdrop-blur-lg border-b border-rock/30 z-10 gap-2 h-14 flex items-center">
       <nav className="flex flex-1 h-full justify-between items-center gap-1 text-xl md:border-x border-rock/20 font-medium container-2xl px-4">
-        <div className="flex cursor-pointer items-center md:border-x h-full border-rock/20 md:pl-2 md:pr-4 group hover:text-amber-200 gap-1">
+        <div className="flex cursor-pointer items-center md:border-x h-full border-rock/20 md:pl-3 md:pr-4 group hover:text-amber-200 gap-2.5">
           <Logo className="w-4 h-4 group-hover:scale-125 duration-500" />
-          <a className="text-2xl md:text-3xl font-display tracking-wide" href="/">
+          <a className="text-xl md:text-2xl font-semibold" href="/">
             Fermi Trade
           </a>
         </div>

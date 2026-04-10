@@ -65,6 +65,18 @@ export function buildMarketContext(data: SSEMarketUpdateEvent): MarketContext {
   };
 }
 
+export function buildContextFromMarket(market: Market): MarketContext {
+  return {
+    name: market.name,
+    baseMint: market.base_mint,
+    quoteMint: market.quote_mint,
+    baseDecimals: market.base_decimals,
+    quoteDecimals: market.quote_decimals,
+    baseLotSize: Number(market.base_lot_size),
+    quoteLotSize: Number(market.quote_lot_size),
+  };
+}
+
 // --- Orderbook ---
 
 export function mapOrderbook(
@@ -111,12 +123,7 @@ export function mapOpenOrders(
       price:
         order.price_ui !== undefined
           ? uiToNative(order.price_ui, quoteScale)
-          : lotsToNative(
-              order.price_lots,
-              ctx.quoteLotSize,
-              baseScale,
-              ctx.baseLotSize
-            ),
+          : lotsToNative(order.price_lots, ctx.quoteLotSize, baseScale, ctx.baseLotSize),
       quantity:
         order.qty_ui !== undefined
           ? uiToNative(order.qty_ui, baseScale)
@@ -148,12 +155,7 @@ export function mapUserTrades(
       price:
         trade.price_ui !== undefined
           ? uiToNative(trade.price_ui, quoteScale)
-          : lotsToNative(
-              trade.price_lots,
-              ctx.quoteLotSize,
-              baseScale,
-              ctx.baseLotSize
-            ),
+          : lotsToNative(trade.price_lots, ctx.quoteLotSize, baseScale, ctx.baseLotSize),
       quantity:
         trade.qty_ui !== undefined
           ? uiToNative(trade.qty_ui, baseScale)
