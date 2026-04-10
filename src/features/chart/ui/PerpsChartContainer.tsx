@@ -27,8 +27,24 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
+const TIMEFRAME_STORAGE_KEY = 'perps-chart:timeframe';
+const VALID_TIMEFRAMES: PerpsTimeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
+
+function loadStoredTimeframe(): PerpsTimeframe {
+  if (typeof window === 'undefined') return '1h';
+  try {
+    const stored = window.localStorage.getItem(TIMEFRAME_STORAGE_KEY);
+    if (stored && (VALID_TIMEFRAMES as string[]).includes(stored)) {
+      return stored as PerpsTimeframe;
+    }
+  } catch {
+    // ignore storage access errors (private mode, disabled, etc.)
+  }
+  return '1h';
+}
+
 function PerpsChartContainerComponent() {
-  const [timeInterval, setTimeInterval] = useState<PerpsTimeframe>('1h');
+  const [timeInterval, setTimeInterval] = useState<PerpsTimeframe>(loadStoredTimeframe);
   const [chartType, setChartType] = useState<PerpsChartType>('candlestick');
   const { selectedMarket, selectMarket } = useSelectedMarket();
   const { publicKey } = useWallet();
@@ -124,7 +140,13 @@ function PerpsChartContainerComponent() {
     latestMarkPriceRef.current = null;
     oldestAvailableTimeRef.current = null;
     loadMoreInFlightRef.current = false;
-    setTimeInterval(value as PerpsTimeframe);
+    const next = value as PerpsTimeframe;
+    setTimeInterval(next);
+    try {
+      window.localStorage.setItem(TIMEFRAME_STORAGE_KEY, next);
+    } catch {
+      // ignore storage write errors
+    }
   }, []);
 
   // Fetch historical candle data (only when market/interval changes, no polling)
