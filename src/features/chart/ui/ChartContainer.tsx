@@ -7,6 +7,7 @@ import { useState, useCallback, memo, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CandlestickChart } from '@/features/chart/ui/CandlestickChart';
 import { ChartHeader } from '@/features/chart/ui/ChartHeader';
+import { ChartToolbar } from '@/features/chart/ui/ChartToolbar';
 import {
   fetchCandles,
   getTimeRangeForInterval,
@@ -14,6 +15,7 @@ import {
   intervalToApiFormat,
   ExtendedOHLCVData,
 } from '@/features/chart/lib/chart';
+import { PerpsTimeframe } from '@/features/chart/lib/perps-chart';
 import { BN } from '@coral-xyz/anchor';
 import { Button } from '@/shared/ui/button';
 import { useAtomValue } from 'jotai';
@@ -50,7 +52,7 @@ function ChartContainerComponent() {
   }, [filteredMarkets, selectedMarketId, selectMarket]);
 
   // Memoize the interval change handler
-  const handleIntervalChange = useCallback((value: string) => {
+  const handleIntervalChange = useCallback((value: PerpsTimeframe) => {
     setTimeInterval(value as TimeInterval);
   }, []);
 
@@ -180,14 +182,17 @@ function ChartContainerComponent() {
   // Handle error state
   if (error) {
     return (
-      <div className="w-full h-full flex flex-coll">
+      <div className="w-full h-full flex flex-col">
         <ChartHeader
           selectedMarketId={selectedMarketId}
           onMarketSelect={handleMarketSelect}
           marketKind={marketKind}
-          timeInterval={timeInterval}
-          onIntervalChange={handleIntervalChange}
           latestPrice={latestPrice}
+        />
+        <ChartToolbar
+          timeInterval={timeInterval as PerpsTimeframe}
+          onIntervalChange={handleIntervalChange}
+          showChartType={false}
         />
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <AlertCircle className="h-12 w-12 text-red-500" />
@@ -212,9 +217,12 @@ function ChartContainerComponent() {
         selectedMarketId={selectedMarketId}
         onMarketSelect={handleMarketSelect}
         marketKind={marketKind}
-        timeInterval={timeInterval}
-        onIntervalChange={handleIntervalChange}
         latestPrice={latestPrice}
+      />
+      <ChartToolbar
+        timeInterval={timeInterval as PerpsTimeframe}
+        onIntervalChange={handleIntervalChange}
+        showChartType={false}
       />
 
       <div className="flex-1 relative min-h-[400px] overflow-hidden">

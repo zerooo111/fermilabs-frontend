@@ -28,7 +28,18 @@ import { Button } from '@/shared/ui/button';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
 const TIMEFRAME_STORAGE_KEY = 'perps-chart:timeframe';
+const CHART_TYPE_STORAGE_KEY = 'perps-chart:chartType';
 const VALID_TIMEFRAMES: PerpsTimeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
+const VALID_CHART_TYPES: PerpsChartType[] = ['candlestick', 'line', 'area', 'bar'];
+// Keyboard shortcuts 1..6 → timeframe
+const TIMEFRAME_SHORTCUTS: Record<string, PerpsTimeframe> = {
+  '1': '1m',
+  '2': '5m',
+  '3': '15m',
+  '4': '1h',
+  '5': '4h',
+  '6': '1d',
+};
 
 function loadStoredTimeframe(): PerpsTimeframe {
   if (typeof window === 'undefined') return '1h';
@@ -43,9 +54,24 @@ function loadStoredTimeframe(): PerpsTimeframe {
   return '1h';
 }
 
+function loadStoredChartType(): PerpsChartType {
+  if (typeof window === 'undefined') return 'candlestick';
+  try {
+    const stored = window.localStorage.getItem(CHART_TYPE_STORAGE_KEY);
+    if (stored && (VALID_CHART_TYPES as string[]).includes(stored)) {
+      return stored as PerpsChartType;
+    }
+  } catch {
+    // ignore storage access errors
+  }
+  return 'candlestick';
+}
+
 function PerpsChartContainerComponent() {
   const [timeInterval, setTimeInterval] = useState<PerpsTimeframe>(loadStoredTimeframe);
-  const [chartType, setChartType] = useState<PerpsChartType>('candlestick');
+  const [chartType, setChartType] = useState<PerpsChartType>(loadStoredChartType);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [reachedBeginningOfHistory, setReachedBeginningOfHistory] = useState(false);
   const { selectedMarket, selectMarket } = useSelectedMarket();
   const { publicKey } = useWallet();
 
@@ -85,19 +111,6 @@ function PerpsChartContainerComponent() {
       ? parseFloat(position.unrealized_pnl) / divisor
       : null;
 
-    console.log('[PerpsChartContainer] Position data:', {
-      stopLoss,
-      takeProfit,
-      entryPrice,
-      unrealizedPnl,
-      raw: {
-        stop_loss_price: position.stop_loss_price,
-        take_profit_price: position.take_profit_price,
-        average_entry_price: position.average_entry_price,
-        unrealized_pnl: position.unrealized_pnl,
-      },
-    });
-
     return { stopLoss, takeProfit, entryPrice, unrealizedPnl };
   }, [positions, selectedMarket]);
 
@@ -125,13 +138,15 @@ function PerpsChartContainerComponent() {
         latestMarkPriceRef.current = null;
         oldestAvailableTimeRef.current = null;
         loadMoreInFlightRef.current = false;
+        setIsLoadingOlder(false);
+        setReachedBeginningOfHistory(false);
       }
       previousMarketRef.current = selectedMarket?.uuid;
     }
   }, [selectedMarket?.uuid]);
 
   // Memoize the interval change handler
-  const handleIntervalChange = useCallback((value: string) => {
+  const handleIntervalChange = useCallback((value: PerpsTimeframe) => {
     // Clear candles immediately to avoid flashing old timeframe data
     setCandles([]);
     candlesRef.current = [];
@@ -140,14 +155,45 @@ function PerpsChartContainerComponent() {
     latestMarkPriceRef.current = null;
     oldestAvailableTimeRef.current = null;
     loadMoreInFlightRef.current = false;
-    const next = value as PerpsTimeframe;
-    setTimeInterval(next);
+    setIsLoadingOlder(false);
+    setReachedBeginningOfHistory(false);
+    setTimeInterval(value);
     try {
-      window.localStorage.setItem(TIMEFRAME_STORAGE_KEY, next);
+      window.localStorage.setItem(TIMEFRAME_STORAGE_KEY, value);
     } catch {
       // ignore storage write errors
     }
   }, []);
+
+  const handleChartTypeChange = useCallback((next: PerpsChartType) => {
+    setChartType(next);
+    try {
+      window.localStorage.setItem(CHART_TYPE_STORAGE_KEY, next);
+    } catch {
+      // ignore storage write errors
+    }
+  }, []);
+
+  // Keyboard shortcuts: 1..6 switch timeframe. Ignore when user is typing.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
+          return;
+        }
+      }
+      const next = TIMEFRAME_SHORTCUTS[e.key];
+      if (next) {
+        e.preventDefault();
+        handleIntervalChange(next);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleIntervalChange]);
 
   // Fetch historical candle data (only when market/interval changes, no polling)
   const {
@@ -190,9 +236,10 @@ function PerpsChartContainerComponent() {
     placeholderData: undefined, // Don't show stale data from a different queryKey
   });
 
-  // Fetch market stats for real-time mark_price updates
+  // Read market stats (mark price, funding, open interest). useMarketStats
+  // is backed by the SSE-populated markets atom — no HTTP polling happens
+  // here despite the legacy options shape.
   const { data: marketsData } = useMarketStats({
-    refetchInterval: 1000, // Poll mark_price every 5 seconds
     enabled: !!selectedMarket?.uuid,
   });
 
@@ -282,6 +329,7 @@ function PerpsChartContainerComponent() {
       }
 
       loadMoreInFlightRef.current = true;
+      setIsLoadingOlder(true);
       try {
         const windowSeconds = getPerpsLoadMoreWindowSeconds(timeInterval);
         const toSec = earliestLoadedTime - 1;
@@ -311,6 +359,7 @@ function PerpsChartContainerComponent() {
           // Server returned nothing older — mark this as the floor so we
           // don't keep asking.
           oldestAvailableTimeRef.current = earliestLoadedTime;
+          setReachedBeginningOfHistory(true);
           return;
         }
 
@@ -327,13 +376,33 @@ function PerpsChartContainerComponent() {
         toast.error('Failed to load historical data. Please try again.');
       } finally {
         loadMoreInFlightRef.current = false;
+        setIsLoadingOlder(false);
       }
     },
     [selectedMarket, timeInterval]
   );
 
-  // Handle error state
-  if (error) {
+  // Refetch errors that happen while we already have data should be
+  // non-blocking: toast once per error instead of covering the chart.
+  const lastToastedErrorRef = useRef<Error | null>(null);
+  useEffect(() => {
+    if (!error) {
+      lastToastedErrorRef.current = null;
+      return;
+    }
+    if (candlesRef.current.length > 0 && lastToastedErrorRef.current !== error) {
+      lastToastedErrorRef.current = error as Error;
+      toast.error(
+        error instanceof Error ? error.message : 'Chart refresh failed. Showing cached data.'
+      );
+    }
+  }, [error]);
+
+  // First-load failure (no data + error) shows the full error screen.
+  // Transient refetch errors after we have data are surfaced via toast and
+  // the chart keeps showing cached data.
+  const hasNoCandles = candles.length === 0;
+  if (error && hasNoCandles) {
     return (
       <div className="w-full h-full flex flex-col overflow-hidden">
         <ChartHeader
@@ -346,7 +415,7 @@ function PerpsChartContainerComponent() {
           timeInterval={timeInterval}
           onIntervalChange={handleIntervalChange}
           chartType={chartType}
-          onChartTypeChange={setChartType}
+          onChartTypeChange={handleChartTypeChange}
         />
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <AlertCircle className="h-12 w-12 text-red-500" />
@@ -365,6 +434,10 @@ function PerpsChartContainerComponent() {
     );
   }
 
+  // Show the loading overlay whenever we have no candles for the current
+  // market — prevents the "No data available" flash between market swaps.
+  const showChartLoading = hasNoCandles && !error;
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       <ChartHeader
@@ -377,7 +450,8 @@ function PerpsChartContainerComponent() {
         timeInterval={timeInterval}
         onIntervalChange={handleIntervalChange}
         chartType={chartType}
-        onChartTypeChange={setChartType}
+        onChartTypeChange={handleChartTypeChange}
+        isRefreshing={isFetching && !isLoading}
       />
 
       <div className="flex-1 relative min-h-[250px] md:min-h-[350px] lg:min-h-[400px] overflow-hidden">
@@ -389,9 +463,11 @@ function PerpsChartContainerComponent() {
             interval={timeInterval}
             chartType={chartType}
             onLoadMoreData={handleLoadMoreData}
-            isLoading={isLoading}
-            isRefreshing={isFetching && !isLoading}
-            error={error}
+            isLoading={showChartLoading}
+            isRefreshing={isFetching && !isLoading && !hasNoCandles}
+            isLoadingOlder={isLoadingOlder}
+            reachedBeginningOfHistory={reachedBeginningOfHistory}
+            error={hasNoCandles ? (error as Error | null) : null}
             selectedMarketName={selectedMarket?.name}
             stopLoss={positionData.stopLoss}
             takeProfit={positionData.takeProfit}

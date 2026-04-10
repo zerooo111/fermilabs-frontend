@@ -1,20 +1,9 @@
 import { memo, useMemo } from 'react';
 import { MarketSelector } from '@/features/market-selector';
-import { TimeInterval } from '@/features/chart/lib/chart';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { cn } from '@/lib/utils';
 import { useSelectedMarket } from '@/entities/market';
 import { formatPrice, formatQuantity } from '@/features/orderbook-view/lib/processOrderbook';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
-
-const INTERVALS: { label: string; value: TimeInterval }[] = [
-  { label: '1M', value: '1m' },
-  { label: '5M', value: '5m' },
-  { label: '15M', value: '15m' },
-  { label: '1H', value: '1h' },
-  { label: '4H', value: '4h' },
-  { label: '1D', value: '1d' },
-];
 
 interface LatestPrice {
   price: number;
@@ -27,8 +16,6 @@ interface ChartHeaderProps {
   selectedMarketId?: string | null;
   onMarketSelect: (marketId: string) => void;
   marketKind: 'spot' | 'perp';
-  timeInterval?: TimeInterval;
-  onIntervalChange?: (interval: TimeInterval) => void;
   latestPrice?: LatestPrice | null;
 }
 
@@ -36,8 +23,6 @@ function ChartHeaderComponent({
   selectedMarketId,
   onMarketSelect,
   marketKind,
-  timeInterval,
-  onIntervalChange,
   latestPrice,
 }: ChartHeaderProps) {
   const { selectedMarket } = useSelectedMarket();
@@ -107,15 +92,22 @@ function ChartHeaderComponent({
         {/* 24 h change */}
         <div className="flex flex-col justify-center px-2 h-full ">
           <span className="text-xs whitespace-nowrap font-medium text-white/50">24h Change</span>
-          <span
-            className={cn(
-              'font-mono font-semibold text-base',
-              latestPrice?.isPositive ? 'text-success' : 'text-danger'
-            )}
-          >
-            {latestPrice?.isPositive ? '+' : '-'}
-            {latestPrice?.percentChange ?? '0.0'}%
-          </span>
+          {(() => {
+            const pct = latestPrice?.percentChange ?? '0.0';
+            const isZero = !latestPrice || latestPrice.change === 0 || pct === '0.0';
+            const sign = isZero ? '' : latestPrice?.isPositive ? '+' : '-';
+            return (
+              <span
+                className={cn(
+                  'font-mono font-semibold text-base',
+                  isZero ? 'text-white' : latestPrice?.isPositive ? 'text-success' : 'text-danger'
+                )}
+              >
+                {sign}
+                {pct}%
+              </span>
+            );
+          })()}
         </div>
 
         {/* Funding Rate (for perp markets) */}
@@ -149,21 +141,6 @@ function ChartHeaderComponent({
           </span>
         </div>
       </div>
-
-      {onIntervalChange && timeInterval && (
-        <Select value={timeInterval} onValueChange={onIntervalChange}>
-          <SelectTrigger className="w-[80px] !h-full border-none">
-            <SelectValue placeholder="Interval" />
-          </SelectTrigger>
-          <SelectContent align="end">
-            {INTERVALS.map(({ label, value }) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
     </div>
   );
 }

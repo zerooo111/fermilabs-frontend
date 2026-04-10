@@ -19,12 +19,14 @@ import {
   BusinessDay,
   DeepPartial,
   ChartOptions,
+  MouseEventParams,
 } from 'lightweight-charts';
 import { useEffect, useRef, memo, useMemo, useCallback, useState } from 'react';
 import { ExtendedPerpsOHLCVData, PerpsTimeframe } from '@/features/chart/lib/perps-chart';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { CHART_CONFIG } from '@/features/chart/lib/chart-constants';
 import { useResizeObserver } from '@/shared/hooks/useResizeObserver';
+import { cn } from '@/lib/utils';
 
 export type PerpsChartType = 'candlestick' | 'line' | 'area' | 'bar';
 
@@ -43,6 +45,41 @@ const useChartColors = () => {
   }, []);
 };
 
+// Visible bars on first mount, per timeframe. Chosen so the initial window
+// covers a useful slice of history regardless of timeframe.
+const getInitialVisibleBars = (interval: PerpsTimeframe): number => {
+  switch (interval) {
+    case '1m':
+      return 240; // 4 hours
+    case '5m':
+      return 288; // 24 hours
+    case '15m':
+      return 192; // 48 hours
+    case '1h':
+      return 168; // 7 days
+    case '4h':
+      return 120; // 20 days
+    case '1d':
+      return 60; // 60 days
+    default:
+      return 120;
+  }
+};
+
+const formatLegendTime = (utcSeconds: number, interval: PerpsTimeframe): string => {
+  const d = new Date(utcSeconds * 1000);
+  const yyyy = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  if (interval === '1d') return `${yyyy}-${mo}-${dd}`;
+  return `${yyyy}-${mo}-${dd} ${hh}:${mm}`;
+};
+
+const formatLegendPrice = (n: number): string =>
+  n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+
 interface PerpsChartComponentProps {
   data: ExtendedPerpsOHLCVData[];
   interval: PerpsTimeframe;
@@ -50,6 +87,8 @@ interface PerpsChartComponentProps {
   onLoadMoreData?: (earliestLoadedTime: number) => Promise<void>;
   isLoading?: boolean;
   isRefreshing?: boolean;
+  isLoadingOlder?: boolean;
+  reachedBeginningOfHistory?: boolean;
   error?: Error | null;
   selectedMarketName?: string;
   stopLoss?: number | null;
@@ -66,6 +105,14 @@ interface PerpsChartComponentProps {
     gridColor?: string;
   };
   className?: string;
+}
+
+interface HoveredCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
 }
 
 const getPerpsTimeScaleOptions = (interval: PerpsTimeframe): Partial<TimeScaleOptions> => {
@@ -144,6 +191,8 @@ function PerpsChartComponent({
   className,
   isLoading,
   isRefreshing,
+  isLoadingOlder,
+  reachedBeginningOfHistory,
   error,
   selectedMarketName,
   stopLoss,
@@ -152,6 +201,7 @@ function PerpsChartComponent({
   unrealizedPnl,
   onLoadMoreData,
 }: PerpsChartComponentProps) {
+  const [hoveredCandle, setHoveredCandle] = useState<HoveredCandle | null>(null);
   const chartColors = useChartColors();
 
   const {
@@ -170,16 +220,19 @@ function PerpsChartComponent({
   const isInitialMountRef = useRef(true);
   const previousDataRef = useRef<CandlestickData<Time>[]>([]);
   const isMountedRef = useRef(true);
-  const loadMoreInFlightRef = useRef(false);
   const lastLoadMoreEarliestRef = useRef<number | null>(null);
   const onLoadMoreDataRef = useRef(onLoadMoreData);
   const dataRef = useRef(data);
+  const reachedBeginningRef = useRef(Boolean(reachedBeginningOfHistory));
   useEffect(() => {
     onLoadMoreDataRef.current = onLoadMoreData;
   }, [onLoadMoreData]);
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
+  useEffect(() => {
+    reachedBeginningRef.current = Boolean(reachedBeginningOfHistory);
+  }, [reachedBeginningOfHistory]);
   const stopLossLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
   const takeProfitLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
   const entryPriceLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
@@ -396,7 +449,6 @@ function PerpsChartComponent({
       takeProfitLineRef.current = null;
       entryPriceLineRef.current = null;
       lastLoadMoreEarliestRef.current = null;
-      loadMoreInFlightRef.current = false;
 
       // Subscribe to visible-range changes so we can request more history
       // when the user scrolls past the currently loaded left edge.
@@ -404,7 +456,8 @@ function PerpsChartComponent({
       const handleVisibleLogicalRangeChange = (
         range: { from: number; to: number } | null
       ): void => {
-        if (!range || loadMoreInFlightRef.current) return;
+        if (!range) return;
+        if (reachedBeginningRef.current) return;
         const loadedCount = previousDataRef.current.length;
         if (loadedCount === 0) return;
         if (range.from > CHART_CONFIG.LOAD_MORE_THRESHOLD_BARS) return;
@@ -421,18 +474,50 @@ function PerpsChartComponent({
 
         const cb = onLoadMoreDataRef.current;
         if (!cb) return;
-
-        loadMoreInFlightRef.current = true;
-        Promise.resolve(cb(earliestTime)).finally(() => {
-          loadMoreInFlightRef.current = false;
+        Promise.resolve(cb(earliestTime)).catch(() => {
+          /* parent surfaces errors via toast */
         });
       };
       timeScale.subscribeVisibleLogicalRangeChange(handleVisibleLogicalRangeChange);
 
+      // Subscribe to crosshair move for the OHLC legend. When the crosshair
+      // leaves the chart we fall back to the most recent candle.
+      const seriesForCrosshair = seriesRef.current;
+      const handleCrosshairMove = (param: MouseEventParams): void => {
+        if (!isMountedRef.current) return;
+        if (!param.time || !seriesForCrosshair) {
+          setHoveredCandle(null);
+          return;
+        }
+        const seriesData = param.seriesData.get(seriesForCrosshair);
+        if (!seriesData) {
+          setHoveredCandle(null);
+          return;
+        }
+        const t = typeof param.time === 'number' ? (param.time as number) : Number(param.time);
+        const localSeconds = t - tzOffsetSeconds;
+        const candle = seriesData as Partial<CandlestickData<Time>> & { value?: number };
+        const open = candle.open ?? candle.value;
+        const high = candle.high ?? candle.value;
+        const low = candle.low ?? candle.value;
+        const close = candle.close ?? candle.value;
+        if (
+          typeof open !== 'number' ||
+          typeof high !== 'number' ||
+          typeof low !== 'number' ||
+          typeof close !== 'number'
+        ) {
+          setHoveredCandle(null);
+          return;
+        }
+        setHoveredCandle({ time: localSeconds, open, high, low, close });
+      };
+      chart.subscribeCrosshairMove(handleCrosshairMove);
+
       // Note: Data will be set in the separate data update effect
       // This separation prevents chart recreation on data changes
-    } catch (error) {
-      console.error('Error initializing chart:', error);
+    } catch (err) {
+      console.error('Error initializing chart:', err);
     }
 
     return () => {
@@ -582,9 +667,13 @@ function PerpsChartComponent({
         // This prevents the chart from auto-fitting to show all historical data
         seriesRef.current.setData(validTransformedData);
 
-        // Calculate visible range BEFORE the chart auto-fits
-        // Show last 100 candles (or all if less than 100) to keep latest candle visible
-        const visibleCandles = Math.min(100, validTransformedData.length);
+        // Calculate visible range BEFORE the chart auto-fits. The bar count
+        // is timeframe-aware so the initial zoom feels consistent across
+        // intervals.
+        const visibleCandles = Math.min(
+          getInitialVisibleBars(interval),
+          validTransformedData.length
+        );
         const fromIndex = Math.max(0, validTransformedData.length - visibleCandles);
         const fromTime = validTransformedData[fromIndex].time;
         const toTime = validTransformedData[validTransformedData.length - 1].time;
@@ -629,20 +718,13 @@ function PerpsChartComponent({
     } catch (error) {
       console.error('Error updating chart data:', error);
     }
-  }, [data, chartType, transformData]);
+  }, [data, chartType, transformData, interval]);
 
   // Update stop loss and take profit price lines
   useEffect(() => {
-    if (!seriesRef.current) {
-      console.log('[PerpsChart] No series available for price lines');
-      return;
-    }
-
+    if (!seriesRef.current) return;
     // Only create price lines if we have data
-    if (!data || data.length === 0) {
-      console.log('[PerpsChart] No data available, skipping price lines');
-      return;
-    }
+    if (!data || data.length === 0) return;
 
     // Check which specific values have changed
     const stopLossChanged = previousValuesRef.current.stopLoss !== stopLoss;
@@ -694,97 +776,73 @@ function PerpsChartComponent({
 
       // Re-check if data exists before creating lines (data might have been cleared)
       if (!data || data.length === 0) {
-        console.log('[PerpsChart] No data available in timeout, skipping price lines');
-        // Remove any existing lines if data was cleared
         if (stopLossLineRef.current && seriesRef.current) {
           try {
             seriesRef.current.removePriceLine(stopLossLineRef.current);
-            stopLossLineRef.current = null;
-          } catch (error) {
-            console.error('[PerpsChart] Error removing stop loss line:', error);
+          } catch {
+            /* ignore */
           }
+          stopLossLineRef.current = null;
         }
         if (takeProfitLineRef.current && seriesRef.current) {
           try {
             seriesRef.current.removePriceLine(takeProfitLineRef.current);
-            takeProfitLineRef.current = null;
-          } catch (error) {
-            console.error('[PerpsChart] Error removing take profit line:', error);
+          } catch {
+            /* ignore */
           }
+          takeProfitLineRef.current = null;
         }
         if (entryPriceLineRef.current && seriesRef.current) {
           try {
             seriesRef.current.removePriceLine(entryPriceLineRef.current);
-            entryPriceLineRef.current = null;
-          } catch (error) {
-            console.error('[PerpsChart] Error removing entry price line:', error);
+          } catch {
+            /* ignore */
           }
+          entryPriceLineRef.current = null;
         }
         return;
       }
 
-      console.log('[PerpsChart] Updating price lines:', {
-        stopLoss,
-        takeProfit,
-        entryPrice,
-        hasData: data.length > 0,
-      });
-
-      // Remove and recreate stop loss line only if it changed
-      if (shouldUpdateStopLoss) {
-        if (stopLossLineRef.current) {
-          try {
-            seriesRef.current.removePriceLine(stopLossLineRef.current);
-          } catch (error) {
-            console.error('[PerpsChart] Error removing stop loss line:', error);
-          }
-          stopLossLineRef.current = null;
+      if (shouldUpdateStopLoss && stopLossLineRef.current) {
+        try {
+          seriesRef.current.removePriceLine(stopLossLineRef.current);
+        } catch {
+          /* ignore */
         }
+        stopLossLineRef.current = null;
+      }
+      if (shouldUpdateTakeProfit && takeProfitLineRef.current) {
+        try {
+          seriesRef.current.removePriceLine(takeProfitLineRef.current);
+        } catch {
+          /* ignore */
+        }
+        takeProfitLineRef.current = null;
+      }
+      if (shouldUpdateEntryPrice && entryPriceLineRef.current) {
+        try {
+          seriesRef.current.removePriceLine(entryPriceLineRef.current);
+        } catch {
+          /* ignore */
+        }
+        entryPriceLineRef.current = null;
       }
 
-      // Remove and recreate take profit line only if it changed
-      if (shouldUpdateTakeProfit) {
-        if (takeProfitLineRef.current) {
-          try {
-            seriesRef.current.removePriceLine(takeProfitLineRef.current);
-          } catch (error) {
-            console.error('[PerpsChart] Error removing take profit line:', error);
-          }
-          takeProfitLineRef.current = null;
-        }
-      }
-
-      // Remove and recreate entry price line only if entry price changed (not PnL)
-      if (shouldUpdateEntryPrice) {
-        if (entryPriceLineRef.current) {
-          try {
-            seriesRef.current.removePriceLine(entryPriceLineRef.current);
-          } catch (error) {
-            console.error('[PerpsChart] Error removing entry price line:', error);
-          }
-          entryPriceLineRef.current = null;
-        }
-      }
-
-      // Add stop loss line if value is provided and needs update
       if (shouldUpdateStopLoss && stopLoss !== null && stopLoss !== undefined && stopLoss > 0) {
         try {
-          console.log('[PerpsChart] Creating stop loss line at price:', stopLoss);
           stopLossLineRef.current = seriesRef.current.createPriceLine({
             price: stopLoss,
-            color: '#ef4444', // Red color for stop loss
+            color: chartColors.sellColor,
             lineWidth: 1,
-            lineStyle: 2, // Dashed line
+            lineStyle: 2,
             axisLabelVisible: true,
             title: 'SL',
           });
-          console.log('[PerpsChart] Stop loss line created:', stopLossLineRef.current);
-        } catch (error) {
-          console.error('[PerpsChart] Error creating stop loss line:', error);
+        } catch {
+          /* ignore */
         }
       }
 
-      // Add take profit line if value is provided and needs update
       if (
         shouldUpdateTakeProfit &&
         takeProfit !== null &&
@@ -792,22 +850,19 @@ function PerpsChartComponent({
         takeProfit > 0
       ) {
         try {
-          console.log('[PerpsChart] Creating take profit line at price:', takeProfit);
           takeProfitLineRef.current = seriesRef.current.createPriceLine({
             price: takeProfit,
-            color: '#10b981', // Green color for take profit
+            color: chartColors.buyColor,
             lineWidth: 1,
-            lineStyle: 2, // Dashed line (consistent with SL)
+            lineStyle: 2,
             axisLabelVisible: true,
             title: 'TP',
           });
-          console.log('[PerpsChart] Take profit line created:', takeProfitLineRef.current);
-        } catch (error) {
-          console.error('[PerpsChart] Error creating take profit line:', error);
+        } catch {
+          /* ignore */
         }
       }
 
-      // Add entry price line if value is provided and needs update
       if (
         shouldUpdateEntryPrice &&
         entryPrice !== null &&
@@ -815,7 +870,6 @@ function PerpsChartComponent({
         entryPrice > 0
       ) {
         try {
-          // Calculate PnL display with +/- prefix
           const pnlValue = unrealizedPnl ?? 0;
           const isProfit = pnlValue >= 0;
           const pnlPrefix = isProfit ? '+' : '';
@@ -823,60 +877,137 @@ function PerpsChartComponent({
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}`;
-
-          // Dynamic color based on PnL (green for profit, red for loss)
-          const entryColor = isProfit ? '#10b981' : '#ef4444';
-
-          console.log(
-            '[PerpsChart] Creating entry price line at price:',
-            entryPrice,
-            'PnL:',
-            pnlValue
-          );
+          const entryColor = isProfit ? chartColors.buyColor : chartColors.sellColor;
           entryPriceLineRef.current = seriesRef.current.createPriceLine({
             price: entryPrice,
             color: entryColor,
             lineWidth: 1,
-            lineStyle: 0, // Solid line (distinguishes from TP/SL)
+            lineStyle: 0,
             axisLabelVisible: true,
             title: pnlFormatted,
           });
-          console.log('[PerpsChart] Entry price line created:', entryPriceLineRef.current);
-        } catch (error) {
-          console.error('[PerpsChart] Error creating entry price line:', error);
+        } catch {
+          /* ignore */
         }
       }
     }, 100);
 
     return () => clearTimeout(timeoutId);
-  }, [stopLoss, takeProfit, entryPrice, unrealizedPnl, data]);
+  }, [stopLoss, takeProfit, entryPrice, unrealizedPnl, data, chartColors]);
 
   const hasNoData = !data || data.length === 0;
-  const showLoading = isLoading && hasNoData;
+  const showLoading = (Boolean(isLoading) || hasNoData) && !error;
+  const showErrorOverlay = Boolean(error) && hasNoData;
+
+  // The candle displayed in the OHLC legend: hovered candle, or the latest
+  // when the crosshair is outside the chart.
+  const legendCandle: HoveredCandle | null = useMemo(() => {
+    if (hoveredCandle) return hoveredCandle;
+    if (!data || data.length === 0) return null;
+    for (let i = data.length - 1; i >= 0; i--) {
+      const c = data[i];
+      if (
+        c.open !== undefined &&
+        c.high !== undefined &&
+        c.low !== undefined &&
+        c.close !== undefined
+      ) {
+        return {
+          time: c.time,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+        };
+      }
+    }
+    return null;
+  }, [hoveredCandle, data]);
+
+  const legendChangePct = useMemo(() => {
+    if (!legendCandle || !legendCandle.open) return null;
+    const diff = legendCandle.close - legendCandle.open;
+    const pct = (diff / legendCandle.open) * 100;
+    return { pct, isPositive: diff >= 0 };
+  }, [legendCandle]);
 
   const ariaLabel = selectedMarketName ? `Price chart for ${selectedMarketName}` : 'Price chart';
 
   return (
     <div
       ref={chartContainerRef}
-      className={`w-full h-full relative ${className}`}
+      className={cn('w-full h-full relative', className)}
       style={{ minHeight: `${CHART_CONFIG.MIN_CHART_HEIGHT}px` }}
       role="img"
       aria-label={ariaLabel}
       aria-live="polite"
-      tabIndex={0}
     >
+      {/* OHLC legend */}
+      {legendCandle && (
+        <div className="pointer-events-none absolute top-2 left-2 z-20 flex flex-col gap-0.5 font-mono text-[11px] text-white/80">
+          <div className="flex items-center gap-2">
+            {selectedMarketName && <span className="text-white">{selectedMarketName}</span>}
+            <span className="uppercase text-white/50">{interval}</span>
+            <span className="text-white/40">{formatLegendTime(legendCandle.time, interval)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span>
+              <span className="text-white/40">O</span> {formatLegendPrice(legendCandle.open)}
+            </span>
+            <span>
+              <span className="text-white/40">H</span> {formatLegendPrice(legendCandle.high)}
+            </span>
+            <span>
+              <span className="text-white/40">L</span> {formatLegendPrice(legendCandle.low)}
+            </span>
+            <span>
+              <span className="text-white/40">C</span> {formatLegendPrice(legendCandle.close)}
+            </span>
+            {legendChangePct && (
+              <span
+                className={cn(
+                  legendChangePct.pct === 0
+                    ? 'text-white/60'
+                    : legendChangePct.isPositive
+                      ? 'text-success'
+                      : 'text-danger'
+                )}
+              >
+                {legendChangePct.pct === 0 ? '' : legendChangePct.isPositive ? '+' : ''}
+                {legendChangePct.pct.toFixed(2)}%
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Load-older indicator (left edge) */}
+      {isLoadingOlder && (
+        <div
+          className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-1 text-[10px] text-white/80 backdrop-blur-sm"
+          aria-live="polite"
+        >
+          <Loader2 className="size-3 animate-spin" />
+          <span>Loading earlier history…</span>
+        </div>
+      )}
+      {reachedBeginningOfHistory && !isLoadingOlder && !hasNoData && (
+        <div className="pointer-events-none absolute bottom-8 left-2 z-20 rounded-md bg-black/50 px-2 py-1 text-[10px] text-white/50 backdrop-blur-sm">
+          Beginning of history
+        </div>
+      )}
+
       {isRefreshing && (
         <div className="absolute top-2 right-2 z-20">
           <Loader2 className="size-4 animate-spin text-muted-foreground" />
         </div>
       )}
-      {error && (
+      {showErrorOverlay && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
           <div className="flex flex-col items-center gap-3">
             <AlertCircle className="size-6 text-destructive" />
             <span className="text-sm text-muted-foreground">
-              {error.message || 'Failed to load chart'}
+              {error?.message || 'Failed to load chart'}
             </span>
           </div>
         </div>
@@ -886,13 +1017,6 @@ function PerpsChartComponent({
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Loading chart data...</span>
-          </div>
-        </div>
-      )}
-      {!isLoading && !error && hasNoData && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
-          <div className="flex flex-col items-center gap-3">
-            <span className="text-sm text-muted-foreground">No data available</span>
           </div>
         </div>
       )}
