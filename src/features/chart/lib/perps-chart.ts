@@ -272,12 +272,14 @@ export function updateCandlesWithMarkPrice(
   markPrice: number,
   timeframe: PerpsTimeframe
 ): ExtendedPerpsOHLCVData[] {
-  if (!candles || candles.length === 0 || !markPrice || markPrice <= 0) {
+  if (!markPrice || markPrice <= 0) {
     return candles;
   }
 
   const currentCandleTimestamp = getCurrentCandleTimestamp(timeframe);
-  const candlesCopy = [...candles];
+  // Starting from an empty list is a valid state — new markets with no
+  // history start here, and the first mark-price tick seeds candle 0.
+  const candlesCopy = candles ? [...candles] : [];
   const lastCandle = candlesCopy[candlesCopy.length - 1];
 
   if (!lastCandle) {

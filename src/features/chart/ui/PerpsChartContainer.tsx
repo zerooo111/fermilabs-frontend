@@ -201,6 +201,7 @@ function PerpsChartContainerComponent() {
     refetch,
     isLoading,
     isFetching,
+    isSuccess,
     error,
   } = useQuery<ExtendedPerpsOHLCVData[]>({
     queryKey: ['perps-candlesticks', timeInterval, selectedMarket?.uuid],
@@ -272,42 +273,58 @@ function PerpsChartContainerComponent() {
   // Update candles when historical data is fetched.
   // Merge the current mark price synchronously so a background refetch
   // doesn't briefly show an un-merged last candle on screen, and keep any
-  // older candles fetched via scroll-back pagination.
+  // older candles fetched via scroll-back pagination. Empty historical
+  // responses are still processed — they represent brand new markets, and
+  // the first mark-price tick will seed candle 0.
   useEffect(() => {
-    if (historicalData && historicalData.length > 0) {
-      const histMinTime = historicalData[0].time;
-      const preservedOlder = olderCandlesRef.current.filter(c => c.time < histMinTime);
-      olderCandlesRef.current = preservedOlder;
-      const combined = [...preservedOlder, ...historicalData];
-      const livePrice = latestMarkPriceRef.current;
-      const merged =
+    if (historicalData === undefined) return;
+    const livePrice = latestMarkPriceRef.current;
+
+    if (historicalData.length === 0) {
+      // No server history. Start from an empty base and let the mark-price
+      // effect create the first candle.
+      olderCandlesRef.current = [];
+      const seeded =
         livePrice !== null && livePrice > 0
-          ? updateCandlesWithMarkPrice(combined, livePrice, timeInterval)
-          : combined;
-      setCandles(merged);
-      candlesRef.current = merged;
+          ? updateCandlesWithMarkPrice([], livePrice, timeInterval)
+          : [];
+      setCandles(seeded);
+      candlesRef.current = seeded;
       previousMarkPriceRef.current = livePrice ?? null;
+      return;
     }
+
+    const histMinTime = historicalData[0].time;
+    const preservedOlder = olderCandlesRef.current.filter(c => c.time < histMinTime);
+    olderCandlesRef.current = preservedOlder;
+    const combined = [...preservedOlder, ...historicalData];
+    const merged =
+      livePrice !== null && livePrice > 0
+        ? updateCandlesWithMarkPrice(combined, livePrice, timeInterval)
+        : combined;
+    setCandles(merged);
+    candlesRef.current = merged;
+    previousMarkPriceRef.current = livePrice ?? null;
   }, [historicalData, timeInterval]);
 
-  // Update candles in real-time with mark_price
-  // Uses candlesRef to avoid circular dependency (effect sets candles, depends on candles)
+  // Update candles in real-time with mark_price.
+  // Uses candlesRef to avoid circular dependency (effect sets candles,
+  // depends on candles). We intentionally allow this to run when the list
+  // is empty — for markets with no historical candles, the first tick
+  // seeds candle 0. We still wait for the initial fetch to resolve so a
+  // tick doesn't beat the historical payload to the screen.
   useEffect(() => {
-    if (markPrice === null || markPrice <= 0 || candlesRef.current.length === 0) {
-      return;
-    }
+    if (markPrice === null || markPrice <= 0) return;
+    if (!isSuccess) return;
 
     // Skip if mark_price hasn't changed (avoid unnecessary updates)
-    if (previousMarkPriceRef.current === markPrice) {
-      return;
-    }
+    if (previousMarkPriceRef.current === markPrice) return;
 
-    // Update candles with the new mark_price
     const updatedCandles = updateCandlesWithMarkPrice(candlesRef.current, markPrice, timeInterval);
     candlesRef.current = updatedCandles;
     setCandles(updatedCandles);
     previousMarkPriceRef.current = markPrice;
-  }, [markPrice, timeInterval]);
+  }, [markPrice, timeInterval, isSuccess]);
 
   // Calculate latest price and price change from updated candles
   const latestPrice = useMemo(() => {
@@ -434,9 +451,11 @@ function PerpsChartContainerComponent() {
     );
   }
 
-  // Show the loading overlay whenever we have no candles for the current
-  // market — prevents the "No data available" flash between market swaps.
-  const showChartLoading = hasNoCandles && !error;
+  // Show the spinner only while we're still waiting on the initial fetch
+  // (query not yet resolved for the current market). Once the server has
+  // responded — even with an empty array — we either have candles or we
+  // wait for the first mark-price tick to seed candle 0.
+  const showChartLoading = hasNoCandles && !error && !isSuccess;
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
