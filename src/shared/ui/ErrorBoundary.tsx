@@ -4,6 +4,7 @@
  */
 import { Component, ReactNode } from 'react';
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -31,8 +32,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     };
   }
 
-  componentDidCatch(): void {
+  componentDidCatch(error: Error): void {
     toast.error('Something went wrong. Please try again later.');
+    posthog.capture('error_boundary_triggered', {
+      error_message: error.message,
+      error_name: error.name,
+    });
   }
 
   render(): ReactNode {
