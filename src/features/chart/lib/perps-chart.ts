@@ -10,8 +10,8 @@ import {
   lotsPriceToUiWithMarket,
 } from '@/shared/lib/harness-market';
 
-// Compact array format: [timestamp_ms, open, high, low, close]
-export type Candle = [number, number, number, number, number];
+// Compact array format: [timestamp_ms, open, high, low, close, volume]
+export type Candle = [number, number, number, number, number, number];
 
 export interface PerpsCandleParams {
   marketId: string;
@@ -87,6 +87,7 @@ export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<Cand
     Number(k[2]), // high price (lots)
     Number(k[3]), // low price (lots)
     Number(k[4]), // close price (lots)
+    Number(k[5]), // volume (base lots)
   ]);
 }
 
@@ -153,7 +154,7 @@ export function processPerpsCandleData(
   candleData: Candle[],
   market?: HarnessMarketConversionParams | null
 ): ExtendedPerpsOHLCVData[] {
-  return candleData.map(([timestampMs, open, high, low, close]) => {
+  return candleData.map(([timestampMs, open, high, low, close, volume]) => {
     try {
       return {
         time: Math.floor(timestampMs / 1000),
@@ -161,7 +162,7 @@ export function processPerpsCandleData(
         high: lotsPriceToUiWithMarket(high, market),
         low: lotsPriceToUiWithMarket(low, market),
         close: lotsPriceToUiWithMarket(close, market),
-        volume: 0,
+        volume,
       };
     } catch {
       return { time: Math.floor(Date.now() / 1000) };

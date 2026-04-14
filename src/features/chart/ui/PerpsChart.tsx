@@ -10,7 +10,9 @@ import {
   IChartApi,
   Time,
   CandlestickData,
+  HistogramData,
   CandlestickSeries,
+  HistogramSeries,
   LineSeries,
   AreaSeries,
   BarSeries,
@@ -115,6 +117,8 @@ interface HoveredCandle {
   close: number;
 }
 
+type PriceSeriesDatum = CandlestickData<Time> | { time: Time; value: number };
+
 const getPerpsTimeScaleOptions = (interval: PerpsTimeframe): Partial<TimeScaleOptions> => {
   // Timestamps are pre-shifted by local tz offset, so use UTC methods to read them
   const formatTime: TickMarkFormatter = (time: Time) => {
@@ -217,8 +221,10 @@ function PerpsChartComponent({
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<any> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const isInitialMountRef = useRef(true);
-  const previousDataRef = useRef<CandlestickData<Time>[]>([]);
+  const previousDataRef = useRef<PriceSeriesDatum[]>([]);
+  const previousVolumeDataRef = useRef<HistogramData<Time>[]>([]);
   const isMountedRef = useRef(true);
   const lastLoadMoreEarliestRef = useRef<number | null>(null);
   const onLoadMoreDataRef = useRef(onLoadMoreData);
@@ -282,9 +288,11 @@ function PerpsChartComponent({
 
   // Transform data helper function - optimized single-pass transformation
   const transformData = useCallback(
-    (dataToTransform: ExtendedPerpsOHLCVData[]): CandlestickData<Time>[] => {
+    (dataToTransform: ExtendedPerpsOHLCVData[]) => {
       const validData: CandlestickData<Time>[] = [];
+      const volumeData: HistogramData<Time>[] = [];
       let lastTimeValue: number | null = null;
+      let requiresSort = false;
 
       for (const item of dataToTransform) {
         // Validate and transform in one pass
@@ -307,9 +315,17 @@ function PerpsChartComponent({
           close: item.close!,
         };
 
+        if (typeof item.volume === 'number' && Number.isFinite(item.volume) && item.volume >= 0) {
+          volumeData.push({
+            time,
+            value: item.volume,
+            color: item.close! >= item.open! ? `${upColor}80` : `${downColor}80`,
+          });
+        }
+
         // Check if data is already sorted (most common case)
         if (lastTimeValue !== null && timeValue < lastTimeValue) {
-          // Data is not sorted, we'll need to sort later
+          requiresSort = true;
           validData.push(candle);
         } else {
           // Data is sorted, add in order
@@ -318,19 +334,14 @@ function PerpsChartComponent({
         }
       }
 
-      // Only sort if needed (data might already be sorted)
-      if (validData.length > 1) {
-        const isSorted = validData.every(
-          (val, idx) => idx === 0 || Number(val.time) >= Number(validData[idx - 1].time)
-        );
-        if (!isSorted) {
-          validData.sort((a, b) => Number(a.time) - Number(b.time));
-        }
+      if (requiresSort) {
+        validData.sort((a, b) => Number(a.time) - Number(b.time));
+        volumeData.sort((a, b) => Number(a.time) - Number(b.time));
       }
 
-      return validData;
+      return { candleData: validData, volumeData };
     },
-    []
+    [downColor, upColor]
   );
 
   // Initialize chart (only when interval or colors change, not when data changes)
@@ -345,6 +356,7 @@ function PerpsChartComponent({
         chartRef.current.remove();
         chartRef.current = null;
         seriesRef.current = null;
+        volumeSeriesRef.current = null;
       }
 
       const { clientWidth, clientHeight } = chartContainerRef.current;
@@ -371,7 +383,7 @@ function PerpsChartComponent({
           borderVisible: false,
           scaleMargins: {
             top: CHART_CONFIG.PRICE_SCALE_MARGIN_TOP,
-            bottom: CHART_CONFIG.PRICE_SCALE_MARGIN_BOTTOM,
+            bottom: 0.3,
           },
         },
         crosshair: {
@@ -442,9 +454,29 @@ function PerpsChartComponent({
         throw new Error('Failed to create chart series');
       }
 
+      const volumeSeries = chart.addSeries(HistogramSeries, {
+        color: 'rgba(148, 163, 184, 0.5)',
+        priceFormat: {
+          type: 'volume',
+        },
+        priceScaleId: 'volume',
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+
+      chart.priceScale('volume').applyOptions({
+        scaleMargins: {
+          top: 0.8,
+          bottom: 0,
+        },
+        borderVisible: false,
+      });
+
       seriesRef.current = series;
+      volumeSeriesRef.current = volumeSeries;
       isInitialMountRef.current = true;
       previousDataRef.current = [];
+      previousVolumeDataRef.current = [];
       stopLossLineRef.current = null;
       takeProfitLineRef.current = null;
       entryPriceLineRef.current = null;
@@ -536,6 +568,7 @@ function PerpsChartComponent({
           chartRef.current.remove();
           chartRef.current = null;
           seriesRef.current = null;
+          volumeSeriesRef.current = null;
         }
       } catch (error) {
         console.error('Error cleaning up chart:', error);
@@ -555,13 +588,20 @@ function PerpsChartComponent({
 
   // Update data separately
   useEffect(() => {
-    if (!chartRef.current || !seriesRef.current || !data || data.length === 0) return;
+    if (
+      !chartRef.current ||
+      !seriesRef.current ||
+      !volumeSeriesRef.current ||
+      !data ||
+      data.length === 0
+    )
+      return;
 
     try {
       const timeScale = chartRef.current.timeScale();
 
       // Transform the data
-      const candleData = transformData(data);
+      const { candleData, volumeData } = transformData(data);
 
       // Only update if we have valid data
       if (candleData.length === 0) return;
@@ -575,6 +615,7 @@ function PerpsChartComponent({
       // Check if this is initial mount
       const isInitialMount = isInitialMountRef.current;
       const previousData = previousDataRef.current;
+      const previousVolumeData = previousVolumeDataRef.current;
 
       // If older candles were prepended (earliest time moved back), allow
       // subsequent loadMore requests for the new boundary.
@@ -590,9 +631,15 @@ function PerpsChartComponent({
 
       // Check if data actually changed (skip update if identical)
       // Optimized: Compare length and last candle only for better performance
-      if (!isInitialMount && previousData.length === validTransformedData.length) {
+      if (
+        !isInitialMount &&
+        previousData.length === validTransformedData.length &&
+        previousVolumeData.length === volumeData.length
+      ) {
         const lastPrevious = previousData[previousData.length - 1];
         const lastNew = validTransformedData[validTransformedData.length - 1];
+        const lastPreviousVolume = previousVolumeData[previousVolumeData.length - 1];
+        const lastNewVolume = volumeData[volumeData.length - 1];
 
         // Quick check: if last data point hasn't changed, likely no change
         const lastUnchanged = isLineType
@@ -602,8 +649,12 @@ function PerpsChartComponent({
             lastPrevious?.high === lastNew?.high &&
             lastPrevious?.low === lastNew?.low &&
             lastPrevious?.close === lastNew?.close;
+        const lastVolumeUnchanged =
+          lastPreviousVolume?.time === lastNewVolume?.time &&
+          lastPreviousVolume?.value === lastNewVolume?.value &&
+          lastPreviousVolume?.color === lastNewVolume?.color;
 
-        if (lastPrevious && lastNew && lastUnchanged) {
+        if (lastPrevious && lastNew && lastUnchanged && lastVolumeUnchanged) {
           const dataChanged = previousData.some((prev, idx) => {
             const curr = validTransformedData[idx];
             if (!curr || prev.time !== curr.time) return true;
@@ -615,8 +666,17 @@ function PerpsChartComponent({
               prev.close !== curr.close
             );
           });
+          const volumeChanged = previousVolumeData.some((prev, idx) => {
+            const curr = volumeData[idx];
+            return (
+              !curr ||
+              prev.time !== curr.time ||
+              prev.value !== curr.value ||
+              prev.color !== curr.color
+            );
+          });
 
-          if (!dataChanged) {
+          if (!dataChanged && !volumeChanged) {
             return;
           }
         }
@@ -643,7 +703,14 @@ function PerpsChartComponent({
         // If same timestamp, just update the last candle
         if (lastPrevious && lastNew && lastPrevious.time === lastNew.time) {
           seriesRef.current.update(lastNew);
+          if (volumeData.length > 0) {
+            const lastVolume = volumeData[volumeData.length - 1];
+            if (lastVolume) {
+              volumeSeriesRef.current.update(lastVolume);
+            }
+          }
           previousDataRef.current = validTransformedData;
+          previousVolumeDataRef.current = volumeData;
           return;
         }
 
@@ -655,7 +722,12 @@ function PerpsChartComponent({
           newCandles.forEach(candle => {
             seriesRef.current?.update(candle);
           });
+          const newVolumeBars = volumeData.slice(-newCandlesCount);
+          newVolumeBars.forEach(bar => {
+            volumeSeriesRef.current?.update(bar);
+          });
           previousDataRef.current = validTransformedData;
+          previousVolumeDataRef.current = volumeData;
           return;
         }
       }
@@ -666,6 +738,7 @@ function PerpsChartComponent({
         // On initial mount: Set data and immediately constrain visible range
         // This prevents the chart from auto-fitting to show all historical data
         seriesRef.current.setData(validTransformedData);
+        volumeSeriesRef.current.setData(volumeData);
 
         // Calculate visible range BEFORE the chart auto-fits. The bar count
         // is timeframe-aware so the initial zoom feels consistent across
@@ -711,10 +784,12 @@ function PerpsChartComponent({
       } else {
         // Subsequent updates: Just update data, preserve user's scroll position
         seriesRef.current.setData(validTransformedData);
+        volumeSeriesRef.current.setData(volumeData);
       }
 
       // Update ref
       previousDataRef.current = validTransformedData;
+      previousVolumeDataRef.current = volumeData;
     } catch (error) {
       console.error('Error updating chart data:', error);
     }
