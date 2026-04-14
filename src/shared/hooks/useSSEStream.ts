@@ -43,7 +43,8 @@ import type {
 } from '@/shared/api/sse-types';
 import { config } from '@/shared/config/constants';
 
-const RECENT_TRADES_PREFETCH_LIMIT = 100;
+const RECENT_TRADES_PREFETCH_LIMIT = 50;
+const RECENT_TRADES_MAX = 50;
 
 const DEFAULT_CTX: MarketContext = {
   name: '',
@@ -54,6 +55,27 @@ const DEFAULT_CTX: MarketContext = {
   baseLotSize: config.devnet.baseLotSize,
   quoteLotSize: config.devnet.quoteLotSize,
 };
+
+function mergeRecentTrades(
+  incoming: import('@/shared/api/sse-atom-bridge').RecentTrade[],
+  existing: import('@/shared/api/sse-atom-bridge').RecentTrade[]
+) {
+  if (incoming.length === 0) return existing;
+  if (existing.length === 0) return incoming.slice(0, RECENT_TRADES_MAX);
+
+  const merged = [...incoming, ...existing];
+  const deduped = new Map<string, (typeof merged)[number]>();
+
+  for (const trade of merged) {
+    if (!deduped.has(trade.id)) {
+      deduped.set(trade.id, trade);
+    }
+  }
+
+  return Array.from(deduped.values())
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, RECENT_TRADES_MAX);
+}
 
 export function useSSEStream() {
   const { publicKey } = useWallet();
@@ -149,13 +171,14 @@ export function useSSEStream() {
 
   function handleTradesSnapshot(data: import('@/shared/api/sse-types').SSETradesStreamSnapshot) {
     const ctx = ctxMapRef.current.get(data.market) ?? DEFAULT_CTX;
-    setRecentTrades(mapRecentTrades(data, ctx));
+    const snapshotTrades = mapRecentTrades(data, ctx);
+    setRecentTrades(prev => mergeRecentTrades(snapshotTrades, prev));
   }
 
   function handleTradeIncremental(data: import('@/shared/api/sse-types').SSETradesStreamSnapshot) {
     const ctx = ctxMapRef.current.get(data.market) ?? DEFAULT_CTX;
     const newTrades = mapRecentTrades(data, ctx);
-    setRecentTrades(prev => [...newTrades, ...prev].slice(0, 100));
+    setRecentTrades(prev => mergeRecentTrades(newTrades, prev));
   }
 
   tradesClient.callbacks.onSnapshot = handleTradesSnapshot;
@@ -194,7 +217,7 @@ export function useSSEStream() {
       const mapped = mapRecentTrades(snapshot, ctx);
 
       // Only seed if atom is still empty — SSE snapshot always takes precedence.
-      setRecentTrades(prev => (prev.length === 0 ? mapped : prev));
+      setRecentTrades(prev => (prev.length === 0 ? mapped.slice(0, RECENT_TRADES_MAX) : prev));
     } catch {
       /* aborted or network error — SSE stream will seed the panel instead */
     }
