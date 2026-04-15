@@ -80,5 +80,8 @@ export const API_ROUTES = {
   airdrop_deposit: '/airdrop-deposit',
   tx: '/relay/submit-intent',
   relay_config: '/relay/config',
+  relay_fee_config: '/relay/fee-config',
+  relay_deposit_fees: '/relay/deposit-fees',
+  register_lane: '/admin/register-lane',
   candles_ingest: '/candles/ingest',
 };

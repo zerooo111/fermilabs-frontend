@@ -239,14 +239,14 @@ export function mapAccountMetrics(
   sseAccount: SSEAccountUpdateEvent,
   quoteDecimals: number
 ): MarginAccount {
-  const totals = sseAccount.account_metrics.totals;
+  const totals = sseAccount.account_metrics?.totals;
 
-  const equity = nativeToUiNumber(totals.equity_native_quote || '0', quoteDecimals);
-  const assets = nativeToUiNumber(totals.assets_native_quote || '0', quoteDecimals);
-  const liabs = nativeToUiNumber(totals.liabs_native_quote || '0', quoteDecimals);
-  const initHealth = nativeToUiNumber(totals.init_health_native_quote || '0', quoteDecimals);
-  const maintHealth = nativeToUiNumber(totals.maint_health_native_quote || '0', quoteDecimals);
-  const unrealizedPnl = nativeToUiNumber(totals.pnl_native_quote || '0', quoteDecimals);
+  const equity = nativeToUiNumber(totals?.equity_native_quote || '0', quoteDecimals);
+  const assets = nativeToUiNumber(totals?.assets_native_quote || '0', quoteDecimals);
+  const liabs = nativeToUiNumber(totals?.liabs_native_quote || '0', quoteDecimals);
+  const initHealth = nativeToUiNumber(totals?.init_health_native_quote || '0', quoteDecimals);
+  const maintHealth = nativeToUiNumber(totals?.maint_health_native_quote || '0', quoteDecimals);
+  const unrealizedPnl = nativeToUiNumber(totals?.pnl_native_quote || '0', quoteDecimals);
   const equityOrAssets = equity !== 0 ? equity : assets;
 
   return {
@@ -266,7 +266,7 @@ export function mapAccountMetrics(
     per_market_delta_snapshot: [],
     portfolio_leverage_limit_snapshot: 0,
     margin_usage_fraction:
-      typeof totals.margin_usage_fraction === 'number'
+      typeof totals?.margin_usage_fraction === 'number'
         ? totals.margin_usage_fraction
         : assets > 0
           ? Math.max(liabs / assets, 0)

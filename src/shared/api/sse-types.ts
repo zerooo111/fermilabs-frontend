@@ -94,13 +94,13 @@ export interface SSEMarketUpdateEvent {
 
 // --- Event: account_update (also nested in snapshot) ---
 export interface SSEAccountMetricsTotals {
-  equity_native_quote: string;
-  pnl_native_quote: string;
-  assets_native_quote: string;
-  liabs_native_quote: string;
-  init_health_native_quote: string;
-  maint_health_native_quote: string;
-  margin_usage_fraction: number;
+  equity_native_quote?: string;
+  pnl_native_quote?: string;
+  assets_native_quote?: string;
+  liabs_native_quote?: string;
+  init_health_native_quote?: string;
+  maint_health_native_quote?: string;
+  margin_usage_fraction?: number;
 }
 
 export interface SSEAccountMetricsFields {
@@ -114,14 +114,14 @@ export interface SSEAccountMetricsFields {
 }
 
 export interface SSEAccountMetrics {
-  status: string;
-  source: string;
-  updated_ts_ms: number;
-  account_count: number;
-  mango_account: string | null;
-  totals: SSEAccountMetricsTotals;
-  accounts: unknown[];
-  fields: SSEAccountMetricsFields;
+  status?: string;
+  source?: string;
+  updated_ts_ms?: number;
+  account_count?: number;
+  mango_account?: string | null;
+  totals?: SSEAccountMetricsTotals;
+  accounts?: unknown[];
+  fields?: SSEAccountMetricsFields;
 }
 
 export interface SSEOpenOrder {
@@ -175,7 +175,7 @@ export interface SSEAccountUpdateEvent {
   positions: SSEPosition[];
   open_orders: SSEOpenOrder[];
   trades: SSETrade[];
-  account_metrics: SSEAccountMetrics;
+  account_metrics?: SSEAccountMetrics;
 }
 
 // --- Event: snapshot ---

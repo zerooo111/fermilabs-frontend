@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 
 export const USER_INTENT_DOMAIN = 'mango-v4-user-intent-v1';
+export const USER_INTENT_DOMAIN_V2 = 'mango-v4-user-intent-v2';
 const SYSVAR_INSTRUCTIONS_PUBKEY = 'Sysvar1nstructions1111111111111111111111111';
 
 export type QueueAccountMeta = {
@@ -12,6 +13,10 @@ export type QueueAccountMeta = {
 export enum QueuePayloadVariant {
   PerpPlaceOrderV2 = 0,
   PerpCancelOrder = 1,
+}
+
+export enum IntentTargetKind {
+  PerpMarket = 0,
 }
 
 export enum QueueSide {
@@ -46,6 +51,15 @@ function u16ToLe(value: number): Uint8Array {
   }
   const bytes = new Uint8Array(2);
   new DataView(bytes.buffer).setUint16(0, value, true);
+  return bytes;
+}
+
+function u32ToLe(value: number): Uint8Array {
+  if (!Number.isInteger(value) || value < 0 || value > 0xffffffff) {
+    throw new Error(`u32 out of range: ${value}`);
+  }
+  const bytes = new Uint8Array(4);
+  new DataView(bytes.buffer).setUint32(0, value, true);
   return bytes;
 }
 
@@ -261,6 +275,9 @@ export async function buildExecutionQueueUserIntent(params: {
   userOwner: string;
   payload: Uint8Array;
   remainingAccounts: QueueAccountMeta[];
+  intentVersion?: number;
+  targetKind?: number;
+  targetIndex?: number;
 }): Promise<{
   kind: number;
   payloadHash: Uint8Array;
@@ -268,6 +285,7 @@ export async function buildExecutionQueueUserIntent(params: {
   userIntentMessage: Uint8Array;
 }> {
   const kind = 0;
+  const intentVersion = params.intentVersion ?? 1;
   const payloadHash = await hashExecutionQueuePayload(params.payload);
   const accountsHash = await hashExecutionQueueAccountsForCtmEnqueue({
     group: params.group,
@@ -278,6 +296,9 @@ export async function buildExecutionQueueUserIntent(params: {
     group: params.group,
     mangoAccount: params.mangoAccount,
     userOwner: params.userOwner,
+    intentVersion,
+    targetKind: params.targetKind,
+    targetIndex: params.targetIndex,
     kind,
     payloadHash,
     accountsHash,
@@ -294,10 +315,34 @@ export async function buildUserIntentMessage(params: {
   group: string;
   mangoAccount: string;
   userOwner: string;
+  intentVersion?: number;
+  targetKind?: number;
+  targetIndex?: number;
   kind: number;
   payloadHash: Uint8Array;
   accountsHash: Uint8Array;
 }): Promise<Uint8Array> {
+  const intentVersion = params.intentVersion ?? 1;
+  if (intentVersion === 2) {
+    if (params.targetKind === undefined || params.targetIndex === undefined) {
+      throw new Error('v2 intent requires targetKind and targetIndex');
+    }
+    return await sha256(
+      concatBytes(
+        new TextEncoder().encode(USER_INTENT_DOMAIN_V2),
+        u32ToLe(intentVersion),
+        new PublicKey(params.group).toBytes(),
+        new PublicKey(params.mangoAccount).toBytes(),
+        new PublicKey(params.userOwner).toBytes(),
+        u32ToLe(params.targetKind),
+        u32ToLe(params.targetIndex),
+        u8(params.kind),
+        params.payloadHash,
+        params.accountsHash
+      )
+    );
+  }
+
   return await sha256(
     concatBytes(
       new TextEncoder().encode(USER_INTENT_DOMAIN),

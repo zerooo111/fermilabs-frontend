@@ -3,7 +3,7 @@ import axios from 'axios';
 import posthog from 'posthog-js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import bs58 from 'bs58';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelectedMarket } from '@/entities/market';
 import { config, API_ROUTES } from '@/shared/config/constants';
 import {
@@ -11,6 +11,7 @@ import {
   bytesToBase64,
   encodePerpCancelOrderQueuePayload,
   encodePerpPlaceOrderV2QueuePayload,
+  IntentTargetKind,
   QueuePlaceOrderType,
   QueueSelfTradeBehavior,
   QueueSide,
@@ -99,6 +100,7 @@ type HarnessFullMarketsResponse = {
 const RELAY_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
 const MARKET_META_CACHE_TTL_MS = 60 * 60 * 1000;
 const RELAY_DUPLICATE_SEQUENCE_RETRIES = 2;
+const RELAY_INTENT_VERSION = 2;
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => {
@@ -111,6 +113,45 @@ function isDuplicateSequenceRelayError(detail: string): boolean {
   return (
     normalized.includes('duplicate sequence') || normalized.includes('relayer cursor reconciled')
   );
+}
+
+function formatRelaySubmitError(error: unknown): string {
+  if (!axios.isAxiosError(error)) {
+    return error instanceof Error ? error.message : 'Unknown relay submit error';
+  }
+
+  const data = error.response?.data as
+    | {
+        error?: string;
+        required_lamports?: string | number;
+        available_lamports?: string | number;
+        deposit_address?: string;
+      }
+    | undefined;
+  const detail = data?.error || error.response?.statusText || error.message;
+
+  if (detail === 'please deposit gas') {
+    const requiredLamports = data?.required_lamports;
+    const availableLamports = data?.available_lamports;
+    const depositAddress = data?.deposit_address;
+    const parts = ['Relay fee balance is empty. Top up SOL for relayer fees and retry.'];
+    if (requiredLamports !== undefined) {
+      parts.push(`Required: ${requiredLamports} lamports.`);
+    }
+    if (availableLamports !== undefined) {
+      parts.push(`Available: ${availableLamports} lamports.`);
+    }
+    if (depositAddress) {
+      parts.push(`Deposit address: ${depositAddress}.`);
+    }
+    return parts.join(' ');
+  }
+
+  if (detail === 'base fee too low') {
+    return 'Relay base fee too low. Retry with AUTO fee selection or increase the fee cap.';
+  }
+
+  return detail;
 }
 
 function sideToQueueSide(side: OrderSide): QueueSide {
@@ -209,6 +250,7 @@ export function usePerps() {
     market: string;
     promise: Promise<ExecutionMarketParams>;
   } | null>(null);
+  const [relayConfigState, setRelayConfigState] = useState<ResolvedRelayConfig | null>(null);
 
   const logPerf = useCallback((label: string, data: Record<string, number | string>) => {
     if (import.meta.env.DEV) {
@@ -575,6 +617,7 @@ export function usePerps() {
         mangoAccount,
       };
 
+      setRelayConfigState(resolved);
       relayConfigCacheRef.current = {
         owner,
         market,
@@ -703,6 +746,11 @@ export function usePerps() {
       throw new Error('Wallet not connected');
     }
 
+    const targetIndex = Number(params.market);
+    if (!Number.isInteger(targetIndex) || targetIndex < 0) {
+      throw new Error(`Invalid market index for relay intent: ${params.market}`);
+    }
+
     const startedAt = performance.now();
     const intent = await buildExecutionQueueUserIntent({
       group: params.group,
@@ -711,6 +759,9 @@ export function usePerps() {
       userOwner: publicKey.toBase58(),
       payload: params.payloadBytes,
       remainingAccounts: params.remainingAccounts,
+      intentVersion: RELAY_INTENT_VERSION,
+      targetKind: IntentTargetKind.PerpMarket,
+      targetIndex,
     });
     const builtIntentAt = performance.now();
     const signatureBytes = await signIntentMessage(intent.userIntentMessage);
@@ -721,6 +772,9 @@ export function usePerps() {
       group: params.group,
       execution_queue: params.executionQueue,
       market: params.market,
+      intent_version: RELAY_INTENT_VERSION,
+      target_kind: IntentTargetKind.PerpMarket,
+      target_index: targetIndex,
       _base_fee: 'AUTO',
       payload_b64: bytesToBase64(params.payloadBytes),
       remaining_accounts: params.remainingAccounts,
@@ -737,10 +791,7 @@ export function usePerps() {
         break;
       } catch (error) {
         if (axios.isAxiosError(error)) {
-          const detail =
-            (error.response?.data as { error?: string } | undefined)?.error ||
-            error.response?.statusText ||
-            error.message;
+          const detail = formatRelaySubmitError(error);
           const shouldRetry =
             attempt < RELAY_DUPLICATE_SEQUENCE_RETRIES && isDuplicateSequenceRelayError(detail);
           if (shouldRetry) {
@@ -1158,5 +1209,6 @@ export function usePerps() {
     openMarketPosition,
     closePosition,
     cancelOrder,
+    relayConfig: relayConfigState,
   };
 }
