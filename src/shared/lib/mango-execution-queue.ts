@@ -54,15 +54,6 @@ function u16ToLe(value: number): Uint8Array {
   return bytes;
 }
 
-function u32ToLe(value: number): Uint8Array {
-  if (!Number.isInteger(value) || value < 0 || value > 0xffffffff) {
-    throw new Error(`u32 out of range: ${value}`);
-  }
-  const bytes = new Uint8Array(4);
-  new DataView(bytes.buffer).setUint32(0, value, true);
-  return bytes;
-}
-
 function u64ToLe(value: bigint): Uint8Array {
   const max = (1n << 64n) - 1n;
   if (value < 0n || value > max) {
@@ -287,11 +278,14 @@ export async function buildExecutionQueueUserIntent(params: {
   const kind = 0;
   const intentVersion = params.intentVersion ?? 1;
   const payloadHash = await hashExecutionQueuePayload(params.payload);
-  const accountsHash = await hashExecutionQueueAccountsForCtmEnqueue({
-    group: params.group,
-    executionQueue: params.executionQueue,
-    remainingAccounts: params.remainingAccounts,
-  });
+  const accountsHash =
+    intentVersion === 1
+      ? await hashExecutionQueueAccountsForCtmEnqueue({
+          group: params.group,
+          executionQueue: params.executionQueue,
+          remainingAccounts: params.remainingAccounts,
+        })
+      : new Uint8Array();
   const userIntentMessage = await buildUserIntentMessage({
     group: params.group,
     mangoAccount: params.mangoAccount,
@@ -330,15 +324,13 @@ export async function buildUserIntentMessage(params: {
     return await sha256(
       concatBytes(
         new TextEncoder().encode(USER_INTENT_DOMAIN_V2),
-        u32ToLe(intentVersion),
         new PublicKey(params.group).toBytes(),
         new PublicKey(params.mangoAccount).toBytes(),
         new PublicKey(params.userOwner).toBytes(),
-        u32ToLe(params.targetKind),
-        u32ToLe(params.targetIndex),
         u8(params.kind),
-        params.payloadHash,
-        params.accountsHash
+        u8(params.targetKind),
+        u16ToLe(params.targetIndex),
+        params.payloadHash
       )
     );
   }
