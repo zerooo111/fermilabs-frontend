@@ -25,12 +25,12 @@ export function LandingFooter() {
             >
               Whitepaper
             </a>
-            <a
-              href={LINKS.APP}
-              className="px-6 md:px-8 py-4 md:py-0 md:h-full flex items-center hover:text-amber-100 hover:bg-white/5 justify-center duration-150 ease-out"
+            <span
+              aria-disabled="true"
+              className="px-6 md:px-8 py-4 md:py-0 md:h-full flex items-center justify-center cursor-default select-none opacity-60"
             >
-              Trade
-            </a>
+              Coming Soon
+            </span>
           </div>
         </div>
 

@@ -32,12 +32,12 @@ export default function LandingHeader() {
           >
             Whitepaper
           </a>
-          <a
-            href={LINKS.APP}
-            className="px-8 h-full flex items-center hover:text-amber-100 hover:bg-white/5 justify-center duration-150 ease-out"
+          <span
+            aria-disabled="true"
+            className="px-8 h-full flex items-center justify-center cursor-default select-none opacity-60"
           >
-            Trade
-          </a>
+            Coming Soon
+          </span>
         </div>
 
         <button
@@ -75,13 +75,9 @@ export default function LandingHeader() {
             >
               Whitepaper
             </a>
-            <a
-              href={LINKS.APP}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="px-6 py-4 hover:text-amber-100 hover:bg-white/5 duration-150 ease-out"
-            >
-              Trade
-            </a>
+            <span aria-disabled="true" className="px-6 py-4 cursor-default select-none opacity-60">
+              Coming Soon
+            </span>
           </div>
         </div>
       )}

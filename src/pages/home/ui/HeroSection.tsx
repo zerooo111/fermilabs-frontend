@@ -1,7 +1,6 @@
 import { ArrowRight } from '@phosphor-icons/react';
 import { useRef } from 'react';
 import ProductScreenshot from './ProductScreenshot';
-import { LINKS } from '../constants';
 
 export default function HeroSection() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -21,18 +20,12 @@ export default function HeroSection() {
         </h6>
 
         <div className="mt-8 md:mt-16 flex flex-col sm:flex-row gap-4 sm:gap-6 w-full sm:w-auto">
-          <a
-            href={LINKS.APP}
-            className="hover:brightness-125 bg-rock text-dark-forest group px-6 sm:px-8 py-3 sm:py-4 text-lg sm:text-xl md:text-2xl font-medium flex items-center justify-center gap-3 sm:gap-4 relative overflow-hidden duration-150 ease-out"
+          <span
+            aria-disabled="true"
+            className="bg-rock/70 text-dark-forest px-6 sm:px-8 py-3 sm:py-4 text-lg sm:text-xl md:text-2xl font-medium flex items-center justify-center gap-3 sm:gap-4 relative overflow-hidden cursor-default select-none"
           >
-            Launch App{' '}
-            <ArrowRight
-              weight="bold"
-              size={20}
-              className="group-hover:scale-110 origin-center
-              group-hover:-rotate-45 transition-all duration-200 relative sm:w-6 sm:h-6"
-            />
-          </a>
+            Coming Soon
+          </span>
 
           <a
             href={'#features'}
