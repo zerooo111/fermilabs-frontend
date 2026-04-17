@@ -1,6 +1,5 @@
 import { ArrowRight } from '@phosphor-icons/react';
 import { useRef } from 'react';
-import ProductScreenshot from './ProductScreenshot';
 
 export default function HeroSection() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,7 +41,18 @@ export default function HeroSection() {
       </div>
 
       <div className="flex md:translate-y-10 lg:translate-y-20 mt-8 overflow-hidden">
-        <ProductScreenshot />
+        <img
+          src="https://ik.imagekit.io/xl6qa7mr1/product-screenshot.svg?tr=w-1200,f-auto,q-75"
+          srcSet="https://ik.imagekit.io/xl6qa7mr1/product-screenshot.svg?tr=w-800,f-auto,q-75 800w, https://ik.imagekit.io/xl6qa7mr1/product-screenshot.svg?tr=w-1200,f-auto,q-75 1200w, https://ik.imagekit.io/xl6qa7mr1/product-screenshot.svg?tr=w-1600,f-auto,q-75 1600w"
+          sizes="(max-width: 768px) 100vw, (max-width: 1536px) 90vw, 1600px"
+          alt="Product Screenshot"
+          loading="eager"
+          fetchPriority="high"
+          decoding="async"
+          width="1200"
+          height="800"
+          className="w-full h-auto object-contain"
+        />
       </div>
 
       {/* Gradients */}
