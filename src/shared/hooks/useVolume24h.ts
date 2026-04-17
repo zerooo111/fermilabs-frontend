@@ -17,6 +17,6 @@ export function useVolume24h(market?: string) {
       );
       return data;
     },
-    refetchInterval: 10_000,
+    refetchInterval: 3_000,
   });
 }

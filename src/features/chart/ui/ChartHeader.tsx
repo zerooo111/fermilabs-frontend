@@ -138,11 +138,14 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
           <span className="text-xs whitespace-nowrap font-medium text-white/50">24h Volume</span>
           <span className="font-mono font-semibold text-base text-white">
             {volumeData?.total_volume_quote_lots
-              ? quoteLotsToUi(volumeData.total_volume_quote_lots, {
+              ? `$${quoteLotsToUi(volumeData.total_volume_quote_lots, {
                   quoteDecimals: selectedMarket.quoteDecimals,
                   quoteLotSize: selectedMarket.quote_lot_size,
-                }).toLocaleString('en-US', { maximumFractionDigits: 2 })
-              : '0'}
+                }).toLocaleString('en-US', {
+                  notation: 'compact',
+                  maximumFractionDigits: 2,
+                })}`
+              : '$0'}
           </span>
         </div>
       </div>
