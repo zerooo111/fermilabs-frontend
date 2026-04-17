@@ -84,4 +84,5 @@ export const API_ROUTES = {
   relay_deposit_fees: '/relay/deposit-fees',
   register_lane: '/admin/register-lane',
   candles_ingest: '/candles/ingest',
+  volume_24h: '/stats/volume/24h',
 };

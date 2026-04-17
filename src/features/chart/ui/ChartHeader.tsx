@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 import { useSelectedMarket } from '@/entities/market';
 import { formatPrice, formatQuantity } from '@/features/orderbook-view/lib/processOrderbook';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
+import { useVolume24h } from '@/shared/hooks/useVolume24h';
+import { quoteLotsToUi } from '@/shared/lib/mango-sdk-conversions';
 
 interface LatestPrice {
   price: number;
@@ -20,6 +22,7 @@ interface ChartHeaderProps {
 
 function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }: ChartHeaderProps) {
   const { selectedMarket } = useSelectedMarket();
+  const { data: volumeData } = useVolume24h(selectedMarketId ?? undefined);
 
   // Fetch market stats using react-query
   const { data: marketsData } = useMarketStats({
@@ -126,6 +129,19 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
           <span className="font-mono font-semibold text-base text-white">
             {marketStats?.open_interest
               ? formatQuantity(marketStats.open_interest, selectedMarket.baseDecimals)
+              : '0'}
+          </span>
+        </div>
+
+        {/* 24h Volume */}
+        <div className="flex flex-col justify-center px-2 h-full ">
+          <span className="text-xs whitespace-nowrap font-medium text-white/50">24h Volume</span>
+          <span className="font-mono font-semibold text-base text-white">
+            {volumeData?.total_volume_quote_lots
+              ? quoteLotsToUi(volumeData.total_volume_quote_lots, {
+                  quoteDecimals: selectedMarket.quoteDecimals,
+                  quoteLotSize: selectedMarket.quote_lot_size,
+                }).toLocaleString('en-US', { maximumFractionDigits: 2 })
               : '0'}
           </span>
         </div>
