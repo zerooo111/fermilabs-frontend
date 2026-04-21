@@ -9,7 +9,6 @@ import { useState, useEffect } from 'react';
 import { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 import { Loader2, Wallet, Info } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
@@ -24,11 +23,9 @@ import posthog from 'posthog-js';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { useMemo } from 'react';
-import { useCallback } from 'react';
-import { useSequencerApi, type RelayFeeConfigResponse } from '@/shared/api/useSequencerApi';
+import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { useAccount } from '@/shared/hooks/useAccount';
 import { useMangoMarginDeposit } from '@/shared/hooks/useMangoMarginDeposit';
-import { LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 
 // Safe parsing functions to prevent NaN errors
 const safeParseFloat = (value: string, defaultValue: number = 0): number => {
@@ -55,9 +52,6 @@ const marketBaseDecimals = (selectedMarket: any): number =>
 
 export function PerpsTradePanel() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRelayFeeLoading, setIsRelayFeeLoading] = useState(false);
-  const [isRelayFeeDepositing, setIsRelayFeeDepositing] = useState(false);
-  const [relayFeeConfig, setRelayFeeConfig] = useState<RelayFeeConfigResponse | null>(null);
   const [enableSLTP, setEnableSLTP] = useState(false);
   const [formState, setFormState] = useState<{
     price: string;
@@ -79,13 +73,12 @@ export function PerpsTradePanel() {
     slippageBps: '100',
   });
 
-  const { publicKey, sendTransaction } = useWallet();
-  const { connection } = useConnection();
+  const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const { selectedMarket } = useSelectedMarket();
-  const { openPosition, openMarketPosition, relayConfig } = usePerps();
+  const { openPosition, openMarketPosition } = usePerps();
   const setSLTPValues = useSetAtom(sltpValuesAtom);
-  const { requestAirdrop, fetchRelayFeeConfig, depositRelayFees } = useSequencerApi();
+  const { requestAirdrop } = useSequencerApi();
   const { depositMargin } = useMangoMarginDeposit();
   const { data: accountData } = useAccount(publicKey?.toBase58() || '');
 
@@ -203,87 +196,6 @@ export function PerpsTradePanel() {
           wallet: publicKey?.toBase58(),
         });
       });
-  };
-
-  const refreshRelayFeeConfig = useCallback(async () => {
-    if (!publicKey || !relayConfig) {
-      setRelayFeeConfig(null);
-      return;
-    }
-
-    setIsRelayFeeLoading(true);
-    try {
-      const nextConfig = await fetchRelayFeeConfig({
-        owner: publicKey.toBase58(),
-        group: relayConfig.group,
-        executionQueue: relayConfig.executionQueue,
-      });
-      setRelayFeeConfig(nextConfig);
-    } catch {
-      setRelayFeeConfig(null);
-    } finally {
-      setIsRelayFeeLoading(false);
-    }
-  }, [fetchRelayFeeConfig, publicKey, relayConfig]);
-
-  useEffect(() => {
-    void refreshRelayFeeConfig();
-  }, [refreshRelayFeeConfig]);
-
-  const relayFeeTopUpLamports = useMemo(() => {
-    const baseFeeLamports = Number(relayFeeConfig?.current_internal_base_fee_lamports ?? 0);
-    if (!Number.isFinite(baseFeeLamports) || baseFeeLamports <= 0) {
-      return 100_000;
-    }
-    return Math.max(baseFeeLamports * 4, 100_000);
-  }, [relayFeeConfig?.current_internal_base_fee_lamports]);
-
-  const handleRelayFeeTopUp = async () => {
-    if (!publicKey || !sendTransaction) {
-      setVisible(true);
-      return;
-    }
-    if (!relayFeeConfig?.deposit_address) {
-      toast.error('Relay fee deposit address unavailable');
-      return;
-    }
-
-    setIsRelayFeeDepositing(true);
-    try {
-      const latestBlockhash = await connection.getLatestBlockhash();
-      const transaction = new Transaction({
-        feePayer: publicKey,
-        recentBlockhash: latestBlockhash.blockhash,
-      }).add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: new PublicKey(relayFeeConfig.deposit_address),
-          lamports: relayFeeTopUpLamports,
-        })
-      );
-
-      const signature = await sendTransaction(transaction, connection);
-      await connection.confirmTransaction(
-        {
-          signature,
-          blockhash: latestBlockhash.blockhash,
-          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-        },
-        'confirmed'
-      );
-      await depositRelayFees({
-        user_owner: publicKey.toBase58(),
-        tx_signature: signature,
-      });
-      await refreshRelayFeeConfig();
-      toast.success(
-        `Relay fee balance topped up with ${(relayFeeTopUpLamports / LAMPORTS_PER_SOL).toFixed(6)} SOL`
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to top up relay fee balance');
-    } finally {
-      setIsRelayFeeDepositing(false);
-    }
   };
 
   // Calculate order value considering decimal inputs with safe parsing
@@ -499,37 +411,6 @@ export function PerpsTradePanel() {
                   Deposit
                 </Button>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <div className="min-w-0">
-                <span className="text-muted-foreground">Relay Fee Balance</span>
-                <div className="font-mono tabular-nums">
-                  {relayFeeConfig?.balance_sol ?? '0'} SOL
-                  {relayFeeConfig?.current_internal_base_fee_sol
-                    ? ` · base ${relayFeeConfig.current_internal_base_fee_sol} SOL`
-                    : ''}
-                </div>
-                {relayFeeConfig?.fee_gate_enabled && relayFeeConfig.deposit_address && (
-                  <div className="truncate text-[11px] text-muted-foreground">
-                    Deposit: {relayFeeConfig.deposit_address}
-                  </div>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 px-2 text-xs"
-                disabled={
-                  isRelayFeeDepositing ||
-                  isRelayFeeLoading ||
-                  !relayFeeConfig?.fee_gate_enabled ||
-                  !relayFeeConfig.deposit_address
-                }
-                onClick={handleRelayFeeTopUp}
-              >
-                {isRelayFeeDepositing ? 'Funding...' : 'Top Up Fee'}
-              </Button>
             </div>
           </>
         )}

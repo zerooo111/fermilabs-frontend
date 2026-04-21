@@ -130,33 +130,6 @@ export interface AirdropResponse {
   transaction_hash?: string;
 }
 
-export interface RelayFeeConfigResponse {
-  fee_gate_enabled: boolean;
-  deposit_address: string;
-  current_internal_base_fee_lamports: string | number;
-  current_internal_base_fee_sol: string;
-  balance_lamports: string | number;
-  balance_sol: string;
-  auto_quota_granted?: boolean;
-  auto_quota_available_lamports?: string | number;
-  auto_quota_available_sol?: string;
-  total_deposited_lamports?: string | number;
-  total_charged_lamports?: string | number;
-}
-
-export interface DepositRelayFeesRequest {
-  user_owner: string;
-  tx_signature: string;
-}
-
-export interface DepositRelayFeesResponse {
-  credited_lamports: string | number;
-  credited_sol: string;
-  balance_lamports: string | number;
-  balance_sol: string;
-  deposit_address: string;
-}
-
 interface HarnessBalancesResponse {
   view: 'optimistic' | 'confirmed';
   data: {
@@ -303,42 +276,10 @@ export function useSequencerApi() {
     [harnessUrl]
   );
 
-  const fetchRelayFeeConfig = useCallback(
-    async (params: {
-      owner: string;
-      group: string;
-      executionQueue: string;
-    }): Promise<RelayFeeConfigResponse> => {
-      const searchParams = new URLSearchParams({
-        owner: params.owner,
-        group: params.group,
-        execution_queue: params.executionQueue,
-      });
-      const response = await axios.get<RelayFeeConfigResponse>(
-        `${harnessUrl}${API_ROUTES.relay_fee_config}?${searchParams.toString()}`
-      );
-      return response.data;
-    },
-    [harnessUrl]
-  );
-
-  const depositRelayFees = useCallback(
-    async (payload: DepositRelayFeesRequest): Promise<DepositRelayFeesResponse> => {
-      const response = await axios.post<DepositRelayFeesResponse>(
-        `${harnessUrl}${API_ROUTES.relay_deposit_fees}`,
-        payload
-      );
-      return response.data;
-    },
-    [harnessUrl]
-  );
-
   return {
     ping,
     fetchUserBalances,
     requestAirdrop,
     requestAirdropDeposit,
-    fetchRelayFeeConfig,
-    depositRelayFees,
   };
 }
