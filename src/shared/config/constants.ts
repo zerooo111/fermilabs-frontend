@@ -4,6 +4,21 @@
 import { PublicKey } from '@solana/web3.js';
 import type { Commitment } from '@solana/web3.js';
 
+export const V2_READ_LAYER_STORAGE_KEY = 'fermi.useV2ReadLayer';
+
+function resolveV2ReadLayerFlag(): boolean {
+  const envDefault = (import.meta.env.VITE_USE_V2_READ_LAYER || 'false').toLowerCase() === 'true';
+  if (typeof window === 'undefined') return envDefault;
+  try {
+    const stored = window.localStorage.getItem(V2_READ_LAYER_STORAGE_KEY);
+    if (stored === 'true') return true;
+    if (stored === 'false') return false;
+  } catch {
+    // localStorage unavailable (SSR, privacy mode) — fall back to env.
+  }
+  return envDefault;
+}
+
 // config -> network ( devnet / mainnet ) -> programId / rpcUrl , commitment , etc...
 export const config = {
   devnet: {
@@ -29,7 +44,10 @@ export const config = {
     baseTokenName: import.meta.env.VITE_BASE_TOKEN_SYMBOL || 'SOL',
     // Phase 4 canary: flip to use the Redis-backed /v2/* read layer on the
     // gateway instead of the legacy /state/* harness-proxy endpoints.
-    useV2ReadLayer: (import.meta.env.VITE_USE_V2_READ_LAYER || 'false').toLowerCase() === 'true',
+    // Resolved at module-load: localStorage override (set by the in-app
+    // DevToggle) wins over the VITE env. Toggle triggers a page reload so
+    // every `config.devnet.useV2ReadLayer` reader re-evaluates.
+    useV2ReadLayer: resolveV2ReadLayerFlag(),
     v2View: (import.meta.env.VITE_V2_VIEW || 'optimistic') as 'optimistic' | 'confirmed',
   },
 };
