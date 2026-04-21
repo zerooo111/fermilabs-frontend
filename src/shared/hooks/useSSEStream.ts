@@ -24,6 +24,7 @@ import {
 import { getSSEClient, getTradesSSEClient } from '@/shared/api/sse-client';
 import { getV2CompositeClient } from '@/shared/api/v2-composite-sse-client';
 import { fetchV2Orderbook, fetchV2Trades } from '@/shared/api/v2-api';
+import type { V2OrderbookSnapshot } from '@/shared/api/v2-api';
 import { mapV2Orderbook } from '@/shared/api/v2-adapter';
 import {
   buildContextFromMarket,
@@ -163,113 +164,107 @@ export function useSSEStream() {
   }
 
   // --- v2 read-layer (Phase 5) ------------------------------
-  // When enabled, subscribe to /v2/stream/frontend/:market?owner=X as a
-  // single composite stream. Events are used as invalidation signals:
-  //   - `book`    → debounced refetch /v2/snapshot/orderbook
-  //   - `trade`   → debounced refetch /v2/trades
-  //   - `intent`  → debounced refetch /v2/trades (new fills often show up here first)
-  //   - `account` → (future: refetch /v2/snapshot/account + /v2/snapshot/orders)
-  //   - `meta`    → currently no-op; market metrics still driven by the v1 path
-  //                 fallback until metricsAtom has a v2 source of truth.
-  // One SSE connection replaces the prior event/trades dual-stream plus the
-  // explicit REST poll loop.
+  // Single SSE connection carries every piece of live data. Events are
+  // treated as DATA DELIVERIES, not invalidation signals — we update
+  // atoms from the event payload directly, no REST refetches on hot path.
+  // REST is only used for cold start, market switch, and resync recovery.
   const v2Enabled = config.devnet.useV2ReadLayer;
   const v2Composite = getV2CompositeClient();
   const currentMarketRef = useRef<string | null>(marketId);
   currentMarketRef.current = marketId;
 
-  const orderbookRefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const orderbookRefetchAbortRef = useRef<AbortController | null>(null);
-  const tradesRefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const tradesRefetchAbortRef = useRef<AbortController | null>(null);
+  // Cold-start / market-switch / resync paths still use REST because we
+  // need a full snapshot to seed atoms. These are not hot; they fire at
+  // most on connect, owner switch, and broadcast lag.
+  const coldLoadAbortRef = useRef<AbortController | null>(null);
 
-  function scheduleOrderbookRefetch() {
-    if (!v2Enabled) return;
-    if (orderbookRefetchTimerRef.current) return;
-    orderbookRefetchTimerRef.current = setTimeout(async () => {
-      orderbookRefetchTimerRef.current = null;
-      const mid = currentMarketRef.current;
-      if (!mid) return;
-      const market = markets.find(m => m.uuid === mid);
-      const ctx = market ? buildContextFromMarket(market) : ctxMapRef.current.get(mid);
-      if (!ctx) return;
-      orderbookRefetchAbortRef.current?.abort();
-      const controller = new AbortController();
-      orderbookRefetchAbortRef.current = controller;
-      try {
-        const snap = await fetchV2Orderbook(mid, { signal: controller.signal });
-        if (controller.signal.aborted) return;
-        setOrderbook(mapV2Orderbook(snap, ctx));
-      } catch {
-        /* transient; next event will re-trigger */
-      }
-    }, 50);
+  async function coldLoadV2(mid: string) {
+    const market = markets.find(m => m.uuid === mid);
+    const ctx = market ? buildContextFromMarket(market) : ctxMapRef.current.get(mid);
+    if (!ctx) return;
+    coldLoadAbortRef.current?.abort();
+    const controller = new AbortController();
+    coldLoadAbortRef.current = controller;
+    try {
+      const [book, trades] = await Promise.all([
+        fetchV2Orderbook(mid, { signal: controller.signal }),
+        fetchV2Trades(mid, { limit: RECENT_TRADES_MAX, signal: controller.signal }),
+      ]);
+      if (controller.signal.aborted) return;
+      setOrderbook(mapV2Orderbook(book, ctx));
+      const mapped = trades.trades.map(t => mapV2TradeToRecent(t, ctx));
+      setRecentTrades(prev => mergeRecentTrades(mapped, prev));
+    } catch {
+      /* transient; next event or reconnect will re-seed */
+    }
   }
 
-  function scheduleTradesRefetch() {
-    if (!v2Enabled) return;
-    if (tradesRefetchTimerRef.current) return;
-    tradesRefetchTimerRef.current = setTimeout(async () => {
-      tradesRefetchTimerRef.current = null;
-      const mid = currentMarketRef.current;
-      if (!mid) return;
-      const market = markets.find(m => m.uuid === mid);
-      const ctx = market ? buildContextFromMarket(market) : ctxMapRef.current.get(mid);
-      if (!ctx) return;
-      tradesRefetchAbortRef.current?.abort();
-      const controller = new AbortController();
-      tradesRefetchAbortRef.current = controller;
-      try {
-        const resp = await fetchV2Trades(mid, {
-          limit: RECENT_TRADES_MAX,
-          signal: controller.signal,
-        });
-        if (controller.signal.aborted) return;
-        // The v2 /trades response shape is `{market, trades: [{id, maker, taker, price, size, side, ts_ms}]}`.
-        // Translate to RecentTrade (native-scaled price/qty using market ctx).
-        const baseScale = 10 ** ctx.baseDecimals;
-        const mapped = resp.trades.map(t => {
-          const priceLots = t.price ? BigInt(t.price) : 0n;
-          const sizeLots = t.size ? BigInt(t.size) : 0n;
-          const price = Number(
-            (priceLots * BigInt(ctx.quoteLotSize) * BigInt(baseScale)) /
-              BigInt(Math.max(1, ctx.baseLotSize))
-          );
-          const quantity = Number(sizeLots * BigInt(ctx.baseLotSize));
-          const takerSide = t.side === 'bid' ? 'bid' : 'ask';
-          return {
-            id: t.id,
-            price,
-            quantity,
-            timestamp: Math.floor(Number(t.ts_ms ?? 0) / 1000),
-            buyer_owner: takerSide === 'bid' ? (t.taker ?? '') : (t.maker ?? ''),
-            seller_owner: takerSide === 'ask' ? (t.taker ?? '') : (t.maker ?? ''),
-          };
-        });
-        setRecentTrades(prev => mergeRecentTrades(mapped, prev));
-      } catch {
-        /* transient; next event will re-trigger */
-      }
-    }, 100);
+  function mapV2TradeToRecent(
+    t: {
+      id?: string;
+      maker?: string;
+      taker?: string;
+      price?: string;
+      size?: string;
+      side?: string;
+      ts_ms?: string | number;
+    },
+    ctx: MarketContext
+  ) {
+    const baseScale = 10 ** ctx.baseDecimals;
+    const priceLots = t.price ? BigInt(t.price) : 0n;
+    const sizeLots = t.size ? BigInt(t.size) : 0n;
+    const price = Number(
+      (priceLots * BigInt(ctx.quoteLotSize) * BigInt(baseScale)) /
+        BigInt(Math.max(1, ctx.baseLotSize))
+    );
+    const quantity = Number(sizeLots * BigInt(ctx.baseLotSize));
+    const takerSide = t.side === 'bid' ? 'bid' : 'ask';
+    return {
+      id: t.id ?? '',
+      price,
+      quantity,
+      timestamp: Math.floor(Number(t.ts_ms ?? 0) / 1000),
+      buyer_owner: takerSide === 'bid' ? (t.taker ?? '') : (t.maker ?? ''),
+      seller_owner: takerSide === 'ask' ? (t.taker ?? '') : (t.maker ?? ''),
+    };
   }
 
   v2Composite.callbacks.onStateChange = setConnectionState;
-  v2Composite.callbacks.onBook = () => scheduleOrderbookRefetch();
-  // Only refetch trades on a real fill. `intent` fires for every
-  // relay_intent_status / queue_item_enqueued — hundreds per second on a
-  // busy market, 99% of which are status updates that produce no new
-  // trades. Binding trade refetch to the `intent` channel turned
-  // /v2/trades/:market into a poll target; gating on `trade` keeps the
-  // panel live without hammering the endpoint.
-  v2Composite.callbacks.onTrade = () => scheduleTradesRefetch();
+
+  // Book event carries the full enriched orderbook (price + order_id + size
+  // per level). Consume it directly — no REST refetch on the hot path.
+  v2Composite.callbacks.onBook = data => {
+    const mid = currentMarketRef.current;
+    if (!mid) return;
+    const market = markets.find(m => m.uuid === mid);
+    const ctx = market ? buildContextFromMarket(market) : ctxMapRef.current.get(mid);
+    if (!ctx) return;
+    setOrderbook(mapV2Orderbook(data as V2OrderbookSnapshot, ctx));
+  };
+
+  // Trade event carries the full trade fields. Map + prepend — no REST.
+  v2Composite.callbacks.onTrade = data => {
+    const mid = currentMarketRef.current;
+    if (!mid) return;
+    const market = markets.find(m => m.uuid === mid);
+    const ctx = market ? buildContextFromMarket(market) : ctxMapRef.current.get(mid);
+    if (!ctx) return;
+    const mapped = mapV2TradeToRecent(data as Parameters<typeof mapV2TradeToRecent>[0], ctx);
+    setRecentTrades(prev => mergeRecentTrades([mapped], prev));
+  };
+
   v2Composite.callbacks.onResync = () => {
-    scheduleOrderbookRefetch();
-    scheduleTradesRefetch();
+    // Broadcast lag — events may have been dropped. Re-seed atoms via REST.
+    const mid = currentMarketRef.current;
+    if (mid) void coldLoadV2(mid);
   };
   v2Composite.callbacks.onReady = () => {
-    // Eager seed: gateway already pushed the first book+meta; kick a trades
-    // refetch too so the panel is populated immediately.
-    scheduleTradesRefetch();
+    // Eager initial burst (book+meta) already shipped via the `book`/`meta`
+    // event handlers before `ready`. Seed trades via REST once so the panel
+    // isn't empty while we wait for the first live trade.
+    const mid = currentMarketRef.current;
+    if (mid) void coldLoadV2(mid);
   };
 
   // --- Wire callbacks into the singleton clients via mutable ref ---
@@ -349,8 +344,10 @@ export function useSSEStream() {
       prefetchRecentTrades(marketId);
       if (v2Enabled) {
         v2Composite.connect(marketId, publicKey?.toBase58() ?? null);
-        // Seed orderbook immediately — don't wait for the first event.
-        scheduleOrderbookRefetch();
+        // Seed orderbook immediately via REST so the UI renders before the
+        // first composite event arrives (typically within one RTT but can
+        // be slower on cold connect).
+        void coldLoadV2(marketId);
       } else {
         client.connect(marketId, publicKey?.toBase58() ?? null);
         tradesClient.connect(marketId);
@@ -358,10 +355,7 @@ export function useSSEStream() {
     }
     return () => {
       tradesPrefetchAbortRef.current?.abort();
-      orderbookRefetchAbortRef.current?.abort();
-      tradesRefetchAbortRef.current?.abort();
-      if (orderbookRefetchTimerRef.current) clearTimeout(orderbookRefetchTimerRef.current);
-      if (tradesRefetchTimerRef.current) clearTimeout(tradesRefetchTimerRef.current);
+      coldLoadAbortRef.current?.abort();
       client.disconnect();
       v2Composite.disconnect();
       tradesClient.disconnect();
@@ -382,7 +376,7 @@ export function useSSEStream() {
       } else {
         v2Composite.switchMarket(marketId);
       }
-      scheduleOrderbookRefetch();
+      void coldLoadV2(marketId);
     } else {
       if (client.getState() === 'disconnected') {
         client.connect(marketId, publicKey?.toBase58() ?? null);
