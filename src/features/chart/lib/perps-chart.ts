@@ -1,10 +1,11 @@
 /**
  * Perps chart library
  * Handles perps-specific candle data fetching and processing.
- * Uses the /ohlc/:market endpoint (Binance klines format).
+ * Uses /v2/candles/:market (Redis-derived Binance klines shape). Falls back
+ * to the legacy /ohlc/:market only if the v2 feature flag is off.
  */
 import axios from 'axios';
-import { config } from '@/shared/config/constants';
+import { config, API_ROUTES_V2 } from '@/shared/config/constants';
 import {
   HarnessMarketConversionParams,
   lotsPriceToUiWithMarket,
@@ -54,7 +55,10 @@ const MAX_OHLC_LIMIT = 1500;
 export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<Candle[]> {
   const { marketId, tf = '1h', limit, from, to } = params;
 
-  const url = new URL(`${config.devnet.gatewayUrl}/ohlc/${encodeURIComponent(marketId)}`);
+  const path = config.devnet.useV2ReadLayer
+    ? API_ROUTES_V2.candles.replace('{marketId}', encodeURIComponent(marketId))
+    : `/ohlc/${encodeURIComponent(marketId)}`;
+  const url = new URL(`${config.devnet.gatewayUrl}${path}`);
   url.searchParams.set('tf', tf);
 
   // The endpoint expects from/to as Unix seconds.

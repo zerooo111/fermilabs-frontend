@@ -27,6 +27,10 @@ export const config = {
     quoteLotSize: Number(import.meta.env.VITE_QUOTE_LOT_SIZE || 10),
     quoteTokenName: import.meta.env.VITE_QUOTE_TOKEN_SYMBOL || 'USDC',
     baseTokenName: import.meta.env.VITE_BASE_TOKEN_SYMBOL || 'SOL',
+    // Phase 4 canary: flip to use the Redis-backed /v2/* read layer on the
+    // gateway instead of the legacy /state/* harness-proxy endpoints.
+    useV2ReadLayer: (import.meta.env.VITE_USE_V2_READ_LAYER || 'false').toLowerCase() === 'true',
+    v2View: (import.meta.env.VITE_V2_VIEW || 'optimistic') as 'optimistic' | 'confirmed',
   },
 };
 
@@ -58,6 +62,26 @@ export const SelfTradeBehavior = {
   DecrementTake: { decrementTake: {} },
   CancelProvide: { cancelProvide: {} },
   AbortTransaction: { abortTransaction: {} },
+};
+
+// Phase 4 canary: new Redis-backed read-layer routes. Served directly from the
+// gateway; no harness in the hot path. Gated behind `config.devnet.useV2ReadLayer`.
+export const API_ROUTES_V2 = {
+  healthz: '/v2/healthz',
+  markets: '/v2/markets',
+  snapshot_orderbook: '/v2/snapshot/orderbook/{marketId}',
+  snapshot_balance: '/v2/snapshot/balance/{owner}',
+  snapshot_position: '/v2/snapshot/position/{owner}/{marketId}',
+  snapshot_market: '/v2/snapshot/market/{marketId}',
+  snapshot_account: '/v2/snapshot/account/{owner}',
+  snapshot_orders: '/v2/snapshot/orders/{owner}',
+  trades: '/v2/trades/{marketId}',
+  candles: '/v2/candles/{marketId}',
+  stats_volume_24h: '/v2/stats/volume/24h',
+  events: '/v2/events/{marketId}',
+  snapshot_and_stream: '/v2/events/snapshot-and-stream/{marketId}',
+  stream_frontend: '/v2/stream/frontend/{marketId}',
+  stream_trades: '/v2/stream/trades',
 };
 
 export const API_ROUTES = {
