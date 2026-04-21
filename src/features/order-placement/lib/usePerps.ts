@@ -5,7 +5,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import bs58 from 'bs58';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelectedMarket } from '@/entities/market';
-import { config, API_ROUTES } from '@/shared/config/constants';
+import { config, API_ROUTES, API_ROUTES_V2 } from '@/shared/config/constants';
 import {
   buildExecutionQueueUserIntent,
   bytesToBase64,
@@ -666,23 +666,48 @@ export function usePerps() {
 
     const request = (async (): Promise<ExecutionMarketParams> => {
       try {
-        const response = await axios.get<HarnessFullMarketsResponse>(
-          `${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`
-        );
-        const marketMeta = response.data?.market_metadata?.[marketId];
-        if (marketMeta) {
-          const resolved = {
-            base_decimals: Number(marketMeta.base_decimals),
-            quote_decimals: Number(marketMeta.quote_decimals),
-            base_lot_size: Number(marketMeta.base_lot_size),
-            quote_lot_size: Number(marketMeta.quote_lot_size),
-          };
-          marketMetaCacheRef.current = {
-            market: marketId,
-            value: resolved,
-            fetchedAtMs: Date.now(),
-          };
-          return resolved;
+        // v2 path: /v2/markets returns {markets: [{market, meta: {base_decimals, ...}}]}
+        // Every field we need is in the meta hash. Falls back to /state/full
+        // only when useV2ReadLayer is off.
+        if (config.devnet.useV2ReadLayer) {
+          const response = await axios.get<{
+            markets: Array<{ market: string; meta: Record<string, string> }>;
+          }>(`${config.devnet.gatewayUrl}${API_ROUTES_V2.markets}`);
+          const row = response.data?.markets?.find(m => m.market === marketId);
+          const meta = row?.meta;
+          if (meta) {
+            const resolved = {
+              base_decimals: Number(meta.base_decimals),
+              quote_decimals: Number(meta.quote_decimals),
+              base_lot_size: Number(meta.base_lot_size),
+              quote_lot_size: Number(meta.quote_lot_size),
+            };
+            marketMetaCacheRef.current = {
+              market: marketId,
+              value: resolved,
+              fetchedAtMs: Date.now(),
+            };
+            return resolved;
+          }
+        } else {
+          const response = await axios.get<HarnessFullMarketsResponse>(
+            `${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`
+          );
+          const marketMeta = response.data?.market_metadata?.[marketId];
+          if (marketMeta) {
+            const resolved = {
+              base_decimals: Number(marketMeta.base_decimals),
+              quote_decimals: Number(marketMeta.quote_decimals),
+              base_lot_size: Number(marketMeta.base_lot_size),
+              quote_lot_size: Number(marketMeta.quote_lot_size),
+            };
+            marketMetaCacheRef.current = {
+              market: marketId,
+              value: resolved,
+              fetchedAtMs: Date.now(),
+            };
+            return resolved;
+          }
         }
       } catch {
         // Fall back to the selected market snapshot if the harness metadata request fails.

@@ -24,8 +24,9 @@ import { checkOrCreateAssociatedTokenAccount } from '../../shared/lib/solana/hel
 import axios from 'axios';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
-import { config, API_ROUTES } from '@/shared/config/constants';
+import { config, API_ROUTES, API_ROUTES_V2 } from '@/shared/config/constants';
 import { Market } from '@/entities/market/model';
+import { mapV2MetaToMarket, type V2MetaEvent } from '@/shared/api/v2-adapter';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 
 interface Token {
@@ -43,13 +44,28 @@ function VaultPage() {
   const [inputAmount, setInputAmount] = useState<number>(0);
   const [tvl, setTvl] = useState<number>(0);
 
-  // Fetch markets from API
+  // Fetch markets from API. v2 path returns {markets: [{market, meta}]} —
+  // map each entry through the shared adapter so we get the same Market
+  // shape the rest of the app consumes. Legacy v1 kept behind the flag
+  // during migration.
   const { data: markets } = useQuery({
     queryKey: ['markets'],
     queryFn: async () => {
-      const url = `${config.devnet.gatewayUrl}${API_ROUTES.markets}`;
-      const response = await axios.get(url);
-      const rawMarkets = response.data as Market[];
+      let rawMarkets: Market[];
+      if (config.devnet.useV2ReadLayer) {
+        const url = `${config.devnet.gatewayUrl}${API_ROUTES_V2.markets}`;
+        const response = await axios.get<{
+          markets: Array<{ market: string; meta: Record<string, string> }>;
+        }>(url);
+        rawMarkets = (response.data?.markets ?? []).map(row => {
+          const ev: V2MetaEvent = { market: row.market, meta: row.meta ?? {} };
+          return mapV2MetaToMarket(ev);
+        });
+      } else {
+        const url = `${config.devnet.gatewayUrl}${API_ROUTES.markets}`;
+        const response = await axios.get(url);
+        rawMarkets = response.data as Market[];
+      }
 
       // Apply same override as market model for consistent token names
       return rawMarkets.map(market => {

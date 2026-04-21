@@ -3,9 +3,10 @@
  * Defines market-related state and operations
  * Completely refactored to avoid circular dependencies
  */
-import { API_ROUTES, baseMint, config, quoteMint } from '@/shared/config/constants';
+import { API_ROUTES, API_ROUTES_V2, baseMint, config, quoteMint } from '@/shared/config/constants';
 import { baseLotsToUi, uiToNativeScaled } from '@/shared/lib/mango-sdk-conversions';
 import { HarnessMarketMetadata, lotsPriceToNative } from '@/shared/lib/harness-market';
+import { mapV2MetaToMarket, type V2MetaEvent } from '@/shared/api/v2-adapter';
 import { getTokenDecimals, getTokenNameFromMint } from '@/shared/lib/token-decimals';
 import { tryCatch } from '@/shared/lib/try-catch';
 import axios, { AxiosResponse } from 'axios';
@@ -261,113 +262,155 @@ export const useSelectedMarket = () => {
     }
 
     try {
-      const { data, error } = await tryCatch<AxiosResponse<any>>(
-        axios.get(`${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`)
-      );
+      let mappedFromHarness: Market[] = [];
 
-      if (error) throw error;
+      if (config.devnet.useV2ReadLayer) {
+        // v2 path — single /v2/markets call. Identity + mark_price + funding
+        // + oracle all come in the meta hash so we don't need the per-market
+        // /state/trades fallback the v1 path used.
+        const url = `${config.devnet.gatewayUrl}${API_ROUTES_V2.markets}`;
+        const { data, error } = await tryCatch<AxiosResponse<any>>(axios.get(url));
+        if (error) throw error;
+        const rows = (data?.data?.markets ?? []) as Array<{
+          market: string;
+          meta: Record<string, string>;
+        }>;
+        mappedFromHarness = rows.map(row => {
+          const marketEvent: V2MetaEvent = { market: row.market, meta: row.meta ?? {} };
+          const mapped = mapV2MetaToMarket(marketEvent);
+          const patchedName =
+            row.meta?.name && row.meta.name.length > 0
+              ? row.meta.name
+              : row.market === config.devnet.defaultHarnessMarketId
+                ? config.devnet.defaultMarketName
+                : `Market ${row.market}`;
+          return {
+            ...mapped,
+            name: patchedName,
+            base_mint: mapped.base_mint || baseMint.toBase58(),
+            quote_mint: mapped.quote_mint || quoteMint.toBase58(),
+            perp_config: {
+              initial_margin: 0,
+              maintenance_margin: 0,
+              liquidation_penalty: 0,
+              max_leverage_tiers: [{ notional: 0, max_leverage: 100 }],
+              funding_interval_seconds: 3600,
+              funding_rate_cap_bps: 0,
+              funding_interest_rate_bps: 0,
+              funding_premium_cap_bps: 0,
+              funding_oracle: null,
+            },
+          } satisfies Market;
+        });
+      } else {
+        // Legacy v1 path — kept so useV2ReadLayer=false still renders the
+        // market list during rollout.
+        const { data, error } = await tryCatch<AxiosResponse<any>>(
+          axios.get(`${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`)
+        );
+        if (error) throw error;
+        const snapshot = data.data || {};
+        const marketsMap = snapshot.markets || {};
+        const marketMetadataMap = (snapshot.market_metadata || {}) as Record<
+          string,
+          HarnessMarketMetadata
+        >;
+        const marketIds = Object.keys(marketsMap);
 
-      const snapshot = data.data || {};
-      const marketsMap = snapshot.markets || {};
-      const marketMetadataMap = (snapshot.market_metadata || {}) as Record<
-        string,
-        HarnessMarketMetadata
-      >;
-      const marketIds = Object.keys(marketsMap);
+        const computeMidPriceLots = (marketState: any): number | null => {
+          const bestBid =
+            Array.isArray(marketState?.bids) && marketState.bids.length > 0
+              ? Number(marketState.bids[0].price_lots)
+              : null;
+          const bestAsk =
+            Array.isArray(marketState?.asks) && marketState.asks.length > 0
+              ? Number(marketState.asks[0].price_lots)
+              : null;
+          if (bestBid !== null && bestAsk !== null) return Math.floor((bestBid + bestAsk) / 2);
+          if (bestBid !== null) return bestBid;
+          if (bestAsk !== null) return bestAsk;
+          return null;
+        };
 
-      const computeMidPriceLots = (marketState: any): number | null => {
-        const bestBid =
-          Array.isArray(marketState?.bids) && marketState.bids.length > 0
-            ? Number(marketState.bids[0].price_lots)
-            : null;
-        const bestAsk =
-          Array.isArray(marketState?.asks) && marketState.asks.length > 0
-            ? Number(marketState.asks[0].price_lots)
-            : null;
-        if (bestBid !== null && bestAsk !== null) return Math.floor((bestBid + bestAsk) / 2);
-        if (bestBid !== null) return bestBid;
-        if (bestAsk !== null) return bestAsk;
-        return null;
-      };
+        const latestTradePriceLotsByMarket = new Map<string, number>();
+        await Promise.all(
+          marketIds.map(async (marketId: string) => {
+            const tradesUrl = `${config.devnet.gatewayUrl}${API_ROUTES.market_trades.replace('{marketId}', marketId)}?view=optimistic&limit=200`;
+            const tradesResult = await tryCatch<AxiosResponse<any>>(axios.get(tradesUrl));
+            if (tradesResult.error) return;
+            const trades = tradesResult.data.data?.data || [];
+            if (!Array.isArray(trades) || !trades.length) return;
+            const latestTrade = trades[trades.length - 1];
+            const latestPriceLots = Number(latestTrade.price_lots);
+            if (Number.isFinite(latestPriceLots) && latestPriceLots > 0) {
+              latestTradePriceLotsByMarket.set(marketId, latestPriceLots);
+            }
+          })
+        );
 
-      const latestTradePriceLotsByMarket = new Map<string, number>();
-      await Promise.all(
-        marketIds.map(async (marketId: string) => {
-          const tradesUrl = `${config.devnet.gatewayUrl}${API_ROUTES.market_trades.replace('{marketId}', marketId)}?view=optimistic&limit=200`;
-          const tradesResult = await tryCatch<AxiosResponse<any>>(axios.get(tradesUrl));
-          if (tradesResult.error) return;
-          const trades = tradesResult.data.data?.data || [];
-          if (!Array.isArray(trades) || !trades.length) return;
-          const latestTrade = trades[trades.length - 1];
-          const latestPriceLots = Number(latestTrade.price_lots);
-          if (Number.isFinite(latestPriceLots) && latestPriceLots > 0) {
-            latestTradePriceLotsByMarket.set(marketId, latestPriceLots);
-          }
-        })
-      );
+        mappedFromHarness = marketIds.map((harnessMarketId: string) => {
+          const marketState = marketsMap[harnessMarketId];
+          const marketMeta = marketMetadataMap[harnessMarketId];
+          const markPriceLots =
+            computeMidPriceLots(marketState) ??
+            latestTradePriceLotsByMarket.get(harnessMarketId) ??
+            0;
+          const markPriceNative = lotsPriceToNative(markPriceLots, marketMeta);
+          const openInterest = Array.isArray(marketState?.open_orders)
+            ? marketState.open_orders.reduce((acc: number, order: any) => {
+                const uiSize = baseLotsToUi(order.base_lots || '0', {
+                  baseDecimals: marketMeta?.base_decimals ?? config.devnet.baseDecimals,
+                  baseLotSize: Number(marketMeta?.base_lot_size ?? config.devnet.baseLotSize),
+                });
+                return (
+                  acc +
+                  uiToNativeScaled(uiSize, marketMeta?.base_decimals ?? config.devnet.baseDecimals)
+                );
+              }, 0)
+            : 0;
 
-      const mappedFromHarness = marketIds.map((harnessMarketId: string) => {
-        const marketState = marketsMap[harnessMarketId];
-        const marketMeta = marketMetadataMap[harnessMarketId];
-        const markPriceLots =
-          computeMidPriceLots(marketState) ??
-          latestTradePriceLotsByMarket.get(harnessMarketId) ??
-          0;
-        const markPriceNative = lotsPriceToNative(markPriceLots, marketMeta);
-        const openInterest = Array.isArray(marketState?.open_orders)
-          ? marketState.open_orders.reduce((acc: number, order: any) => {
-              const uiSize = baseLotsToUi(order.base_lots || '0', {
-                baseDecimals: marketMeta?.base_decimals ?? config.devnet.baseDecimals,
-                baseLotSize: Number(marketMeta?.base_lot_size ?? config.devnet.baseLotSize),
-              });
-              return (
-                acc +
-                uiToNativeScaled(uiSize, marketMeta?.base_decimals ?? config.devnet.baseDecimals)
-              );
-            }, 0)
-          : 0;
-
-        return {
-          uuid: harnessMarketId,
-          name:
-            marketMeta?.name ||
-            (harnessMarketId === config.devnet.defaultHarnessMarketId
-              ? config.devnet.defaultMarketName
-              : `Market ${harnessMarketId}`),
-          base_mint: marketMeta?.base_mint || baseMint.toBase58(),
-          quote_mint: marketMeta?.quote_mint || quoteMint.toBase58(),
-          created_at: Date.now(),
-          kind: 'perp' as MarketKind,
-          perp_config: {
-            initial_margin: 0,
-            maintenance_margin: 0,
-            liquidation_penalty: 0,
-            max_leverage_tiers: [{ notional: 0, max_leverage: 100 }],
-            funding_interval_seconds: 3600,
-            funding_rate_cap_bps: 0,
-            funding_interest_rate_bps: 0,
-            funding_premium_cap_bps: 0,
-            funding_oracle: null,
-          },
-          perp_state: {
-            mark_price: markPriceNative,
-            mark_price_timestamp: Date.now(),
-            index_price: markPriceNative,
-            index_price_timestamp: Date.now(),
-            last_premium_rate_bps: 0,
-            last_funding_rate_bps: 0,
-            funding_rate_bps: 0,
-            last_funding_timestamp: Date.now(),
-            next_funding_timestamp: Date.now(),
-          },
-          base_decimals: marketMeta?.base_decimals ?? config.devnet.baseDecimals,
-          quote_decimals: marketMeta?.quote_decimals ?? config.devnet.quoteDecimals,
-          base_lot_size: Number(marketMeta?.base_lot_size ?? config.devnet.baseLotSize),
-          quote_lot_size: Number(marketMeta?.quote_lot_size ?? config.devnet.quoteLotSize),
-          price_decimals: marketMeta?.quote_decimals ?? config.devnet.quoteDecimals,
-          open_interest: openInterest,
-        } as Market;
-      });
+          return {
+            uuid: harnessMarketId,
+            name:
+              marketMeta?.name ||
+              (harnessMarketId === config.devnet.defaultHarnessMarketId
+                ? config.devnet.defaultMarketName
+                : `Market ${harnessMarketId}`),
+            base_mint: marketMeta?.base_mint || baseMint.toBase58(),
+            quote_mint: marketMeta?.quote_mint || quoteMint.toBase58(),
+            created_at: Date.now(),
+            kind: 'perp' as MarketKind,
+            perp_config: {
+              initial_margin: 0,
+              maintenance_margin: 0,
+              liquidation_penalty: 0,
+              max_leverage_tiers: [{ notional: 0, max_leverage: 100 }],
+              funding_interval_seconds: 3600,
+              funding_rate_cap_bps: 0,
+              funding_interest_rate_bps: 0,
+              funding_premium_cap_bps: 0,
+              funding_oracle: null,
+            },
+            perp_state: {
+              mark_price: markPriceNative,
+              mark_price_timestamp: Date.now(),
+              index_price: markPriceNative,
+              index_price_timestamp: Date.now(),
+              last_premium_rate_bps: 0,
+              last_funding_rate_bps: 0,
+              funding_rate_bps: 0,
+              last_funding_timestamp: Date.now(),
+              next_funding_timestamp: Date.now(),
+            },
+            base_decimals: marketMeta?.base_decimals ?? config.devnet.baseDecimals,
+            quote_decimals: marketMeta?.quote_decimals ?? config.devnet.quoteDecimals,
+            base_lot_size: Number(marketMeta?.base_lot_size ?? config.devnet.baseLotSize),
+            quote_lot_size: Number(marketMeta?.quote_lot_size ?? config.devnet.quoteLotSize),
+            price_decimals: marketMeta?.quote_decimals ?? config.devnet.quoteDecimals,
+            open_interest: openInterest,
+          } as Market;
+        });
+      }
 
       const fallbackMarket: Market[] = [
         {
