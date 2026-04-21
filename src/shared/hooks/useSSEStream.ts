@@ -25,7 +25,18 @@ import { getSSEClient, getTradesSSEClient } from '@/shared/api/sse-client';
 import { getV2CompositeClient } from '@/shared/api/v2-composite-sse-client';
 import { fetchV2Orderbook, fetchV2Trades } from '@/shared/api/v2-api';
 import type { V2OrderbookSnapshot } from '@/shared/api/v2-api';
-import { mapV2Orderbook } from '@/shared/api/v2-adapter';
+import {
+  mapV2Orderbook,
+  mapV2MetaToMetrics,
+  mapV2MetaToMarket,
+  mapV2MetaToMetadata,
+  mapV2AccountOrders,
+  mapV2AccountPositions,
+  mapV2AccountMargin,
+  bestBidAskFromBook,
+  type V2MetaEvent,
+  type V2AccountEvent,
+} from '@/shared/api/v2-adapter';
 import {
   buildContextFromMarket,
   buildMarketContext,
@@ -232,6 +243,13 @@ export function useSSEStream() {
 
   v2Composite.callbacks.onStateChange = setConnectionState;
 
+  // Cache the most recent best bid/ask we've seen so meta events can render
+  // a full SSEMarketMetrics snapshot without waiting for the next book tick.
+  const topOfBookRef = useRef<{ bestBidUi: number | null; bestAskUi: number | null }>({
+    bestBidUi: null,
+    bestAskUi: null,
+  });
+
   // Book event carries the full enriched orderbook (price + order_id + size
   // per level). Consume it directly — no REST refetch on the hot path.
   v2Composite.callbacks.onBook = data => {
@@ -240,7 +258,9 @@ export function useSSEStream() {
     const market = markets.find(m => m.uuid === mid);
     const ctx = market ? buildContextFromMarket(market) : ctxMapRef.current.get(mid);
     if (!ctx) return;
-    setOrderbook(mapV2Orderbook(data as V2OrderbookSnapshot, ctx));
+    const snap = data as V2OrderbookSnapshot;
+    setOrderbook(mapV2Orderbook(snap, ctx));
+    topOfBookRef.current = bestBidAskFromBook(snap, ctx);
   };
 
   // Trade event carries the full trade fields. Map + prepend — no REST.
@@ -254,15 +274,75 @@ export function useSSEStream() {
     setRecentTrades(prev => mergeRecentTrades([mapped], prev));
   };
 
+  // Meta event carries the full market identity + pricing hash. Populate
+  // marketMetricsAtom (chart header / header strip) and patch the market
+  // entry in marketsAtom so mark/index price on the chart updates live.
+  v2Composite.callbacks.onMeta = data => {
+    const metaEvent = data as V2MetaEvent;
+    const metrics = mapV2MetaToMetrics(
+      metaEvent,
+      topOfBookRef.current.bestBidUi,
+      topOfBookRef.current.bestAskUi
+    );
+    setMarketMetrics(metrics);
+    markPriceRef.current.set(metrics.market, metrics.mark_price_ui);
+
+    // Build a MarketContext for subsequent account/trade events and patch
+    // the marketsAtom entry so the chart header reads mark_price live.
+    const patch = mapV2MetaToMarket(metaEvent);
+    const metaForContext = mapV2MetaToMetadata(metaEvent);
+    ctxMapRef.current.set(metrics.market, {
+      name: metaForContext.name,
+      baseMint: metaForContext.base_mint,
+      quoteMint: metaForContext.quote_mint,
+      baseDecimals: metaForContext.base_decimals,
+      quoteDecimals: metaForContext.quote_decimals,
+      baseLotSize: Number(metaForContext.base_lot_size),
+      quoteLotSize: Number(metaForContext.quote_lot_size),
+    });
+    setMarkets(prev => {
+      const idx = prev.findIndex(m => m.uuid === metrics.market);
+      if (idx >= 0) {
+        const existing = prev[idx];
+        if (
+          existing.perp_state?.mark_price === patch.perp_state?.mark_price &&
+          existing.perp_state?.index_price === patch.perp_state?.index_price &&
+          existing.open_interest === patch.open_interest
+        ) {
+          return prev;
+        }
+        const updated = [...prev];
+        updated[idx] = { ...existing, ...patch };
+        return updated;
+      }
+      return [...prev, patch];
+    });
+  };
+
+  // Account event carries the full user snapshot (all markets). Map each
+  // piece into its atom — no REST refetch.
+  v2Composite.callbacks.onAccount = data => {
+    const event = data as V2AccountEvent;
+    if (!event?.owner) return;
+    const ctxMap = ctxMapRef.current;
+    const fallback = ctxMap.values().next().value ?? DEFAULT_CTX;
+
+    setUserOrders(mapV2AccountOrders(event, ctxMap, fallback));
+    setUserPositions(mapV2AccountPositions(event, ctxMap, markPriceRef.current));
+    setAccountMetrics(mapV2AccountMargin(event, fallback.quoteDecimals));
+    // userTradesAtom is not driven by the account event — it comes from the
+    // /v2/trades/wallet/:owner endpoint called by features that need it.
+  };
+
   v2Composite.callbacks.onResync = () => {
     // Broadcast lag — events may have been dropped. Re-seed atoms via REST.
     const mid = currentMarketRef.current;
     if (mid) void coldLoadV2(mid);
   };
   v2Composite.callbacks.onReady = () => {
-    // Eager initial burst (book+meta) already shipped via the `book`/`meta`
-    // event handlers before `ready`. Seed trades via REST once so the panel
-    // isn't empty while we wait for the first live trade.
+    // Eager initial burst (book+meta+account) already shipped via their
+    // dedicated handlers before `ready`. Seed trades via REST once so the
+    // panel isn't empty while we wait for the first live trade.
     const mid = currentMarketRef.current;
     if (mid) void coldLoadV2(mid);
   };
