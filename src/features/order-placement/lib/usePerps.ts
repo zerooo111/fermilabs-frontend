@@ -1,3 +1,10 @@
+import {
+  PerpOrderIntent,
+  OrderSide,
+  MarginMode,
+  OrderType,
+} from '@/features/order-placement/lib/PerpOrdersIntent';
+import { BN } from '@coral-xyz/anchor';
 import { toast } from 'sonner';
 import axios from 'axios';
 import posthog from 'posthog-js';
@@ -30,6 +37,8 @@ interface PerpsSubmitOrderParams {
   marginMode: MarginMode;
   stopLoss?: string;
   takeProfit?: string;
+  orderType?: OrderType;
+  maxSlippageBps?: number;
 }
 
 interface PerpsMarketOrderParams {
@@ -589,12 +598,30 @@ export function usePerps() {
 
       if (!mangoAccount) {
         try {
-          const balancesResponse = await axios.get<HarnessOwnerBalancesResponse>(
-            `${config.devnet.gatewayUrl}${API_ROUTES.user_balances.replace('{pubkey}', owner)}?view=optimistic&onchain=false`
-          );
-          const ownerMangoAccount = balancesResponse.data?.data?.mango_accounts?.[0];
-          if (ownerMangoAccount) {
-            mangoAccount = ownerMangoAccount;
+          // v2 path: /v2/snapshot/account/:owner returns the full user snapshot
+          // including margin_summary.accounts[].mango_account. Legacy
+          // /state/balances kept behind the flag during rollout.
+          if (config.devnet.useV2ReadLayer) {
+            const accountResponse = await axios.get<{
+              margin_summary?: {
+                accounts?: Array<{ mango_account?: string }>;
+              };
+            }>(
+              `${config.devnet.gatewayUrl}${API_ROUTES_V2.snapshot_account.replace('{owner}', encodeURIComponent(owner))}?view=optimistic`
+            );
+            const ownerMangoAccount =
+              accountResponse.data?.margin_summary?.accounts?.[0]?.mango_account;
+            if (ownerMangoAccount) {
+              mangoAccount = ownerMangoAccount;
+            }
+          } else {
+            const balancesResponse = await axios.get<HarnessOwnerBalancesResponse>(
+              `${config.devnet.gatewayUrl}${API_ROUTES.user_balances.replace('{pubkey}', owner)}?view=optimistic&onchain=false`
+            );
+            const ownerMangoAccount = balancesResponse.data?.data?.mango_accounts?.[0];
+            if (ownerMangoAccount) {
+              mangoAccount = ownerMangoAccount;
+            }
           }
         } catch {
           // Keep existing relay-config fallback when harness lookup fails.
@@ -904,6 +931,12 @@ export function usePerps() {
     side,
     price,
     size,
+    leverage,
+    marginMode,
+    stopLoss,
+    takeProfit,
+    orderType = 'limit',
+    maxSlippageBps,
   }: PerpsSubmitOrderParams): Promise<{ success: boolean; error?: string }> => {
     // Hoisted so the catch block can always read them regardless of where
     // the throw fires.
@@ -923,27 +956,138 @@ export function usePerps() {
         throw new Error('Invalid size');
       }
 
-      const relay = await resolveRelayConfig();
-      const marketMeta = await resolveExecutionMarketParams();
-      const lane = pickPlaceLane(relay.configData.lanes, side);
-      if (!lane) {
-        throw new Error('No relay lane is configured for place-order');
+      const isMarketOrder = orderType === 'market';
+
+      // Validate input parameters
+      const priceValue = isMarketOrder ? 0 : parseFloat(price);
+      const sizeValue = parseFloat(size);
+      const leverageValue = parseFloat(leverage);
+
+      if (!isMarketOrder && (isNaN(priceValue) || priceValue <= 0)) {
+        throw new Error('Invalid price: must be a positive number');
       }
-      const remainingAccounts = remapLaneAccountsForOwner(
-        lane.remaining_accounts,
-        relay.configData,
-        publicKey.toBase58(),
-        relay.mangoAccount
+
+      if (isNaN(sizeValue) || sizeValue <= 0) {
+        throw new Error('Invalid size: must be a positive number');
+      }
+
+      if (isNaN(leverageValue) || leverageValue < 1) {
+        throw new Error('Invalid leverage: must be at least 1');
+      }
+
+      const orderId = new BN(Date.now());
+
+      const priceDecimals = new BN(Math.pow(10, selectedMarket?.quoteDecimals));
+      const quantityDecimals = new BN(Math.pow(10, selectedMarket?.baseDecimals));
+
+      console.log({ priceDecimals, quantityDecimals });
+      const priceBN = isMarketOrder ? new BN(0) : new BN(Math.floor(priceValue)).mul(priceDecimals);
+      const sizeBN = new BN(Math.floor(sizeValue)).mul(quantityDecimals);
+
+      const baseMintAddress = selectedMarket?.base_mint || baseMint.toBase58();
+      const quoteMintAddress = selectedMarket?.quote_mint || quoteMint.toBase58();
+
+      // Calculate margin using the utility function
+      const marginResult = calculatePerpMargin({
+        price: Math.floor(priceValue), // Raw price without decimals
+        quantity: Math.floor(sizeValue), // Raw quantity without decimals
+        leverage: leverageValue,
+        marketInitialMarginBps: selectedMarket?.perp_config?.initial_margin || 0,
+      });
+
+      // Apply quote token decimals to the margin result
+      const marginAmount = marginResult.requiredMargin.mul(priceDecimals);
+
+      // Parse and convert stop loss and take profit prices to BN with decimals
+      const stopLossBN = stopLoss
+        ? new BN(
+            Math.floor(parseFloat(stopLoss) * Math.pow(10, selectedMarket?.quoteDecimals || 0))
+          )
+        : null;
+      const takeProfitBN = takeProfit
+        ? new BN(
+            Math.floor(parseFloat(takeProfit) * Math.pow(10, selectedMarket?.quoteDecimals || 0))
+          )
+        : null;
+
+      const orderIntent = new PerpOrderIntent(
+        orderId,
+        publicKey,
+        side,
+        priceBN,
+        sizeBN,
+        new BN(900000000000),
+        new PublicKey(baseMintAddress),
+        new PublicKey(quoteMintAddress),
+        'perp',
+        new BN(leverageValue),
+        'open',
+        false, // reduce_only - always false for open positions from PerpsTradePanel
+        marginMode,
+        marginAmount, // margin_amount
+        false, // liquidation
+        stopLossBN, // stop_loss_price
+        takeProfitBN, // take_profit_price
+        orderType,
+        maxSlippageBps ? new BN(maxSlippageBps) : null
       );
 
-      const payloadBytes = buildPlacePayload({
-        side,
-        price: priceValue,
-        size: sizeValue,
-        reduceOnly: false,
-        orderType: QueuePlaceOrderType.Limit,
-        clientOrderId: BigInt(Date.now()),
-        marketMeta,
+      const serializedData = PerpOrderIntent.serialize(orderIntent);
+      const SIGNED_ORDER_PREFIX = Buffer.from('FRM_DEX_ORDER:');
+      const prefixedMessage = Buffer.concat([SIGNED_ORDER_PREFIX, serializedData]);
+      const sha256Hash = createHash('sha256').update(new Uint8Array(prefixedMessage)).digest();
+      const sha256Hash_hex = Buffer.from(sha256Hash).toString('hex');
+
+      const signatureBytes = await signMessage(Buffer.from(sha256Hash_hex));
+      const frmTransaction = {
+        version: '1.0',
+        type: 'order',
+        intent: {
+          order_id: orderIntent.order_id.toNumber(),
+          owner: orderIntent.owner.toBase58(),
+          side: orderIntent.side,
+          price: orderIntent.price.toNumber(),
+          quantity: orderIntent.quantity.toNumber(),
+          expiry: orderIntent.expiry.toNumber(),
+          base_mint: orderIntent.base_mint.toBase58(),
+          quote_mint: orderIntent.quote_mint.toBase58(),
+          market_kind: orderIntent.market_kind,
+          leverage: orderIntent.leverage?.toNumber() || 1,
+          position_effect: orderIntent.position_effect,
+          reduce_only: orderIntent.reduce_only,
+          margin_mode: orderIntent.margin_mode,
+          margin_amount: orderIntent.margin_amount?.toNumber() || 0,
+          liquidation: orderIntent.liquidation,
+          stop_loss_price: orderIntent.stop_loss_price?.toNumber() || null,
+          take_profit_price: orderIntent.take_profit_price?.toNumber() || null,
+          order_type: orderIntent.order_type,
+          max_slippage_bps: orderIntent.max_slippage_bps?.toNumber() ?? null,
+        },
+        signature: Buffer.from(signatureBytes).toString('hex'),
+        local_sequencer_id: 'continuum_client',
+        timestamp_ms: Date.now().toString(),
+      };
+
+      console.log('open position', frmTransaction);
+      const jsonFrm = JSON.stringify(frmTransaction);
+      const frmPrefixedString = `FRM_v1.0:${jsonFrm}`;
+
+      const payloadBytes = Buffer.from(frmPrefixedString, 'utf-8');
+      const tx_id = `frm_order_${orderIntent.order_id.toString()}_${Date.now()}`;
+      const transactionData = {
+        version: '1.0',
+        tx_id,
+        payload: Array.from(payloadBytes),
+        signature: Buffer.from(signatureBytes).toString('hex'),
+        public_key: publicKey,
+        nonce: frmTransaction.intent.order_id,
+        timestamp: Date.now().toString(),
+      };
+
+      const apiUrl = `${config.devnet.apiBaseUrl}${API_ROUTES.tx}`;
+
+      await axios.post(apiUrl, {
+        transaction: transactionData,
       });
 
       await submitIntent({
