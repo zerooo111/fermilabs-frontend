@@ -5,8 +5,9 @@
 import { useCallback } from 'react';
 import axios, { AxiosResponse } from 'axios';
 import { tryCatch } from '@/shared/lib/try-catch';
-import { config, quoteMint, API_ROUTES } from '../config/constants';
+import { config, quoteMint, baseMint, API_ROUTES, API_ROUTES_V2 } from '../config/constants';
 import { lotsQuoteToNative } from '@/shared/lib/harness-market';
+import { mapV2AccountBalances, type V2AccountEvent } from './v2-adapter';
 
 export interface Market {
   uuid: string;
@@ -206,6 +207,22 @@ export function useSequencerApi() {
 
   const fetchUserBalances = useCallback(
     async (pubkey: string): Promise<UserBalancesResponse> => {
+      // v2 path: /v2/snapshot/account/:owner carries `tokens` + `totals`
+      // under the Redis mirror. Mapper produces the same
+      // { [mint]: { available, reserved } } shape consumers expect.
+      if (config.devnet.useV2ReadLayer) {
+        const v2Url = `${harnessUrl}${API_ROUTES_V2.snapshot_account.replace('{owner}', pubkey)}`;
+        const { data: v2Data, error: v2Err } = await tryCatch<AxiosResponse<V2AccountEvent>>(
+          axios.get(v2Url)
+        );
+        if (v2Err) throw v2Err;
+        return mapV2AccountBalances(v2Data.data, {
+          baseMint: baseMint.toBase58(),
+          baseDecimals: config.devnet.baseDecimals ?? 9,
+          quoteMint: quoteMint.toBase58(),
+          quoteDecimals: config.devnet.quoteDecimals ?? 6,
+        });
+      }
       const url = `${harnessUrl}${API_ROUTES.user_balances.replace('{pubkey}', pubkey)}?view=optimistic`;
       const { data, error } = await tryCatch<AxiosResponse<HarnessBalancesResponse>>(
         axios.get(url)

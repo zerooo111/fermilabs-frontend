@@ -15,6 +15,8 @@ import type { Market, MarketKind } from '@/entities/market';
 import type { Order } from './useSequencerApi';
 import type { Position } from '@/shared/hooks/usePositions';
 import type { MarginAccount } from '@/shared/hooks/useAccount';
+import type { TokenBalance } from './useSequencerApi';
+import { lotsQuoteToNative } from '@/shared/lib/harness-market';
 
 // ── Orderbook ─────────────────────────────────────────────────────────
 // v2 snapshot delivers one entry per *order* (price + order_id + order detail).
@@ -276,6 +278,27 @@ export interface V2AccountEvent {
       client_id?: string | number | null;
     } | null;
   }>;
+  // Per-asset token balances, mirrored verbatim from the harness's
+  // optimistic-collateral computation (same shape as legacy
+  // `optimistic_collateral`). Null until the harness mirror extension lands.
+  tokens?: {
+    source?: string;
+    usdc_mint?: string;
+    usdc_ui_balance?: number;
+    tokens?: Array<{
+      token_index: number;
+      mint: string;
+      ui_balance: number;
+      ui_deposits: number;
+      ui_borrows: number;
+    }>;
+  } | null;
+  // Aggregate reserves across markets (same shape as legacy `totals`).
+  totals?: {
+    total_open_order_base_lots_bid?: string;
+    total_open_order_base_lots_ask?: string;
+    total_quote_reserved_lots?: string;
+  } | null;
 }
 
 function lotsPriceToUi(priceLots: number, ctx: MarketContext): number {
@@ -397,6 +420,71 @@ export function mapV2AccountMargin(event: V2AccountEvent, quoteDecimals: number)
 }
 
 // Best-bid / best-ask are derived from the `book` event's top-of-book,
+// `/v2/snapshot/account/:owner` → `{ [mint]: { available, reserved } }`,
+// the same shape the legacy `/state/balances` composer produced. Lets the
+// vault + MyAssets panels flip to v2 without changing their consumers.
+//
+// `event.tokens` is the legacy `optimistic_collateral` object mirrored
+// verbatim into Redis; `event.totals` is the legacy `totals` object. If
+// either is missing (harness mirror extension not yet deployed for this
+// owner), that portion simply contributes nothing — callers still get an
+// empty `{}` and can fall back / show loading state.
+export function mapV2AccountBalances(
+  event: V2AccountEvent,
+  ctx: {
+    baseMint: string;
+    baseDecimals: number;
+    quoteMint: string;
+    quoteDecimals: number;
+  }
+): Record<string, TokenBalance> {
+  const balances: Record<string, TokenBalance> = {};
+  const add = (mint: string, availableDelta: bigint, reservedDelta: bigint) => {
+    if (!mint) return;
+    const current = balances[mint] || { available: '0', reserved: '0' };
+    const available = BigInt(current.available || '0') + availableDelta;
+    const reserved = BigInt(current.reserved || '0') + reservedDelta;
+    balances[mint] = { available: available.toString(), reserved: reserved.toString() };
+  };
+  const toNativeString = (ui: number, decimals: number): string => {
+    if (!Number.isFinite(ui)) return '0';
+    const scaled = ui * Math.pow(10, Math.max(0, decimals));
+    if (!Number.isFinite(scaled)) return '0';
+    return Math.round(scaled).toString();
+  };
+
+  const tokensEntry = event.tokens ?? null;
+  const usdcMint = tokensEntry?.usdc_mint || '';
+  for (const token of tokensEntry?.tokens ?? []) {
+    const decimals =
+      token.mint === usdcMint
+        ? 6
+        : token.mint === ctx.quoteMint
+          ? Math.max(0, ctx.quoteDecimals)
+          : token.mint === ctx.baseMint
+            ? Math.max(0, ctx.baseDecimals)
+            : 9;
+    const availableNative = BigInt(toNativeString(token.ui_balance, decimals));
+    add(token.mint, availableNative, 0n);
+    // Preserve compatibility with frontend configs whose quote mint differs
+    // from the harness USDC mint (legacy placeholder configs).
+    if (token.mint === usdcMint && usdcMint && usdcMint !== ctx.quoteMint) {
+      add(ctx.quoteMint, availableNative, 0n);
+    }
+  }
+
+  const quoteReservedNative = BigInt(
+    lotsQuoteToNative(event.totals?.total_quote_reserved_lots || '0')
+  );
+  const quoteMintFromHarness = tokensEntry?.usdc_mint || ctx.quoteMint;
+  add(quoteMintFromHarness, 0n, quoteReservedNative);
+  if (quoteMintFromHarness !== ctx.quoteMint) {
+    add(ctx.quoteMint, 0n, quoteReservedNative);
+  }
+
+  return balances;
+}
+
 // since the meta event today only carries hash fields. Reuse the same
 // orderbook shape we already aggregate for `orderbookAtom`.
 export function bestBidAskFromBook(

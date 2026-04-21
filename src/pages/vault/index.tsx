@@ -26,7 +26,13 @@ import { toast } from 'sonner';
 import posthog from 'posthog-js';
 import { config, API_ROUTES, API_ROUTES_V2 } from '@/shared/config/constants';
 import { Market } from '@/entities/market/model';
-import { mapV2MetaToMarket, type V2MetaEvent } from '@/shared/api/v2-adapter';
+import {
+  mapV2MetaToMarket,
+  mapV2AccountBalances,
+  type V2MetaEvent,
+  type V2AccountEvent,
+} from '@/shared/api/v2-adapter';
+import { baseMint, quoteMint } from '@/shared/config/constants';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 
 interface Token {
@@ -122,11 +128,23 @@ function VaultPage() {
     }
   }, [tokens, selectedToken]);
 
-  // Fetch user balances from API
+  // Fetch user balances. v2 reads v1:balance:<owner>.{tokens,totals} via
+  // /v2/snapshot/account — no /state/balances round-trip. Legacy kept behind
+  // the flag during migration.
   const { data: balances } = useQuery({
-    queryKey: ['userBalances', publicKey?.toBase58()],
+    queryKey: ['userBalances', publicKey?.toBase58(), config.devnet.useV2ReadLayer],
     queryFn: async () => {
       if (!publicKey) return null;
+      if (config.devnet.useV2ReadLayer) {
+        const url = `${config.devnet.gatewayUrl}${API_ROUTES_V2.snapshot_account.replace('{owner}', publicKey.toBase58())}`;
+        const response = await axios.get<V2AccountEvent>(url);
+        return mapV2AccountBalances(response.data, {
+          baseMint: baseMint.toBase58(),
+          baseDecimals: config.devnet.baseDecimals ?? 9,
+          quoteMint: quoteMint.toBase58(),
+          quoteDecimals: config.devnet.quoteDecimals ?? 6,
+        });
+      }
       const url = `${config.devnet.gatewayUrl}${API_ROUTES.user_balances.replace('{pubkey}', publicKey.toBase58())}`;
       const response = await axios.get(url);
       return response.data as Record<string, { available: string; reserved: string }>;
