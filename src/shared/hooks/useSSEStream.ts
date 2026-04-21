@@ -255,8 +255,13 @@ export function useSSEStream() {
 
   v2Composite.callbacks.onStateChange = setConnectionState;
   v2Composite.callbacks.onBook = () => scheduleOrderbookRefetch();
+  // Only refetch trades on a real fill. `intent` fires for every
+  // relay_intent_status / queue_item_enqueued — hundreds per second on a
+  // busy market, 99% of which are status updates that produce no new
+  // trades. Binding trade refetch to the `intent` channel turned
+  // /v2/trades/:market into a poll target; gating on `trade` keeps the
+  // panel live without hammering the endpoint.
   v2Composite.callbacks.onTrade = () => scheduleTradesRefetch();
-  v2Composite.callbacks.onIntent = () => scheduleTradesRefetch();
   v2Composite.callbacks.onResync = () => {
     scheduleOrderbookRefetch();
     scheduleTradesRefetch();
