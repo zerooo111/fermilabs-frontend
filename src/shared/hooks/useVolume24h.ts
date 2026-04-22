@@ -7,15 +7,19 @@ interface Volume24hResponse {
 }
 
 /**
- * v2 `/v2/stats/volume/24h` response:
- *   { total_volume_native_base: "<u128>", per_market: [{market, volume_native_base}], window_ms }
- * Legacy callers consume `total_volume_quote_lots`. We rename so downstream
- * code doesn't change; the underlying value is the cross-market 24h base volume
- * sum from Redis.
+ * v2 `/v2/stats/volume/24h` response carries both a base-lots and a
+ * quote-lots aggregate per market. Downstream UI renders dollars, so we
+ * prefer `volume_quote_lots` and surface it under the legacy
+ * `total_volume_quote_lots` key that `quoteLotsToUi` already expects.
  */
 interface V2VolumeResponse {
   total_volume_native_base: string;
-  per_market: Array<{ market: string; volume_native_base: string }>;
+  total_volume_quote_lots?: string;
+  per_market: Array<{
+    market: string;
+    volume_native_base: string;
+    volume_quote_lots?: string;
+  }>;
   window_ms: number;
 }
 
@@ -28,8 +32,10 @@ export function useVolume24h(market?: string) {
           `${config.devnet.gatewayUrl}${API_ROUTES_V2.stats_volume_24h}`
         );
         const total = market
-          ? (data.per_market.find(m => m.market === market)?.volume_native_base ?? '0')
-          : data.total_volume_native_base;
+          ? (data.per_market.find(m => m.market === market)?.volume_quote_lots ??
+            data.per_market.find(m => m.market === market)?.volume_native_base ??
+            '0')
+          : (data.total_volume_quote_lots ?? data.total_volume_native_base);
         return { total_volume_quote_lots: total } satisfies Volume24hResponse;
       }
       const params = market ? { market } : undefined;
