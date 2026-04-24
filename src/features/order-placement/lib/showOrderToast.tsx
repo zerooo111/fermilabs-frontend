@@ -11,6 +11,6 @@ export function showOrderToast(title: string, txSignature?: string, acceptedLate
         acceptedLatencyMs={acceptedLatencyMs}
       />
     ),
-    { duration: Infinity }
+    { duration: 10_000 }
   );
 }
