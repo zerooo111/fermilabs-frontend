@@ -18,7 +18,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/shared/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { NumberInput } from '@/shared/ui/number-input';
+import { cn } from '@/lib/utils';
 import { createFeeClient, depositFeeCreditWithWallet, type FeeStatus } from '@/shared/api/fees';
 import { useAccountMangoAccount } from '@/shared/hooks/useAccount';
 
@@ -50,8 +52,10 @@ export function FeeCreditDialog() {
         userOwner: publicKey!.toBase58(),
         mangoAccount: mangoAccountPk!,
       }),
-    enabled: open && !!publicKey && !!mangoAccountPk,
-    refetchInterval: open ? 10_000 : false,
+    // Fetch proactively so the trigger button can surface the balance even
+    // when the dialog is closed. Tighter polling while the dialog is open.
+    enabled: !!publicKey && !!mangoAccountPk,
+    refetchInterval: open ? 10_000 : 30_000,
     staleTime: 5_000,
   });
 
@@ -124,14 +128,86 @@ export function FeeCreditDialog() {
       .finally(() => setIsDepositing(false));
   };
 
+  const available = feeAccount?.available_balance_lamports ?? null;
+  const quoted = quote?.quoted_fee_lamports ?? null;
+  // Health tiers: danger = cannot cover one quoted fee; warn = <2x quoted; ok = comfortable.
+  const health: 'ok' | 'warn' | 'danger' | 'unknown' =
+    available === null
+      ? 'unknown'
+      : quoted && available < quoted
+        ? 'danger'
+        : quoted && available < quoted * 2
+          ? 'warn'
+          : 'ok';
+  const hasData = statusQuery.isSuccess && available !== null;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <Coins className="size-3.5" />
-          Fees
-        </Button>
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                'gap-2 px-2.5 font-mono tabular-nums',
+                health === 'danger' &&
+                  'ring-danger/60 text-danger hover:ring-danger hover:text-danger',
+                health === 'warn' && 'ring-amber-400/50 text-amber-300 hover:ring-amber-400/80'
+              )}
+            >
+              <span className="relative flex items-center">
+                <Coins className="size-3.5" />
+                <span
+                  className={cn(
+                    'absolute -right-1 -top-1 size-1.5 rounded-full ring-1 ring-background',
+                    health === 'ok' && 'bg-success',
+                    health === 'warn' && 'bg-amber-400 animate-pulse',
+                    health === 'danger' && 'bg-danger animate-pulse',
+                    health === 'unknown' && 'bg-rock/30'
+                  )}
+                />
+              </span>
+              <span className="flex items-baseline gap-1">
+                <span className="font-sans text-xs text-rock/60">Fees</span>
+                {hasData ? (
+                  <>
+                    <span className="text-sm">{formatSol(available)}</span>
+                    <span className="text-[10px] text-rock/50 font-sans tracking-wide">SOL</span>
+                  </>
+                ) : statusQuery.isLoading ? (
+                  <span className="text-rock/40 text-sm">——</span>
+                ) : null}
+              </span>
+            </Button>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="font-mono text-xs">
+          {hasData ? (
+            <div className="space-y-0.5">
+              <div className="font-sans text-rock/70">Relayer fee credit</div>
+              <div className="flex justify-between gap-6">
+                <span className="text-rock/60 font-sans">Available</span>
+                <span>{formatSol(available)} SOL</span>
+              </div>
+              {quoted !== null && (
+                <div className="flex justify-between gap-6">
+                  <span className="text-rock/60 font-sans">Quoted fee</span>
+                  <span>{formatSol(quoted)} SOL</span>
+                </div>
+              )}
+              {health === 'danger' && (
+                <div className="text-danger font-sans mt-1">Top up to keep trading</div>
+              )}
+              {health === 'warn' && (
+                <div className="text-amber-300 font-sans mt-1">Running low</div>
+              )}
+            </div>
+          ) : (
+            <span className="font-sans">Click to manage relayer fee credit</span>
+          )}
+        </TooltipContent>
+      </Tooltip>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Fee Credit</DialogTitle>
