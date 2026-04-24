@@ -839,6 +839,12 @@ export function usePerps() {
       } catch (error) {
         if (axios.isAxiosError(error)) {
           const detail = formatRelaySubmitError(error);
+          // "already been processed" means the tx was already confirmed on-chain
+          // from a prior submission — treat as success rather than surfacing an error.
+          if (detail.toLowerCase().includes('already been processed')) {
+            relayResponse = { data: { tx_signature: null } };
+            break;
+          }
           const shouldRetry =
             attempt < RELAY_DUPLICATE_SEQUENCE_RETRIES && isDuplicateSequenceRelayError(detail);
           if (shouldRetry) {

@@ -9,6 +9,7 @@ import {
   type TransactionInstruction,
   VersionedTransaction,
 } from '@solana/web3.js';
+import bs58 from 'bs58';
 
 import { type AnchorProvider } from '@coral-xyz/anchor';
 
@@ -60,9 +61,26 @@ export async function sendTransaction(
 
   vtx = (await payer.signTransaction(vtx as any)) as unknown as VersionedTransaction;
 
-  const signature = await connection.sendRawTransaction(vtx.serialize(), {
-    skipPreflight: true, // mergedOpts.skipPreflight,
-  });
+  // Derive signature before sending — Solana tx signature is deterministic
+  // (first Ed25519 sig). maxRetries:0 prevents auto-retries that cause
+  // "already been processed" errors when the tx confirms on the first send.
+  const txSigBytes = vtx.signatures[0];
+  const derivedSignature = txSigBytes ? bs58.encode(txSigBytes) : null;
+
+  let signature: string;
+  try {
+    signature = await connection.sendRawTransaction(vtx.serialize(), {
+      skipPreflight: true,
+      maxRetries: 0,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('already been processed') && derivedSignature) {
+      signature = derivedSignature;
+    } else {
+      throw err;
+    }
+  }
 
   if (opts?.postSendTxCallback !== undefined && opts?.postSendTxCallback !== null) {
     try {

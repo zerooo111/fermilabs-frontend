@@ -129,7 +129,14 @@ export function useMangoMarginDeposit() {
           })
           .instruction();
         const createTx = new Transaction().add(createIx);
-        createMangoAccountTxSignature = await provider.sendAndConfirm(createTx, []);
+        try {
+          createMangoAccountTxSignature = await provider.sendAndConfirm(createTx, []);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (!msg.includes('already been processed')) throw err;
+          // Account was already created in a prior attempt — proceed.
+          createMangoAccountTxSignature = null;
+        }
         autoCreatedMangoAccount = true;
       }
 
@@ -155,7 +162,15 @@ export function useMangoMarginDeposit() {
         .instruction();
 
       const depositTx = new Transaction().add(depositIx);
-      const txSignature = await provider.sendAndConfirm(depositTx, []);
+      let txSignature: string;
+      try {
+        txSignature = await provider.sendAndConfirm(depositTx, []);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes('already been processed')) throw err;
+        // Deposit landed in a prior attempt — treat as success.
+        txSignature = 'already-processed';
+      }
       const uiAmount =
         Number(nativeAmount.toString()) / Math.pow(10, depositContext.quote_decimals);
 
