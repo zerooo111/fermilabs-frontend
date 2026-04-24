@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ConnectWallet } from '../../../features/wallet-connect/ui/ConnectWallet';
 import { FeeCreditDialog } from '@/features/fee-credit';
+import { MarginPanel } from '@/features/margin-panel/ui/MarginPanel';
 import FermiLogo3d from './FermiLogo';
 
 export function Header() {
@@ -39,6 +40,7 @@ export function Header() {
         </div>
         <div className="flex items-center gap-1.5">
           {/* <ServerSelector /> */}
+          <MarginPanel />
           <FeeCreditDialog />
           <ConnectWallet />
         </div>

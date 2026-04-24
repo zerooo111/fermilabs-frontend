@@ -97,7 +97,7 @@ export function ConnectWallet() {
   }, [connected, connecting, wallet, connect, setVisible]);
 
   const baseButton = (
-    <Button variant="default" onClick={handleConnectClick}>
+    <Button variant="default" size="sm" onClick={handleConnectClick}>
       {connected && <div className="w-2 h-2 bg-green-400 animate-pulse" />}
       {buttonContent}
     </Button>

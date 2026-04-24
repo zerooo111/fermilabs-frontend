@@ -19,13 +19,9 @@ import { getLeverageLimitsFromMarket } from '@/entities/market/model';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
 import { toast } from 'sonner';
-import posthog from 'posthog-js';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { useMemo } from 'react';
-import { useSequencerApi } from '@/shared/api/useSequencerApi';
-import { useAccount } from '@/shared/hooks/useAccount';
-import { useMangoMarginDeposit } from '@/shared/hooks/useMangoMarginDeposit';
 
 // Safe parsing functions to prevent NaN errors
 const safeParseFloat = (value: string, defaultValue: number = 0): number => {
@@ -78,9 +74,6 @@ export function PerpsTradePanel() {
   const { selectedMarket } = useSelectedMarket();
   const { openPosition, openMarketPosition } = usePerps();
   const setSLTPValues = useSetAtom(sltpValuesAtom);
-  const { requestAirdrop } = useSequencerApi();
-  const { depositMargin } = useMangoMarginDeposit();
-  const { data: accountData } = useAccount(publicKey?.toBase58() || '');
 
   // Fetch market stats to get mark price
   const { data: marketsData } = useMarketStats({
@@ -106,97 +99,6 @@ export function PerpsTradePanel() {
     const quoteDecimals = marketQuoteDecimals(selectedMarket);
     return rawMarkPrice / Math.pow(10, quoteDecimals);
   }, [selectedMarket?.uuid, selectedMarket?.quoteDecimals, marketsData]);
-
-  const handleTokenAirdrop = async () => {
-    if (!publicKey) return;
-    const promise = requestAirdrop(publicKey.toBase58());
-
-    toast.promise(promise, {
-      loading: 'Minting test USDC...',
-      success: data => (
-        <div className="flex flex-col gap-1">
-          <div>
-            <strong>Airdrop Complete</strong>
-          </div>
-          <div>
-            Minted {(data?.ui_amount ?? 0).toLocaleString()}{' '}
-            {selectedMarket?.quoteTokenName ?? 'USDC'}
-          </div>
-        </div>
-      ),
-      error: (err: any) => (
-        <div className="flex flex-col gap-1">
-          <div>
-            <strong>Airdrop Failed</strong>
-          </div>
-          <div>{err?.response?.data?.error || err?.message || 'Request failed'}</div>
-        </div>
-      ),
-    });
-    promise
-      .then(data => {
-        posthog.capture('airdrop_requested', {
-          token: selectedMarket?.quoteTokenName ?? 'USDC',
-          amount: data?.ui_amount,
-          wallet: publicKey?.toBase58(),
-        });
-      })
-      .catch((err: any) => {
-        posthog.capture('airdrop_failed', {
-          token: selectedMarket?.quoteTokenName ?? 'USDC',
-          error_message: err?.response?.data?.error || err?.message || 'Unknown error',
-          wallet: publicKey?.toBase58(),
-        });
-      });
-  };
-
-  const handleMarginDeposit = async () => {
-    if (!publicKey) return;
-    const promise = depositMargin();
-
-    toast.promise(promise, {
-      loading: 'Funding margin account...',
-      success: data => (
-        <div className="flex flex-col gap-1">
-          <div>
-            <strong>Margin Funded</strong>
-          </div>
-          <div>
-            Deposited {(data?.uiAmount ?? 0).toLocaleString()}{' '}
-            {selectedMarket?.quoteTokenName ?? 'USDC'}
-          </div>
-          {data?.autoCreatedMangoAccount && <div className="text-xs">Created Mango account</div>}
-          {data?.txSignature && (
-            <div className="text-xs">TX: {data.txSignature.slice(0, 8)}...</div>
-          )}
-        </div>
-      ),
-      error: (err: any) => (
-        <div className="flex flex-col gap-1">
-          <div>
-            <strong>Funding Failed</strong>
-          </div>
-          <div>{err?.response?.data?.error || err?.message || 'Request failed'}</div>
-        </div>
-      ),
-    });
-    promise
-      .then(data => {
-        posthog.capture('margin_deposit', {
-          token: selectedMarket?.quoteTokenName ?? 'USDC',
-          amount: data?.uiAmount,
-          auto_created_mango_account: data?.autoCreatedMangoAccount ?? false,
-          wallet: publicKey?.toBase58(),
-        });
-      })
-      .catch((err: any) => {
-        posthog.capture('margin_deposit_failed', {
-          token: selectedMarket?.quoteTokenName ?? 'USDC',
-          error_message: err?.response?.data?.error || err?.message || 'Unknown error',
-          wallet: publicKey?.toBase58(),
-        });
-      });
-  };
 
   // Calculate order value considering decimal inputs with safe parsing
   const priceValue = safeParseFloat(formState.price);
@@ -384,37 +286,6 @@ export function PerpsTradePanel() {
         </TabsList>
       </Tabs>
       <div className="flex flex-col p-3 gap-2 flex-1">
-        {publicKey && selectedMarket && (
-          <>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Available Margin</span>
-              <div className="flex items-center gap-2">
-                <span className="font-mono tabular-nums">
-                  {(accountData?.free_collateral_snapshot ?? 0).toFixed(
-                    selectedMarket.quoteDecimals
-                  )}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={handleTokenAirdrop}
-                >
-                  Airdrop
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={handleMarginDeposit}
-                >
-                  Deposit
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-
         {formState.orderType !== 'market' && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
