@@ -4,7 +4,14 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
 import { Button } from '@/shared/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/shared/ui/dropdown-menu';
 import { useAccount } from '@/shared/hooks/useAccount';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { useMangoMarginDeposit } from '@/shared/hooks/useMangoMarginDeposit';
@@ -105,8 +112,8 @@ export function MarginPanel() {
   };
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2 px-2.5 font-mono tabular-nums">
           <Wallet2 className="size-3.5 shrink-0" />
           <span className="flex items-baseline gap-1">
@@ -123,39 +130,27 @@ export function MarginPanel() {
             )}
           </span>
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 p-3 space-y-3">
-        <div className="space-y-1">
-          <div className="text-xs text-rock/60">Available Margin</div>
-          <div className="font-mono tabular-nums text-base font-semibold">
-            {freeCollateral !== null
-              ? `${freeCollateral.toFixed(Math.min(quoteDecimals, 2))} ${quoteToken}`
-              : '——'}
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={handleDeposit}
-            disabled={isDepositing}
-          >
-            {isDepositing ? <Loader2 className="size-3.5 animate-spin" /> : null}
-            Deposit Margin
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full text-rock/60"
-            onClick={handleAirdrop}
-            disabled={isAirdropping}
-          >
-            {isAirdropping ? <Loader2 className="size-3.5 animate-spin" /> : null}
-            Airdrop Test {quoteToken}
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="font-mono tabular-nums">
+          {freeCollateral !== null
+            ? `${freeCollateral.toFixed(Math.min(quoteDecimals, 2))} ${quoteToken}`
+            : '——'}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleDeposit} disabled={isDepositing}>
+          {isDepositing ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Wallet2 className="size-4" />
+          )}
+          Deposit Margin
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleAirdrop} disabled={isAirdropping} className="text-rock/60">
+          {isAirdropping ? <Loader2 className="size-4 animate-spin" /> : null}
+          Airdrop Test {quoteToken}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
