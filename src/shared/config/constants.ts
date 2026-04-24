@@ -125,4 +125,7 @@ export const API_ROUTES = {
   register_lane: '/admin/register-lane',
   candles_ingest: '/candles/ingest',
   volume_24h: '/stats/volume/24h',
+  // Relayer fee-credit endpoints
+  fees_status: '/fees/status',
+  fees_deposited: '/fees-deposited',
 };
