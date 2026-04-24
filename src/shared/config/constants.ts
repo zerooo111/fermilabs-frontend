@@ -126,6 +126,6 @@ export const API_ROUTES = {
   candles_ingest: '/candles/ingest',
   volume_24h: '/stats/volume/24h',
   // Relayer fee-credit endpoints
-  fees_status: '/fees/status',
-  fees_deposited: '/fees-deposited',
+  fees_status: '/relayer/fees/status',
+  fees_deposited: '/relayer/fees-deposited',
 };

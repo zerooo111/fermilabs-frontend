@@ -8,11 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useState, useEffect } from 'react';
 import { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 import { Loader2, Wallet, Info } from 'lucide-react';
-import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { createFeeClient, depositFeeCreditWithWallet } from '@/shared/api/fees';
-import { useAccountMangoAccount } from '@/shared/hooks/useAccount';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
 import { Slider } from '@/shared/ui/slider';
@@ -78,16 +75,12 @@ export function PerpsTradePanel() {
 
   const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
-  const anchorWallet = useAnchorWallet();
-  const { connection } = useConnection();
   const { selectedMarket } = useSelectedMarket();
   const { openPosition, openMarketPosition } = usePerps();
   const setSLTPValues = useSetAtom(sltpValuesAtom);
   const { requestAirdrop } = useSequencerApi();
   const { depositMargin } = useMangoMarginDeposit();
   const { data: accountData } = useAccount(publicKey?.toBase58() || '');
-  const mangoAccountPk = useAccountMangoAccount(publicKey?.toBase58());
-  const [isDepositingFees, setIsDepositingFees] = useState(false);
 
   // Fetch market stats to get mark price
   const { data: marketsData } = useMarketStats({
@@ -203,65 +196,6 @@ export function PerpsTradePanel() {
           wallet: publicKey?.toBase58(),
         });
       });
-  };
-
-  const handleFeeDeposit = async () => {
-    if (!publicKey || !anchorWallet) return;
-    if (!mangoAccountPk) {
-      toast.error('Mango account not found — deposit margin first');
-      return;
-    }
-    setIsDepositingFees(true);
-    const lamports = Math.floor(0.05 * LAMPORTS_PER_SOL);
-    const promise = depositFeeCreditWithWallet({
-      connection,
-      wallet: anchorWallet,
-      mangoAccount: mangoAccountPk,
-      lamports,
-      feeClient: createFeeClient(),
-    });
-
-    toast.promise(promise, {
-      loading: 'Funding fee credit...',
-      success: data => (
-        <div className="flex flex-col gap-1">
-          <div>
-            <strong>Fee Credit Funded</strong>
-          </div>
-          <div>
-            Balance: {(data.fee_account.available_balance_lamports / LAMPORTS_PER_SOL).toFixed(4)}{' '}
-            SOL
-          </div>
-          {data.duplicate && <div className="text-xs">Already credited</div>}
-        </div>
-      ),
-      error: (err: any) => (
-        <div className="flex flex-col gap-1">
-          <div>
-            <strong>Fee Deposit Failed</strong>
-          </div>
-          <div>{err?.message || 'Request failed'}</div>
-        </div>
-      ),
-    });
-    promise
-      .then(data => {
-        posthog.capture('fee_deposit', {
-          lamports,
-          mango_account: mangoAccountPk,
-          duplicate: data.duplicate,
-          wallet: publicKey?.toBase58(),
-        });
-      })
-      .catch((err: any) => {
-        posthog.capture('fee_deposit_failed', {
-          lamports,
-          mango_account: mangoAccountPk,
-          error_message: err?.message || 'Unknown error',
-          wallet: publicKey?.toBase58(),
-        });
-      })
-      .finally(() => setIsDepositingFees(false));
   };
 
   // Calculate order value considering decimal inputs with safe parsing
@@ -475,15 +409,6 @@ export function PerpsTradePanel() {
                   onClick={handleMarginDeposit}
                 >
                   Deposit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={handleFeeDeposit}
-                  disabled={isDepositingFees || !mangoAccountPk}
-                >
-                  {isDepositingFees ? <Loader2 className="size-3 animate-spin" /> : 'Fees'}
                 </Button>
               </div>
             </div>
