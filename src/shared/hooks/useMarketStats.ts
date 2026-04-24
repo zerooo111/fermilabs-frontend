@@ -16,8 +16,7 @@ export interface UseMarketStatsOptions {
   enabled?: boolean;
 }
 
-export function useMarketStats(options?: UseMarketStatsOptions) {
-  // eslint-disable-line @typescript-eslint/no-unused-vars
+export function useMarketStats(_options?: UseMarketStatsOptions) {
   const markets = useAtomValue(marketsAtom);
   return {
     data: markets.length > 0 ? markets : undefined,

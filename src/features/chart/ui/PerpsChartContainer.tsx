@@ -21,7 +21,8 @@ import {
 import { useSelectedMarket } from '@/entities/market';
 import { usePositions } from '@/shared/hooks/usePositions';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useMarketStats } from '@/shared/hooks/useMarketStats';
+import { useAtomValue } from 'jotai';
+import { marketMetricsAtom } from '@/shared/api/sse-atoms';
 import { toast } from 'sonner';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
@@ -237,38 +238,20 @@ function PerpsChartContainerComponent() {
     placeholderData: undefined, // Don't show stale data from a different queryKey
   });
 
-  // Read market stats (mark price, funding, open interest). useMarketStats
-  // is backed by the SSE-populated markets atom — no HTTP polling happens
-  // here despite the legacy options shape.
-  const { data: marketsData } = useMarketStats({
-    enabled: !!selectedMarket?.uuid,
-  });
-
-  // Extract mark_price for the selected market and normalize it
+  // Read mark price directly from the SSE metrics atom — already UI-normalised,
+  // scoped to the single current market. Avoids subscribing to the full
+  // marketsAtom array and eliminates the O(n) find + raw→UI division on each tick.
+  const liveMetrics = useAtomValue(marketMetricsAtom);
   const markPrice = useMemo(() => {
-    if (!selectedMarket?.uuid || !marketsData) return null;
+    if (!liveMetrics || !selectedMarket?.uuid) return null;
+    if (liveMetrics.market !== selectedMarket.uuid) return null;
+    if (liveMetrics.mark_price_ui <= 0) return null;
+    return liveMetrics.mark_price_ui;
+  }, [liveMetrics, selectedMarket?.uuid]);
 
-    const currentMarketData = marketsData.find(m => m.uuid === selectedMarket.uuid);
-    if (!currentMarketData || currentMarketData.kind !== 'perp' || !currentMarketData.perp_state) {
-      return null;
-    }
-
-    const rawMarkPrice = currentMarketData.perp_state.mark_price;
-    if (rawMarkPrice === null || rawMarkPrice === undefined || rawMarkPrice <= 0) {
-      return null;
-    }
-
-    // Normalize mark_price by dividing by 10^quoteDecimals
-    // mark_price comes from API as raw/scaled integer, but candles are normalized
-    const quoteDecimals = selectedMarket.quoteDecimals ?? 6; // Default to 6 for USDC
-    return rawMarkPrice / Math.pow(10, quoteDecimals);
-  }, [selectedMarket?.uuid, selectedMarket?.quoteDecimals, marketsData]);
-
-  // Keep the latest mark price accessible without re-triggering the
-  // historicalData effect below.
-  useEffect(() => {
-    latestMarkPriceRef.current = markPrice;
-  }, [markPrice]);
+  // Keep ref in sync inline during render so the historicalData effect always
+  // sees the latest price without an extra effect cycle per tick.
+  latestMarkPriceRef.current = markPrice;
 
   // Update candles when historical data is fetched.
   // Merge the current mark price synchronously so a background refetch

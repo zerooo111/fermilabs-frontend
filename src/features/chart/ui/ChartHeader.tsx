@@ -2,10 +2,20 @@ import { memo, useMemo } from 'react';
 import { MarketSelector } from '@/features/market-selector';
 import { cn } from '@/lib/utils';
 import { useSelectedMarket } from '@/entities/market';
-import { formatPrice, formatQuantity } from '@/features/orderbook-view/lib/processOrderbook';
-import { useMarketStats } from '@/shared/hooks/useMarketStats';
+import { useAtomValue } from 'jotai';
+import { marketMetricsAtom } from '@/shared/api/sse-atoms';
 import { useVolume24h } from '@/shared/hooks/useVolume24h';
 import { quoteLotsToUi } from '@/shared/lib/mango-sdk-conversions';
+
+function formatUiNumber(value: number): string {
+  if (!value || value === 0) return '0.00';
+  const abs = Math.abs(value);
+  if (abs < 0.0001) return value.toFixed(8);
+  if (abs < 0.01) return value.toFixed(6);
+  if (abs < 1) return value.toFixed(4);
+  if (abs < 100) return value.toFixed(2);
+  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 interface LatestPrice {
   price: number;
@@ -24,44 +34,19 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
   const { selectedMarket } = useSelectedMarket();
   const { data: volumeData } = useVolume24h(selectedMarketId ?? undefined);
 
-  // Fetch market stats using react-query
-  const { data: marketsData } = useMarketStats({
-    refetchInterval: 1000,
-    enabled: !!selectedMarketId,
-  });
-
-  // Calculate market stats from the fetched market data
+  // Read market stats directly from the SSE metrics atom — scoped to the
+  // current market, already UI-normalised. Avoids the marketsAtom array scan.
+  const liveMetrics = useAtomValue(marketMetricsAtom);
   const marketStats = useMemo(() => {
-    if (!selectedMarketId || !marketsData) return null;
-
-    // Find the current market in the fetched data by selectedMarketId
-    const currentMarketData = marketsData.find(m => m.uuid === selectedMarketId);
-    if (!currentMarketData) return null;
-
-    // Extract stats from perp_state for perp markets
-    if (currentMarketData.kind === 'perp' && currentMarketData.perp_state) {
-      const perpState = currentMarketData.perp_state;
-
-      // Mark price: keep as raw value (formatPrice will handle the decimal conversion)
-      const markPriceRaw = perpState.mark_price ?? 0;
-
-      // Funding rate: convert from bps to percentage
-      // Try funding_rate_bps first, fallback to last_funding_rate_bps
-      const fundingRateBps = perpState.funding_rate_bps ?? perpState.last_funding_rate_bps ?? 0;
-      const fundingRate = fundingRateBps / 10000;
-
-      // Open interest: keep as raw value (formatQuantity will handle the decimal conversion)
-      const openInterestRaw = currentMarketData.open_interest ?? 0;
-
-      return {
-        mark_price: markPriceRaw,
-        funding_rate: fundingRate,
-        open_interest: openInterestRaw,
-      };
-    }
-
-    return null;
-  }, [selectedMarketId, marketsData]);
+    if (!selectedMarketId || !liveMetrics || liveMetrics.market !== selectedMarketId) return null;
+    return {
+      mark_price_ui: liveMetrics.mark_price_ui,
+      // funding_rate_hourly_pct * 100 was stored as bps, then divided by 10000 in legacy path.
+      // Net result: funding_rate_hourly_pct / 100.
+      funding_rate: liveMetrics.funding_rate_hourly_pct / 100,
+      open_interest_ui: liveMetrics.open_interest_base_ui,
+    };
+  }, [selectedMarketId, liveMetrics]);
 
   if (!selectedMarket) return null;
 
@@ -80,9 +65,7 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
         <div className="flex flex-col justify-center px-2 h-full border-r ">
           <span className="text-xs whitespace-nowrap font-medium text-white/50">Mark Price</span>
           <span className="font-mono font-semibold text-base text-white">
-            {marketStats?.mark_price
-              ? formatPrice(marketStats.mark_price, selectedMarket.quoteDecimals)
-              : '0.0000'}
+            {marketStats?.mark_price_ui ? formatUiNumber(marketStats.mark_price_ui) : '0.0000'}
           </span>
         </div>
 
@@ -127,9 +110,7 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
         <div className="flex flex-col justify-center px-2 h-full ">
           <span className="text-xs whitespace-nowrap font-medium text-white/50">Open Interest</span>
           <span className="font-mono font-semibold text-base text-white">
-            {marketStats?.open_interest
-              ? formatQuantity(marketStats.open_interest, selectedMarket.baseDecimals)
-              : '0'}
+            {marketStats?.open_interest_ui ? formatUiNumber(marketStats.open_interest_ui) : '0'}
           </span>
         </div>
 
