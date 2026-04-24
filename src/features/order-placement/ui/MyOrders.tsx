@@ -33,7 +33,8 @@ export function MyOrders() {
 
     return userOrders
       .filter(order => order.market_id === selectedMarket?.uuid)
-      .filter(order => !cancellingOrders.has(String(order.order_id)));
+      .filter(order => !cancellingOrders.has(String(order.order_id)))
+      .sort((a, b) => Number(BigInt(a.order_id) - BigInt(b.order_id)));
   }, [userOrders, publicKey, selectedMarket?.uuid, cancellingOrders]);
 
   // Helper function to find receipt by order_id
