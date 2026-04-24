@@ -328,16 +328,9 @@ export function usePerps() {
       return null;
     };
 
-    const adapterSig = await trySign('walletAdapter.signMessage', () => signMessage(message));
-    if (adapterSig) {
-      logPerf('wallet-sign', {
-        strategy: 'wallet-adapter',
-        sign_ms: Math.round(performance.now() - startedAt),
-      });
-      return adapterSig;
-    }
-
-    // Fallback path for providers that do not work through wallet-adapter.
+    // Try direct provider access first so the wallet-adapter's signMessage — which emits
+    // an error event caught by WalletProvider even when we handle the error ourselves —
+    // is only used as a last resort.
     for (const provider of providerCandidates) {
       if (provider?.signMessage) {
         const sigHexUtf8 = await trySign('provider.signMessage(hexUtf8Bytes,hex)', () =>
@@ -522,6 +515,17 @@ export function usePerps() {
           return reqTupleHexString;
         }
       }
+    }
+
+    // Final fallback: wallet-adapter's signMessage (may emit an error event to WalletProvider
+    // if the wallet doesn't support it, but at this point all direct paths have been exhausted).
+    const adapterSig = await trySign('walletAdapter.signMessage', () => signMessage(message));
+    if (adapterSig) {
+      logPerf('wallet-sign', {
+        strategy: 'wallet-adapter',
+        sign_ms: Math.round(performance.now() - startedAt),
+      });
+      return adapterSig;
     }
 
     const adapterName = wallet?.adapter?.name || 'unknown';
