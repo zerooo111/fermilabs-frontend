@@ -182,13 +182,18 @@ export function buildFeeDepositInstructions(
 }
 
 export class ContinuumFeeClient {
+  private readonly fetchImpl: typeof fetch;
+
   constructor(
     private readonly baseUrl: string,
-    private readonly fetchImpl: typeof fetch = fetch
+    fetchImpl?: typeof fetch
   ) {
     if (!baseUrl) {
       throw new Error('ContinuumFeeClient: baseUrl is required');
     }
+    // `fetch` must be invoked with `window` as its `this`; calling a stored
+    // reference as `this.fetchImpl(...)` throws "Illegal invocation" in browsers.
+    this.fetchImpl = fetchImpl ?? ((...args) => globalThis.fetch(...args));
   }
 
   private url(path: string): string {
