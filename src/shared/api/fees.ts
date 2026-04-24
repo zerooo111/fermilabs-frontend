@@ -13,6 +13,7 @@ import axios from 'axios';
 import {
   Connection,
   PublicKey,
+  SendTransactionError,
   SystemProgram,
   Transaction,
   TransactionInstruction,
@@ -292,7 +293,24 @@ export async function depositFeeCreditWithWallet(
   }).add(...instructions);
 
   const signed = await input.wallet.signTransaction(tx);
-  const signature = await input.connection.sendRawTransaction(signed.serialize());
+
+  // skipPreflight avoids "Blockhash not found" during local simulation when the
+  // RPC node hasn't yet propagated the blockhash we fetched. The network still
+  // validates the transaction fully on submission.
+  let signature: string;
+  try {
+    signature = await input.connection.sendRawTransaction(signed.serialize(), {
+      skipPreflight: true,
+      preflightCommitment: 'confirmed',
+    });
+  } catch (err) {
+    if (err instanceof SendTransactionError) {
+      const logs = await err.getLogs(input.connection).catch(() => null);
+      throw new Error(logs?.join('\n') ?? err.message);
+    }
+    throw err;
+  }
+
   await input.connection.confirmTransaction(
     { signature, blockhash, lastValidBlockHeight },
     'confirmed'
