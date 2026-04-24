@@ -294,6 +294,16 @@ export async function depositFeeCreditWithWallet(
 
   const signed = await input.wallet.signTransaction(tx);
 
+  // Wallets (e.g. Phantom) may prepend a ComputeBudget instruction when signing,
+  // shifting all indices by 1. Find the actual position of the SystemProgram.transfer
+  // in the signed transaction so we report the correct instruction_index to the relayer.
+  const systemProgramId = SystemProgram.programId.toBase58();
+  const actualTransferIndex = signed.instructions.findIndex(
+    ix => ix.programId.toBase58() === systemProgramId
+  );
+  const reportedTransferIndex =
+    actualTransferIndex >= 0 ? actualTransferIndex : transferInstructionIndex;
+
   // skipPreflight avoids "Blockhash not found" during local simulation when the
   // RPC node hasn't yet propagated the blockhash we fetched. The network still
   // validates the transaction fully on submission.
@@ -322,7 +332,7 @@ export async function depositFeeCreditWithWallet(
     {
       source_chain: input.sourceChain ?? 'solana-devnet',
       source_tx_signature: signature,
-      instruction_index: transferInstructionIndex,
+      instruction_index: reportedTransferIndex,
       user_owner: pubkeyStr(userOwner),
       mango_account: pubkeyStr(input.mangoAccount),
       amount_lamports: amountLamports,
