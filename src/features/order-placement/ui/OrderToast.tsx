@@ -86,8 +86,13 @@ function TxRow({ signature }: { signature: string }) {
 export function OrderToast({ toastId, title, txSignature, acceptedLatencyMs }: OrderToastProps) {
   return (
     <div
-      className="flex flex-col gap-1.5 px-4 py-3 w-full"
-      style={{ fontFamily: 'Geist Mono, monospace' }}
+      className="flex flex-col gap-1.5 px-4 py-3 w-full backdrop-blur-2xl"
+      style={{
+        fontFamily: 'Geist Mono, monospace',
+        background: 'rgba(255, 255, 255, 0.05)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        color: '#ffffff',
+      }}
     >
       {/* Title row */}
       <div className="flex items-center justify-between gap-3">

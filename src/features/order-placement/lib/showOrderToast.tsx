@@ -11,6 +11,10 @@ export function showOrderToast(title: string, txSignature?: string, acceptedLate
         acceptedLatencyMs={acceptedLatencyMs}
       />
     ),
-    { duration: 10_000 }
+    {
+      duration: 10_000,
+      unstyled: true,
+      style: { padding: 0, background: 'transparent', border: 'none' },
+    }
   );
 }
