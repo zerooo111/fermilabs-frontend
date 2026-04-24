@@ -34,13 +34,13 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         className={cn(
-          'fixed left-[50%] top-[50%] z-50 grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border border-outline bg-background p-5 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+          'fixed left-[50%] top-[50%] z-50 grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 border border-outline bg-background text-rock p-5 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
           className
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors">
+        <DialogPrimitive.Close className="absolute right-3 top-3 text-rock/60 hover:text-rock transition-colors">
           <X className="size-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
@@ -67,10 +67,7 @@ function DialogDescription({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Description>) {
   return (
-    <DialogPrimitive.Description
-      className={cn('text-xs text-muted-foreground', className)}
-      {...props}
-    />
+    <DialogPrimitive.Description className={cn('text-xs text-rock/60', className)} {...props} />
   );
 }
 

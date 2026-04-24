@@ -139,11 +139,11 @@ export function FeeCreditDialog() {
         </DialogHeader>
 
         {!mangoAccountPk ? (
-          <div className="text-sm text-muted-foreground py-4">
+          <div className="text-sm text-rock/60 py-4">
             No Mango account found. Deposit margin first from the trade panel.
           </div>
         ) : statusQuery.isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+          <div className="flex items-center gap-2 text-sm text-rock/60 py-4">
             <Loader2 className="size-4 animate-spin" /> Loading fee status...
           </div>
         ) : statusQuery.isError ? (
@@ -172,21 +172,21 @@ export function FeeCreditDialog() {
 
             {quote && (
               <div className="border border-outline bg-card p-3 space-y-1.5 text-xs font-mono">
-                <div className="text-muted-foreground font-sans mb-1">Current quote</div>
+                <div className="text-rock/60 font-sans mb-1">Current quote</div>
                 <Row label="Quoted fee" value={`${formatSol(quote.quoted_fee_lamports)} SOL`} />
                 <Row label="Normal max" value={`${formatSol(quote.normal_max_fee_lamports)} SOL`} />
                 <Row
                   label="Emergency max"
                   value={`${formatSol(quote.emergency_max_fee_lamports)} SOL`}
                 />
-                {quote.warning && <div className="text-warning text-xs">⚠ {quote.warning}</div>}
+                {quote.warning && <div className="text-xs text-danger">⚠ {quote.warning}</div>}
               </div>
             )}
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Top up amount</label>
-                <span className="text-xs text-muted-foreground">SOL</span>
+                <span className="text-xs text-rock/60">SOL</span>
               </div>
               <div className="flex gap-1.5">
                 {DEPOSIT_PRESETS_SOL.map(v => (
@@ -196,7 +196,7 @@ export function FeeCreditDialog() {
                     size="sm"
                     className={`h-8 flex-1 text-xs ${
                       amountSol === v.toString()
-                        ? 'bg-white text-black font-bold hover:bg-white/90'
+                        ? 'bg-rock text-background font-bold hover:bg-rock/90'
                         : ''
                     }`}
                     onClick={() => setAmountSol(v.toString())}
@@ -229,7 +229,7 @@ export function FeeCreditDialog() {
                 )}
               </Button>
               {deposit?.deposit_address && (
-                <div className="text-[10px] text-muted-foreground font-mono break-all">
+                <div className="text-[10px] text-rock/60 font-mono break-all">
                   Deposit address: {deposit.deposit_address}
                 </div>
               )}
@@ -244,7 +244,7 @@ export function FeeCreditDialog() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-muted-foreground font-sans">{label}</span>
+      <span className="text-rock/60 font-sans">{label}</span>
       <span className="tabular-nums">{value}</span>
     </div>
   );
