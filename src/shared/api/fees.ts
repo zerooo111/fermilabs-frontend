@@ -10,6 +10,7 @@
  * the relayer — mirror of the reference SDK.
  */
 import axios from 'axios';
+import bs58 from 'bs58';
 import {
   Connection,
   PublicKey,
@@ -307,18 +308,31 @@ export async function depositFeeCreditWithWallet(
   // skipPreflight avoids "Blockhash not found" during local simulation when the
   // RPC node hasn't yet propagated the blockhash we fetched. The network still
   // validates the transaction fully on submission.
+  // maxRetries:0 prevents the RPC client from automatically re-sending an
+  // already-confirmed transaction, which would surface as "already been processed".
+  // The Solana tx signature is deterministic (first Ed25519 sig), so we can
+  // derive it before sending and use it to proceed if the tx was already confirmed.
+  const txSignatureBytes = signed.signatures[0]?.signature;
+  const derivedSignature = txSignatureBytes ? bs58.encode(txSignatureBytes) : null;
+
   let signature: string;
   try {
     signature = await input.connection.sendRawTransaction(signed.serialize(), {
       skipPreflight: true,
       preflightCommitment: 'confirmed',
+      maxRetries: 0,
     });
   } catch (err) {
-    if (err instanceof SendTransactionError) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('already been processed') && derivedSignature) {
+      // The tx landed on a prior attempt; treat it as confirmed and report the deposit.
+      signature = derivedSignature;
+    } else if (err instanceof SendTransactionError) {
       const logs = await err.getLogs(input.connection).catch(() => null);
-      throw new Error(logs?.join('\n') ?? err.message);
+      throw new Error(logs?.join('\n') ?? message);
+    } else {
+      throw err;
     }
-    throw err;
   }
 
   await input.connection.confirmTransaction(
