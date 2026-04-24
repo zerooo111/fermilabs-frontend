@@ -106,6 +106,31 @@ const MARKET_META_CACHE_TTL_MS = 60 * 60 * 1000;
 const RELAY_DUPLICATE_SEQUENCE_RETRIES = 2;
 const RELAY_INTENT_VERSION = 2;
 
+function showOrderToast(title: string, txSignature?: string, acceptedLatencyMs?: number) {
+  const explorer = txSignature
+    ? `https://explorer.solana.com/tx/${txSignature}?cluster=devnet`
+    : null;
+  const description = [
+    acceptedLatencyMs !== undefined ? `Latency: ${acceptedLatencyMs.toFixed(1)} ms` : null,
+    txSignature ? `Tx: ${txSignature.slice(0, 8)}…${txSignature.slice(-6)}` : null,
+  ]
+    .filter(Boolean)
+    .join('  ·  ');
+
+  toast.success(title, {
+    duration: Infinity,
+    description: description || undefined,
+    ...(explorer
+      ? {
+          action: {
+            label: 'Explorer',
+            onClick: () => window.open(explorer, '_blank', 'noopener,noreferrer'),
+          },
+        }
+      : {}),
+  });
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => {
     setTimeout(resolve, ms);
@@ -788,7 +813,12 @@ export function usePerps() {
     mangoAccount: string;
     priceForTick: number;
     sizeForTick: number;
-  }): Promise<{ success: boolean; txSignature?: string; error?: string }> => {
+  }): Promise<{
+    success: boolean;
+    txSignature?: string;
+    acceptedLatencyMs?: number;
+    error?: string;
+  }> => {
     if (!publicKey || !signMessage) {
       throw new Error('Wallet not connected');
     }
@@ -867,7 +897,8 @@ export function usePerps() {
 
     return {
       success: true,
-      txSignature: relayResponse.data?.tx_signature,
+      txSignature: relayResponse.data?.tx_signature ?? undefined,
+      acceptedLatencyMs: relayResponse.data?.accepted_latency_ms ?? undefined,
     };
   };
 
@@ -972,7 +1003,7 @@ export function usePerps() {
         marketMeta,
       });
 
-      await submitIntent({
+      const result = await submitIntent({
         payloadBytes,
         remainingAccounts,
         group: relay.group,
@@ -983,7 +1014,7 @@ export function usePerps() {
         sizeForTick: sizeValue,
       });
 
-      toast.success(`${side} order placed successfully`);
+      showOrderToast(`${side} order placed`, result.txSignature, result.acceptedLatencyMs);
       posthog.capture('perp_limit_order_placed', {
         market: selectedMarket?.name,
         market_id: selectedMarket?.uuid,
@@ -1056,7 +1087,7 @@ export function usePerps() {
         marketMeta,
       });
 
-      await submitIntent({
+      const result = await submitIntent({
         payloadBytes,
         remainingAccounts,
         group: relay.group,
@@ -1067,7 +1098,7 @@ export function usePerps() {
         sizeForTick: sizeValue,
       });
 
-      toast.success(`Market ${side} order placed successfully`);
+      showOrderToast(`Market ${side} order placed`, result.txSignature, result.acceptedLatencyMs);
       posthog.capture('perp_market_order_placed', {
         market: selectedMarket?.name,
         market_id: selectedMarket?.uuid,
@@ -1161,7 +1192,7 @@ export function usePerps() {
         marketMeta,
       });
 
-      await submitIntent({
+      const result = await submitIntent({
         payloadBytes,
         remainingAccounts,
         group: relay.group,
@@ -1172,8 +1203,10 @@ export function usePerps() {
         sizeForTick: sizeValue,
       });
 
-      toast.success(
-        closeMode === 'market' ? 'Close market order submitted' : 'Close limit order submitted'
+      showOrderToast(
+        closeMode === 'market' ? 'Close market order submitted' : 'Close limit order submitted',
+        result.txSignature,
+        result.acceptedLatencyMs
       );
       posthog.capture('perp_position_closed', {
         market: selectedMarket?.name,
@@ -1222,7 +1255,7 @@ export function usePerps() {
       );
 
       const payloadBytes = encodePerpCancelOrderQueuePayload(BigInt(orderId));
-      await submitIntent({
+      const result = await submitIntent({
         payloadBytes,
         remainingAccounts,
         group: relay.group,
@@ -1233,7 +1266,7 @@ export function usePerps() {
         sizeForTick: 0,
       });
 
-      toast.success('Order cancelled');
+      showOrderToast('Order cancelled', result.txSignature, result.acceptedLatencyMs);
       posthog.capture('perp_order_cancelled', {
         market: selectedMarket?.name,
         market_id: selectedMarket?.uuid,
