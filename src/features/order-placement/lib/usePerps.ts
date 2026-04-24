@@ -1,4 +1,4 @@
-import { toast } from 'sonner';
+import { showOrderToast } from '@/features/order-placement/lib/showOrderToast';
 import axios from 'axios';
 import posthog from 'posthog-js';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -105,31 +105,6 @@ const RELAY_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
 const MARKET_META_CACHE_TTL_MS = 60 * 60 * 1000;
 const RELAY_DUPLICATE_SEQUENCE_RETRIES = 2;
 const RELAY_INTENT_VERSION = 2;
-
-function showOrderToast(title: string, txSignature?: string, acceptedLatencyMs?: number) {
-  const explorer = txSignature
-    ? `https://explorer.solana.com/tx/${txSignature}?cluster=devnet`
-    : null;
-  const description = [
-    acceptedLatencyMs !== undefined ? `Latency: ${acceptedLatencyMs.toFixed(1)} ms` : null,
-    txSignature ? `Tx: ${txSignature.slice(0, 8)}…${txSignature.slice(-6)}` : null,
-  ]
-    .filter(Boolean)
-    .join('  ·  ');
-
-  toast.success(title, {
-    duration: Infinity,
-    description: description || undefined,
-    ...(explorer
-      ? {
-          action: {
-            label: 'Explorer',
-            onClick: () => window.open(explorer, '_blank', 'noopener,noreferrer'),
-          },
-        }
-      : {}),
-  });
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => {
