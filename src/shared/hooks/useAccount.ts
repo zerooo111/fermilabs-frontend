@@ -2,7 +2,7 @@ import { useAtomValue } from 'jotai';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { accountMetricsAtom } from '@/shared/api/sse-atoms';
-import { config, API_ROUTES_V2 } from '@/shared/config/constants';
+import { config, API_ROUTES, API_ROUTES_V2 } from '@/shared/config/constants';
 import { Position } from './usePositions';
 
 export interface MarginReservation {
@@ -126,10 +126,36 @@ export function useV2Account(owner: string | null | undefined) {
   });
 }
 
-/** First (and usually only) mango account owned by this wallet. */
-export function useAccountMangoAccount(owner: string | null | undefined): string | null {
-  const q = useV2Account(owner);
-  return q.data?.margin_summary?.accounts?.[0]?.mango_account ?? null;
+/** First (and usually only) mango account owned by this wallet.
+ *  Returns { pk, isLoading } so callers can distinguish "still fetching"
+ *  from "confirmed no account". Works on both v2 and v1 read paths. */
+export function useAccountMangoAccount(owner: string | null | undefined): {
+  pk: string | null;
+  isLoading: boolean;
+} {
+  const v2 = useV2Account(owner);
+
+  // v1 fallback: deposit-context endpoint carries mango_account on every env.
+  const v1 = useQuery({
+    queryKey: ['deposit-context-mango', owner],
+    queryFn: async () => {
+      const { data } = await axios.get<{ mango_account?: string; mango_account_exists?: boolean }>(
+        `${config.devnet.gatewayUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner!)}`
+      );
+      return data.mango_account ?? null;
+    },
+    enabled: !!owner && !config.devnet.useV2ReadLayer,
+    staleTime: 30_000,
+    refetchInterval: false,
+  });
+
+  if (config.devnet.useV2ReadLayer) {
+    return {
+      pk: v2.data?.margin_summary?.accounts?.[0]?.mango_account ?? null,
+      isLoading: v2.isLoading,
+    };
+  }
+  return { pk: v1.data ?? null, isLoading: v1.isLoading };
 }
 
 /** MarginAccount (derived from margin_summary.totals — quote-decimals are

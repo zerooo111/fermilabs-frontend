@@ -33,7 +33,9 @@ export function FeeCreditDialog() {
   const { publicKey } = useWallet();
   const anchorWallet = useAnchorWallet();
   const { connection } = useConnection();
-  const mangoAccountPk = useAccountMangoAccount(publicKey?.toBase58());
+  const { pk: mangoAccountPk, isLoading: isLoadingMangoAccount } = useAccountMangoAccount(
+    publicKey?.toBase58()
+  );
   const queryClient = useQueryClient();
   const feeClient = useMemo(() => createFeeClient(), []);
 
@@ -138,7 +140,11 @@ export function FeeCreditDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        {!mangoAccountPk ? (
+        {isLoadingMangoAccount ? (
+          <div className="flex items-center gap-2 text-sm text-rock/60 py-4">
+            <Loader2 className="size-4 animate-spin" /> Loading account...
+          </div>
+        ) : !mangoAccountPk ? (
           <div className="text-sm text-rock/60 py-4">
             No Mango account found. Deposit margin first from the trade panel.
           </div>
