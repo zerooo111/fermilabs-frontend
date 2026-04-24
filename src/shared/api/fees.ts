@@ -9,6 +9,7 @@
  * `instruction_index` contract with `/fees-deposited` must stay in sync with
  * the relayer — mirror of the reference SDK.
  */
+import axios from 'axios';
 import {
   Connection,
   PublicKey,
@@ -182,18 +183,10 @@ export function buildFeeDepositInstructions(
 }
 
 export class ContinuumFeeClient {
-  private readonly fetchImpl: typeof fetch;
-
-  constructor(
-    private readonly baseUrl: string,
-    fetchImpl?: typeof fetch
-  ) {
+  constructor(private readonly baseUrl: string) {
     if (!baseUrl) {
       throw new Error('ContinuumFeeClient: baseUrl is required');
     }
-    // `fetch` must be invoked with `window` as its `this`; calling a stored
-    // reference as `this.fetchImpl(...)` throws "Illegal invocation" in browsers.
-    this.fetchImpl = fetchImpl ?? ((...args) => globalThis.fetch(...args));
   }
 
   private url(path: string): string {
@@ -203,20 +196,15 @@ export class ContinuumFeeClient {
 
   /** GET /fees/status — returns wallet fee balance, current quote, and deposit wiring. */
   async getStatus(query: FeeStatusQuery): Promise<FeeStatus> {
-    const params = new URLSearchParams();
-    params.set('user_owner', pubkeyStr(query.userOwner));
-    params.set('mango_account', pubkeyStr(query.mangoAccount));
-    if (query.market !== undefined) params.set('market', String(query.market));
-    if (query.group) params.set('group', pubkeyStr(query.group));
-    if (query.executionQueue) {
-      params.set('execution_queue', pubkeyStr(query.executionQueue));
-    }
-    const resp = await this.fetchImpl(`${this.url(API_ROUTES.fees_status)}?${params.toString()}`);
-    if (!resp.ok) {
-      const body = await resp.text();
-      throw new Error(`fees/status failed: HTTP ${resp.status} ${body}`);
-    }
-    return (await resp.json()) as FeeStatus;
+    const params: Record<string, string> = {
+      user_owner: pubkeyStr(query.userOwner),
+      mango_account: pubkeyStr(query.mangoAccount),
+    };
+    if (query.market !== undefined) params.market = String(query.market);
+    if (query.group) params.group = pubkeyStr(query.group);
+    if (query.executionQueue) params.execution_queue = pubkeyStr(query.executionQueue);
+    const { data } = await axios.get<FeeStatus>(this.url(API_ROUTES.fees_status), { params });
+    return data;
   }
 
   /**
@@ -227,27 +215,21 @@ export class ContinuumFeeClient {
     request: FeeDepositReport,
     adminToken?: string
   ): Promise<FeeDepositReportResponse> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (adminToken) headers['Authorization'] = adminToken;
-    const body: Record<string, unknown> = {
+    const headers: Record<string, string> = {};
+    if (adminToken) headers.Authorization = adminToken;
+    const body = {
       ...request,
       amount_lamports:
         typeof request.amount_lamports === 'bigint'
           ? String(request.amount_lamports)
           : request.amount_lamports,
     };
-    const resp = await this.fetchImpl(this.url(API_ROUTES.fees_deposited), {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`fees-deposited failed: HTTP ${resp.status} ${text}`);
-    }
-    return (await resp.json()) as FeeDepositReportResponse;
+    const { data } = await axios.post<FeeDepositReportResponse>(
+      this.url(API_ROUTES.fees_deposited),
+      body,
+      { headers }
+    );
+    return data;
   }
 }
 
