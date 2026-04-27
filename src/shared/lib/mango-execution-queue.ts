@@ -1,7 +1,8 @@
 import { PublicKey } from '@solana/web3.js';
 
 export const USER_INTENT_DOMAIN = 'mango-v4-user-intent-v1';
-export const USER_INTENT_DOMAIN_V2 = 'mango-v4-user-intent-v2';
+export const USER_INTENT_DOMAIN_V2 = 'mango-v5-user-intent-v2';
+export const USER_INTENT_DOMAIN_V5_DIRECT = 'mango-v5-direct-intent-v1';
 const SYSVAR_INSTRUCTIONS_PUBKEY = 'Sysvar1nstructions1111111111111111111111111';
 
 export type QueueAccountMeta = {
@@ -269,6 +270,9 @@ export async function buildExecutionQueueUserIntent(params: {
   intentVersion?: number;
   targetKind?: number;
   targetIndex?: number;
+  clientOrderId?: bigint;
+  minExecuteSlot?: bigint;
+  expiresAtSlot?: bigint;
 }): Promise<{
   kind: number;
   payloadHash: Uint8Array;
@@ -278,14 +282,11 @@ export async function buildExecutionQueueUserIntent(params: {
   const kind = 0;
   const intentVersion = params.intentVersion ?? 1;
   const payloadHash = await hashExecutionQueuePayload(params.payload);
-  const accountsHash =
-    intentVersion === 1
-      ? await hashExecutionQueueAccountsForCtmEnqueue({
-          group: params.group,
-          executionQueue: params.executionQueue,
-          remainingAccounts: params.remainingAccounts,
-        })
-      : new Uint8Array();
+  const accountsHash = await hashExecutionQueueAccountsForCtmEnqueue({
+    group: params.group,
+    executionQueue: params.executionQueue,
+    remainingAccounts: params.remainingAccounts,
+  });
   const userIntentMessage = await buildUserIntentMessage({
     group: params.group,
     mangoAccount: params.mangoAccount,
@@ -296,6 +297,9 @@ export async function buildExecutionQueueUserIntent(params: {
     kind,
     payloadHash,
     accountsHash,
+    clientOrderId: params.clientOrderId,
+    minExecuteSlot: params.minExecuteSlot,
+    expiresAtSlot: params.expiresAtSlot,
   });
   return {
     kind,
@@ -315,6 +319,9 @@ export async function buildUserIntentMessage(params: {
   kind: number;
   payloadHash: Uint8Array;
   accountsHash: Uint8Array;
+  clientOrderId?: bigint;
+  minExecuteSlot?: bigint;
+  expiresAtSlot?: bigint;
 }): Promise<Uint8Array> {
   const intentVersion = params.intentVersion ?? 1;
   if (intentVersion === 2) {
@@ -330,7 +337,11 @@ export async function buildUserIntentMessage(params: {
         u8(params.kind),
         u8(params.targetKind),
         u16ToLe(params.targetIndex),
-        params.payloadHash
+        params.payloadHash,
+        params.accountsHash,
+        u64ToLe(params.minExecuteSlot ?? 0n),
+        u64ToLe(params.expiresAtSlot ?? 0n),
+        u64ToLe(params.clientOrderId ?? 0n)
       )
     );
   }
@@ -346,6 +357,24 @@ export async function buildUserIntentMessage(params: {
       params.accountsHash
     )
   );
+}
+
+export function randomU64(): bigint {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  const view = new DataView(bytes.buffer);
+  return view.getBigUint64(0, true);
+}
+
+export function deriveExecutionQueueV5Pda(
+  programId: string,
+  group: string,
+  marketIndex: number
+): PublicKey {
+  const indexBytes = u16ToLe(marketIndex);
+  return PublicKey.findProgramAddressSync(
+    [new TextEncoder().encode('execution-queue-v5'), new PublicKey(group).toBytes(), indexBytes],
+    new PublicKey(programId)
+  )[0];
 }
 
 export function bytesToBase64(bytes: Uint8Array): string {

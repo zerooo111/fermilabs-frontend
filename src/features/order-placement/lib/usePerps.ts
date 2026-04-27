@@ -10,12 +10,14 @@ import { config, API_ROUTES, API_ROUTES_V2 } from '@/shared/config/constants';
 import {
   buildExecutionQueueUserIntent,
   bytesToBase64,
+  deriveExecutionQueueV5Pda,
   encodePerpCancelOrderQueuePayload,
   encodePerpPlaceOrderV2QueuePayload,
   IntentTargetKind,
   QueuePlaceOrderType,
   QueueSelfTradeBehavior,
   QueueSide,
+  randomU64,
   uiBaseToLots,
   uiPriceToLots,
   uiQuoteToLots,
@@ -808,10 +810,21 @@ export function usePerps() {
       throw new Error(`Invalid market index for relay intent: ${params.market}`);
     }
 
+    // Derive the per-market v5 execution queue PDA; fall back to relay config value if
+    // the program ID is not configured (e.g. local dev without env vars).
+    const v5ExecutionQueue = config.devnet.mangoProgramId
+      ? deriveExecutionQueueV5Pda(
+          config.devnet.mangoProgramId,
+          params.group,
+          targetIndex
+        ).toBase58()
+      : params.executionQueue;
+
+    const intentClientOrderId = randomU64();
     const startedAt = performance.now();
     const intent = await buildExecutionQueueUserIntent({
       group: params.group,
-      executionQueue: params.executionQueue,
+      executionQueue: v5ExecutionQueue,
       mangoAccount: params.mangoAccount,
       userOwner: publicKey.toBase58(),
       payload: params.payloadBytes,
@@ -819,6 +832,9 @@ export function usePerps() {
       intentVersion: RELAY_INTENT_VERSION,
       targetKind: IntentTargetKind.PerpMarket,
       targetIndex,
+      clientOrderId: intentClientOrderId,
+      minExecuteSlot: 0n,
+      expiresAtSlot: 0n,
     });
     const builtIntentAt = performance.now();
     const signatureBytes = await signIntentMessage(intent.userIntentMessage);
@@ -827,12 +843,12 @@ export function usePerps() {
     const bridgeUrl = config.devnet.gatewayUrl;
     const relayPayload = {
       group: params.group,
-      execution_queue: params.executionQueue,
+      execution_queue: v5ExecutionQueue,
       market: params.market,
       intent_version: RELAY_INTENT_VERSION,
       target_kind: IntentTargetKind.PerpMarket,
       target_index: targetIndex,
-      _base_fee: 'AUTO',
+      max_fee_lamports: 'AUTO',
       payload_b64: bytesToBase64(params.payloadBytes),
       remaining_accounts: params.remainingAccounts,
       min_execute_slot: '0',
@@ -840,6 +856,7 @@ export function usePerps() {
       user_owner: publicKey.toBase58(),
       mango_account: params.mangoAccount,
       user_signature_b64: bytesToBase64(signatureBytes),
+      client_order_id: intentClientOrderId.toString(),
     };
     let relayResponse;
     for (let attempt = 0; attempt <= RELAY_DUPLICATE_SEQUENCE_RETRIES; attempt += 1) {
@@ -979,7 +996,7 @@ export function usePerps() {
         size: sizeValue,
         reduceOnly: false,
         orderType: QueuePlaceOrderType.Limit,
-        clientOrderId: BigInt(Date.now()),
+        clientOrderId: randomU64(),
         marketMeta,
       });
 
@@ -1063,7 +1080,7 @@ export function usePerps() {
         size: sizeValue,
         reduceOnly: false,
         orderType: QueuePlaceOrderType.Market,
-        clientOrderId: BigInt(Date.now()),
+        clientOrderId: randomU64(),
         marketMeta,
       });
 
@@ -1168,7 +1185,7 @@ export function usePerps() {
         size: sizeValue,
         reduceOnly: true,
         orderType,
-        clientOrderId: BigInt(Date.now()),
+        clientOrderId: randomU64(),
         marketMeta,
       });
 
