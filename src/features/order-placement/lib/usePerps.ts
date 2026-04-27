@@ -2,9 +2,10 @@ import { showOrderToast } from '@/features/order-placement/lib/showOrderToast';
 import { toast } from 'sonner';
 import axios from 'axios';
 import posthog from 'posthog-js';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { PublicKey } from '@solana/web3.js';
 import bs58 from 'bs58';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef } from 'react';
 import { useSelectedMarket } from '@/entities/market';
 import { config, API_ROUTES, API_ROUTES_V2 } from '@/shared/config/constants';
 import {
@@ -14,6 +15,7 @@ import {
   encodePerpCancelOrderQueuePayload,
   encodePerpPlaceOrderV2QueuePayload,
   IntentTargetKind,
+  QueueAccountMeta,
   QueuePlaceOrderType,
   QueueSelfTradeBehavior,
   QueueSide,
@@ -22,6 +24,9 @@ import {
   uiPriceToLots,
   uiQuoteToLots,
 } from '@/shared/lib/mango-execution-queue';
+import { getMangoClientAndGroup } from '@/shared/lib/mango-client';
+import { buildCanonicalPerpRemainingAccounts } from '@/shared/lib/mango-canonical-accounts';
+import { useAccountMangoAccount } from '@/shared/hooks/useAccount';
 import type { HarnessMarketMetadata } from '@/shared/lib/harness-market';
 import type { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 
@@ -57,42 +62,6 @@ interface PerpsClosePositionParams {
   limitPrice?: string;
 }
 
-type RelayConfigResponse = {
-  group: string | null;
-  execution_queue: string | null;
-  market: string;
-  mango_account: string | null;
-  owner_to_mango_account: Record<string, string>;
-  lanes: Array<{
-    name: string;
-    remaining_accounts: Array<{
-      pubkey: string;
-      is_signer: boolean;
-      is_writable: boolean;
-    }>;
-  }>;
-};
-
-type HarnessOwnerBalancesResponse = {
-  data?: {
-    mango_accounts?: string[];
-  };
-};
-
-type DepositContextResponse = {
-  owner: string;
-  mango_account: string;
-  mango_account_exists: boolean;
-};
-
-type ResolvedRelayConfig = {
-  configData: RelayConfigResponse;
-  group: string;
-  executionQueue: string;
-  market: string;
-  mangoAccount: string;
-};
-
 type ExecutionMarketParams = {
   base_decimals: number;
   quote_decimals: number;
@@ -104,7 +73,7 @@ type HarnessFullMarketsResponse = {
   market_metadata?: Record<string, HarnessMarketMetadata>;
 };
 
-const RELAY_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
+const MANGO_STATE_TTL_MS = 30 * 1000;
 const MARKET_META_CACHE_TTL_MS = 60 * 60 * 1000;
 const RELAY_DUPLICATE_SEQUENCE_RETRIES = 2;
 const RELAY_INTENT_VERSION = 2;
@@ -165,70 +134,12 @@ function sideToQueueSide(side: OrderSide): QueueSide {
   return side === 'Buy' ? QueueSide.Bid : QueueSide.Ask;
 }
 
-function pickPlaceLane(
-  lanes: RelayConfigResponse['lanes'],
-  side: OrderSide
-): RelayConfigResponse['lanes'][number] | null {
-  if (!lanes.length) return null;
-  if (side === 'Buy') {
-    return (
-      lanes.find(lane => /bid|buy|maker/i.test(lane.name)) ||
-      lanes.find(lane => /place/i.test(lane.name)) ||
-      lanes[0]
-    );
-  }
-  return (
-    lanes.find(lane => /ask|sell|taker/i.test(lane.name)) ||
-    lanes.find(lane => /place/i.test(lane.name)) ||
-    lanes[0]
-  );
-}
-
-function pickCancelLane(
-  lanes: RelayConfigResponse['lanes']
-): RelayConfigResponse['lanes'][number] | null {
-  if (!lanes.length) return null;
-  return lanes.find(lane => /cancel/i.test(lane.name)) || lanes[0];
-}
-
-function remapLaneAccountsForOwner(
-  laneAccounts: RelayConfigResponse['lanes'][number]['remaining_accounts'],
-  configData: RelayConfigResponse,
-  ownerPubkey: string,
-  ownerMangoAccount: string
-): RelayConfigResponse['lanes'][number]['remaining_accounts'] {
-  if (!ownerMangoAccount) return laneAccounts;
-  const knownMangoAccounts = new Set<string>();
-  const knownOwners = new Set<string>();
-  if (configData.mango_account) knownMangoAccounts.add(configData.mango_account);
-  Object.entries(configData.owner_to_mango_account || {}).forEach(([owner, pk]) => {
-    if (owner) knownOwners.add(owner);
-    if (pk) knownMangoAccounts.add(pk);
-  });
-
-  const remappedAccounts = laneAccounts.map(account =>
-    knownMangoAccounts.has(account.pubkey)
-      ? { ...account, pubkey: ownerMangoAccount }
-      : knownOwners.has(account.pubkey)
-        ? { ...account, pubkey: ownerPubkey }
-        : account
-  );
-
-  // For execution-queue place/cancel lanes, slot [1] is the user's mango account
-  // and slot [2] is the owner. Force those slots so stale lane templates do not
-  // survive if the backend serves an outdated lane file.
-  if (remappedAccounts.length >= 3) {
-    remappedAccounts[1] = { ...remappedAccounts[1], pubkey: ownerMangoAccount };
-    remappedAccounts[2] = { ...remappedAccounts[2], pubkey: ownerPubkey };
-  }
-
-  return remappedAccounts;
-}
-
 export function usePerps() {
   const { publicKey, signMessage, wallet } = useWallet();
+  const { connection } = useConnection();
   const { selectedMarket } = useSelectedMarket();
   const owner = publicKey?.toBase58() || '';
+  const { pk: mangoAccountPk } = useAccountMangoAccount(owner || undefined);
   const selectedMarketId = selectedMarket?.uuid || config.devnet.defaultHarnessMarketId;
   const hasSelectedMarket = Boolean(selectedMarket);
   const fallbackBaseDecimals = Number(selectedMarket?.base_decimals ?? config.devnet.baseDecimals);
@@ -237,16 +148,13 @@ export function usePerps() {
   );
   const fallbackBaseLotSize = Number(selectedMarket?.base_lot_size ?? config.devnet.baseLotSize);
   const fallbackQuoteLotSize = Number(selectedMarket?.quote_lot_size ?? config.devnet.quoteLotSize);
-  const relayConfigCacheRef = useRef<{
+  const canonicalAccountsCacheRef = useRef<{
     owner: string;
-    market: string;
-    value: ResolvedRelayConfig;
+    mangoAccount: string;
+    marketIndex: number;
+    group: string;
+    remainingAccounts: QueueAccountMeta[];
     fetchedAtMs: number;
-  } | null>(null);
-  const relayConfigRequestRef = useRef<{
-    owner: string;
-    market: string;
-    promise: Promise<ResolvedRelayConfig>;
   } | null>(null);
   const marketMetaCacheRef = useRef<{
     market: string;
@@ -257,7 +165,6 @@ export function usePerps() {
     market: string;
     promise: Promise<ExecutionMarketParams>;
   } | null>(null);
-  const [relayConfigState, setRelayConfigState] = useState<ResolvedRelayConfig | null>(null);
 
   const logPerf = useCallback((label: string, data: Record<string, number | string>) => {
     if (import.meta.env.DEV) {
@@ -537,141 +444,64 @@ export function usePerps() {
     );
   };
 
-  const resolveRelayConfig = useCallback(async (): Promise<ResolvedRelayConfig> => {
-    if (!owner) {
-      throw new Error('Wallet not connected');
-    }
+  const resolveCanonicalAccountsForMarket = useCallback(
+    async (
+      marketIndex: number
+    ): Promise<{
+      group: string;
+      mangoAccount: string;
+      remainingAccounts: QueueAccountMeta[];
+    }> => {
+      if (!publicKey) throw new Error('Wallet not connected');
+      if (!mangoAccountPk) throw new Error('Mango account missing; deposit margin first');
 
-    const startedAt = performance.now();
-    const bridgeUrl = config.devnet.gatewayUrl;
-    const market = selectedMarketId;
-    const cached = relayConfigCacheRef.current;
-    if (
-      cached &&
-      cached.owner === owner &&
-      cached.market === market &&
-      Date.now() - cached.fetchedAtMs < RELAY_CONFIG_CACHE_TTL_MS
-    ) {
-      logPerf('relay-config', {
-        strategy: 'cache-hit',
-        resolve_ms: Math.round(performance.now() - startedAt),
-      });
-      return cached.value;
-    }
-
-    const inFlight = relayConfigRequestRef.current;
-    if (inFlight && inFlight.owner === owner && inFlight.market === market) {
-      logPerf('relay-config', {
-        strategy: 'in-flight',
-        resolve_ms: Math.round(performance.now() - startedAt),
-      });
-      return inFlight.promise;
-    }
-
-    const request = (async (): Promise<ResolvedRelayConfig> => {
-      const response = await axios.get<RelayConfigResponse>(
-        `${bridgeUrl}${API_ROUTES.relay_config}?owner=${encodeURIComponent(owner)}`
-      );
-      const configData = response.data;
-
-      const group = configData.group || config.devnet.mangoGroupPk;
-      const executionQueue = configData.execution_queue || config.devnet.mangoExecutionQueuePk;
-      const resolvedMarket = market || configData.market || config.devnet.defaultHarnessMarketId;
-      let mangoAccount = configData.owner_to_mango_account?.[owner] || '';
-
-      if (!mangoAccount) {
-        try {
-          const depositContextResponse = await axios.get<DepositContextResponse>(
-            `${config.devnet.gatewayUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner)}`
-          );
-          const depositContext = depositContextResponse.data;
-          if (depositContext && !depositContext.mango_account_exists) {
-            throw new Error('Mango account missing; deposit first');
-          }
-          if (depositContext?.mango_account) {
-            mangoAccount = depositContext.mango_account;
-          }
-        } catch (error) {
-          if (error instanceof Error && error.message === 'Mango account missing; deposit first') {
-            throw error;
-          }
-        }
+      const cached = canonicalAccountsCacheRef.current;
+      if (
+        cached &&
+        cached.owner === owner &&
+        cached.mangoAccount === mangoAccountPk &&
+        cached.marketIndex === marketIndex &&
+        Date.now() - cached.fetchedAtMs < MANGO_STATE_TTL_MS
+      ) {
+        return {
+          group: cached.group,
+          mangoAccount: cached.mangoAccount,
+          remainingAccounts: cached.remainingAccounts,
+        };
       }
 
-      if (!mangoAccount) {
-        try {
-          // v2 path: /v2/snapshot/account/:owner returns the full user snapshot
-          // including margin_summary.accounts[].mango_account. Legacy
-          // /state/balances kept behind the flag during rollout.
-          if (config.devnet.useV2ReadLayer) {
-            const accountResponse = await axios.get<{
-              margin_summary?: {
-                accounts?: Array<{ mango_account?: string }>;
-              };
-            }>(
-              `${config.devnet.gatewayUrl}${API_ROUTES_V2.snapshot_account.replace('{owner}', encodeURIComponent(owner))}?view=optimistic`
-            );
-            const ownerMangoAccount =
-              accountResponse.data?.margin_summary?.accounts?.[0]?.mango_account;
-            if (ownerMangoAccount) {
-              mangoAccount = ownerMangoAccount;
-            }
-          } else {
-            const balancesResponse = await axios.get<HarnessOwnerBalancesResponse>(
-              `${config.devnet.gatewayUrl}${API_ROUTES.user_balances.replace('{pubkey}', owner)}?view=optimistic&onchain=false`
-            );
-            const ownerMangoAccount = balancesResponse.data?.data?.mango_accounts?.[0];
-            if (ownerMangoAccount) {
-              mangoAccount = ownerMangoAccount;
-            }
-          }
-        } catch {
-          // Keep existing relay-config fallback when harness lookup fails.
-        }
-      }
-
-      if (!mangoAccount) {
-        mangoAccount = configData.mango_account || config.devnet.defaultMangoAccountPk;
-      }
-
-      if (!group || !executionQueue || !mangoAccount) {
-        throw new Error('Missing relay bridge configuration (group/execution_queue/mango_account)');
-      }
-
-      const resolved: ResolvedRelayConfig = {
-        configData,
+      const startedAt = performance.now();
+      const { client, group } = await getMangoClientAndGroup(connection);
+      const mangoAccount = await client.getMangoAccount(new PublicKey(mangoAccountPk));
+      const remainingAccounts = await buildCanonicalPerpRemainingAccounts({
+        client,
         group,
-        executionQueue,
-        market: resolvedMarket,
         mangoAccount,
-      };
+        userOwner: publicKey,
+        marketIndex,
+      });
+      logPerf('canonical-accounts', {
+        market: marketIndex,
+        resolve_ms: Math.round(performance.now() - startedAt),
+        account_count: remainingAccounts.length,
+      });
 
-      setRelayConfigState(resolved);
-      relayConfigCacheRef.current = {
+      const result = {
+        group: group.publicKey.toBase58(),
+        mangoAccount: mangoAccountPk,
+        remainingAccounts,
+      };
+      canonicalAccountsCacheRef.current = {
         owner,
-        market,
-        value: resolved,
+        mangoAccount: mangoAccountPk,
+        marketIndex,
+        ...result,
         fetchedAtMs: Date.now(),
       };
-      logPerf('relay-config', {
-        strategy: 'network',
-        resolve_ms: Math.round(performance.now() - startedAt),
-      });
-      return resolved;
-    })();
-    relayConfigRequestRef.current = {
-      owner,
-      market,
-      promise: request,
-    };
-    try {
-      return await request;
-    } finally {
-      if (relayConfigRequestRef.current?.promise === request) {
-        relayConfigRequestRef.current = null;
-      }
-    }
-  }, [logPerf, owner, selectedMarketId]);
+      return result;
+    },
+    [connection, logPerf, mangoAccountPk, owner, publicKey]
+  );
 
   const resolveExecutionMarketParams = useCallback(async (): Promise<ExecutionMarketParams> => {
     if (!hasSelectedMarket) {
@@ -769,32 +599,12 @@ export function usePerps() {
     selectedMarketId,
   ]);
 
-  useEffect(() => {
-    if (!owner) return;
-    void resolveRelayConfig().catch(() => undefined);
-  }, [owner, resolveRelayConfig]);
-
-  useEffect(() => {
-    if (!hasSelectedMarket) return;
-    void resolveExecutionMarketParams().catch(() => undefined);
-    if (owner) {
-      void resolveRelayConfig().catch(() => undefined);
-    }
-  }, [hasSelectedMarket, owner, resolveExecutionMarketParams, resolveRelayConfig]);
-
   const submitIntent = async (params: {
     payloadBytes: Uint8Array;
-    remainingAccounts: Array<{
-      pubkey: string;
-      is_signer: boolean;
-      is_writable: boolean;
-    }>;
+    remainingAccounts: QueueAccountMeta[];
     group: string;
-    executionQueue: string;
     market: string;
     mangoAccount: string;
-    priceForTick: number;
-    sizeForTick: number;
   }): Promise<{
     success: boolean;
     txSignature?: string;
@@ -804,19 +614,20 @@ export function usePerps() {
     if (!publicKey || !signMessage) {
       throw new Error('Wallet not connected');
     }
+    if (!config.devnet.mangoProgramId) {
+      throw new Error('VITE_MANGO_PROGRAM_ID is not configured');
+    }
 
     const targetIndex = Number(params.market);
     if (!Number.isInteger(targetIndex) || targetIndex < 0) {
       throw new Error(`Invalid market index for relay intent: ${params.market}`);
     }
 
-    const v5ExecutionQueue = config.devnet.mangoProgramId
-      ? deriveExecutionQueueV5Pda(
-          config.devnet.mangoProgramId,
-          params.group,
-          targetIndex
-        ).toBase58()
-      : params.executionQueue;
+    const v5ExecutionQueue = deriveExecutionQueueV5Pda(
+      config.devnet.mangoProgramId,
+      params.group,
+      targetIndex
+    ).toBase58();
 
     const intentClientOrderId = randomU64();
     const startedAt = performance.now();
@@ -975,18 +786,11 @@ export function usePerps() {
         throw new Error('Invalid size');
       }
 
-      const relay = await resolveRelayConfig();
-      const marketMeta = await resolveExecutionMarketParams();
-      const lane = pickPlaceLane(relay.configData.lanes, side);
-      if (!lane) {
-        throw new Error('No relay lane is configured for limit-order');
-      }
-      const remainingAccounts = remapLaneAccountsForOwner(
-        lane.remaining_accounts,
-        relay.configData,
-        publicKey.toBase58(),
-        relay.mangoAccount
-      );
+      const targetIndex = Number(selectedMarketId);
+      const [marketMeta, canonical] = await Promise.all([
+        resolveExecutionMarketParams(),
+        resolveCanonicalAccountsForMarket(targetIndex),
+      ]);
 
       const payloadBytes = buildPlacePayload({
         side,
@@ -1000,13 +804,10 @@ export function usePerps() {
 
       const result = await submitIntent({
         payloadBytes,
-        remainingAccounts,
-        group: relay.group,
-        executionQueue: relay.executionQueue,
-        market: relay.market,
-        mangoAccount: relay.mangoAccount,
-        priceForTick: priceValue,
-        sizeForTick: sizeValue,
+        remainingAccounts: canonical.remainingAccounts,
+        group: canonical.group,
+        market: selectedMarketId,
+        mangoAccount: canonical.mangoAccount,
       });
 
       showOrderToast(`${side} order placed`, result.txSignature, result.acceptedLatencyMs);
@@ -1056,18 +857,11 @@ export function usePerps() {
         throw new Error('Mark price unavailable');
       }
 
-      const relay = await resolveRelayConfig();
-      const marketMeta = await resolveExecutionMarketParams();
-      const lane = pickPlaceLane(relay.configData.lanes, side);
-      if (!lane) {
-        throw new Error('No relay lane is configured for market-order');
-      }
-      const remainingAccounts = remapLaneAccountsForOwner(
-        lane.remaining_accounts,
-        relay.configData,
-        publicKey.toBase58(),
-        relay.mangoAccount
-      );
+      const targetIndex = Number(selectedMarketId);
+      const [marketMeta, canonical] = await Promise.all([
+        resolveExecutionMarketParams(),
+        resolveCanonicalAccountsForMarket(targetIndex),
+      ]);
 
       const slippageFraction = Math.max(0, maxSlippageBps) / 10_000;
       const slippageMultiplier = side === 'Buy' ? 1 + slippageFraction : 1 - slippageFraction;
@@ -1084,13 +878,10 @@ export function usePerps() {
 
       const result = await submitIntent({
         payloadBytes,
-        remainingAccounts,
-        group: relay.group,
-        executionQueue: relay.executionQueue,
-        market: relay.market,
-        mangoAccount: relay.mangoAccount,
-        priceForTick: markPrice,
-        sizeForTick: sizeValue,
+        remainingAccounts: canonical.remainingAccounts,
+        group: canonical.group,
+        market: selectedMarketId,
+        mangoAccount: canonical.mangoAccount,
       });
 
       showOrderToast(`Market ${side} order placed`, result.txSignature, result.acceptedLatencyMs);
@@ -1164,18 +955,11 @@ export function usePerps() {
         orderType = QueuePlaceOrderType.Limit;
       }
 
-      const relay = await resolveRelayConfig();
-      const marketMeta = await resolveExecutionMarketParams();
-      const lane = pickPlaceLane(relay.configData.lanes, side);
-      if (!lane) {
-        throw new Error('No relay lane is configured for close-position');
-      }
-      const remainingAccounts = remapLaneAccountsForOwner(
-        lane.remaining_accounts,
-        relay.configData,
-        publicKey.toBase58(),
-        relay.mangoAccount
-      );
+      const targetIndex = Number(selectedMarketId);
+      const [marketMeta, canonical] = await Promise.all([
+        resolveExecutionMarketParams(),
+        resolveCanonicalAccountsForMarket(targetIndex),
+      ]);
 
       const payloadBytes = buildPlacePayload({
         side,
@@ -1189,13 +973,10 @@ export function usePerps() {
 
       const result = await submitIntent({
         payloadBytes,
-        remainingAccounts,
-        group: relay.group,
-        executionQueue: relay.executionQueue,
-        market: relay.market,
-        mangoAccount: relay.mangoAccount,
-        priceForTick: closeMode === 'market' ? markPrice : priceValue,
-        sizeForTick: sizeValue,
+        remainingAccounts: canonical.remainingAccounts,
+        group: canonical.group,
+        market: selectedMarketId,
+        mangoAccount: canonical.mangoAccount,
       });
 
       showOrderToast(
@@ -1237,28 +1018,15 @@ export function usePerps() {
         throw new Error('Selected market not found');
       }
 
-      const relay = await resolveRelayConfig();
-      const lane = pickCancelLane(relay.configData.lanes);
-      if (!lane) {
-        throw new Error('No relay lane is configured for cancel-order');
-      }
-      const remainingAccounts = remapLaneAccountsForOwner(
-        lane.remaining_accounts,
-        relay.configData,
-        publicKey.toBase58(),
-        relay.mangoAccount
-      );
-
+      const targetIndex = Number(selectedMarketId);
+      const canonical = await resolveCanonicalAccountsForMarket(targetIndex);
       const payloadBytes = encodePerpCancelOrderQueuePayload(BigInt(orderId));
       const result = await submitIntent({
         payloadBytes,
-        remainingAccounts,
-        group: relay.group,
-        executionQueue: relay.executionQueue,
-        market: relay.market,
-        mangoAccount: relay.mangoAccount,
-        priceForTick: 0,
-        sizeForTick: 0,
+        remainingAccounts: canonical.remainingAccounts,
+        group: canonical.group,
+        market: selectedMarketId,
+        mangoAccount: canonical.mangoAccount,
       });
 
       showOrderToast('Order cancelled', result.txSignature, result.acceptedLatencyMs);
@@ -1288,6 +1056,5 @@ export function usePerps() {
     openMarketPosition,
     closePosition,
     cancelOrder,
-    relayConfig: relayConfigState,
   };
 }

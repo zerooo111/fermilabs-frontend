@@ -19,6 +19,26 @@ interface WalletContextProviderProps {
   children: React.ReactNode;
 }
 
+// Many wallet-adapter errors (e.g. WalletNotReadyError) carry an empty `.message`,
+// so falling back on the error class name keeps the toast useful.
+const WALLET_ERROR_MESSAGES: Record<string, string> = {
+  WalletNotReadyError: 'Wallet not detected. Install or unlock the wallet extension and try again.',
+  WalletNotConnectedError: 'Wallet not connected.',
+  WalletDisconnectedError: 'Wallet disconnected.',
+  WalletTimeoutError: 'Wallet operation timed out. Try again.',
+  WalletWindowClosedError: 'Wallet window was closed before completing the request.',
+  WalletConnectionError: 'Failed to connect wallet.',
+};
+
+function formatWalletError(error: unknown): string | null {
+  if (!error) return null;
+  const { name, message } = error as { name?: string; message?: string };
+  // Suppress signing rejections — handled inline at the call site (see usePerps).
+  if (name === 'WalletSignMessageError') return null;
+  if (message && /reject|denied|cancel/i.test(message)) return null;
+  return WALLET_ERROR_MESSAGES[name ?? ''] ?? message ?? name ?? 'Wallet error';
+}
+
 export function WalletContextProvider({ children }: WalletContextProviderProps) {
   const endpoint = config.devnet.rpcUrl;
   const wsEndpoint = config.devnet.wsUrl;
@@ -39,7 +59,8 @@ export function WalletContextProvider({ children }: WalletContextProviderProps) 
         autoConnect={autoConnect}
         onError={error => {
           console.error('Wallet adapter error:', error);
-          toast.error(error?.message || 'Wallet connection failed');
+          const message = formatWalletError(error);
+          if (message) toast.error(message);
         }}
       >
         <WalletModalProvider>{children}</WalletModalProvider>

@@ -85,10 +85,10 @@ export function ConnectWallet() {
     try {
       await connect();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to connect wallet';
-      toast.error(message);
+      // Toast is handled globally by WalletProvider.onError.
+      const err = error as { name?: string; message?: string };
       posthog.capture('wallet_connection_failed', {
-        error_message: message,
+        error_message: err?.message || err?.name || 'Unknown error',
         wallet_name: wallet?.adapter?.name,
       });
       // If provider is unavailable or authorization was rejected, allow wallet re-selection.

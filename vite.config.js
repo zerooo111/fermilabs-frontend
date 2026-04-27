@@ -18,8 +18,18 @@ export default defineConfig({
     strictPort: true,
   },
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: [
+      // Anchor's browser entry strips the `Wallet` class, which @blockworks-foundation/mango-v4
+      // imports statically at the top of its client. Force the ESM entry so Wallet is bundled.
+      // We never call Wallet on the user's behalf — actual signing happens via the browser
+      // wallet adapter (see signIntentMessage in usePerps); MangoClient only uses a read-only
+      // stub for IDL/group reads. The regex anchors to the bare specifier so subpath imports
+      // like `@coral-xyz/anchor/dist/cjs/nodewallet` still resolve normally.
+      {
+        find: /^@coral-xyz\/anchor$/,
+        replacement: path.resolve(__dirname, './src/shared/lib/anchor-shim.ts'),
+      },
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+    ],
   },
 });
