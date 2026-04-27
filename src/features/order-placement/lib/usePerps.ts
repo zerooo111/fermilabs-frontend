@@ -127,6 +127,16 @@ function formatRelaySubmitError(error: unknown): string {
     return 'Relay base fee too low. Retry with AUTO fee selection or increase the fee cap.';
   }
 
+  // Opaque upstream gRPC failures (e.g. "1 CANCELLED: Call cancelled") give no clue
+  // on their own. Dump the full HTTP response so the cause is visible in DevTools.
+  if (/^\d+\s+\w+/.test(detail)) {
+    console.error('[relay submit] upstream gRPC error', {
+      status: error.response?.status,
+      data: error.response?.data,
+      headers: error.response?.headers,
+    });
+  }
+
   return detail;
 }
 
@@ -657,6 +667,9 @@ export function usePerps() {
       intent_version: RELAY_INTENT_VERSION,
       target_kind: IntentTargetKind.PerpMarket,
       target_index: targetIndex,
+      // Mirror cont-sdk-fresh/trading.ts: send both fields. The HTTP bridge / older
+      // relayer builds may still read `base_fee`; v5 reads `max_fee_lamports`.
+      base_fee: 'AUTO',
       max_fee_lamports: 'AUTO',
       payload_b64: bytesToBase64(params.payloadBytes),
       remaining_accounts: params.remainingAccounts,
