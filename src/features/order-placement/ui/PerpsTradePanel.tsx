@@ -14,6 +14,7 @@ import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
 import { Slider } from '@/shared/ui/slider';
 import { useSelectedMarket, sltpValuesAtom } from '@/entities/market';
+import { useFeeStatus, feeCreditDialogOpenAtom } from '@/features/fee-credit';
 import { useSetAtom } from 'jotai';
 import { getLeverageLimitsFromMarket } from '@/entities/market/model';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
@@ -74,6 +75,10 @@ export function PerpsTradePanel() {
   const { selectedMarket } = useSelectedMarket();
   const { openPosition, openMarketPosition } = usePerps();
   const setSLTPValues = useSetAtom(sltpValuesAtom);
+  const setFeeCreditOpen = useSetAtom(feeCreditDialogOpenAtom);
+  const feeStatus = useFeeStatus();
+  const feeHealth = feeStatus.health;
+  const feeInsufficient = !!publicKey && feeStatus.isSuccess && !feeStatus.data?.ok;
 
   // Fetch market stats to get mark price
   const { data: marketsData } = useMarketStats({
@@ -568,6 +573,36 @@ export function PerpsTradePanel() {
           )}
         </div>
 
+        {publicKey && feeHealth !== 'unknown' && (
+          <div
+            className={`flex items-center justify-between px-2 py-1.5 text-xs border ${
+              feeInsufficient
+                ? 'bg-danger/10 border-danger/30 text-danger'
+                : feeHealth === 'warn'
+                  ? 'bg-amber-400/10 border-amber-400/30 text-amber-300'
+                  : 'bg-success/10 border-success/30 text-success'
+            }`}
+          >
+            <span>
+              {feeInsufficient
+                ? 'Insufficient fee credit'
+                : feeHealth === 'warn'
+                  ? 'Fee credit running low'
+                  : `Fee credit: ${feeStatus.data ? (feeStatus.data.fee_account.available_balance_lamports / 1e9).toFixed(4) : '—'} SOL`}
+            </span>
+            {(feeInsufficient || feeHealth === 'warn') && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-5 px-2 text-[10px]"
+                onClick={() => setFeeCreditOpen(true)}
+              >
+                Top Up
+              </Button>
+            )}
+          </div>
+        )}
+
         {!publicKey ? (
           <Button
             variant="outline"
@@ -583,7 +618,8 @@ export function PerpsTradePanel() {
               disabled={
                 (formState.orderType !== 'market' && priceValue <= 0) ||
                 sizeValue <= 0 ||
-                isSubmitting
+                isSubmitting ||
+                feeInsufficient
               }
               variant="success"
               onClick={() => handleOpenPosition('Buy')}
@@ -602,7 +638,8 @@ export function PerpsTradePanel() {
               disabled={
                 (formState.orderType !== 'market' && priceValue <= 0) ||
                 sizeValue <= 0 ||
-                isSubmitting
+                isSubmitting ||
+                feeInsufficient
               }
               onClick={() => handleOpenPosition('Sell')}
             >

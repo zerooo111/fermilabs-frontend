@@ -6,7 +6,8 @@ import { useMemo, useState } from 'react';
 import { Coins, Loader2 } from 'lucide-react';
 import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAtom } from 'jotai';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
 import { Button } from '@/shared/ui/button';
@@ -21,43 +22,27 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { NumberInput } from '@/shared/ui/number-input';
 import { cn } from '@/lib/utils';
-import { createFeeClient, depositFeeCreditWithWallet, type FeeStatus } from '@/shared/api/fees';
+import { createFeeClient, depositFeeCreditWithWallet } from '@/shared/api/fees';
 import { useAccountMangoAccount } from '@/shared/hooks/useAccount';
+import { useFeeStatus, formatSolFromLamports, FEE_STATUS_QUERY_KEY } from '../model/useFeeStatus';
+import { feeCreditDialogOpenAtom } from '../model/feeCreditAtoms';
 
 const DEPOSIT_PRESETS_SOL = [0.01, 0.05, 0.1, 0.25];
-
-function formatSol(lamports: number | null | undefined): string {
-  if (lamports === null || lamports === undefined) return '—';
-  return (lamports / LAMPORTS_PER_SOL).toFixed(4);
-}
 
 export function FeeCreditDialog() {
   const { publicKey } = useWallet();
   const anchorWallet = useAnchorWallet();
   const { connection } = useConnection();
-  const { pk: mangoAccountPk, isLoading: isLoadingMangoAccount } = useAccountMangoAccount(
-    publicKey?.toBase58()
-  );
+  const { isLoading: isLoadingMangoAccount } = useAccountMangoAccount(publicKey?.toBase58());
   const queryClient = useQueryClient();
   const feeClient = useMemo(() => createFeeClient(), []);
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useAtom(feeCreditDialogOpenAtom);
   const [amountSol, setAmountSol] = useState<string>('0.05');
   const [isDepositing, setIsDepositing] = useState(false);
 
-  const statusQuery = useQuery<FeeStatus>({
-    queryKey: ['fee-status', publicKey?.toBase58(), mangoAccountPk],
-    queryFn: () =>
-      feeClient.getStatus({
-        userOwner: publicKey!.toBase58(),
-        mangoAccount: mangoAccountPk!,
-      }),
-    // Fetch proactively so the trigger button can surface the balance even
-    // when the dialog is closed. Tighter polling while the dialog is open.
-    enabled: !!publicKey && !!mangoAccountPk,
-    refetchInterval: open ? 10_000 : 30_000,
-    staleTime: 5_000,
-  });
+  const statusQuery = useFeeStatus({ refetchInterval: open ? 10_000 : 30_000 });
+  const { mangoAccountPk } = statusQuery;
 
   if (!publicKey) return null;
 
@@ -91,7 +76,9 @@ export function FeeCreditDialog() {
           <div>
             <strong>Fee Credit Funded</strong>
           </div>
-          <div>Balance: {formatSol(data.fee_account.available_balance_lamports)} SOL</div>
+          <div>
+            Balance: {formatSolFromLamports(data.fee_account.available_balance_lamports)} SOL
+          </div>
           {data.duplicate && <div className="text-xs">Already credited</div>}
         </div>
       ),
@@ -114,7 +101,7 @@ export function FeeCreditDialog() {
           wallet: publicKey.toBase58(),
         });
         queryClient.invalidateQueries({
-          queryKey: ['fee-status', publicKey.toBase58(), mangoAccountPk],
+          queryKey: FEE_STATUS_QUERY_KEY(publicKey.toBase58(), mangoAccountPk ?? undefined),
         });
       })
       .catch((err: any) => {
@@ -130,15 +117,7 @@ export function FeeCreditDialog() {
 
   const available = feeAccount?.available_balance_lamports ?? null;
   const quoted = quote?.quoted_fee_lamports ?? null;
-  // Health tiers: danger = cannot cover one quoted fee; warn = <2x quoted; ok = comfortable.
-  const health: 'ok' | 'warn' | 'danger' | 'unknown' =
-    available === null
-      ? 'unknown'
-      : quoted && available < quoted
-        ? 'danger'
-        : quoted && available < quoted * 2
-          ? 'warn'
-          : 'ok';
+  const { health } = statusQuery;
   const hasData = statusQuery.isSuccess && available !== null;
 
   return (
@@ -172,7 +151,7 @@ export function FeeCreditDialog() {
                 <span className="font-sans text-xs text-rock/60">Fees</span>
                 {hasData ? (
                   <>
-                    <span className="text-sm">{formatSol(available)}</span>
+                    <span className="text-sm">{formatSolFromLamports(available)}</span>
                     <span className="text-[10px] text-rock/50 font-sans tracking-wide">SOL</span>
                   </>
                 ) : statusQuery.isLoading ? (
@@ -188,12 +167,12 @@ export function FeeCreditDialog() {
               <div className="font-sans text-rock/70">Relayer fee credit</div>
               <div className="flex justify-between gap-6">
                 <span className="text-rock/60 font-sans">Available</span>
-                <span>{formatSol(available)} SOL</span>
+                <span>{formatSolFromLamports(available)} SOL</span>
               </div>
               {quoted !== null && (
                 <div className="flex justify-between gap-6">
                   <span className="text-rock/60 font-sans">Quoted fee</span>
-                  <span>{formatSol(quoted)} SOL</span>
+                  <span>{formatSolFromLamports(quoted)} SOL</span>
                 </div>
               )}
               {health === 'danger' && (
@@ -237,29 +216,38 @@ export function FeeCreditDialog() {
             <div className="border border-outline bg-card p-3 space-y-1.5 text-xs font-mono">
               <Row
                 label="Available"
-                value={`${formatSol(feeAccount?.available_balance_lamports)} SOL`}
+                value={`${formatSolFromLamports(feeAccount?.available_balance_lamports)} SOL`}
               />
               <Row
                 label="Paid credit (remaining)"
-                value={formatSol(feeAccount?.paid_credit_remaining_lamports)}
+                value={formatSolFromLamports(feeAccount?.paid_credit_remaining_lamports)}
               />
               <Row
                 label="Sponsored (remaining)"
-                value={formatSol(feeAccount?.sponsored_seed_remaining_lamports)}
+                value={formatSolFromLamports(feeAccount?.sponsored_seed_remaining_lamports)}
               />
-              <Row label="Reserved" value={formatSol(feeAccount?.reserved_lamports)} />
-              <Row label="Debited total" value={formatSol(feeAccount?.debited_lamports_total)} />
+              <Row label="Reserved" value={formatSolFromLamports(feeAccount?.reserved_lamports)} />
+              <Row
+                label="Debited total"
+                value={formatSolFromLamports(feeAccount?.debited_lamports_total)}
+              />
               <Row label="Status" value={feeAccount?.status ?? '—'} />
             </div>
 
             {quote && (
               <div className="border border-outline bg-card p-3 space-y-1.5 text-xs font-mono">
                 <div className="text-rock/60 font-sans mb-1">Current quote</div>
-                <Row label="Quoted fee" value={`${formatSol(quote.quoted_fee_lamports)} SOL`} />
-                <Row label="Normal max" value={`${formatSol(quote.normal_max_fee_lamports)} SOL`} />
+                <Row
+                  label="Quoted fee"
+                  value={`${formatSolFromLamports(quote.quoted_fee_lamports)} SOL`}
+                />
+                <Row
+                  label="Normal max"
+                  value={`${formatSolFromLamports(quote.normal_max_fee_lamports)} SOL`}
+                />
                 <Row
                   label="Emergency max"
-                  value={`${formatSol(quote.emergency_max_fee_lamports)} SOL`}
+                  value={`${formatSolFromLamports(quote.emergency_max_fee_lamports)} SOL`}
                 />
                 {quote.warning && <div className="text-xs text-danger">⚠ {quote.warning}</div>}
               </div>
