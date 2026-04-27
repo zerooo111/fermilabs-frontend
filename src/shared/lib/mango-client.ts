@@ -34,6 +34,11 @@ export async function getMangoClientAndGroup(
     const programId = new PublicKey(config.devnet.mangoProgramId);
     const client = await MangoClient.connect(provider, 'devnet', programId, {
       idsSource: 'get-program-accounts',
+      // Skip the api.mngo.cloud price-impact fetch — it has no devnet data and hangs
+      // for the OS TCP timeout (~75s) on networks where mngo.cloud is unreachable.
+      // We don't use price-impact data; canonical remaining-accounts only need group
+      // structure (banks, perp markets, oracles), which is read straight from chain.
+      turnOffPriceImpactLoading: true,
     });
     const group = await client.getGroup(new PublicKey(config.devnet.mangoGroupPk));
     return { client, group, connection };
