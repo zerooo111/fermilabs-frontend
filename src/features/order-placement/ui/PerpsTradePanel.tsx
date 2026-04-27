@@ -14,7 +14,11 @@ import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
 import { Slider } from '@/shared/ui/slider';
 import { useSelectedMarket, sltpValuesAtom } from '@/entities/market';
-import { useFeeStatus, feeCreditDialogOpenAtom } from '@/features/fee-credit';
+import {
+  useFeeStatus,
+  feeCreditDialogOpenAtom,
+  formatSolFromLamports,
+} from '@/features/fee-credit';
 import { useSetAtom } from 'jotai';
 import { getLeverageLimitsFromMarket } from '@/entities/market/model';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
@@ -23,6 +27,43 @@ import { toast } from 'sonner';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { useMemo } from 'react';
+
+type FeeBannerTone = 'ok' | 'warn' | 'danger';
+
+const FEE_BANNER_STYLES: Record<FeeBannerTone, string> = {
+  ok: 'bg-success/10 border-success/30 text-success',
+  warn: 'bg-amber-400/10 border-amber-400/30 text-amber-300',
+  danger: 'bg-danger/10 border-danger/30 text-danger',
+};
+
+function FeeBanner({
+  tone,
+  availableLamports,
+  onTopUp,
+}: {
+  tone: FeeBannerTone;
+  availableLamports: number | undefined;
+  onTopUp: () => void;
+}) {
+  const message =
+    tone === 'danger'
+      ? 'Insufficient fee credit'
+      : tone === 'warn'
+        ? 'Fee credit running low'
+        : `Fee credit: ${formatSolFromLamports(availableLamports)} SOL`;
+  return (
+    <div
+      className={`flex items-center justify-between px-2 py-1.5 text-xs border ${FEE_BANNER_STYLES[tone]}`}
+    >
+      <span>{message}</span>
+      {tone !== 'ok' && (
+        <Button size="sm" variant="outline" className="h-5 px-2 text-[10px]" onClick={onTopUp}>
+          Top Up
+        </Button>
+      )}
+    </div>
+  );
+}
 
 // Safe parsing functions to prevent NaN errors
 const safeParseFloat = (value: string, defaultValue: number = 0): number => {
@@ -574,33 +615,11 @@ export function PerpsTradePanel() {
         </div>
 
         {publicKey && feeHealth !== 'unknown' && (
-          <div
-            className={`flex items-center justify-between px-2 py-1.5 text-xs border ${
-              feeInsufficient
-                ? 'bg-danger/10 border-danger/30 text-danger'
-                : feeHealth === 'warn'
-                  ? 'bg-amber-400/10 border-amber-400/30 text-amber-300'
-                  : 'bg-success/10 border-success/30 text-success'
-            }`}
-          >
-            <span>
-              {feeInsufficient
-                ? 'Insufficient fee credit'
-                : feeHealth === 'warn'
-                  ? 'Fee credit running low'
-                  : `Fee credit: ${feeStatus.data ? (feeStatus.data.fee_account.available_balance_lamports / 1e9).toFixed(4) : '—'} SOL`}
-            </span>
-            {(feeInsufficient || feeHealth === 'warn') && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-5 px-2 text-[10px]"
-                onClick={() => setFeeCreditOpen(true)}
-              >
-                Top Up
-              </Button>
-            )}
-          </div>
+          <FeeBanner
+            tone={feeInsufficient ? 'danger' : feeHealth === 'warn' ? 'warn' : 'ok'}
+            availableLamports={feeStatus.data?.fee_account.available_balance_lamports}
+            onTopUp={() => setFeeCreditOpen(true)}
+          />
         )}
 
         {!publicKey ? (

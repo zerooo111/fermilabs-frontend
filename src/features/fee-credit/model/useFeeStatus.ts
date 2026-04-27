@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { createFeeClient, type FeeStatus } from '@/shared/api/fees';
 import { useAccountMangoAccount } from '@/shared/hooks/useAccount';
+
+const feeClient = createFeeClient();
 
 export const FEE_STATUS_QUERY_KEY = (owner: string | undefined, mangoAccount: string | undefined) =>
   ['fee-status', owner, mangoAccount] as const;
@@ -27,7 +28,6 @@ export function formatSolFromLamports(lamports: number | null | undefined): stri
 export function useFeeStatus(options?: { refetchInterval?: number }) {
   const { publicKey } = useWallet();
   const { pk: mangoAccountPk } = useAccountMangoAccount(publicKey?.toBase58());
-  const feeClient = useMemo(() => createFeeClient(), []);
 
   const query = useQuery<FeeStatus>({
     queryKey: FEE_STATUS_QUERY_KEY(publicKey?.toBase58(), mangoAccountPk ?? undefined),

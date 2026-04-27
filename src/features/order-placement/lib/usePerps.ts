@@ -810,8 +810,6 @@ export function usePerps() {
       throw new Error(`Invalid market index for relay intent: ${params.market}`);
     }
 
-    // Derive the per-market v5 execution queue PDA; fall back to relay config value if
-    // the program ID is not configured (e.g. local dev without env vars).
     const v5ExecutionQueue = config.devnet.mangoProgramId
       ? deriveExecutionQueueV5Pda(
           config.devnet.mangoProgramId,
