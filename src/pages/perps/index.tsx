@@ -36,17 +36,17 @@ function PerpsPage() {
   const setGateOpen = useSetAtom(gateOpenAtom);
   const session = useAtomValue(accessSessionAtom);
 
-  // Open the invite gate on landing unless the user already has a valid session
+  const walletKey = publicKey?.toBase58();
+  const hasSession = !!(
+    walletKey &&
+    session[walletKey]?.token &&
+    session[walletKey].expiresAt - 5 * 60 > Math.floor(Date.now() / 1000)
+  );
+
+  // Keep the gate open while there is no valid session
   useEffect(() => {
-    const walletKey = publicKey?.toBase58();
-    const hasSession =
-      walletKey &&
-      session[walletKey]?.token &&
-      session[walletKey].expiresAt - 5 * 60 > Math.floor(Date.now() / 1000);
-    if (!hasSession) {
-      setGateOpen(true);
-    }
-  }, []);
+    setGateOpen(!hasSession);
+  }, [hasSession, setGateOpen]);
 
   const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
   useSSEStream();
@@ -98,6 +98,12 @@ function PerpsPage() {
       navigate(`/perps/${slug}`, { replace: true });
     }
   }, [selectedMarketId, navigate]);
+
+  // Hard gate: do not render trading UI without a valid session.
+  // The InviteCodeModal is rendered globally (via gateOpenAtom) on top of this.
+  if (!hasSession) {
+    return <div className="min-h-[calc(100vh-60px)]" aria-hidden />;
+  }
 
   // Show inline skeleton while markets are loading
   if (isLoadingMarkets) {
