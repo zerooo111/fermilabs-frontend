@@ -43,9 +43,13 @@ function PerpsPage() {
     session[walletKey].expiresAt - 5 * 60 > Math.floor(Date.now() / 1000)
   );
 
-  // Keep the gate open while there is no valid session
+  // Keep the gate open while there is no valid session.
+  // Always close it when leaving the perps page so it doesn't follow the user.
   useEffect(() => {
     setGateOpen(!hasSession);
+    return () => {
+      setGateOpen(false);
+    };
   }, [hasSession, setGateOpen]);
 
   const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
