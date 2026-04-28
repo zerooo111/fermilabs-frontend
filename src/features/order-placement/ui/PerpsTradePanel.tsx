@@ -5,9 +5,9 @@
 import { Button } from '@/shared/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
-import { Loader2, Wallet, Info } from 'lucide-react';
+import { Loader2, Wallet, Info, AlertTriangle, XCircle } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
@@ -22,11 +22,12 @@ import {
 import { useSetAtom } from 'jotai';
 import { getLeverageLimitsFromMarket } from '@/entities/market/model';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
+import { useSimulate } from '@/features/order-placement/lib/useSimulate';
+import { type SimulateResponse } from '@/features/order-placement/lib/simulateApi';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
 import { toast } from 'sonner';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
-import { useMemo } from 'react';
 
 type FeeBannerTone = 'ok' | 'warn' | 'danger';
 
@@ -60,6 +61,132 @@ function FeeBanner({
         <Button size="sm" variant="outline" className="h-5 px-2 text-[10px]" onClick={onTopUp}>
           Top Up
         </Button>
+      )}
+    </div>
+  );
+}
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
+
+type HealthTone = 'healthy' | 'warn' | 'danger' | 'critical';
+
+function healthTone(ratio: number): HealthTone {
+  if (ratio < 0) return 'critical';
+  if (ratio < 10) return 'danger';
+  if (ratio < 30) return 'warn';
+  return 'healthy';
+}
+
+const HEALTH_BAR_COLOR: Record<HealthTone, string> = {
+  healthy: 'bg-success',
+  warn: 'bg-amber-400',
+  danger: 'bg-orange-500',
+  critical: 'bg-danger',
+};
+
+const HEALTH_TEXT_COLOR: Record<HealthTone, string> = {
+  healthy: 'text-success',
+  warn: 'text-amber-400',
+  danger: 'text-orange-500',
+  critical: 'text-danger',
+};
+
+function HealthBar({ ratio, label }: { ratio: number; label: string }) {
+  const tone = healthTone(ratio);
+  const clamped = Math.max(0, Math.min(100, ratio));
+  return (
+    <div className="space-y-0.5">
+      <div className="flex justify-between text-[10px] text-muted-foreground">
+        <span>{label}</span>
+        <span className={HEALTH_TEXT_COLOR[tone]}>{ratio.toFixed(1)}%</span>
+      </div>
+      <div className="h-1 w-full rounded-full bg-outline overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${HEALTH_BAR_COLOR[tone]}`}
+          style={{ width: `${clamped}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SimulationPreview({
+  buyResult,
+  sellResult,
+  isLoading,
+}: {
+  buyResult: SimulateResponse | undefined;
+  sellResult: SimulateResponse | undefined;
+  isLoading: boolean;
+}) {
+  const result = buyResult ?? sellResult;
+
+  if (!result && !isLoading) return null;
+
+  return (
+    <div
+      className={`bg-card border text-xs p-2 space-y-2 ${
+        result?.would_reject ? 'border-danger/50' : 'border-outline'
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-muted-foreground uppercase tracking-wide text-[10px]">
+          Position Preview
+        </span>
+        {isLoading && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+      </div>
+
+      {result && (
+        <>
+          <div className="space-y-1.5">
+            <HealthBar ratio={result.after.init_health_ratio} label="Init Health (after)" />
+            <HealthBar ratio={result.after.maint_health_ratio} label="Maint Health (after)" />
+          </div>
+
+          <div className="flex items-center justify-between border-t border-outline pt-1.5">
+            <span className="text-muted-foreground">Health Impact</span>
+            <span
+              className={
+                result.delta.init_health_ui_quote < 0 ? 'text-danger tabular-nums' : 'tabular-nums'
+              }
+            >
+              {result.delta.init_health_ui_quote < 0 ? '−' : '+'}$
+              {Math.abs(result.delta.init_health_ui_quote).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </span>
+          </div>
+
+          {result.warnings.length > 0 && (
+            <div className="space-y-1">
+              {result.warnings.map((w, i) => (
+                <div key={i} className="flex items-start gap-1.5 text-amber-400">
+                  <AlertTriangle className="size-3 mt-0.5 shrink-0" />
+                  <span>{w}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {result.reject_reasons.length > 0 && (
+            <div className="space-y-1">
+              {result.reject_reasons.map((r, i) => (
+                <div key={i} className="flex items-start gap-1.5 text-danger">
+                  <XCircle className="size-3 mt-0.5 shrink-0" />
+                  <span>{r}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -152,6 +279,38 @@ export function PerpsTradePanel() {
   const sizeValue = safeParseFloat(formState.size);
   const leverageValue = safeParseFloat(formState.leverage, 1);
   const orderValue = priceValue * sizeValue;
+  const isMarketOrder = formState.orderType === 'market';
+
+  // Debounced form values for simulation (avoids hitting the API on every keystroke)
+  const debouncedPrice = useDebounce(priceValue, 400);
+  const debouncedSize = useDebounce(sizeValue, 400);
+  const marketIndex = selectedMarket ? parseInt(selectedMarket.uuid, 10) : null;
+  const simulateEnabled = !!publicKey && !!selectedMarket && debouncedSize > 0;
+
+  const buySimulate = useSimulate({
+    owner: publicKey?.toBase58() ?? null,
+    marketIndex,
+    side: 'buy',
+    quantity: debouncedSize,
+    price: isMarketOrder ? null : debouncedPrice > 0 ? debouncedPrice : null,
+    orderType: isMarketOrder ? 'market' : 'limit',
+    enabled: simulateEnabled,
+  });
+
+  const sellSimulate = useSimulate({
+    owner: publicKey?.toBase58() ?? null,
+    marketIndex,
+    side: 'sell',
+    quantity: debouncedSize,
+    price: isMarketOrder ? null : debouncedPrice > 0 ? debouncedPrice : null,
+    orderType: isMarketOrder ? 'market' : 'limit',
+    enabled: simulateEnabled,
+  });
+
+  const buyWouldReject = buySimulate.data?.would_reject ?? false;
+  const sellWouldReject = sellSimulate.data?.would_reject ?? false;
+  const simLoading =
+    (buySimulate.isFetching || sellSimulate.isFetching) && !buySimulate.data && !sellSimulate.data;
 
   // Calculate notional in raw token units for leverage tier lookup
   // Notional = price * size, where both are in human-readable units
@@ -251,8 +410,6 @@ export function PerpsTradePanel() {
   };
 
   const handleOpenPosition = async (side: OrderSide) => {
-    const isMarketOrder = formState.orderType === 'market';
-
     // Validate SL/TP before submitting (skip for market orders since price is unknown)
     if (enableSLTP && !isMarketOrder) {
       const stopLossValue = safeParseFloat(formState.stopLoss);
@@ -623,6 +780,12 @@ export function PerpsTradePanel() {
           />
         )}
 
+        <SimulationPreview
+          buyResult={buySimulate.data}
+          sellResult={sellSimulate.data}
+          isLoading={simLoading}
+        />
+
         {!publicKey ? (
           <Button
             variant="outline"
@@ -639,7 +802,8 @@ export function PerpsTradePanel() {
                 (formState.orderType !== 'market' && priceValue <= 0) ||
                 sizeValue <= 0 ||
                 isSubmitting ||
-                feeInsufficient
+                feeInsufficient ||
+                buyWouldReject
               }
               variant="success"
               onClick={() => handleOpenPosition('Buy')}
@@ -659,7 +823,8 @@ export function PerpsTradePanel() {
                 (formState.orderType !== 'market' && priceValue <= 0) ||
                 sizeValue <= 0 ||
                 isSubmitting ||
-                feeInsufficient
+                feeInsufficient ||
+                sellWouldReject
               }
               onClick={() => handleOpenPosition('Sell')}
             >
