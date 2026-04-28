@@ -89,7 +89,8 @@ const marketBaseDecimals = (selectedMarket: any): number =>
   );
 
 export function PerpsTradePanel() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittingSide, setSubmittingSide] = useState<OrderSide | null>(null);
+  const isSubmitting = submittingSide !== null;
   const [enableSLTP, setEnableSLTP] = useState(false);
   const [formState, setFormState] = useState<{
     price: string;
@@ -273,7 +274,7 @@ export function PerpsTradePanel() {
       return;
     }
 
-    setIsSubmitting(true);
+    setSubmittingSide(side);
 
     try {
       let result: { success: boolean; error?: string };
@@ -312,7 +313,7 @@ export function PerpsTradePanel() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to place order');
     } finally {
-      setIsSubmitting(false);
+      setSubmittingSide(null);
     }
   };
 
@@ -643,7 +644,7 @@ export function PerpsTradePanel() {
               variant="success"
               onClick={() => handleOpenPosition('Buy')}
             >
-              {isSubmitting ? (
+              {submittingSide === 'Buy' ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
                   Buying...
@@ -662,7 +663,7 @@ export function PerpsTradePanel() {
               }
               onClick={() => handleOpenPosition('Sell')}
             >
-              {isSubmitting ? (
+              {submittingSide === 'Sell' ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
                   Selling...
