@@ -178,7 +178,7 @@ export function WaitlistDialog() {
               </Button>
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
+            {/* <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
               <span className="text-sm text-muted-foreground">Already have an invite?</span>
               <Button
                 variant="outline"
@@ -192,7 +192,7 @@ export function WaitlistDialog() {
                 Start trading
                 <ArrowRight weight="bold" className="size-3.5" />
               </Button>
-            </div>
+            </div> */}
           </>
         )}
       </DialogContent>
