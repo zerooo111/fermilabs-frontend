@@ -23,7 +23,7 @@ import { useSetAtom } from 'jotai';
 import { getLeverageLimitsFromMarket } from '@/entities/market/model';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
 import { useSimulate } from '@/features/order-placement/lib/useSimulate';
-import { warmSimulate, type SimulateResponse } from '@/features/order-placement/lib/simulateApi';
+import { warmSimulate } from '@/features/order-placement/lib/simulateApi';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
 import { toast } from 'sonner';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
@@ -75,119 +75,26 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-type HealthTone = 'healthy' | 'warn' | 'danger' | 'critical';
-
-function healthTone(ratio: number): HealthTone {
-  if (ratio < 0) return 'critical';
-  if (ratio < 10) return 'danger';
-  if (ratio < 30) return 'warn';
-  return 'healthy';
+function healthColor(ratio: number) {
+  if (ratio < 0) return { bar: 'bg-danger', text: 'text-danger' };
+  if (ratio < 10) return { bar: 'bg-orange-500', text: 'text-orange-400' };
+  if (ratio < 30) return { bar: 'bg-amber-400', text: 'text-amber-400' };
+  return { bar: 'bg-success', text: 'text-success' };
 }
 
-const HEALTH_BAR_COLOR: Record<HealthTone, string> = {
-  healthy: 'bg-success',
-  warn: 'bg-amber-400',
-  danger: 'bg-orange-500',
-  critical: 'bg-danger',
-};
-
-const HEALTH_TEXT_COLOR: Record<HealthTone, string> = {
-  healthy: 'text-success',
-  warn: 'text-amber-400',
-  danger: 'text-orange-500',
-  critical: 'text-danger',
-};
-
-function HealthBar({ ratio, label }: { ratio: number; label: string }) {
-  const tone = healthTone(ratio);
+function InlineHealthBar({ label, ratio }: { label: string; ratio: number }) {
+  const { bar, text } = healthColor(ratio);
   const clamped = Math.max(0, Math.min(100, ratio));
   return (
-    <div className="space-y-0.5">
-      <div className="flex justify-between text-[10px] text-muted-foreground">
-        <span>{label}</span>
-        <span className={HEALTH_TEXT_COLOR[tone]}>{ratio.toFixed(1)}%</span>
-      </div>
-      <div className="h-1 w-full rounded-full bg-outline overflow-hidden">
+    <div className="flex items-center gap-2">
+      <span className="text-muted-foreground shrink-0 w-28">{label}</span>
+      <div className="flex-1 h-0.5 bg-outline overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-300 ${HEALTH_BAR_COLOR[tone]}`}
+          className={`h-full transition-all duration-500 ${bar}`}
           style={{ width: `${clamped}%` }}
         />
       </div>
-    </div>
-  );
-}
-
-function SimulationPreview({
-  buyResult,
-  sellResult,
-  isLoading,
-}: {
-  buyResult: SimulateResponse | undefined;
-  sellResult: SimulateResponse | undefined;
-  isLoading: boolean;
-}) {
-  const result = buyResult ?? sellResult;
-
-  if (!result && !isLoading) return null;
-
-  return (
-    <div
-      className={`bg-card border text-xs p-2 space-y-2 ${
-        result?.would_reject ? 'border-danger/50' : 'border-outline'
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <span className="font-medium text-muted-foreground uppercase tracking-wide text-[10px]">
-          Position Preview
-        </span>
-        {isLoading && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
-      </div>
-
-      {result && (
-        <>
-          <div className="space-y-1.5">
-            <HealthBar ratio={result.after.init_health_ratio} label="Init Health (after)" />
-            <HealthBar ratio={result.after.maint_health_ratio} label="Maint Health (after)" />
-          </div>
-
-          <div className="flex items-center justify-between border-t border-outline pt-1.5">
-            <span className="text-muted-foreground">Health Impact</span>
-            <span
-              className={
-                result.delta.init_health_ui_quote < 0 ? 'text-danger tabular-nums' : 'tabular-nums'
-              }
-            >
-              {result.delta.init_health_ui_quote < 0 ? '−' : '+'}$
-              {Math.abs(result.delta.init_health_ui_quote).toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </span>
-          </div>
-
-          {result.warnings.length > 0 && (
-            <div className="space-y-1">
-              {result.warnings.map((w, i) => (
-                <div key={i} className="flex items-start gap-1.5 text-amber-400">
-                  <AlertTriangle className="size-3 mt-0.5 shrink-0" />
-                  <span>{w}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {result.reject_reasons.length > 0 && (
-            <div className="space-y-1">
-              {result.reject_reasons.map((r, i) => (
-                <div key={i} className="flex items-start gap-1.5 text-danger">
-                  <XCircle className="size-3 mt-0.5 shrink-0" />
-                  <span>{r}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      <span className={`tabular-nums shrink-0 ${text}`}>{ratio.toFixed(1)}%</span>
     </div>
   );
 }
@@ -786,11 +693,129 @@ export function PerpsTradePanel() {
           />
         )}
 
-        <SimulationPreview
-          buyResult={buySimulate.data}
-          sellResult={sellSimulate.data}
-          isLoading={simLoading}
-        />
+        {/* Order summary — merged static stats + live simulation data */}
+        {(() => {
+          const simResult = buySimulate.data ?? sellSimulate.data;
+          const rejectReasons = simResult?.reject_reasons ?? [];
+          const warnings = simResult?.warnings ?? [];
+          const hasAlerts = rejectReasons.length > 0 || warnings.length > 0;
+          const borderClass = rejectReasons.length > 0 ? 'border-danger/40' : 'border-outline';
+
+          const marginDisplay = (() => {
+            if (!(orderValue > 0 && priceValue > 0 && sizeValue > 0 && leverageValue >= 1))
+              return '—';
+            try {
+              const quoteDecimals = marketQuoteDecimals(selectedMarket);
+              const baseDecimals = marketBaseDecimals(selectedMarket);
+              const priceRaw = Math.floor(priceValue * Math.pow(10, quoteDecimals));
+              const sizeRaw = Math.floor(sizeValue * Math.pow(10, baseDecimals));
+              const marginResult = calculatePerpMargin({
+                price: priceRaw,
+                quantity: sizeRaw,
+                leverage: leverageValue,
+                marketInitialMarginBps: selectedMarket?.perp_config?.initial_margin || 0,
+              });
+              const marginInQuoteUnits =
+                Number(marginResult.requiredMargin) / Math.pow(10, baseDecimals + quoteDecimals);
+              return `${marginInQuoteUnits.toFixed(2)} ${selectedMarket?.quoteTokenName ?? ''}`;
+            } catch {
+              return '—';
+            }
+          })();
+
+          const liqPriceDisplay = (() => {
+            if (!(orderValue > 0 && priceValue > 0 && leverageValue > 1)) return '—';
+            try {
+              return (priceValue * (1 - 1 / leverageValue)).toFixed(
+                marketQuoteDecimals(selectedMarket)
+              );
+            } catch {
+              return '—';
+            }
+          })();
+
+          return (
+            <div className={`bg-card border text-xs mt-auto ${borderClass}`}>
+              {/* Alerts — reject reasons and warnings */}
+              {hasAlerts && (
+                <div className="px-3 pt-2.5 pb-2 space-y-1.5 border-b border-outline">
+                  {rejectReasons.map((r, i) => (
+                    <div key={i} className="flex items-start gap-1.5 text-danger">
+                      <XCircle className="size-3 mt-0.5 shrink-0" />
+                      <span>{r}</span>
+                    </div>
+                  ))}
+                  {warnings.map((w, i) => (
+                    <div key={i} className="flex items-start gap-1.5 text-amber-400">
+                      <AlertTriangle className="size-3 mt-0.5 shrink-0" />
+                      <span>{w}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Static order details */}
+              <div className="px-3 py-2.5 space-y-2">
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Size</span>
+                  <span className="tabular-nums text-foreground">
+                    {sizeValue > 0
+                      ? `${sizeValue.toFixed(marketBaseDecimals(selectedMarket))} ${selectedMarket?.baseTokenName ?? ''}`
+                      : '—'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Margin</span>
+                  <span className="tabular-nums text-foreground">{marginDisplay}</span>
+                </div>
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Est. Liq. Price</span>
+                  <span className="tabular-nums text-foreground">{liqPriceDisplay}</span>
+                </div>
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Fee</span>
+                  <span className="tabular-nums text-foreground">0.01%</span>
+                </div>
+              </div>
+
+              {/* Live simulation — health + impact */}
+              {(simResult || simLoading) && (
+                <div className="px-3 pb-2.5 pt-2 border-t border-dashed border-outline space-y-2">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span className="uppercase tracking-wide text-[10px]">After Trade</span>
+                    {simLoading && (
+                      <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  {simResult && (
+                    <>
+                      <InlineHealthBar
+                        label="Init Health"
+                        ratio={simResult.after.init_health_ratio}
+                      />
+                      <InlineHealthBar
+                        label="Maint Health"
+                        ratio={simResult.after.maint_health_ratio}
+                      />
+                      <div className="flex items-center justify-between text-muted-foreground pt-0.5">
+                        <span>Health Impact</span>
+                        <span
+                          className={`tabular-nums ${simResult.delta.init_health_ui_quote < 0 ? 'text-danger' : 'text-success'}`}
+                        >
+                          {simResult.delta.init_health_ui_quote < 0 ? '−' : '+'}$
+                          {Math.abs(simResult.delta.init_health_ui_quote).toLocaleString(
+                            undefined,
+                            { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                          )}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {!publicKey ? (
           <Button
@@ -845,70 +870,6 @@ export function PerpsTradePanel() {
             </Button>
           </div>
         )}
-        <div className="font-medium bg-card border border-outline p-2 text-xs space-y-1 mt-auto">
-          <div className="flex items-center justify-between">
-            <span>Position Size</span>
-            <span className="tabular-nums">
-              {sizeValue > 0 ? `${sizeValue.toFixed(marketBaseDecimals(selectedMarket))}` : `0.00 `}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Margin Required</span>
-            <span className="tabular-nums">
-              {orderValue > 0 && priceValue > 0 && sizeValue > 0 && leverageValue >= 1
-                ? (() => {
-                    try {
-                      const quoteDecimals = marketQuoteDecimals(selectedMarket);
-                      const baseDecimals = marketBaseDecimals(selectedMarket);
-
-                      // Convert to raw token units to preserve decimal precision
-                      const priceRaw = Math.floor(priceValue * Math.pow(10, quoteDecimals));
-                      const sizeRaw = Math.floor(sizeValue * Math.pow(10, baseDecimals));
-
-                      const marginResult = calculatePerpMargin({
-                        price: priceRaw,
-                        quantity: sizeRaw,
-                        leverage: leverageValue,
-                        marketInitialMarginBps: selectedMarket?.perp_config?.initial_margin || 0,
-                      });
-
-                      // The notional is in (quote * base) decimal units
-                      // Margin should be in quote token units only, so divide by base decimals
-                      // Then convert to human-readable by dividing by quote decimals
-                      const marginInQuoteUnits =
-                        Number(marginResult.requiredMargin) /
-                        Math.pow(10, baseDecimals + quoteDecimals);
-
-                      return marginInQuoteUnits.toFixed(quoteDecimals);
-                    } catch (error) {
-                      console.error('Margin calculation error:', error);
-                      return '0.00';
-                    }
-                  })()
-                : '0.00'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Est. Liq. Price</span>
-            <span className="tabular-nums">
-              {orderValue > 0 && priceValue > 0 && leverageValue > 1
-                ? (() => {
-                    try {
-                      const liqPrice = priceValue * (1 - 1 / leverageValue);
-                      return liqPrice.toFixed(marketQuoteDecimals(selectedMarket));
-                    } catch (error) {
-                      console.error('Liquidation price calculation error:', error);
-                      return '0.00';
-                    }
-                  })()
-                : '0.00'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Fee</span>
-            <span className="tabular-nums">0.01%</span>
-          </div>
-        </div>
       </div>
     </div>
   );
