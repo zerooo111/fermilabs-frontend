@@ -54,7 +54,6 @@ const ERROR_COPY: Record<string, string> = {
 const BETA_ITEMS = [
   "We're shipping fast. Features, fees, and UX may change as we iterate.",
   'Short downtimes and occasional bugs are possible during beta.',
-  "You're using non-production software — don't risk more than you can afford to lose.",
   'Your feedback shapes what we build next.',
 ];
 
