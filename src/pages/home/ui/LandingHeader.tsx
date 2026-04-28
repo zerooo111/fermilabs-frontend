@@ -1,6 +1,7 @@
 import { LINKS } from '../constants';
 import { useState } from 'react';
 import Logo from './Logo';
+import { WaitlistButton } from '@/features/waitlist';
 
 export default function LandingHeader() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -32,12 +33,12 @@ export default function LandingHeader() {
           >
             Whitepaper
           </a>
-          <span
-            aria-disabled="true"
-            className="px-8 h-full flex items-center justify-center cursor-default select-none opacity-60"
-          >
-            Coming Soon
-          </span>
+          <WaitlistButton
+            source="header"
+            label="Join Waitlist"
+            withArrow={false}
+            className="px-8 h-full flex items-center justify-center hover:text-amber-100 hover:bg-white/5 duration-150 ease-out cursor-pointer"
+          />
         </div>
 
         <button
@@ -75,9 +76,13 @@ export default function LandingHeader() {
             >
               Whitepaper
             </a>
-            <span aria-disabled="true" className="px-6 py-4 cursor-default select-none opacity-60">
-              Coming Soon
-            </span>
+            <WaitlistButton
+              source="header-mobile"
+              label="Join Waitlist"
+              withArrow={false}
+              className="px-6 py-4 text-left hover:text-amber-100 hover:bg-white/5 duration-150 ease-out cursor-pointer"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
           </div>
         </div>
       )}

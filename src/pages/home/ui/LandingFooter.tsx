@@ -2,6 +2,7 @@ import { LINKS } from '../constants';
 import { DiscordLogo, XLogo } from '@phosphor-icons/react';
 import Copyright from './Copyright';
 import Logo from './Logo';
+import { WaitlistButton } from '@/features/waitlist';
 
 export function LandingFooter() {
   return (
@@ -25,12 +26,12 @@ export function LandingFooter() {
             >
               Whitepaper
             </a>
-            <span
-              aria-disabled="true"
-              className="px-6 md:px-8 py-4 md:py-0 md:h-full flex items-center justify-center cursor-default select-none opacity-60"
-            >
-              Coming Soon
-            </span>
+            <WaitlistButton
+              source="footer"
+              label="Join Waitlist"
+              withArrow={false}
+              className="px-6 md:px-8 py-4 md:py-0 md:h-full flex items-center justify-center hover:text-amber-100 hover:bg-white/5 duration-150 ease-out cursor-pointer"
+            />
           </div>
         </div>
 

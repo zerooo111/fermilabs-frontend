@@ -33,6 +33,8 @@ import { Input } from '@/shared/ui/input';
 import { AccessGateError, redeemInvite, requestChallenge } from '../api/accessClient';
 import { gateOpenAtom, accessSessionAtom } from '../model/accessAtoms';
 import { writeSession } from '../lib/cache';
+import { waitlistOpenAtom, waitlistSourceAtom } from '@/features/waitlist';
+import { useSetAtom } from 'jotai';
 
 const BETA_ACK_KEY = 'fermi.betaAck';
 
@@ -73,10 +75,18 @@ export function InviteCodeModal() {
   // Beta ack is read once on mount; subsequent dialog opens on the same
   // device skip straight to the code step.
   const [acknowledged, setAcknowledged] = useState(() => readBetaAck());
+  const setWaitlistOpen = useSetAtom(waitlistOpenAtom);
+  const setWaitlistSource = useSetAtom(waitlistSourceAtom);
 
   const handleAcknowledge = () => {
     writeBetaAck();
     setAcknowledged(true);
+  };
+
+  const openWaitlist = () => {
+    setOpen(false);
+    setWaitlistSource('invite-modal');
+    setWaitlistOpen(true);
   };
 
   const handleRedeem = async () => {
@@ -205,6 +215,17 @@ export function InviteCodeModal() {
               <p className="text-xs text-rock/60">
                 You&apos;ll be asked to sign a one-time message to prove wallet ownership. No
                 transaction or gas fee.
+              </p>
+              <p className="text-xs text-rock/70 pt-1 border-t border-rock/15">
+                Don&apos;t have a code?{' '}
+                <button
+                  type="button"
+                  onClick={openWaitlist}
+                  className="underline underline-offset-2 decoration-rock/40 hover:decoration-amber-200 hover:text-amber-100 duration-150 ease-out"
+                >
+                  Join the waitlist
+                </button>
+                .
               </p>
             </div>
           </>

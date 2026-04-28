@@ -1,5 +1,6 @@
 import { ArrowRight } from '@phosphor-icons/react';
 import { LINKS } from '../constants';
+import { WaitlistButton } from '@/features/waitlist';
 
 export default function CTASection() {
   return (
@@ -12,12 +13,7 @@ export default function CTASection() {
       </p>
 
       <div className="mt-8 md:mt-16 flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-6 w-full sm:w-auto">
-        <span
-          aria-disabled="true"
-          className="bg-rock/70 text-dark-forest px-6 sm:px-8 py-3 sm:py-4 text-lg sm:text-xl md:text-2xl font-medium flex items-center justify-center gap-3 sm:gap-4 relative overflow-hidden cursor-default select-none"
-        >
-          Coming Soon
-        </span>
+        <WaitlistButton source="cta" />
 
         <a
           href={LINKS.DISCORD}
