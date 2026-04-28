@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import type { WalletName } from '@solana/wallet-adapter-base';
 import { useAtom, useSetAtom } from 'jotai';
 import { Loader2, Wallet } from 'lucide-react';
 import { Atom, Key, ArrowRight } from '@phosphor-icons/react';
@@ -67,9 +67,9 @@ function HeaderIcon({ children }: { children: React.ReactNode }) {
 }
 
 export function InviteCodeModal() {
-  const { publicKey, signMessage } = useWallet();
-  const { setVisible: setWalletModalVisible } = useWalletModal();
+  const { publicKey, signMessage, wallet, wallets, select, connect, connecting } = useWallet();
   const [open, setOpen] = useAtom(gateOpenAtom);
+  const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null);
   const [, setSession] = useAtom(accessSessionAtom);
   const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +85,41 @@ export function InviteCodeModal() {
   const openWaitlist = () => {
     setWaitlistSource('invite-modal');
     setWaitlistOpen(true);
+  };
+
+  // Dedupe wallets by adapter name (wallet-standard auto-discovery sometimes
+  // registers the same wallet twice — e.g. MetaMask via both injected and Snap).
+  // Keep installed wallets first, then loadable, hide unsupported.
+  const visibleWallets = useMemo(() => {
+    const seen = new Set<string>();
+    const out: typeof wallets = [];
+    const sorted = [...wallets].sort((a, b) => {
+      const score = (w: typeof a) =>
+        w.readyState === 'Installed' ? 0 : w.readyState === 'Loadable' ? 1 : 2;
+      return score(a) - score(b);
+    });
+    for (const w of sorted) {
+      if (w.readyState === 'Unsupported' || w.readyState === 'NotDetected') continue;
+      if (seen.has(w.adapter.name)) continue;
+      seen.add(w.adapter.name);
+      out.push(w);
+    }
+    return out;
+  }, [wallets]);
+
+  // Once a selected wallet's adapter is ready, fire connect()
+  useEffect(() => {
+    if (!pendingWalletName) return;
+    if (!wallet || wallet.adapter.name !== pendingWalletName) return;
+    setPendingWalletName(null);
+    connect().catch(err => {
+      console.error('Wallet connect failed:', err);
+    });
+  }, [pendingWalletName, wallet, connect]);
+
+  const handleSelectWallet = (name: WalletName) => {
+    setPendingWalletName(name);
+    select(name);
   };
 
   const handleRedeem = async () => {
@@ -196,10 +231,38 @@ export function InviteCodeModal() {
               </div>
             </DialogHeader>
 
-            <Button onClick={() => setWalletModalVisible(true)} size="lg" className="w-full">
-              <Wallet className="size-4" />
-              Connect Wallet
-            </Button>
+            <div className="flex flex-col gap-1.5">
+              {visibleWallets.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-3 text-center border border-outline">
+                  No Solana wallet detected. Install Phantom, Solflare, or Backpack.
+                </p>
+              ) : (
+                visibleWallets.map(w => {
+                  const isPending = pendingWalletName === w.adapter.name;
+                  const isActive = wallet?.adapter.name === w.adapter.name && connecting;
+                  const busy = isPending || isActive;
+                  return (
+                    <button
+                      key={w.adapter.name}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => handleSelectWallet(w.adapter.name)}
+                      className="flex items-center gap-3 px-3 py-2.5 border border-outline bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-left"
+                    >
+                      <img src={w.adapter.icon} alt="" className="size-7 shrink-0" aria-hidden />
+                      <span className="flex-1 text-sm font-medium">{w.adapter.name}</span>
+                      {busy ? (
+                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                      ) : (
+                        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                          {w.readyState === 'Installed' ? 'Detected' : 'Install'}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
               <span className="text-sm text-muted-foreground">No invite code?</span>
