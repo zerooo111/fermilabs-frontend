@@ -157,6 +157,7 @@ export function InviteCodeModal() {
   return (
     <Dialog
       open={open}
+      modal={false}
       onOpenChange={() => {
         /* intentionally a no-op — gate dismisses only via explicit buttons */
       }}
