@@ -67,7 +67,8 @@ function HeaderIcon({ children }: { children: React.ReactNode }) {
 }
 
 export function InviteCodeModal() {
-  const { publicKey, signMessage, wallet, wallets, select, connect, connecting } = useWallet();
+  const { publicKey, signMessage, wallet, wallets, select, connect, connecting, connected } =
+    useWallet();
   const [open, setOpen] = useAtom(gateOpenAtom);
   const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null);
   const [, setSession] = useAtom(accessSessionAtom);
