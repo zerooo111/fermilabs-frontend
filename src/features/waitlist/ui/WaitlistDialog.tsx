@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAtom } from 'jotai';
 import { Loader2 } from 'lucide-react';
-import { CheckCircle } from '@phosphor-icons/react';
+import { CheckCircle, EnvelopeSimple, ArrowRight } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 import { Button } from '@/shared/ui/button';
@@ -21,19 +21,6 @@ const ERROR_COPY: Record<string, string> = {
   invalid_email: "That email doesn't look right.",
   network_error: 'Network error. Please try again.',
 };
-
-function GridOverlay() {
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 opacity-[0.025]"
-      style={{
-        backgroundImage:
-          'linear-gradient(hsl(var(--border)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px)',
-        backgroundSize: '40px 40px',
-      }}
-    />
-  );
-}
 
 export function WaitlistDialog() {
   const [open, setOpen] = useAtom(waitlistOpenAtom);
@@ -84,54 +71,57 @@ export function WaitlistDialog() {
         if (!next) reset();
       }}
     >
-      <DialogContent className="max-w-sm">
-        <GridOverlay />
-
+      <DialogContent className="max-w-md gap-6 p-6">
         {submitted ? (
           // ── Success state ──
-          <div className="relative flex flex-col gap-5">
-            <div className="flex flex-col items-center gap-4 py-3 text-center">
-              <div className="flex size-14 items-center justify-center border border-success/25 bg-success/10">
-                <CheckCircle weight="duotone" className="size-7 text-success" />
+          <>
+            <div className="flex flex-col items-center gap-5 pt-4 pb-2 text-center">
+              <div className="flex size-20 items-center justify-center border border-success/30 bg-success/10">
+                <CheckCircle weight="duotone" className="size-12 text-success" />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-success">
-                  Access Requested
-                </span>
-                <DialogTitle className="text-base font-semibold">You're on the list</DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-                  We'll email you when a spot opens. Watch for our note from fermilabs.io.
+              <div className="flex flex-col gap-2">
+                <DialogTitle className="text-xl font-semibold tracking-tight">
+                  You're on the list
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                  We'll email you when a spot opens. Watch for our note from{' '}
+                  <span className="font-mono text-foreground">fermilabs.io</span>.
                 </DialogDescription>
               </div>
             </div>
+
             <Button
               variant="outline"
+              size="lg"
               onClick={() => {
                 setOpen(false);
                 reset();
               }}
+              className="w-full"
             >
               Close
             </Button>
-          </div>
+          </>
         ) : (
           // ── Form state ──
-          <div className="relative flex flex-col gap-5">
-            <div className="flex flex-col gap-3">
-              <span className="inline-flex items-center font-mono text-[10px] uppercase tracking-[0.15em] text-accent border border-accent/30 bg-accent/5 px-2 py-0.5 w-fit">
-                Waitlist
-              </span>
-              <DialogHeader>
-                <DialogTitle className="text-base font-semibold">Get early access</DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+          <>
+            <DialogHeader className="gap-4">
+              <div className="flex size-12 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
+                <EnvelopeSimple weight="duotone" className="size-7" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <DialogTitle className="text-lg font-semibold tracking-tight">
+                  Get early access
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
                   We're onboarding traders in waves. Drop your email and we'll send an invite when a
                   spot opens.
                 </DialogDescription>
-              </DialogHeader>
-            </div>
+              </div>
+            </DialogHeader>
 
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
                   Email
                 </label>
@@ -143,6 +133,7 @@ export function WaitlistDialog() {
                   disabled={submitting}
                   spellCheck={false}
                   autoComplete="email"
+                  className="h-11"
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !submitting) {
                       e.preventDefault();
@@ -152,10 +143,10 @@ export function WaitlistDialog() {
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
                   Twitter / X{' '}
-                  <span className="normal-case tracking-normal opacity-50 font-sans text-[10px]">
+                  <span className="normal-case tracking-normal opacity-60 font-sans">
                     (optional)
                   </span>
                 </label>
@@ -166,44 +157,43 @@ export function WaitlistDialog() {
                   disabled={submitting}
                   spellCheck={false}
                   autoComplete="off"
+                  className="h-11"
                 />
               </div>
 
               <Button
                 onClick={handleSubmit}
                 disabled={submitting || !email.trim()}
+                size="lg"
                 className="w-full"
               >
                 {submitting ? (
-                  <span className="inline-flex items-center gap-2">
+                  <>
                     <Loader2 className="size-4 animate-spin" />
                     Submitting…
-                  </span>
+                  </>
                 ) : (
                   'Request access'
                 )}
               </Button>
-
-              <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground/50 text-center">
-                No spam — invite only
-              </p>
             </div>
 
-            <div className="flex items-center justify-between border-t border-outline pt-4">
-              <span className="text-xs text-muted-foreground">Already have an invite?</span>
-              <button
-                type="button"
+            <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
+              <span className="text-sm text-muted-foreground">Already have an invite?</span>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   setOpen(false);
                   reset();
                   window.location.href = '/perps';
                 }}
-                className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent hover:text-accent/70 transition-colors duration-150"
               >
-                Start trading →
-              </button>
+                Start trading
+                <ArrowRight weight="bold" className="size-3.5" />
+              </Button>
             </div>
-          </div>
+          </>
         )}
       </DialogContent>
     </Dialog>

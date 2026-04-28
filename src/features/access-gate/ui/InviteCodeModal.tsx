@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useAtom } from 'jotai';
+import { useAtom, useSetAtom } from 'jotai';
 import { Loader2 } from 'lucide-react';
+import { Atom, Key, ArrowRight } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import bs58 from 'bs58';
 
@@ -19,7 +20,6 @@ import { AccessGateError, redeemInvite, requestChallenge } from '../api/accessCl
 import { gateOpenAtom, accessSessionAtom } from '../model/accessAtoms';
 import { writeSession } from '../lib/cache';
 import { waitlistOpenAtom, waitlistSourceAtom } from '@/features/waitlist';
-import { useSetAtom } from 'jotai';
 
 const BETA_ACK_KEY = 'fermi.betaAck';
 
@@ -58,24 +58,11 @@ const BETA_ITEMS = [
   'Your feedback shapes what we build next.',
 ];
 
-function GridOverlay() {
+function HeaderIcon({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="pointer-events-none absolute inset-0 opacity-[0.025]"
-      style={{
-        backgroundImage:
-          'linear-gradient(hsl(var(--border)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px)',
-        backgroundSize: '40px 40px',
-      }}
-    />
-  );
-}
-
-function StepBadge({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center font-mono text-[10px] uppercase tracking-[0.15em] text-accent border border-accent/30 bg-accent/5 px-2 py-0.5">
-      {label}
-    </span>
+    <div className="flex size-12 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
+      {children}
+    </div>
   );
 }
 
@@ -149,72 +136,78 @@ export function InviteCodeModal() {
     <Dialog
       open={open}
       onOpenChange={() => {
-        /* intentionally a no-op — gate is mandatory */
+        /* intentionally a no-op — gate dismisses only via explicit buttons */
       }}
     >
       <DialogContent
         onPointerDownOutside={e => e.preventDefault()}
         onEscapeKeyDown={e => e.preventDefault()}
         onInteractOutside={e => e.preventDefault()}
-        className="max-w-sm [&>button.absolute]:hidden"
+        className="max-w-md gap-6 p-6 [&>button.absolute]:hidden"
       >
-        <GridOverlay />
-
         {!acknowledged ? (
           // ── Step 1: Beta acknowledgement ──
-          <div className="relative flex flex-col gap-5">
-            <div className="flex flex-col gap-3">
-              <StepBadge label="Beta Access" />
-              <DialogHeader>
-                <DialogTitle className="text-base font-semibold">Welcome to Fermilabs</DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+          <>
+            <DialogHeader className="gap-4">
+              <HeaderIcon>
+                <Atom weight="duotone" className="size-7" />
+              </HeaderIcon>
+              <div className="flex flex-col gap-2">
+                <DialogTitle className="text-lg font-semibold tracking-tight">
+                  Welcome to Fermilabs
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
                   A few things to know before you start trading.
                 </DialogDescription>
-              </DialogHeader>
-            </div>
+              </div>
+            </DialogHeader>
 
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-2.5">
               {BETA_ITEMS.map((item, i) => (
                 <li
                   key={i}
-                  className="flex gap-3 text-xs text-muted-foreground border-l-2 border-accent/25 pl-3 py-0.5 leading-relaxed"
+                  className="text-sm text-muted-foreground border-l-2 border-accent/30 pl-3 py-1 leading-relaxed"
                 >
                   {item}
                 </li>
               ))}
             </ul>
 
-            <Button onClick={handleAcknowledge} className="w-full">
-              I understand, continue
-            </Button>
-
-            <div className="flex justify-center">
-              <button
-                type="button"
+            <div className="flex flex-col gap-2">
+              <Button onClick={handleAcknowledge} size="lg" className="w-full">
+                I understand, continue
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setOpen(false)}
-                className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground/50 hover:text-muted-foreground transition-colors duration-150"
+                className="w-full text-muted-foreground"
               >
                 Continue view only
-              </button>
+              </Button>
             </div>
-          </div>
+          </>
         ) : (
           // ── Step 2: Invite code ──
-          <div className="relative flex flex-col gap-5">
-            <div className="flex flex-col gap-3">
-              <StepBadge label="Invite Code" />
-              <DialogHeader>
-                <DialogTitle className="text-base font-semibold">Invite-only access</DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+          <>
+            <DialogHeader className="gap-4">
+              <HeaderIcon>
+                <Key weight="duotone" className="size-7" />
+              </HeaderIcon>
+              <div className="flex flex-col gap-2">
+                <DialogTitle className="text-lg font-semibold tracking-tight">
+                  Invite-only access
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
                   Enter your code to unlock trading on this wallet.
                 </DialogDescription>
-              </DialogHeader>
-            </div>
+              </div>
+            </DialogHeader>
 
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-                  Code
+                  Invite Code
                 </label>
                 <Input
                   value={code}
@@ -223,7 +216,7 @@ export function InviteCodeModal() {
                   disabled={submitting}
                   spellCheck={false}
                   autoComplete="off"
-                  className="font-mono tracking-widest placeholder:tracking-normal placeholder:font-sans"
+                  className="h-11 font-mono text-sm tracking-widest placeholder:tracking-normal placeholder:font-sans placeholder:text-muted-foreground/40"
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !submitting) {
                       e.preventDefault();
@@ -231,50 +224,47 @@ export function InviteCodeModal() {
                     }
                   }}
                 />
+                <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                  You'll sign a one-time message to prove wallet ownership. No transaction or gas
+                  fee.
+                </p>
               </div>
 
               <Button
                 onClick={handleRedeem}
                 disabled={submitting || !code.trim()}
+                size="lg"
                 className="w-full"
               >
                 {submitting ? (
-                  <span className="inline-flex items-center gap-2">
+                  <>
                     <Loader2 className="size-4 animate-spin" />
                     Verifying…
-                  </span>
+                  </>
                 ) : (
                   'Redeem'
                 )}
               </Button>
-
-              <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
-                You'll be asked to sign a one-time message to prove wallet ownership. No transaction
-                or gas fee.
-              </p>
             </div>
 
-            <div className="flex items-center justify-between border-t border-outline pt-4">
-              <span className="text-xs text-muted-foreground">No invite code?</span>
-              <button
-                type="button"
-                onClick={openWaitlist}
-                className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent hover:text-accent/70 transition-colors duration-150"
-              >
-                Join the waitlist →
-              </button>
-            </div>
-
-            <div className="flex justify-center">
-              <button
-                type="button"
+            <div className="flex flex-col gap-3 border-t border-outline pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-muted-foreground">No invite code?</span>
+                <Button variant="outline" size="sm" onClick={openWaitlist}>
+                  Join the waitlist
+                  <ArrowRight weight="bold" className="size-3.5" />
+                </Button>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setOpen(false)}
-                className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground/50 hover:text-muted-foreground transition-colors duration-150"
+                className="w-full text-muted-foreground"
               >
                 Continue view only
-              </button>
+              </Button>
             </div>
-          </div>
+          </>
         )}
       </DialogContent>
     </Dialog>
