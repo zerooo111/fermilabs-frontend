@@ -138,14 +138,22 @@ export function InviteCodeModal() {
   return (
     <Dialog
       open={open}
-      // Don't let the user click outside to dismiss — the gate is mandatory
-      // for write actions, and silently closing leaves the user stuck. They
-      // can disconnect their wallet to bail out.
-      onOpenChange={next => {
-        if (!submitting) setOpen(next);
+      // The gate is mandatory: no click-outside, no ESC, no X-button close.
+      // Modal only closes via successful redemption (handleRedeem calls
+      // setOpen(false)) or wallet disconnect (useAccessGate clears it). To
+      // bail out, the user disconnects their wallet — there's no silent skip
+      // path that leaves the app in an unauthenticated-but-rendered state.
+      onOpenChange={() => {
+        /* intentionally a no-op */
       }}
     >
-      <DialogContent className="max-w-sm">
+      <DialogContent
+        onPointerDownOutside={e => e.preventDefault()}
+        onEscapeKeyDown={e => e.preventDefault()}
+        onInteractOutside={e => e.preventDefault()}
+        // Hides the absolutely-positioned X button baked into shared DialogContent.
+        className="max-w-sm [&>button.absolute]:hidden"
+      >
         {!acknowledged ? (
           // ── Step 1: Beta acknowledgement ──
           <>
