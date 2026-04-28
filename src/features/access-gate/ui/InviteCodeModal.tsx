@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useAtom, useSetAtom } from 'jotai';
@@ -76,9 +76,6 @@ export function InviteCodeModal() {
   const [acknowledged, setAcknowledged] = useState(() => readBetaAck());
   const setWaitlistOpen = useSetAtom(waitlistOpenAtom);
   const setWaitlistSource = useSetAtom(waitlistSourceAtom);
-  // Set when the user clicks "Connect Wallet & Redeem" without a wallet — once
-  // the wallet connects, we resume the redeem flow automatically.
-  const pendingRedeemRef = useRef(false);
 
   const handleAcknowledge = () => {
     writeBetaAck();
@@ -89,24 +86,6 @@ export function InviteCodeModal() {
     setWaitlistSource('invite-modal');
     setWaitlistOpen(true);
   };
-
-  const handleConnectAndRedeem = () => {
-    if (!code.trim()) {
-      toast.error('Enter your invite code.');
-      return;
-    }
-    pendingRedeemRef.current = true;
-    setWalletModalVisible(true);
-  };
-
-  // Resume redeem once the wallet connects after "Connect Wallet & Redeem"
-  useEffect(() => {
-    if (pendingRedeemRef.current && publicKey && signMessage && code.trim()) {
-      pendingRedeemRef.current = false;
-      void handleRedeem();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publicKey, signMessage]);
 
   const handleRedeem = async () => {
     if (!publicKey || !signMessage) {
@@ -200,8 +179,38 @@ export function InviteCodeModal() {
               I understand, continue
             </Button>
           </>
+        ) : // ── Step 2: Wallet connect ──
+        !publicKey ? (
+          <>
+            <DialogHeader className="gap-4">
+              <HeaderIcon>
+                <Wallet className="size-6" />
+              </HeaderIcon>
+              <div className="flex flex-col gap-2">
+                <DialogTitle className="text-lg font-semibold tracking-tight">
+                  Connect your wallet
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                  Connect a Solana wallet first. We'll then ask you for your invite code.
+                </DialogDescription>
+              </div>
+            </DialogHeader>
+
+            <Button onClick={() => setWalletModalVisible(true)} size="lg" className="w-full">
+              <Wallet className="size-4" />
+              Connect Wallet
+            </Button>
+
+            <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
+              <span className="text-sm text-muted-foreground">No invite code?</span>
+              <Button variant="outline" size="sm" onClick={openWaitlist}>
+                Join the waitlist
+                <ArrowRight weight="bold" className="size-3.5" />
+              </Button>
+            </div>
+          </>
         ) : (
-          // ── Step 2: Invite code ──
+          // ── Step 3: Redeem invite code ──
           <>
             <DialogHeader className="gap-4">
               <HeaderIcon>
@@ -209,10 +218,10 @@ export function InviteCodeModal() {
               </HeaderIcon>
               <div className="flex flex-col gap-2">
                 <DialogTitle className="text-lg font-semibold tracking-tight">
-                  Invite-only access
+                  Enter your invite code
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  Enter your code to unlock trading on this wallet.
+                  Wallet connected. Paste the code we sent you to unlock trading.
                 </DialogDescription>
               </div>
             </DialogHeader>
@@ -233,8 +242,7 @@ export function InviteCodeModal() {
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !submitting && code.trim()) {
                       e.preventDefault();
-                      if (publicKey) void handleRedeem();
-                      else handleConnectAndRedeem();
+                      void handleRedeem();
                     }
                   }}
                 />
@@ -245,7 +253,7 @@ export function InviteCodeModal() {
               </div>
 
               <Button
-                onClick={publicKey ? handleRedeem : handleConnectAndRedeem}
+                onClick={handleRedeem}
                 disabled={submitting || !code.trim()}
                 size="lg"
                 className="w-full"
@@ -255,13 +263,8 @@ export function InviteCodeModal() {
                     <Loader2 className="size-4 animate-spin" />
                     Verifying…
                   </>
-                ) : publicKey ? (
-                  'Redeem'
                 ) : (
-                  <>
-                    <Wallet className="size-4" />
-                    Connect Wallet & Redeem
-                  </>
+                  'Redeem'
                 )}
               </Button>
             </div>
