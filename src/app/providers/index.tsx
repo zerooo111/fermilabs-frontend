@@ -3,6 +3,7 @@
  * Combines all application providers in one component
  */
 import { WalletContextProvider } from '@/entities/wallet';
+import { AccessGateProvider } from '@/features/access-gate';
 import { QueryProvider } from './QueryProvider';
 import { ToastProvider } from './ToastProvider';
 import { PostHogProvider } from './PostHogProvider';
@@ -16,8 +17,10 @@ export const AppProviders = ({ children }: AppProvidersProps) => {
     <PostHogProvider>
       <QueryProvider>
         <WalletContextProvider>
-          {children}
-          <ToastProvider />
+          <AccessGateProvider>
+            {children}
+            <ToastProvider />
+          </AccessGateProvider>
         </WalletContextProvider>
       </QueryProvider>
     </PostHogProvider>

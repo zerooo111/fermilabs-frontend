@@ -27,6 +27,7 @@ import {
 import { getMangoClientAndGroup } from '@/shared/lib/mango-client';
 import { buildCanonicalPerpRemainingAccounts } from '@/shared/lib/mango-canonical-accounts';
 import { useAccountMangoAccount } from '@/shared/hooks/useAccount';
+import { getWalletAuthToken } from '@/features/access-gate';
 import type { HarnessMarketMetadata } from '@/shared/lib/harness-market';
 import type { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 
@@ -680,10 +681,21 @@ export function usePerps() {
       user_signature_b64: bytesToBase64(signatureBytes),
       client_order_id: intentClientOrderId.toString(),
     };
+    // Invite-only gate: the proxy requires a wallet-bound bearer token on the
+    // submit-intent route. Gate is established on wallet connect via
+    // useAccessGate; if absent here, the user is mid-flow and we abort with a
+    // clear error rather than letting the request 401 deep inside axios.
+    const walletAuthToken = getWalletAuthToken(publicKey.toBase58());
+    if (!walletAuthToken) {
+      throw new Error('Access not granted. Please complete wallet sign-in.');
+    }
+    const relayHeaders = { 'x-wallet-auth': walletAuthToken } as const;
     let relayResponse;
     for (let attempt = 0; attempt <= RELAY_DUPLICATE_SEQUENCE_RETRIES; attempt += 1) {
       try {
-        relayResponse = await axios.post(`${bridgeUrl}${API_ROUTES.tx}`, relayPayload);
+        relayResponse = await axios.post(`${bridgeUrl}${API_ROUTES.tx}`, relayPayload, {
+          headers: relayHeaders,
+        });
         break;
       } catch (error) {
         if (axios.isAxiosError(error)) {
