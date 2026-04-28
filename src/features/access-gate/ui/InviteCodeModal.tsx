@@ -173,19 +173,9 @@ export function InviteCodeModal() {
               ))}
             </ul>
 
-            <div className="flex flex-col gap-2">
-              <Button onClick={handleAcknowledge} size="lg" className="w-full">
-                I understand, continue
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setOpen(false)}
-                className="w-full text-muted-foreground"
-              >
-                Continue view only
-              </Button>
-            </div>
+            <Button onClick={handleAcknowledge} size="lg" className="w-full">
+              I understand, continue
+            </Button>
           </>
         ) : (
           // ── Step 2: Invite code ──
@@ -247,21 +237,11 @@ export function InviteCodeModal() {
               </Button>
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-outline pt-4">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-muted-foreground">No invite code?</span>
-                <Button variant="outline" size="sm" onClick={openWaitlist}>
-                  Join the waitlist
-                  <ArrowRight weight="bold" className="size-3.5" />
-                </Button>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setOpen(false)}
-                className="w-full text-muted-foreground"
-              >
-                Continue view only
+            <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
+              <span className="text-sm text-muted-foreground">No invite code?</span>
+              <Button variant="outline" size="sm" onClick={openWaitlist}>
+                Join the waitlist
+                <ArrowRight weight="bold" className="size-3.5" />
               </Button>
             </div>
           </>
