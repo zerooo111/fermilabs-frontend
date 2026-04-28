@@ -84,7 +84,6 @@ export function InviteCodeModal() {
   };
 
   const openWaitlist = () => {
-    setOpen(false);
     setWaitlistSource('invite-modal');
     setWaitlistOpen(true);
   };
