@@ -156,7 +156,7 @@ export function InviteCodeModal() {
         onPointerDownOutside={e => e.preventDefault()}
         onEscapeKeyDown={e => e.preventDefault()}
         onInteractOutside={e => e.preventDefault()}
-        className="max-w-sm relative overflow-hidden [&>button.absolute]:hidden"
+        className="max-w-sm [&>button.absolute]:hidden"
       >
         <GridOverlay />
 
@@ -210,7 +210,6 @@ export function InviteCodeModal() {
                   value={code}
                   onChange={e => setCode(e.target.value)}
                   placeholder="FERMI-XXXX-XXXX"
-                  autoFocus
                   disabled={submitting}
                   spellCheck={false}
                   autoComplete="off"

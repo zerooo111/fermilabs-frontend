@@ -84,7 +84,7 @@ export function WaitlistDialog() {
         if (!next) reset();
       }}
     >
-      <DialogContent className="max-w-sm relative overflow-hidden">
+      <DialogContent className="max-w-sm">
         <GridOverlay />
 
         {submitted ? (
@@ -140,7 +140,6 @@ export function WaitlistDialog() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  autoFocus
                   disabled={submitting}
                   spellCheck={false}
                   autoComplete="email"
