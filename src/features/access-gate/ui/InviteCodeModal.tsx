@@ -107,18 +107,43 @@ export function InviteCodeModal() {
     return out;
   }, [wallets]);
 
-  // Once a selected wallet's adapter is ready, fire connect()
+  // Clear pending state once we successfully connect or stop connecting
+  useEffect(() => {
+    if (connected || (!connecting && pendingWalletName === null)) {
+      // already cleared / nothing to do
+      return;
+    }
+    if (connected) setPendingWalletName(null);
+  }, [connected, connecting, pendingWalletName]);
+
+  // After select(), wait for wallet to update, then trigger connect()
   useEffect(() => {
     if (!pendingWalletName) return;
     if (!wallet || wallet.adapter.name !== pendingWalletName) return;
-    setPendingWalletName(null);
+    if (connecting || connected) return;
     connect().catch(err => {
       console.error('Wallet connect failed:', err);
+      toast.error('Wallet connection failed. Please try again.');
+      setPendingWalletName(null);
     });
-  }, [pendingWalletName, wallet, connect]);
+  }, [pendingWalletName, wallet, connecting, connected, connect]);
 
-  const handleSelectWallet = (name: WalletName) => {
+  const handleSelectWallet = async (name: WalletName) => {
+    if (connecting) return;
     setPendingWalletName(name);
+    // If the wallet adapter restored the same selection from localStorage,
+    // select(name) is a no-op and `wallet` won't change — call connect()
+    // directly so the user click still triggers the wallet popup.
+    if (wallet?.adapter.name === name) {
+      try {
+        await connect();
+      } catch (err) {
+        console.error('Wallet connect failed:', err);
+        toast.error('Wallet connection failed. Please try again.');
+        setPendingWalletName(null);
+      }
+      return;
+    }
     select(name);
   };
 
