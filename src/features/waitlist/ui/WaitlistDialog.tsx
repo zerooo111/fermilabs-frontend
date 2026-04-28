@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAtom } from 'jotai';
 import { Loader2 } from 'lucide-react';
 import { CheckCircle } from '@phosphor-icons/react';
@@ -36,6 +37,7 @@ function GridOverlay() {
 }
 
 export function WaitlistDialog() {
+  const navigate = useNavigate();
   const [open, setOpen] = useAtom(waitlistOpenAtom);
   const [source, setSource] = useAtom(waitlistSourceAtom);
   const [email, setEmail] = useState('');
@@ -187,6 +189,21 @@ export function WaitlistDialog() {
               <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground/50 text-center">
                 No spam — invite only
               </p>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-outline pt-4">
+              <span className="text-xs text-muted-foreground">Already have an invite?</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  reset();
+                  navigate('/perps');
+                }}
+                className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent hover:text-accent/70 transition-colors duration-150"
+              >
+                Start trading →
+              </button>
             </div>
           </div>
         )}
