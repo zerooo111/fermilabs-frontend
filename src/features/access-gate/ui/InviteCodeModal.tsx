@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useAtom, useSetAtom } from 'jotai';
@@ -76,6 +76,9 @@ export function InviteCodeModal() {
   const [acknowledged, setAcknowledged] = useState(() => readBetaAck());
   const setWaitlistOpen = useSetAtom(waitlistOpenAtom);
   const setWaitlistSource = useSetAtom(waitlistSourceAtom);
+  // Set when the user clicks "Connect Wallet & Redeem" without a wallet — once
+  // the wallet connects, we resume the redeem flow automatically.
+  const pendingRedeemRef = useRef(false);
 
   const handleAcknowledge = () => {
     writeBetaAck();
@@ -86,6 +89,24 @@ export function InviteCodeModal() {
     setWaitlistSource('invite-modal');
     setWaitlistOpen(true);
   };
+
+  const handleConnectAndRedeem = () => {
+    if (!code.trim()) {
+      toast.error('Enter your invite code.');
+      return;
+    }
+    pendingRedeemRef.current = true;
+    setWalletModalVisible(true);
+  };
+
+  // Resume redeem once the wallet connects after "Connect Wallet & Redeem"
+  useEffect(() => {
+    if (pendingRedeemRef.current && publicKey && signMessage && code.trim()) {
+      pendingRedeemRef.current = false;
+      void handleRedeem();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicKey, signMessage]);
 
   const handleRedeem = async () => {
     if (!publicKey || !signMessage) {
@@ -204,46 +225,44 @@ export function InviteCodeModal() {
                   value={code}
                   onChange={e => setCode(e.target.value)}
                   placeholder="FERMI-XXXX-XXXX"
-                  disabled={submitting || !publicKey}
+                  disabled={submitting}
                   spellCheck={false}
                   autoComplete="off"
                   className="h-11 font-mono text-sm tracking-widest placeholder:tracking-normal placeholder:font-sans placeholder:text-muted-foreground/40"
                   onKeyDown={e => {
-                    if (e.key === 'Enter' && !submitting && publicKey) {
+                    if (e.key === 'Enter' && !submitting && code.trim()) {
                       e.preventDefault();
-                      void handleRedeem();
+                      if (publicKey) void handleRedeem();
+                      else handleConnectAndRedeem();
                     }
                   }}
                 />
                 <p className="text-xs text-muted-foreground/70 leading-relaxed">
-                  {publicKey
-                    ? "You'll sign a one-time message to prove wallet ownership. No transaction or gas fee."
-                    : 'Connect a wallet to redeem your code.'}
+                  You'll sign a one-time message to prove wallet ownership. No transaction or gas
+                  fee.
                 </p>
               </div>
 
-              {!publicKey ? (
-                <Button onClick={() => setWalletModalVisible(true)} size="lg" className="w-full">
-                  <Wallet className="size-4" />
-                  Connect Wallet
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleRedeem}
-                  disabled={submitting || !code.trim()}
-                  size="lg"
-                  className="w-full"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Verifying…
-                    </>
-                  ) : (
-                    'Redeem'
-                  )}
-                </Button>
-              )}
+              <Button
+                onClick={publicKey ? handleRedeem : handleConnectAndRedeem}
+                disabled={submitting || !code.trim()}
+                size="lg"
+                className="w-full"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Verifying…
+                  </>
+                ) : publicKey ? (
+                  'Redeem'
+                ) : (
+                  <>
+                    <Wallet className="size-4" />
+                    Connect Wallet & Redeem
+                  </>
+                )}
+              </Button>
             </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
