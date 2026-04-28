@@ -8,6 +8,7 @@
  */
 import { useSetAtom } from 'jotai';
 import { ArrowRight } from '@phosphor-icons/react';
+import posthog from 'posthog-js';
 
 import { waitlistOpenAtom, waitlistSourceAtom } from '../model/waitlistAtoms';
 
@@ -36,6 +37,7 @@ export function WaitlistButton({
   const setSource = useSetAtom(waitlistSourceAtom);
 
   const handleClick = () => {
+    posthog.capture('waitlist_opened', { source: source ?? null });
     setSource(source ?? null);
     setOpen(true);
     onClick?.();

@@ -5,6 +5,7 @@ import { useAtom, useSetAtom } from 'jotai';
 import { Loader2, Wallet } from 'lucide-react';
 import { Atom, Key, ArrowRight } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 import bs58 from 'bs58';
 
 import { Button } from '@/shared/ui/button';
@@ -81,11 +82,13 @@ export function InviteCodeModal() {
   const handleAcknowledge = () => {
     writeBetaAck();
     setAcknowledged(true);
+    posthog.capture('invite_beta_acknowledged');
   };
 
   const openWaitlist = () => {
     setWaitlistSource('invite-modal');
     setWaitlistOpen(true);
+    posthog.capture('invite_waitlist_clicked');
   };
 
   // Dedupe wallets by adapter name (wallet-standard auto-discovery sometimes
@@ -108,73 +111,43 @@ export function InviteCodeModal() {
     return out;
   }, [wallets]);
 
-  // Debug log — observe wallet adapter state every render
-  useEffect(() => {
-    console.log('[InviteCodeModal] wallet state:', {
-      walletName: wallet?.adapter.name ?? null,
-      readyState: wallet?.readyState ?? null,
-      connecting,
-      connected,
-      publicKey: publicKey?.toBase58() ?? null,
-      pendingWalletName,
-    });
-  }, [wallet, connecting, connected, publicKey, pendingWalletName]);
-
   // After select(), once the wallet adapter has switched, fire connect() once.
   // pendingWalletName is cleared as soon as connect is invoked so the effect
   // can't loop if the user dismisses the wallet popup.
   useEffect(() => {
     if (!pendingWalletName) return;
-    if (!wallet || wallet.adapter.name !== pendingWalletName) {
-      console.log('[InviteCodeModal] effect waiting for wallet adapter to swap', {
-        pendingWalletName,
-        currentWallet: wallet?.adapter.name ?? null,
-      });
-      return;
-    }
-    if (connecting || connected) {
-      console.log('[InviteCodeModal] effect skipping — already connecting/connected', {
-        connecting,
-        connected,
-      });
-      return;
-    }
-    console.log('[InviteCodeModal] effect firing connect()', { walletName: wallet.adapter.name });
+    if (!wallet || wallet.adapter.name !== pendingWalletName) return;
+    if (connecting || connected) return;
+    const walletName = wallet.adapter.name;
     setPendingWalletName(null);
-    connect()
-      .then(() => console.log('[InviteCodeModal] connect() resolved'))
-      .catch(err => {
-        console.error('[InviteCodeModal] connect() rejected:', err);
-        toast.error('Wallet connection failed. Please try again.');
+    connect().catch(err => {
+      console.error('Wallet connect failed:', err);
+      toast.error('Wallet connection failed. Please try again.');
+      posthog.capture('invite_wallet_connect_failed', {
+        wallet_name: walletName,
+        error: err instanceof Error ? err.message : String(err),
       });
+    });
   }, [pendingWalletName, wallet, connecting, connected, connect]);
 
   const handleSelectWallet = async (name: WalletName) => {
-    console.log('[InviteCodeModal] handleSelectWallet click', {
-      name,
-      currentWallet: wallet?.adapter.name ?? null,
-      connecting,
-      connected,
-    });
-    if (connecting) {
-      console.log('[InviteCodeModal] bail — already connecting');
-      return;
-    }
+    if (connecting) return;
+    posthog.capture('invite_wallet_selected', { wallet_name: name });
     // Already-selected wallet (restored from localStorage after refresh):
     // calling select() is a no-op, so connect() directly.
     if (wallet?.adapter.name === name) {
-      console.log('[InviteCodeModal] wallet already selected — calling connect() directly');
       try {
         await connect();
-        console.log('[InviteCodeModal] direct connect() resolved');
       } catch (err) {
-        console.error('[InviteCodeModal] direct connect() rejected:', err);
+        console.error('Wallet connect failed:', err);
         toast.error('Wallet connection failed. Please try again.');
+        posthog.capture('invite_wallet_connect_failed', {
+          wallet_name: name,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
       return;
     }
-    // Different wallet: select first, the effect above will fire connect.
-    console.log('[InviteCodeModal] selecting new wallet', { name });
     setPendingWalletName(name);
     select(name);
   };
@@ -192,6 +165,7 @@ export function InviteCodeModal() {
     }
 
     setSubmitting(true);
+    posthog.capture('invite_redeem_attempted', { wallet_address: wallet });
     try {
       const challenge = await requestChallenge(wallet, 'redeem');
       const sigBytes = await signMessage(new TextEncoder().encode(challenge.message));
@@ -214,11 +188,17 @@ export function InviteCodeModal() {
       toast.success('Welcome to Fermilabs.');
       setOpen(false);
       setCode('');
+      posthog.capture('invite_redeem_succeeded', { wallet_address: wallet });
     } catch (e) {
       if (e instanceof AccessGateError) {
         toast.error(ERROR_COPY[e.code] ?? `Could not redeem (${e.code}).`);
+        posthog.capture('invite_redeem_failed', { wallet_address: wallet, error_code: e.code });
       } else {
         toast.error('Network error. Please retry.');
+        posthog.capture('invite_redeem_failed', {
+          wallet_address: wallet,
+          error_code: 'network_error',
+        });
       }
     } finally {
       setSubmitting(false);
@@ -304,7 +284,7 @@ export function InviteCodeModal() {
                       type="button"
                       disabled={busy}
                       onClick={() => handleSelectWallet(w.adapter.name)}
-                      className="flex items-center gap-3 px-3 py-2.5 border border-outline bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-left"
+                      className="flex items-center gap-3 px-3 py-2.5 border border-outline bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-left outline-none focus:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
                     >
                       <img src={w.adapter.icon} alt="" className="size-7 shrink-0" aria-hidden />
                       <span className="flex-1 text-sm font-medium">{w.adapter.name}</span>

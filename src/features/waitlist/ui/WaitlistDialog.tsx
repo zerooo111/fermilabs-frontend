@@ -3,6 +3,7 @@ import { useAtom } from 'jotai';
 import { Loader2 } from 'lucide-react';
 import { CheckCircle, EnvelopeSimple, ArrowRight } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import posthog from 'posthog-js';
 
 import { Button } from '@/shared/ui/button';
 import {
@@ -51,11 +52,23 @@ export function WaitlistDialog() {
         source: source || undefined,
       });
       setSubmitted(true);
+      posthog.capture('waitlist_submitted', {
+        source: source ?? null,
+        has_twitter: !!twitter.trim(),
+      });
     } catch (e) {
       if (e instanceof WaitlistError) {
         toast.error(ERROR_COPY[e.code] ?? `Request failed (${e.code}).`);
+        posthog.capture('waitlist_submission_failed', {
+          source: source ?? null,
+          error_code: e.code,
+        });
       } else {
         toast.error('Network error. Please try again.');
+        posthog.capture('waitlist_submission_failed', {
+          source: source ?? null,
+          error_code: 'network_error',
+        });
       }
     } finally {
       setSubmitting(false);
@@ -184,6 +197,7 @@ export function WaitlistDialog() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
+                  posthog.capture('waitlist_start_trading_clicked', { source: source ?? null });
                   setOpen(false);
                   reset();
                   window.location.href = '/perps';
