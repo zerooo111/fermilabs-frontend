@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useAtom, useSetAtom } from 'jotai';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Wallet } from 'lucide-react';
 import { Atom, Key, ArrowRight } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import bs58 from 'bs58';
@@ -67,6 +68,7 @@ function HeaderIcon({ children }: { children: React.ReactNode }) {
 
 export function InviteCodeModal() {
   const { publicKey, signMessage } = useWallet();
+  const { setVisible: setWalletModalVisible } = useWalletModal();
   const [open, setOpen] = useAtom(gateOpenAtom);
   const [, setSession] = useAtom(accessSessionAtom);
   const [code, setCode] = useState('');
@@ -202,38 +204,46 @@ export function InviteCodeModal() {
                   value={code}
                   onChange={e => setCode(e.target.value)}
                   placeholder="FERMI-XXXX-XXXX"
-                  disabled={submitting}
+                  disabled={submitting || !publicKey}
                   spellCheck={false}
                   autoComplete="off"
                   className="h-11 font-mono text-sm tracking-widest placeholder:tracking-normal placeholder:font-sans placeholder:text-muted-foreground/40"
                   onKeyDown={e => {
-                    if (e.key === 'Enter' && !submitting) {
+                    if (e.key === 'Enter' && !submitting && publicKey) {
                       e.preventDefault();
                       void handleRedeem();
                     }
                   }}
                 />
                 <p className="text-xs text-muted-foreground/70 leading-relaxed">
-                  You'll sign a one-time message to prove wallet ownership. No transaction or gas
-                  fee.
+                  {publicKey
+                    ? "You'll sign a one-time message to prove wallet ownership. No transaction or gas fee."
+                    : 'Connect a wallet to redeem your code.'}
                 </p>
               </div>
 
-              <Button
-                onClick={handleRedeem}
-                disabled={submitting || !code.trim()}
-                size="lg"
-                className="w-full"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    Verifying…
-                  </>
-                ) : (
-                  'Redeem'
-                )}
-              </Button>
+              {!publicKey ? (
+                <Button onClick={() => setWalletModalVisible(true)} size="lg" className="w-full">
+                  <Wallet className="size-4" />
+                  Connect Wallet
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleRedeem}
+                  disabled={submitting || !code.trim()}
+                  size="lg"
+                  className="w-full"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Verifying…
+                    </>
+                  ) : (
+                    'Redeem'
+                  )}
+                </Button>
+              )}
             </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
