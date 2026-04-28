@@ -108,43 +108,35 @@ export function InviteCodeModal() {
     return out;
   }, [wallets]);
 
-  // Clear pending state once we successfully connect or stop connecting
-  useEffect(() => {
-    if (connected || (!connecting && pendingWalletName === null)) {
-      // already cleared / nothing to do
-      return;
-    }
-    if (connected) setPendingWalletName(null);
-  }, [connected, connecting, pendingWalletName]);
-
-  // After select(), wait for wallet to update, then trigger connect()
+  // After select(), once the wallet adapter has switched, fire connect() once.
+  // pendingWalletName is cleared as soon as connect is invoked so the effect
+  // can't loop if the user dismisses the wallet popup.
   useEffect(() => {
     if (!pendingWalletName) return;
     if (!wallet || wallet.adapter.name !== pendingWalletName) return;
     if (connecting || connected) return;
+    setPendingWalletName(null);
     connect().catch(err => {
       console.error('Wallet connect failed:', err);
       toast.error('Wallet connection failed. Please try again.');
-      setPendingWalletName(null);
     });
   }, [pendingWalletName, wallet, connecting, connected, connect]);
 
   const handleSelectWallet = async (name: WalletName) => {
     if (connecting) return;
-    setPendingWalletName(name);
-    // If the wallet adapter restored the same selection from localStorage,
-    // select(name) is a no-op and `wallet` won't change — call connect()
-    // directly so the user click still triggers the wallet popup.
+    // Already-selected wallet (restored from localStorage after refresh):
+    // calling select() is a no-op, so connect() directly.
     if (wallet?.adapter.name === name) {
       try {
         await connect();
       } catch (err) {
         console.error('Wallet connect failed:', err);
         toast.error('Wallet connection failed. Please try again.');
-        setPendingWalletName(null);
       }
       return;
     }
+    // Different wallet: select first, the effect above will fire connect.
+    setPendingWalletName(name);
     select(name);
   };
 
