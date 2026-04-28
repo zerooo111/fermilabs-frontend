@@ -108,34 +108,73 @@ export function InviteCodeModal() {
     return out;
   }, [wallets]);
 
+  // Debug log — observe wallet adapter state every render
+  useEffect(() => {
+    console.log('[InviteCodeModal] wallet state:', {
+      walletName: wallet?.adapter.name ?? null,
+      readyState: wallet?.readyState ?? null,
+      connecting,
+      connected,
+      publicKey: publicKey?.toBase58() ?? null,
+      pendingWalletName,
+    });
+  }, [wallet, connecting, connected, publicKey, pendingWalletName]);
+
   // After select(), once the wallet adapter has switched, fire connect() once.
   // pendingWalletName is cleared as soon as connect is invoked so the effect
   // can't loop if the user dismisses the wallet popup.
   useEffect(() => {
     if (!pendingWalletName) return;
-    if (!wallet || wallet.adapter.name !== pendingWalletName) return;
-    if (connecting || connected) return;
+    if (!wallet || wallet.adapter.name !== pendingWalletName) {
+      console.log('[InviteCodeModal] effect waiting for wallet adapter to swap', {
+        pendingWalletName,
+        currentWallet: wallet?.adapter.name ?? null,
+      });
+      return;
+    }
+    if (connecting || connected) {
+      console.log('[InviteCodeModal] effect skipping — already connecting/connected', {
+        connecting,
+        connected,
+      });
+      return;
+    }
+    console.log('[InviteCodeModal] effect firing connect()', { walletName: wallet.adapter.name });
     setPendingWalletName(null);
-    connect().catch(err => {
-      console.error('Wallet connect failed:', err);
-      toast.error('Wallet connection failed. Please try again.');
-    });
+    connect()
+      .then(() => console.log('[InviteCodeModal] connect() resolved'))
+      .catch(err => {
+        console.error('[InviteCodeModal] connect() rejected:', err);
+        toast.error('Wallet connection failed. Please try again.');
+      });
   }, [pendingWalletName, wallet, connecting, connected, connect]);
 
   const handleSelectWallet = async (name: WalletName) => {
-    if (connecting) return;
+    console.log('[InviteCodeModal] handleSelectWallet click', {
+      name,
+      currentWallet: wallet?.adapter.name ?? null,
+      connecting,
+      connected,
+    });
+    if (connecting) {
+      console.log('[InviteCodeModal] bail — already connecting');
+      return;
+    }
     // Already-selected wallet (restored from localStorage after refresh):
     // calling select() is a no-op, so connect() directly.
     if (wallet?.adapter.name === name) {
+      console.log('[InviteCodeModal] wallet already selected — calling connect() directly');
       try {
         await connect();
+        console.log('[InviteCodeModal] direct connect() resolved');
       } catch (err) {
-        console.error('Wallet connect failed:', err);
+        console.error('[InviteCodeModal] direct connect() rejected:', err);
         toast.error('Wallet connection failed. Please try again.');
       }
       return;
     }
     // Different wallet: select first, the effect above will fire connect.
+    console.log('[InviteCodeModal] selecting new wallet', { name });
     setPendingWalletName(name);
     select(name);
   };
