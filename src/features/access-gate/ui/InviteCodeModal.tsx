@@ -1,18 +1,3 @@
-/**
- * Invite-code redemption modal.
- *
- * Two-step flow:
- *   1. **Beta acknowledgement** — first-time users on this device see a
- *      short "you're using beta software" notice and click "I agree" to
- *      continue. Acknowledgement is persisted per-browser in localStorage so
- *      returning users skip straight to step 2.
- *   2. **Redeem** — paste invite code, wallet signs a server-issued
- *      challenge, backend atomically burns the code + whitelists the wallet
- *      + issues a session token.
- *
- * Closing the modal does NOT disconnect the wallet — but the rest of the app
- * stays write-disabled until a session is established.
- */
 import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtom } from 'jotai';
@@ -55,16 +40,44 @@ function writeBetaAck(): void {
 }
 
 const ERROR_COPY: Record<string, string> = {
-  invalid_code: 'That code doesn’t look right.',
+  invalid_code: "That code doesn't look right.",
   code_unknown: 'Code not found.',
   code_unavailable: 'This code has already been used or expired.',
   invalid_challenge: 'Sign-in expired. Please try again.',
-  bad_signature: 'Signature didn’t match. Please try again.',
+  bad_signature: "Signature didn't match. Please try again.",
   wallet_already_whitelisted: 'This wallet already has access.',
   oversized_input: 'Invalid input.',
   invalid_wallet: 'Wallet not recognized.',
   rate_limited: 'Too many attempts. Please wait a moment.',
 };
+
+const BETA_ITEMS = [
+  "We're shipping fast. Features, fees, and UX may change as we iterate.",
+  'Short downtimes and occasional bugs are possible during beta.',
+  "You're using non-production software — don't risk more than you can afford to lose.",
+  'Your feedback shapes what we build next.',
+];
+
+function GridOverlay() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 opacity-[0.025]"
+      style={{
+        backgroundImage:
+          'linear-gradient(hsl(var(--border)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px)',
+        backgroundSize: '40px 40px',
+      }}
+    />
+  );
+}
+
+function StepBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center font-mono text-[10px] uppercase tracking-[0.15em] text-accent border border-accent/30 bg-accent/5 px-2 py-0.5">
+      {label}
+    </span>
+  );
+}
 
 export function InviteCodeModal() {
   const { publicKey, signMessage } = useWallet();
@@ -72,8 +85,6 @@ export function InviteCodeModal() {
   const [, setSession] = useAtom(accessSessionAtom);
   const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  // Beta ack is read once on mount; subsequent dialog opens on the same
-  // device skip straight to the code step.
   const [acknowledged, setAcknowledged] = useState(() => readBetaAck());
   const setWaitlistOpen = useSetAtom(waitlistOpenAtom);
   const setWaitlistSource = useSetAtom(waitlistSourceAtom);
@@ -137,105 +148,114 @@ export function InviteCodeModal() {
   return (
     <Dialog
       open={open}
-      // The gate is mandatory: no click-outside, no ESC, no X-button close.
-      // Modal only closes via successful redemption (handleRedeem calls
-      // setOpen(false)) or wallet disconnect (useAccessGate clears it). To
-      // bail out, the user disconnects their wallet — there's no silent skip
-      // path that leaves the app in an unauthenticated-but-rendered state.
       onOpenChange={() => {
-        /* intentionally a no-op */
+        /* intentionally a no-op — gate is mandatory */
       }}
     >
       <DialogContent
         onPointerDownOutside={e => e.preventDefault()}
         onEscapeKeyDown={e => e.preventDefault()}
         onInteractOutside={e => e.preventDefault()}
-        // Hides the absolutely-positioned X button baked into shared DialogContent.
-        className="max-w-sm [&>button.absolute]:hidden"
+        className="max-w-sm relative overflow-hidden [&>button.absolute]:hidden"
       >
+        <GridOverlay />
+
         {!acknowledged ? (
           // ── Step 1: Beta acknowledgement ──
-          <>
-            <DialogHeader>
-              <DialogTitle>Welcome to the Fermilabs beta</DialogTitle>
-              <DialogDescription>
-                Thanks for being an early user. A few things to know before you continue.
-              </DialogDescription>
-            </DialogHeader>
+          <div className="relative flex flex-col gap-5">
+            <div className="flex flex-col gap-3">
+              <StepBadge label="Beta Access" />
+              <DialogHeader>
+                <DialogTitle className="text-base font-semibold">Welcome to Fermilabs</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                  A few things to know before you start trading.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
 
-            <ul className="flex flex-col gap-2 text-xs text-rock/80 leading-relaxed">
-              <li>
-                <span className="text-rock">•</span> We&apos;re shipping fast. Features, fees, and
-                UX may change as we iterate.
-              </li>
-              <li>
-                <span className="text-rock">•</span> Short downtimes and the occasional bug are
-                possible during the beta.
-              </li>
-              <li>
-                <span className="text-rock">•</span> You&apos;re using non-production software at
-                your own risk — please don&apos;t risk more than you can afford to lose.
-              </li>
-              <li>
-                <span className="text-rock">•</span> Your feedback shapes what we build next. Tell
-                us what&apos;s broken or missing.
-              </li>
+            <ul className="flex flex-col gap-2">
+              {BETA_ITEMS.map((item, i) => (
+                <li
+                  key={i}
+                  className="flex gap-3 text-xs text-muted-foreground border-l-2 border-accent/25 pl-3 py-0.5 leading-relaxed"
+                >
+                  {item}
+                </li>
+              ))}
             </ul>
 
-            <Button onClick={handleAcknowledge}>I understand, continue</Button>
-          </>
+            <Button onClick={handleAcknowledge} className="w-full">
+              I understand, continue
+            </Button>
+          </div>
         ) : (
-          // ── Step 2: Invite redemption ──
-          <>
-            <DialogHeader>
-              <DialogTitle>Invite-only access</DialogTitle>
-              <DialogDescription>
-                Enter your invite code to unlock trading on this wallet.
-              </DialogDescription>
-            </DialogHeader>
-
+          // ── Step 2: Invite code ──
+          <div className="relative flex flex-col gap-5">
             <div className="flex flex-col gap-3">
-              <Input
-                value={code}
-                onChange={e => setCode(e.target.value)}
-                placeholder="FERMI-XXXX-XXXX"
-                autoFocus
-                disabled={submitting}
-                spellCheck={false}
-                autoComplete="off"
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !submitting) {
-                    e.preventDefault();
-                    void handleRedeem();
-                  }
-                }}
-              />
-              <Button onClick={handleRedeem} disabled={submitting || !code.trim()}>
+              <StepBadge label="Invite Code" />
+              <DialogHeader>
+                <DialogTitle className="text-base font-semibold">Invite-only access</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                  Enter your code to unlock trading on this wallet.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                  Code
+                </label>
+                <Input
+                  value={code}
+                  onChange={e => setCode(e.target.value)}
+                  placeholder="FERMI-XXXX-XXXX"
+                  autoFocus
+                  disabled={submitting}
+                  spellCheck={false}
+                  autoComplete="off"
+                  className="font-mono tracking-widest placeholder:tracking-normal placeholder:font-sans"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !submitting) {
+                      e.preventDefault();
+                      void handleRedeem();
+                    }
+                  }}
+                />
+              </div>
+
+              <Button
+                onClick={handleRedeem}
+                disabled={submitting || !code.trim()}
+                className="w-full"
+              >
                 {submitting ? (
                   <span className="inline-flex items-center gap-2">
-                    <Loader2 className="size-4 animate-spin" /> Verifying…
+                    <Loader2 className="size-4 animate-spin" />
+                    Verifying…
                   </span>
                 ) : (
                   'Redeem'
                 )}
               </Button>
-              <p className="text-xs text-rock/60">
-                You&apos;ll be asked to sign a one-time message to prove wallet ownership. No
-                transaction or gas fee.
-              </p>
-              <p className="text-xs text-rock/70 pt-1 border-t border-rock/15">
-                Don&apos;t have a code?{' '}
-                <button
-                  type="button"
-                  onClick={openWaitlist}
-                  className="underline underline-offset-2 decoration-rock/40 hover:decoration-amber-200 hover:text-amber-100 duration-150 ease-out"
-                >
-                  Join the waitlist
-                </button>
-                .
+
+              <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
+                You'll be asked to sign a one-time message to prove wallet ownership. No transaction
+                or gas fee.
               </p>
             </div>
-          </>
+
+            <div className="flex items-center justify-between border-t border-outline pt-4">
+              <span className="text-xs text-muted-foreground">No invite code?</span>
+              <button
+                type="button"
+                onClick={openWaitlist}
+                className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent hover:text-accent/70 transition-colors duration-150"
+              >
+                Join the waitlist →
+              </button>
+            </div>
+          </div>
         )}
       </DialogContent>
     </Dialog>
