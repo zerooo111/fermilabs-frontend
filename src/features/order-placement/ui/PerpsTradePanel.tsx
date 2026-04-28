@@ -23,7 +23,7 @@ import { useSetAtom } from 'jotai';
 import { getLeverageLimitsFromMarket } from '@/entities/market/model';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
 import { useSimulate } from '@/features/order-placement/lib/useSimulate';
-import { type SimulateResponse } from '@/features/order-placement/lib/simulateApi';
+import { warmSimulate, type SimulateResponse } from '@/features/order-placement/lib/simulateApi';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
 import { toast } from 'sonner';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
@@ -248,6 +248,12 @@ export function PerpsTradePanel() {
   const feeStatus = useFeeStatus();
   const feeHealth = feeStatus.health;
   const feeInsufficient = !!publicKey && feeStatus.isSuccess && !feeStatus.data?.ok;
+
+  // Warm the simulation cache as soon as the wallet connects, before the user fills the form
+  useEffect(() => {
+    if (!publicKey) return;
+    warmSimulate(publicKey.toBase58()).catch(() => {});
+  }, [publicKey]);
 
   // Fetch market stats to get mark price
   const { data: marketsData } = useMarketStats({
