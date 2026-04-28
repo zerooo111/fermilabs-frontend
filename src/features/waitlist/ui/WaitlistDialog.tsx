@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAtom } from 'jotai';
 import { Loader2 } from 'lucide-react';
 import { CheckCircle } from '@phosphor-icons/react';
@@ -37,7 +36,6 @@ function GridOverlay() {
 }
 
 export function WaitlistDialog() {
-  const navigate = useNavigate();
   const [open, setOpen] = useAtom(waitlistOpenAtom);
   const [source, setSource] = useAtom(waitlistSourceAtom);
   const [email, setEmail] = useState('');
@@ -198,7 +196,7 @@ export function WaitlistDialog() {
                 onClick={() => {
                   setOpen(false);
                   reset();
-                  navigate('/perps');
+                  window.location.href = '/perps';
                 }}
                 className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent hover:text-accent/70 transition-colors duration-150"
               >

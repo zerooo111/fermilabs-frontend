@@ -15,8 +15,10 @@ import {
   findMarketBySlug,
   marketsAtom,
 } from '@/entities/market';
-import { useAtomValue } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { useSSEStream } from '@/shared/hooks/useSSEStream';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { gateOpenAtom, accessSessionAtom } from '@/features/access-gate';
 
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
@@ -29,6 +31,22 @@ function PerpsPage() {
   const params = useParams();
   const initialLoadRef = useRef(false);
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
+
+  const { publicKey } = useWallet();
+  const setGateOpen = useSetAtom(gateOpenAtom);
+  const session = useAtomValue(accessSessionAtom);
+
+  // Open the invite gate on landing unless the user already has a valid session
+  useEffect(() => {
+    const walletKey = publicKey?.toBase58();
+    const hasSession =
+      walletKey &&
+      session[walletKey]?.token &&
+      session[walletKey].expiresAt - 5 * 60 > Math.floor(Date.now() / 1000);
+    if (!hasSession) {
+      setGateOpen(true);
+    }
+  }, []);
 
   const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
   useSSEStream();

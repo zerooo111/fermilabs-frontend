@@ -187,6 +187,16 @@ export function InviteCodeModal() {
             <Button onClick={handleAcknowledge} className="w-full">
               I understand, continue
             </Button>
+
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground/50 hover:text-muted-foreground transition-colors duration-150"
+              >
+                Continue view only
+              </button>
+            </div>
           </div>
         ) : (
           // ── Step 2: Invite code ──
@@ -252,6 +262,16 @@ export function InviteCodeModal() {
                 className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent hover:text-accent/70 transition-colors duration-150"
               >
                 Join the waitlist →
+              </button>
+            </div>
+
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground/50 hover:text-muted-foreground transition-colors duration-150"
+              >
+                Continue view only
               </button>
             </div>
           </div>
