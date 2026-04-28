@@ -24,7 +24,7 @@ export function LandingFooter() {
               rel="noreferrer"
               className="px-6 md:px-8 py-4 md:py-0 md:h-full flex items-center hover:text-amber-100 hover:bg-white/5 justify-center duration-150 ease-out"
             >
-              Whitepaper
+              Research
             </a>
             <WaitlistButton
               source="footer"

@@ -31,7 +31,7 @@ export default function LandingHeader() {
             rel="noreferrer"
             className="px-8 h-full flex items-center hover:text-amber-100 hover:bg-white/5 justify-center duration-150 ease-out"
           >
-            Whitepaper
+            Research
           </a>
           <WaitlistButton
             source="header"
@@ -74,7 +74,7 @@ export default function LandingHeader() {
               onClick={() => setIsMobileMenuOpen(false)}
               className="px-6 py-4 hover:text-amber-100 hover:bg-white/5 duration-150 ease-out"
             >
-              Whitepaper
+              Research
             </a>
             <WaitlistButton
               source="header-mobile"
