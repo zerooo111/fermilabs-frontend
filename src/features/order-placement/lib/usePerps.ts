@@ -217,6 +217,13 @@ export function usePerps() {
     );
   };
 
+  // Sign the v5 intent digest. Phantom (and several other wallets) refuse to
+  // sign 32-byte binary blobs via signMessage — their tx-detection heuristic
+  // rejects them with "You cannot sign solana transactions using sign message".
+  // Workaround: sign the lowercase-hex ASCII form of the digest (64 bytes of
+  // valid UTF-8). The relayer's verify_user_signature falls back to verifying
+  // against canonical_user_intent_message_hex_utf8 (main.rs:13360-13366), so a
+  // signature over the hex form is accepted as if it were over the raw digest.
   const signIntentMessage = async (message: Uint8Array): Promise<Uint8Array> => {
     if (!publicKey || !signMessage) {
       throw new Error('Wallet not connected');
@@ -247,6 +254,21 @@ export function usePerps() {
       }
       return null;
     };
+
+    // Primary path: ask the wallet adapter to sign the 64-byte hex-ASCII form.
+    // Works on Phantom/Solflare/Backpack via the standard signMessage interface
+    // and bypasses the "looks like a transaction" heuristic that rejects raw
+    // 32-byte binary digests.
+    const adapterHexUtf8 = await trySign('walletAdapter.signMessage(hexUtf8)', () =>
+      signMessage(intentHexUtf8Bytes)
+    );
+    if (adapterHexUtf8) {
+      logPerf('wallet-sign', {
+        strategy: 'wallet-adapter(hexUtf8)',
+        sign_ms: Math.round(performance.now() - startedAt),
+      });
+      return adapterHexUtf8;
+    }
 
     // Try direct provider access first so the wallet-adapter's signMessage — which emits
     // an error event caught by WalletProvider even when we handle the error ourselves —
