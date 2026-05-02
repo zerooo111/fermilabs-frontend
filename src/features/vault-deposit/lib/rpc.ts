@@ -85,8 +85,8 @@ export async function sendTransaction(
   if (opts?.postSendTxCallback !== undefined && opts?.postSendTxCallback !== null) {
     try {
       opts.postSendTxCallback({ txid: signature });
-    } catch {
-      // Silent error handling
+    } catch (err) {
+      console.error('[rpc] postSendTxCallback error', err);
     }
   }
 

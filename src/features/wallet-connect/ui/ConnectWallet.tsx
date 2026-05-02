@@ -10,6 +10,7 @@ import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Copy, LogOut, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
+import { useServerConfig } from '@/entities/server';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,21 +37,34 @@ export function ConnectWallet() {
   const { wallet, connect, disconnect, connected, connecting, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const [copied, setCopied] = useState(false);
+  useServerConfig();
 
-  // Identify user and capture wallet_connected when wallet connects
+  // Identify user and capture wallet_connected when wallet connects.
+  // Block wallets known to be incompatible with the relayer's Ed25519 intent
+  // signature verification (e.g. MetaMask via the Solana Snap, which wraps
+  // off-chain messages in a non-standard envelope the relayer can't reverse).
   useEffect(() => {
     if (connected && publicKey) {
       const walletAddress = publicKey.toBase58();
+      const adapterName = wallet?.adapter?.name ?? '';
+      const isUnsupported = /metamask/i.test(adapterName);
+      if (isUnsupported) {
+        toast.error(
+          `${adapterName} is not supported for trading on Fermi. Please connect with Phantom, Solflare, or Backpack.`
+        );
+        disconnect().catch(() => {});
+        return;
+      }
       posthog.identify(walletAddress, {
         wallet_address: walletAddress,
-        wallet_name: wallet?.adapter?.name,
+        wallet_name: adapterName,
       });
       posthog.capture('wallet_connected', {
         wallet_address: walletAddress,
-        wallet_name: wallet?.adapter?.name,
+        wallet_name: adapterName,
       });
     }
-  }, [connected, publicKey, wallet]);
+  }, [connected, publicKey, wallet, disconnect]);
 
   // Handle copy address
   const handleCopyAddress = useCallback(async () => {

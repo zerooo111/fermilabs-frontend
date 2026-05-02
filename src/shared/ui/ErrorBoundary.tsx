@@ -2,7 +2,7 @@
  * ErrorBoundary.tsx
  * React error boundary component for graceful error handling
  */
-import { Component, ReactNode } from 'react';
+import { Component, ReactNode, ErrorInfo } from 'react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
 
@@ -32,7 +32,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     };
   }
 
-  componentDidCatch(error: Error): void {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    console.error('[ErrorBoundary]', error, errorInfo);
     toast.error('Something went wrong. Please try again later.');
     posthog.capture('error_boundary_triggered', {
       error_message: error.message,

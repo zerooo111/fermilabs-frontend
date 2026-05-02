@@ -205,11 +205,12 @@ export const fetchTokenBalance = async (
     const amount = account?.amount?.toString() || '0';
     return amount;
   } catch (error) {
-    // If the error is TokenAccountNotFoundError, return 0 silently
-    if (error instanceof spl.TokenAccountNotFoundError) {
+    if (
+      error instanceof spl.TokenAccountNotFoundError ||
+      error instanceof spl.TokenInvalidAccountOwnerError
+    ) {
       return '0';
     }
-    // Return 0 for other unexpected errors
-    return '0';
+    throw error;
   }
 };

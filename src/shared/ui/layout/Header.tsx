@@ -7,6 +7,17 @@ import { FeeCreditDialog } from '@/features/fee-credit';
 import { MarginPanel } from '@/features/margin-panel/ui/MarginPanel';
 import { accessSessionAtom } from '@/features/access-gate';
 import FermiLogo3d from './FermiLogo';
+import { config } from '@/shared/config/constants';
+
+function getNetwork(rpcUrl: string): { label: string; className: string } {
+  if (rpcUrl.includes('mainnet'))
+    return { label: 'Mainnet', className: 'text-green-400 bg-green-500/15 border-green-500/30' };
+  if (rpcUrl.includes('devnet'))
+    return { label: 'Devnet', className: 'text-amber-400 bg-amber-500/15 border-amber-500/30' };
+  if (rpcUrl.includes('testnet'))
+    return { label: 'Testnet', className: 'text-blue-400 bg-blue-500/15 border-blue-500/30' };
+  return { label: 'Custom', className: 'text-zinc-400 bg-zinc-500/15 border-zinc-500/30' };
+}
 
 export function Header() {
   const location = useLocation();
@@ -19,6 +30,8 @@ export function Header() {
     session[walletKey]?.token &&
     session[walletKey].expiresAt - 5 * 60 > Math.floor(Date.now() / 1000)
   );
+
+  const network = getNetwork(config.devnet.rpcUrl);
 
   return (
     <nav className="w-full h-14 flex items-center p-3 border-b border-outline bg-background">
@@ -40,6 +53,11 @@ export function Header() {
           >
             Perps
           </Link>
+          <span
+            className={cn('text-xs font-medium px-2 py-0.5 rounded-full border', network.className)}
+          >
+            {network.label}
+          </span>
         </div>
         <div className="flex items-center gap-1.5">
           {hasSession && (

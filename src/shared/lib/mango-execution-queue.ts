@@ -260,6 +260,63 @@ export async function hashExecutionQueueAccountsForCtmEnqueue(params: {
   return await hashExecutionQueueAccounts(effectiveRemaining);
 }
 
+// V5 user-intent (mango-v5-user-intent-v2) — the digest the production relayer
+// verifies for kind=0 (CTM-wrapped) intents.
+//
+// CRITICAL: accountsHash uses `hashExecutionQueueAccountsForCtmEnqueue`, which
+// merges effective `is_signer`/`is_writable` flags for three fixed pubkeys
+// (group, executionQueue, SYSVAR_INSTRUCTIONS) into the supplied
+// `remainingAccounts` BEFORE hashing. The relayer (and on-chain program) do
+// the same merge at verify/dispatch time, so a naïve raw hash that takes wire
+// flags as-is produces a digest the relayer rejects with
+// "user_signature verification failed". Confirmed byte-for-byte against the
+// relayer's `hash_execution_queue_accounts_for_ctm_enqueue` and the SDK's
+// `hashExecutionQueueAccountsForCtmEnqueue` (src/intents.ts:375).
+//
+// `executionQueue` is NOT in the digest's outer concatenation but it IS in the
+// accountsHash's fixed-account merge set, so the address still matters.
+export async function buildExecutionQueueUserIntentV5(params: {
+  group: string;
+  executionQueue: string;
+  mangoAccount: string;
+  userOwner: string;
+  payload: Uint8Array;
+  remainingAccounts: QueueAccountMeta[];
+  targetKind: number;
+  targetIndex: number;
+  clientOrderId: bigint;
+  minExecuteSlot?: bigint;
+  expiresAtSlot?: bigint;
+}): Promise<{
+  payloadHash: Uint8Array;
+  accountsHash: Uint8Array;
+  digest: Uint8Array;
+}> {
+  const payloadHash = await hashExecutionQueuePayload(params.payload);
+  const accountsHash = await hashExecutionQueueAccountsForCtmEnqueue({
+    group: params.group,
+    executionQueue: params.executionQueue,
+    remainingAccounts: params.remainingAccounts,
+  });
+  const digest = await sha256(
+    concatBytes(
+      new TextEncoder().encode(USER_INTENT_DOMAIN_V2),
+      new PublicKey(params.group).toBytes(),
+      new PublicKey(params.mangoAccount).toBytes(),
+      new PublicKey(params.userOwner).toBytes(),
+      u8(0), // kind = CTM_WRAPPED
+      u8(params.targetKind),
+      u16ToLe(params.targetIndex),
+      payloadHash,
+      accountsHash,
+      u64ToLe(params.minExecuteSlot ?? 0n),
+      u64ToLe(params.expiresAtSlot ?? 0n),
+      u64ToLe(params.clientOrderId)
+    )
+  );
+  return { payloadHash, accountsHash, digest };
+}
+
 export async function buildExecutionQueueUserIntent(params: {
   group: string;
   executionQueue: string;

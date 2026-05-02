@@ -5,6 +5,7 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 import { useCallback } from 'react';
 import { API_ROUTES, config } from '@/shared/config/constants';
 import {
+  createAssociatedTokenAccountIdempotentInstruction,
   fetchTokenBalance,
   getAssociatedTokenAddress,
   toNative,
@@ -12,11 +13,11 @@ import {
 
 const DEFAULT_ACCOUNT_NAME = 'frontend';
 const DEFAULT_TOKEN_COUNT = 8;
-const DEFAULT_SERUM3_COUNT = 4;
+const DEFAULT_SERUM3_COUNT = 0;
 const DEFAULT_PERP_COUNT = 4;
 const DEFAULT_PERP_OO_COUNT = 32;
 
-interface DepositContextResponse {
+export interface DepositContextResponse {
   owner: string;
   group: string;
   program_id: string;
@@ -30,6 +31,12 @@ interface DepositContextResponse {
   account_num: number;
   health_remaining_accounts: string[];
   default_ui_amount: number;
+}
+
+export interface MarginWithdrawResult {
+  ok: boolean;
+  uiAmount: number;
+  txSignature: string;
 }
 
 export interface MarginDepositResult {
@@ -77,10 +84,20 @@ export function useMangoMarginDeposit() {
       );
 
       const quoteMintPk = new PublicKey(depositContext.quote_mint);
-      const walletBalanceRaw = await fetchTokenBalance(owner, quoteMintPk, connection);
+      let walletBalanceRaw: string;
+      try {
+        walletBalanceRaw = await fetchTokenBalance(owner, quoteMintPk, connection);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `failed to fetch ${config.devnet.quoteTokenName} token account (mint: ${depositContext.quote_mint}): ${msg}`
+        );
+      }
       const walletBalanceNative = new BN(walletBalanceRaw);
       if (walletBalanceNative.lte(new BN(0))) {
-        throw new Error(`no ${config.devnet.quoteTokenName} balance available in wallet`);
+        throw new Error(
+          `no ${config.devnet.quoteTokenName} balance available in wallet (mint: ${depositContext.quote_mint})`
+        );
       }
 
       const targetUiAmount =
@@ -94,10 +111,33 @@ export function useMangoMarginDeposit() {
         throw new Error('deposit amount must be positive');
       }
 
-      let autoCreatedMangoAccount = false;
-      let createMangoAccountTxSignature: string | null = null;
       const groupPk = new PublicKey(depositContext.group);
       const mangoAccountPk = new PublicKey(depositContext.mango_account);
+
+      const depositIx = await program.methods
+        .tokenDeposit(nativeAmount, false)
+        .accounts({
+          group: groupPk,
+          account: mangoAccountPk,
+          owner,
+          bank: new PublicKey(depositContext.quote_bank),
+          vault: new PublicKey(depositContext.quote_vault),
+          oracle: new PublicKey(depositContext.quote_oracle),
+          tokenAccount: await getAssociatedTokenAddress(quoteMintPk, owner),
+          tokenAuthority: owner,
+        })
+        .remainingAccounts(
+          depositContext.health_remaining_accounts.map(pubkey => ({
+            pubkey: new PublicKey(pubkey),
+            isSigner: false,
+            isWritable: false,
+          }))
+        )
+        .instruction();
+
+      let autoCreatedMangoAccount = false;
+      let createMangoAccountTxSignature: string | null = null;
+      let txSignature: string;
 
       if (!depositContext.mango_account_exists) {
         const [expectedMangoAccountPk] = PublicKey.findProgramAddressSync(
@@ -128,49 +168,30 @@ export function useMangoMarginDeposit() {
             payer: owner,
           })
           .instruction();
-        const createTx = new Transaction().add(createIx);
+
+        // Combine both in one tx — avoids simulation ordering issues where
+        // MetaMask sees the deposit instruction before the account exists.
+        const combinedTx = new Transaction().add(createIx, depositIx);
         try {
-          createMangoAccountTxSignature = await provider.sendAndConfirm(createTx, []);
+          txSignature = await provider.sendAndConfirm(combinedTx, []);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           if (!msg.includes('already been processed')) throw err;
-          // Account was already created in a prior attempt — proceed.
-          createMangoAccountTxSignature = null;
+          txSignature = 'already-processed';
         }
         autoCreatedMangoAccount = true;
+        createMangoAccountTxSignature = txSignature;
+      } else {
+        const depositTx = new Transaction().add(depositIx);
+        try {
+          txSignature = await provider.sendAndConfirm(depositTx, []);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (!msg.includes('already been processed')) throw err;
+          txSignature = 'already-processed';
+        }
       }
 
-      const depositIx = await program.methods
-        .tokenDeposit(nativeAmount, false)
-        .accounts({
-          group: groupPk,
-          account: mangoAccountPk,
-          owner,
-          bank: new PublicKey(depositContext.quote_bank),
-          vault: new PublicKey(depositContext.quote_vault),
-          oracle: new PublicKey(depositContext.quote_oracle),
-          tokenAccount: await getAssociatedTokenAddress(quoteMintPk, owner),
-          tokenAuthority: owner,
-        })
-        .remainingAccounts(
-          depositContext.health_remaining_accounts.map(pubkey => ({
-            pubkey: new PublicKey(pubkey),
-            isSigner: false,
-            isWritable: false,
-          }))
-        )
-        .instruction();
-
-      const depositTx = new Transaction().add(depositIx);
-      let txSignature: string;
-      try {
-        txSignature = await provider.sendAndConfirm(depositTx, []);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (!msg.includes('already been processed')) throw err;
-        // Deposit landed in a prior attempt — treat as success.
-        txSignature = 'already-processed';
-      }
       const uiAmount =
         Number(nativeAmount.toString()) / Math.pow(10, depositContext.quote_decimals);
 
@@ -193,5 +214,89 @@ export function useMangoMarginDeposit() {
     [connection, queryClient, wallet]
   );
 
-  return { depositMargin };
+  const withdrawMargin = useCallback(
+    async (requestedUiAmount: number): Promise<MarginWithdrawResult> => {
+      if (!wallet?.publicKey) {
+        throw new Error('wallet not connected');
+      }
+
+      const owner = wallet.publicKey;
+      const contextUrl = `${config.devnet.gatewayUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner.toBase58())}`;
+      const { data: depositContext } = await axios.get<DepositContextResponse>(contextUrl);
+
+      if (!depositContext.mango_account_exists) {
+        throw new Error('no margin account found — deposit first to create one');
+      }
+
+      const [{ AnchorProvider, BN, Program }, { IDL: MANGO_V4_IDL }] = await Promise.all([
+        import('@coral-xyz/anchor'),
+        import('@/shared/lib/mango-v4-idl'),
+      ]);
+      const provider = new AnchorProvider(connection, wallet, {
+        commitment: config.devnet.commitment,
+      });
+      const program = new Program(
+        MANGO_V4_IDL as any,
+        new PublicKey(depositContext.program_id),
+        provider
+      );
+
+      const quoteMintPk = new PublicKey(depositContext.quote_mint);
+      const groupPk = new PublicKey(depositContext.group);
+      const mangoAccountPk = new PublicKey(depositContext.mango_account);
+      const tokenAccountPk = await getAssociatedTokenAddress(quoteMintPk, owner);
+      const nativeAmount = toNative(requestedUiAmount, depositContext.quote_decimals);
+
+      const withdrawIx = await program.methods
+        .tokenWithdraw(nativeAmount, false)
+        .accounts({
+          group: groupPk,
+          account: mangoAccountPk,
+          owner,
+          bank: new PublicKey(depositContext.quote_bank),
+          vault: new PublicKey(depositContext.quote_vault),
+          oracle: new PublicKey(depositContext.quote_oracle),
+          tokenAccount: tokenAccountPk,
+        })
+        .remainingAccounts(
+          depositContext.health_remaining_accounts.map(pubkey => ({
+            pubkey: new PublicKey(pubkey),
+            isSigner: false,
+            isWritable: false,
+          }))
+        )
+        .instruction();
+
+      // Idempotent ATA creation — no-op if the account already exists.
+      const createAtaIx = await createAssociatedTokenAccountIdempotentInstruction(
+        owner,
+        owner,
+        quoteMintPk
+      );
+
+      const tx = new Transaction().add(createAtaIx, withdrawIx);
+      let txSignature: string;
+      try {
+        txSignature = await provider.sendAndConfirm(tx, []);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes('already been processed')) throw err;
+        txSignature = 'already-processed';
+      }
+
+      const uiAmount =
+        Number(nativeAmount.toString()) / Math.pow(10, depositContext.quote_decimals);
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['userBalances', owner.toBase58()] }),
+        queryClient.invalidateQueries({ queryKey: ['account', owner.toBase58()] }),
+        queryClient.invalidateQueries({ queryKey: ['positions', owner.toBase58()] }),
+      ]);
+
+      return { ok: true, uiAmount, txSignature };
+    },
+    [connection, queryClient, wallet]
+  );
+
+  return { depositMargin, withdrawMargin };
 }

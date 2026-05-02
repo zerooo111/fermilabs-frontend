@@ -5,6 +5,27 @@
 import { atom, useAtom } from 'jotai';
 import { Server } from '@/types';
 
+export interface ServerConfigMarket {
+  market_index: number;
+  name: string;
+  execution_queue: {
+    address: string;
+    capacity?: number;
+  };
+}
+
+export interface ServerConfig {
+  version: number;
+  mode: string;
+  cluster: string;
+  program_id: string;
+  group: string;
+  ctm_signer: string;
+  markets: ServerConfigMarket[];
+}
+
+export const serverConfigAtom = atom<ServerConfig | null>(null);
+
 export const servers: Server[] = [
   {
     label: 'Local Harness',

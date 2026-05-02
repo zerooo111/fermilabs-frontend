@@ -6,10 +6,12 @@ import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { useCallback, useRef } from 'react';
+import { useAtomValue } from 'jotai';
 import { useSelectedMarket } from '@/entities/market';
+import { serverConfigAtom } from '@/entities/server';
 import { config, API_ROUTES, API_ROUTES_V2 } from '@/shared/config/constants';
 import {
-  buildExecutionQueueUserIntent,
+  buildExecutionQueueUserIntentV5,
   bytesToBase64,
   deriveExecutionQueueV5Pda,
   encodePerpCancelOrderQueuePayload,
@@ -149,6 +151,7 @@ export function usePerps() {
   const { publicKey, signMessage, wallet } = useWallet();
   const { connection } = useConnection();
   const { selectedMarket } = useSelectedMarket();
+  const serverConfig = useAtomValue(serverConfigAtom);
   const owner = publicKey?.toBase58() || '';
   const { pk: mangoAccountPk } = useAccountMangoAccount(owner || undefined);
   const selectedMarketId = selectedMarket?.uuid || config.devnet.defaultHarnessMarketId;
@@ -225,11 +228,7 @@ export function usePerps() {
     const intentHex = Buffer.from(message).toString('hex');
     const intentBase58 = bs58.encode(message);
     const intentHexUtf8Bytes = new TextEncoder().encode(intentHex);
-    const providerCandidates = [
-      adapterAny?._wallet,
-      maybeWindow?.phantom?.solana,
-      maybeWindow?.solana,
-    ].filter(Boolean) as any[];
+    const providerCandidates = [adapterAny?._wallet].filter(Boolean) as any[];
 
     const attemptedErrors: string[] = [];
     const trySign = async (
@@ -254,15 +253,19 @@ export function usePerps() {
     // is only used as a last resort.
     for (const provider of providerCandidates) {
       if (provider?.signMessage) {
-        const sigHexUtf8 = await trySign('provider.signMessage(hexUtf8Bytes,hex)', () =>
-          provider.signMessage(intentHexUtf8Bytes, 'hex')
+        // Raw-bytes strategies first — these are what the relayer verifies against.
+        // The 'hex' / {display:'hex'} argument only controls the wallet popup display,
+        // it does NOT alter which bytes get signed; the relayer always verifies the
+        // Ed25519 signature against the raw 32-byte userIntentMessage hash.
+        const sigHex = await trySign('provider.signMessage(hex)', () =>
+          provider.signMessage(message, 'hex')
         );
-        if (sigHexUtf8) {
+        if (sigHex) {
           logPerf('wallet-sign', {
-            strategy: 'provider.signMessage(hexUtf8Bytes,hex)',
+            strategy: 'provider.signMessage(hex)',
             sign_ms: Math.round(performance.now() - startedAt),
           });
-          return sigHexUtf8;
+          return sigHex;
         }
 
         const sigHexObj = await trySign('provider.signMessage({display:hex})', () =>
@@ -276,15 +279,30 @@ export function usePerps() {
           return sigHexObj;
         }
 
-        const sigHex = await trySign('provider.signMessage(hex)', () =>
-          provider.signMessage(message, 'hex')
+        const sigDefault = await trySign('provider.signMessage(default)', () =>
+          provider.signMessage(message)
         );
-        if (sigHex) {
+        if (sigDefault) {
           logPerf('wallet-sign', {
-            strategy: 'provider.signMessage(hex)',
+            strategy: 'provider.signMessage(default)',
             sign_ms: Math.round(performance.now() - startedAt),
           });
-          return sigHex;
+          return sigDefault;
+        }
+
+        // Legacy fallbacks: older Phantom builds that interpreted 'hex' as an encoding
+        // hint and decoded the input before signing. Modern Phantom signs raw bytes
+        // regardless, so these would produce a signature over the wrong message; kept
+        // here only so ancient wallets that cannot sign raw bytes still get a chance.
+        const sigHexUtf8 = await trySign('provider.signMessage(hexUtf8Bytes,hex)', () =>
+          provider.signMessage(intentHexUtf8Bytes, 'hex')
+        );
+        if (sigHexUtf8) {
+          logPerf('wallet-sign', {
+            strategy: 'provider.signMessage(hexUtf8Bytes,hex)',
+            sign_ms: Math.round(performance.now() - startedAt),
+          });
+          return sigHexUtf8;
         }
 
         const sigHexString = await trySign('provider.signMessage(hexString,hex)', () =>
@@ -319,17 +337,6 @@ export function usePerps() {
             sign_ms: Math.round(performance.now() - startedAt),
           });
           return sigHexObjString;
-        }
-
-        const sigDefault = await trySign('provider.signMessage(default)', () =>
-          provider.signMessage(message)
-        );
-        if (sigDefault) {
-          logPerf('wallet-sign', {
-            strategy: 'provider.signMessage(default)',
-            sign_ms: Math.round(performance.now() - startedAt),
-          });
-          return sigDefault;
         }
       }
 
@@ -482,7 +489,7 @@ export function usePerps() {
       }
 
       const startedAt = performance.now();
-      const { client, group } = await getMangoClientAndGroup(connection);
+      const { client, group } = await getMangoClientAndGroup(connection, serverConfig);
       const mangoAccount = await client.getMangoAccount(new PublicKey(mangoAccountPk));
       const remainingAccounts = await buildCanonicalPerpRemainingAccounts({
         client,
@@ -511,7 +518,7 @@ export function usePerps() {
       };
       return result;
     },
-    [connection, logPerf, mangoAccountPk, owner, publicKey]
+    [connection, logPerf, mangoAccountPk, owner, publicKey, serverConfig]
   );
 
   const resolveExecutionMarketParams = useCallback(async (): Promise<ExecutionMarketParams> => {
@@ -625,44 +632,134 @@ export function usePerps() {
     if (!publicKey || !signMessage) {
       throw new Error('Wallet not connected');
     }
-    if (!config.devnet.mangoProgramId) {
-      throw new Error('VITE_MANGO_PROGRAM_ID is not configured');
-    }
-
     const targetIndex = Number(params.market);
     if (!Number.isInteger(targetIndex) || targetIndex < 0) {
       throw new Error(`Invalid market index for relay intent: ${params.market}`);
     }
 
-    const v5ExecutionQueue = deriveExecutionQueueV5Pda(
-      config.devnet.mangoProgramId,
-      params.group,
-      targetIndex
-    ).toBase58();
+    // execution_queue is NOT part of the v5 digest (relayer derives it from
+    // program/group/target_index), but the HTTP bridge still requires the field
+    // to be a non-empty string. Use the address from /config when available, else
+    // derive locally as a fallback.
+    const configMarket = serverConfig?.markets.find(m => m.market_index === targetIndex);
+    const v5ExecutionQueue =
+      configMarket?.execution_queue.address ??
+      (config.devnet.mangoProgramId
+        ? deriveExecutionQueueV5Pda(
+            config.devnet.mangoProgramId,
+            params.group,
+            targetIndex
+          ).toBase58()
+        : '');
+    if (!v5ExecutionQueue) {
+      throw new Error('execution_queue not available; server config not loaded');
+    }
 
     const intentClientOrderId = randomU64();
     const startedAt = performance.now();
-    const intent = await buildExecutionQueueUserIntent({
+    // V5 digest construction. The accountsHash inside this builder applies the
+    // CTM-enqueue effective-flag merge: it OR-merges is_signer/is_writable for
+    // [group, executionQueue, SYSVAR_INSTRUCTIONS] into the corresponding
+    // remaining_accounts entries before hashing — exactly what the relayer and
+    // on-chain program do. Skipping the merge produces a digest the relayer
+    // rejects (typical symptom: remaining_accounts[0] is `group` with wire
+    // is_writable=false, but the relayer sees it as writable=true after merge).
+    const intent = await buildExecutionQueueUserIntentV5({
       group: params.group,
       executionQueue: v5ExecutionQueue,
       mangoAccount: params.mangoAccount,
       userOwner: publicKey.toBase58(),
       payload: params.payloadBytes,
       remainingAccounts: params.remainingAccounts,
-      intentVersion: RELAY_INTENT_VERSION,
       targetKind: IntentTargetKind.PerpMarket,
       targetIndex,
       clientOrderId: intentClientOrderId,
       minExecuteSlot: 0n,
       expiresAtSlot: 0n,
     });
+    const toHex = (b: Uint8Array) =>
+      Array.from(b)
+        .map(x => x.toString(16).padStart(2, '0'))
+        .join('');
+
+    console.info('[submit-intent debug]', {
+      domain: 'mango-v5-user-intent-v2',
+      group: params.group,
+      executionQueue: v5ExecutionQueue,
+      mangoAccount: params.mangoAccount,
+      userOwner: publicKey.toBase58(),
+      kind: 0,
+      targetKind: IntentTargetKind.PerpMarket,
+      targetIndex,
+      clientOrderId: intentClientOrderId.toString(),
+      minExecuteSlot: '0',
+      expiresAtSlot: '0',
+      payloadLen: params.payloadBytes.length,
+      payloadHex: toHex(params.payloadBytes),
+      payloadHash: toHex(intent.payloadHash),
+      accountsCount: params.remainingAccounts.length,
+      remainingAccounts: params.remainingAccounts,
+      accountsHash: toHex(intent.accountsHash),
+      digest: toHex(intent.digest),
+    });
     const builtIntentAt = performance.now();
-    const signatureBytes = await signIntentMessage(intent.userIntentMessage);
+    // Phantom/Solflare/Backpack signMessage() always signs the raw bytes — no
+    // prefix wrapping. The relayer verifies the 64-byte ed25519 signature against
+    // the raw 32-byte digest, so passing `intent.digest` directly is correct.
+    const signatureBytes = await signIntentMessage(intent.digest);
+
+    console.info('[submit-intent signature]', {
+      digestSigned: toHex(intent.digest),
+      signatureHex: toHex(signatureBytes),
+      signatureLen: signatureBytes.length,
+    });
+    // Client-side verification: ed25519.verify(sig, digest, ownerPubkey).
+    // If this fails, the relayer will also reject. Surface the mismatch with
+    // diagnostics so we can distinguish "wallet wraps the message somehow"
+    // from "wallet signs with a different key than user_owner".
+    try {
+      const { ed25519 } = await import('@noble/curves/ed25519');
+      const ownerBytes = publicKey.toBytes();
+      const okRaw = ed25519.verify(signatureBytes, intent.digest, ownerBytes);
+      const digestHexUtf8 = new TextEncoder().encode(toHex(intent.digest));
+      const okHexUtf8 = ed25519.verify(signatureBytes, digestHexUtf8, ownerBytes);
+
+      console.info('[submit-intent client-verify]', {
+        connectedPubkey: publicKey.toBase58(),
+        verifyRawDigest: okRaw,
+        verifyHexUtf8: okHexUtf8,
+        walletAdapter: wallet?.adapter?.name,
+      });
+      if (!okRaw && !okHexUtf8) {
+        console.error(
+          '[submit-intent] Signature does NOT verify against the digest with the connected pubkey. ' +
+            'The wallet either signed a different message (unsupported wrapping) or signed with a different key. ' +
+            'Sending will be rejected by the relayer.'
+        );
+        throw new Error(
+          `Wallet signature does not match digest under ${publicKey.toBase58()}. ` +
+            `Wallet=${wallet?.adapter?.name ?? 'unknown'}. ` +
+            `Try a different wallet (Phantom/Solflare/Backpack), or if using a hardware wallet, ` +
+            `enable blind-signing for off-chain messages.`
+        );
+      }
+    } catch (verifyErr) {
+      if (
+        verifyErr instanceof Error &&
+        verifyErr.message.startsWith('Wallet signature does not match')
+      ) {
+        throw verifyErr;
+      }
+
+      console.warn('[submit-intent] client-verify import/run failed:', verifyErr);
+    }
     const signedIntentAt = performance.now();
 
     const bridgeUrl = config.devnet.gatewayUrl;
     const relayPayload = {
       group: params.group,
+      // The HTTP bridge rejects empty execution_queue with "missing required
+      // fields", so send the v5 address even though the digest excludes it.
       execution_queue: v5ExecutionQueue,
       market: params.market,
       intent_version: RELAY_INTENT_VERSION,

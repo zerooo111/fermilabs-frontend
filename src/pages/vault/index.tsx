@@ -183,6 +183,7 @@ function VaultPage() {
       setInputAmount(0);
       getData();
     } catch (error) {
+      console.error('[vault] deposit failed', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast.error(errorMessage);
       posthog.capture('vault_deposit_failed', {
@@ -219,6 +220,7 @@ function VaultPage() {
       setInputAmount(0);
       getData();
     } catch (error) {
+      console.error('[vault] withdraw failed', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast.error(errorMessage);
       posthog.capture('vault_withdraw_failed', {
@@ -302,8 +304,8 @@ function VaultPage() {
         const userDeposit = new BN(userState?.amountDeposited).div(new BN(Math.pow(10, decimals)));
         setAmountDeposited(userDeposit.toNumber());
       });
-    } catch {
-      // Silent error handling
+    } catch (error) {
+      console.error('[vault] getData failed', error);
     }
   }, [selectedToken, vaultClient]);
 
