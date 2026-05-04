@@ -1,10 +1,20 @@
+import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useAccount } from '@/shared/hooks/useAccount';
-import { Loader2 } from 'lucide-react';
+import { useAccount, useAccountMangoAccount } from '@/shared/hooks/useAccount';
+import { Check, Copy, Loader2 } from 'lucide-react';
 
 export function AccountCard() {
   const { publicKey } = useWallet();
   const { data: accountData, isLoading, error } = useAccount(publicKey?.toBase58() || '');
+  const { pk: mangoAccount } = useAccountMangoAccount(publicKey?.toBase58());
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyMango = async () => {
+    if (!mangoAccount) return;
+    await navigator.clipboard.writeText(mangoAccount);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   const formatCurrency = (value: number | undefined | null) => {
     if (value == null) return '0.00';
@@ -46,6 +56,19 @@ export function AccountCard() {
       <h3 className="text-base md:text-lg px-3 md:px-4 h-12 leading-12 bg-card border-b border-outline font-medium">
         Account
       </h3>
+
+      {mangoAccount && (
+        <div className="flex items-center justify-between px-3 md:px-4 py-2 border-b border-outline bg-card/50">
+          <span className="text-xs text-white/40">Mango Account</span>
+          <button
+            onClick={handleCopyMango}
+            className="flex items-center gap-1.5 text-xs font-mono text-white/60 hover:text-white transition-colors"
+          >
+            {`${mangoAccount.slice(0, 4)}...${mangoAccount.slice(-4)}`}
+            {copied ? <Check className="size-3 text-green-400" /> : <Copy className="size-3" />}
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2 p-3 md:p-4">
         {/* USDC Collateral */}
