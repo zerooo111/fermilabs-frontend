@@ -269,31 +269,36 @@ export function getCurrentCandleTimestamp(timeframe: PerpsTimeframe): number {
 }
 
 /**
- * Update candles array with a new mark price.
- * Updates the current candle or creates a new one if needed.
+ * Update candles array with a new last-traded price.
+ *
+ * Drives optimistic OHLC from executed trades to match what the historical
+ * /v2/candles endpoint produces (it builds candles server-side from the
+ * trades stream). Mark/oracle price is intentionally not used here — it
+ * would paint wicks no trader could fill at and diverge from the historical
+ * endpoint at every refresh.
  */
-export function updateCandlesWithMarkPrice(
+export function updateCandlesWithLastTradePrice(
   candles: ExtendedPerpsOHLCVData[],
-  markPrice: number,
+  lastTradePrice: number,
   timeframe: PerpsTimeframe
 ): ExtendedPerpsOHLCVData[] {
-  if (!markPrice || markPrice <= 0) {
+  if (!lastTradePrice || lastTradePrice <= 0) {
     return candles;
   }
 
   const currentCandleTimestamp = getCurrentCandleTimestamp(timeframe);
   // Starting from an empty list is a valid state — new markets with no
-  // history start here, and the first mark-price tick seeds candle 0.
+  // history start here, and the first trade tick seeds candle 0.
   const candlesCopy = candles ? [...candles] : [];
   const lastCandle = candlesCopy[candlesCopy.length - 1];
 
   if (!lastCandle) {
     candlesCopy.push({
       time: currentCandleTimestamp,
-      open: markPrice,
-      high: markPrice,
-      low: markPrice,
-      close: markPrice,
+      open: lastTradePrice,
+      high: lastTradePrice,
+      low: lastTradePrice,
+      close: lastTradePrice,
     });
     return candlesCopy;
   }
@@ -301,24 +306,24 @@ export function updateCandlesWithMarkPrice(
   if (lastCandle.time === currentCandleTimestamp) {
     candlesCopy[candlesCopy.length - 1] = {
       ...lastCandle,
-      close: markPrice,
-      high: Math.max(lastCandle.high ?? markPrice, markPrice),
-      low: Math.min(lastCandle.low ?? markPrice, markPrice),
-      open: lastCandle.open ?? markPrice,
+      close: lastTradePrice,
+      high: Math.max(lastCandle.high ?? lastTradePrice, lastTradePrice),
+      low: Math.min(lastCandle.low ?? lastTradePrice, lastTradePrice),
+      open: lastCandle.open ?? lastTradePrice,
     };
   } else if (lastCandle.time < currentCandleTimestamp) {
     if (lastCandle.close === undefined && lastCandle.open !== undefined) {
       candlesCopy[candlesCopy.length - 1] = { ...lastCandle, close: lastCandle.open };
     }
     // Seed the new bucket's open with the prior close so the line stays
-    // continuous instead of opening as a flat dot at the live mark price.
-    const priorClose = candlesCopy[candlesCopy.length - 1]?.close ?? markPrice;
+    // continuous instead of opening as a flat dot at the new trade price.
+    const priorClose = candlesCopy[candlesCopy.length - 1]?.close ?? lastTradePrice;
     candlesCopy.push({
       time: currentCandleTimestamp,
       open: priorClose,
-      high: Math.max(priorClose, markPrice),
-      low: Math.min(priorClose, markPrice),
-      close: markPrice,
+      high: Math.max(priorClose, lastTradePrice),
+      low: Math.min(priorClose, lastTradePrice),
+      close: lastTradePrice,
     });
   }
 

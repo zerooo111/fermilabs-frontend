@@ -1,7 +1,10 @@
 /**
  * Perps chart container component
- * Handles data fetching and state management for perps charts
- * Optimized to fetch historical data once and update in real-time with mark_price
+ * Handles data fetching and state management for perps charts.
+ * Optimized to fetch historical data once and update in real-time from the
+ * trades stream (last traded price), matching the historical /v2/candles
+ * endpoint which is also trade-derived. See updateCandlesWithLastTradePrice
+ * for the rationale (DEX-standard OHLC source).
  */
 import { useState, useCallback, memo, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -14,7 +17,7 @@ import {
   getPerpsLoadMoreWindowSeconds,
   processPerpsCandleData,
   calculatePerpsPriceChange,
-  updateCandlesWithMarkPrice,
+  updateCandlesWithLastTradePrice,
   PerpsTimeframe,
   ExtendedPerpsOHLCVData,
 } from '@/features/chart/lib/perps-chart';
@@ -22,7 +25,9 @@ import { useSelectedMarket } from '@/entities/market';
 import { usePositions } from '@/shared/hooks/usePositions';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
-import { marketMetricsAtom } from '@/shared/api/sse-atoms';
+import { recentMarketTradesAtom } from '@/shared/api/sse-atoms';
+import { nativeToUiNumber } from '@/shared/lib/harness-market';
+import { QUOTE_DECIMALS } from '@/shared/config/constants';
 import { toast } from 'sonner';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
@@ -118,8 +123,8 @@ function PerpsChartContainerComponent() {
   // State to hold candles with real-time updates
   const [candles, setCandles] = useState<ExtendedPerpsOHLCVData[]>([]);
   const candlesRef = useRef<ExtendedPerpsOHLCVData[]>([]);
-  const previousMarkPriceRef = useRef<number | null>(null);
-  const latestMarkPriceRef = useRef<number | null>(null);
+  const previousLastTradePriceRef = useRef<number | null>(null);
+  const latestLastTradePriceRef = useRef<number | null>(null);
   // Older candles fetched via scroll-back pagination, kept separate so
   // background refetches of historicalData don't discard them.
   const olderCandlesRef = useRef<ExtendedPerpsOHLCVData[]>([]);
@@ -135,8 +140,8 @@ function PerpsChartContainerComponent() {
         setCandles([]);
         candlesRef.current = [];
         olderCandlesRef.current = [];
-        previousMarkPriceRef.current = null;
-        latestMarkPriceRef.current = null;
+        previousLastTradePriceRef.current = null;
+        latestLastTradePriceRef.current = null;
         oldestAvailableTimeRef.current = null;
         loadMoreInFlightRef.current = false;
         setIsLoadingOlder(false);
@@ -152,8 +157,8 @@ function PerpsChartContainerComponent() {
     setCandles([]);
     candlesRef.current = [];
     olderCandlesRef.current = [];
-    previousMarkPriceRef.current = null;
-    latestMarkPriceRef.current = null;
+    previousLastTradePriceRef.current = null;
+    latestLastTradePriceRef.current = null;
     oldestAvailableTimeRef.current = null;
     loadMoreInFlightRef.current = false;
     setIsLoadingOlder(false);
@@ -238,42 +243,48 @@ function PerpsChartContainerComponent() {
     placeholderData: undefined, // Don't show stale data from a different queryKey
   });
 
-  // Read mark price directly from the SSE metrics atom — already UI-normalised,
-  // scoped to the single current market. Avoids subscribing to the full
-  // marketsAtom array and eliminates the O(n) find + raw→UI division on each tick.
-  const liveMetrics = useAtomValue(marketMetricsAtom);
-  const markPrice = useMemo(() => {
-    if (!liveMetrics || !selectedMarket?.uuid) return null;
-    if (liveMetrics.market !== selectedMarket.uuid) return null;
-    if (liveMetrics.mark_price_ui <= 0) return null;
-    return liveMetrics.mark_price_ui;
-  }, [liveMetrics, selectedMarket?.uuid]);
+  // Drive optimistic candles from the trades stream's last traded price.
+  // The /v2/candles historical endpoint is also trade-derived, so this keeps
+  // the live and historical OHLC consistent (no snap on refresh, no oracle
+  // ghost wicks during quiet periods). recentMarketTradesAtom is reset by
+  // useSSEStream on market change, so we don't need to filter by market.
+  // RecentTrade.price is native-scaled; convert to UI scale.
+  const recentTrades = useAtomValue(recentMarketTradesAtom);
+  const lastTradePrice = useMemo(() => {
+    if (!selectedMarket?.uuid) return null;
+    if (!recentTrades || recentTrades.length === 0) return null;
+    // recentMarketTradesAtom is sorted desc by timestamp by mergeRecentTrades.
+    const latest = recentTrades[0];
+    if (!latest || !Number.isFinite(latest.price) || latest.price <= 0) return null;
+    const quoteDecimals = selectedMarket.quote_decimals ?? QUOTE_DECIMALS;
+    return nativeToUiNumber(latest.price, quoteDecimals);
+  }, [recentTrades, selectedMarket?.uuid, selectedMarket?.quote_decimals]);
 
   // Keep ref in sync inline during render so the historicalData effect always
   // sees the latest price without an extra effect cycle per tick.
-  latestMarkPriceRef.current = markPrice;
+  latestLastTradePriceRef.current = lastTradePrice;
 
   // Update candles when historical data is fetched.
-  // Merge the current mark price synchronously so a background refetch
+  // Merge the current last trade price synchronously so a background refetch
   // doesn't briefly show an un-merged last candle on screen, and keep any
   // older candles fetched via scroll-back pagination. Empty historical
   // responses are still processed — they represent brand new markets, and
-  // the first mark-price tick will seed candle 0.
+  // the first trade tick will seed candle 0.
   useEffect(() => {
     if (historicalData === undefined) return;
-    const livePrice = latestMarkPriceRef.current;
+    const livePrice = latestLastTradePriceRef.current;
 
     if (historicalData.length === 0) {
-      // No server history. Start from an empty base and let the mark-price
-      // effect create the first candle.
+      // No server history. Start from an empty base and let the trades
+      // effect create the first candle when a fill arrives.
       olderCandlesRef.current = [];
       const seeded =
         livePrice !== null && livePrice > 0
-          ? updateCandlesWithMarkPrice([], livePrice, timeInterval)
+          ? updateCandlesWithLastTradePrice([], livePrice, timeInterval)
           : [];
       setCandles(seeded);
       candlesRef.current = seeded;
-      previousMarkPriceRef.current = livePrice ?? null;
+      previousLastTradePriceRef.current = livePrice ?? null;
       return;
     }
 
@@ -283,31 +294,35 @@ function PerpsChartContainerComponent() {
     const combined = [...preservedOlder, ...historicalData];
     const merged =
       livePrice !== null && livePrice > 0
-        ? updateCandlesWithMarkPrice(combined, livePrice, timeInterval)
+        ? updateCandlesWithLastTradePrice(combined, livePrice, timeInterval)
         : combined;
     setCandles(merged);
     candlesRef.current = merged;
-    previousMarkPriceRef.current = livePrice ?? null;
+    previousLastTradePriceRef.current = livePrice ?? null;
   }, [historicalData, timeInterval]);
 
-  // Update candles in real-time with mark_price.
+  // Update candles in real-time with the last trade price.
   // Uses candlesRef to avoid circular dependency (effect sets candles,
   // depends on candles). We intentionally allow this to run when the list
-  // is empty — for markets with no historical candles, the first tick
+  // is empty — for markets with no historical candles, the first trade
   // seeds candle 0. We still wait for the initial fetch to resolve so a
   // tick doesn't beat the historical payload to the screen.
   useEffect(() => {
-    if (markPrice === null || markPrice <= 0) return;
+    if (lastTradePrice === null || lastTradePrice <= 0) return;
     if (!isSuccess) return;
 
-    // Skip if mark_price hasn't changed (avoid unnecessary updates)
-    if (previousMarkPriceRef.current === markPrice) return;
+    // Skip if last trade price hasn't changed (avoid unnecessary updates)
+    if (previousLastTradePriceRef.current === lastTradePrice) return;
 
-    const updatedCandles = updateCandlesWithMarkPrice(candlesRef.current, markPrice, timeInterval);
+    const updatedCandles = updateCandlesWithLastTradePrice(
+      candlesRef.current,
+      lastTradePrice,
+      timeInterval
+    );
     candlesRef.current = updatedCandles;
     setCandles(updatedCandles);
-    previousMarkPriceRef.current = markPrice;
-  }, [markPrice, timeInterval, isSuccess]);
+    previousLastTradePriceRef.current = lastTradePrice;
+  }, [lastTradePrice, timeInterval, isSuccess]);
 
   // Calculate latest price and price change from updated candles
   const latestPrice = useMemo(() => {
@@ -365,10 +380,10 @@ function PerpsChartContainerComponent() {
 
         olderCandlesRef.current = [...newOlder, ...olderCandlesRef.current];
         const combined = [...newOlder, ...candlesRef.current];
-        const livePrice = latestMarkPriceRef.current;
+        const livePrice = latestLastTradePriceRef.current;
         const merged =
           livePrice !== null && livePrice > 0
-            ? updateCandlesWithMarkPrice(combined, livePrice, timeInterval)
+            ? updateCandlesWithLastTradePrice(combined, livePrice, timeInterval)
             : combined;
         candlesRef.current = merged;
         setCandles(merged);
