@@ -110,8 +110,8 @@ function PerpsChartContainerComponent() {
     const takeProfit = position.take_profit_price
       ? parseFloat(position.take_profit_price) / divisor
       : null;
-    const entryPrice = position.average_entry_price
-      ? parseFloat(position.average_entry_price) / divisor
+    const entryPrice = position.avg_entry_price
+      ? parseFloat(position.avg_entry_price) / divisor
       : null;
     const unrealizedPnl = position.unrealized_pnl
       ? parseFloat(position.unrealized_pnl) / divisor

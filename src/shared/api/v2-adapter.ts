@@ -264,6 +264,8 @@ export interface V2AccountEvent {
       open_ask?: string;
       reserved?: string;
       ts_ms?: string;
+      avg_entry_price?: string;
+      average_entry_price?: string;
     };
   }>;
   orders?: Array<{
@@ -362,14 +364,20 @@ export function mapV2AccountPositions(
       const markPriceNative = markPriceUi * quoteScale;
       const basePositionUi = basePositionNative / baseScale;
       const quotePositionUi = quotePositionNative / quoteScale;
-      const avgEntryUi = basePositionUi !== 0 ? Math.abs(quotePositionUi / basePositionUi) : 0;
+      const apiAvgEntryPrice = p.fields.avg_entry_price ?? p.fields.average_entry_price;
+      const avgEntryUi =
+        apiAvgEntryPrice !== undefined
+          ? parseFloat(apiAvgEntryPrice)
+          : basePositionUi !== 0
+            ? Math.abs(quotePositionUi / basePositionUi)
+            : 0;
       const unrealizedPnlUi = quotePositionUi + basePositionUi * markPriceUi;
       return {
         owner: event.owner,
         market_id: p.market,
         market_name: ctx?.name || `Market ${p.market}`,
         base_position: String(basePositionNative),
-        average_entry_price: String(Math.round(avgEntryUi * quoteScale)),
+        avg_entry_price: String(Math.round(avgEntryUi * quoteScale)),
         mark_price: String(Math.round(markPriceNative)),
         realized_pnl: '0',
         unrealized_pnl: String(Math.round(unrealizedPnlUi * quoteScale)),

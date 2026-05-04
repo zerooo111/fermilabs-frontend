@@ -6,7 +6,7 @@ export interface Position {
   market_id: string;
   market_name: string;
   base_position: string;
-  average_entry_price: string;
+  avg_entry_price: string;
   mark_price: string;
   realized_pnl: string;
   unrealized_pnl: string;

@@ -211,7 +211,7 @@ export function mapPositions(
         market_id: p.market,
         market_name: meta?.name || `Market ${p.market}`,
         base_position: String(basePositionNative),
-        average_entry_price: String(
+        avg_entry_price: String(
           p.average_entry_price_ui !== undefined
             ? uiToNative(p.average_entry_price_ui, quoteScale)
             : uiToNative(averageEntryPriceUi, quoteScale)
