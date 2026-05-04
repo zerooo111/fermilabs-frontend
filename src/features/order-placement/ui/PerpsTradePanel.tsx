@@ -146,7 +146,7 @@ export function PerpsTradePanel() {
     marginMode: MarginMode;
     stopLoss: string;
     takeProfit: string;
-    slippageBps: string;
+    slippage: string;
   }>({
     price: '',
     size: '',
@@ -155,7 +155,7 @@ export function PerpsTradePanel() {
     marginMode: 'cross',
     stopLoss: '',
     takeProfit: '',
-    slippageBps: '100',
+    slippage: '1',
   });
 
   const { publicKey } = useWallet();
@@ -367,7 +367,7 @@ export function PerpsTradePanel() {
           size: formState.size,
           leverage: formState.leverage,
           marginMode: formState.marginMode,
-          maxSlippageBps: safeParseFloat(formState.slippageBps, 100),
+          maxSlippageBps: Math.round(safeParseFloat(formState.slippage, 1) * 100),
           markPrice: markPrice!,
         });
       } else {
@@ -461,29 +461,39 @@ export function PerpsTradePanel() {
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
                   <div className="text-xs">
-                    Maximum acceptable price deviation in basis points. 100 bps = 1%. Order is
-                    cancelled if fill price exceeds this threshold.
+                    Maximum acceptable price deviation. 1% = 100 bps. Order is cancelled if fill
+                    price exceeds this threshold.
                   </div>
                 </TooltipContent>
               </Tooltip>
             </div>
             <div className="flex gap-1.5">
-              {[50, 100, 200, 500].map(bps => (
+              {['0.5', '1', '2', '5'].map(pct => (
                 <Button
-                  key={bps}
+                  key={pct}
                   variant="outline"
                   size="sm"
-                  className={`h-8 flex-1 text-xs ${
-                    formState.slippageBps === bps.toString()
+                  className={`h-7 flex-1 text-xs ${
+                    formState.slippage === pct
                       ? 'bg-white text-black font-bold hover:bg-white/90'
                       : 'hover:bg-accent/50'
                   }`}
-                  onClick={() => setFormState(prev => ({ ...prev, slippageBps: bps.toString() }))}
+                  onClick={() => setFormState(prev => ({ ...prev, slippage: pct }))}
                 >
-                  {(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%
+                  {pct}%
                 </Button>
               ))}
             </div>
+            <NumberInput
+              value={formState.slippage}
+              onValueChange={values => setFormState(prev => ({ ...prev, slippage: values.value }))}
+              placeholder="1.00"
+              min={0.01}
+              max={100}
+              decimalScale={2}
+              allowNegative={false}
+              unit="%"
+            />
           </div>
         )}
 
