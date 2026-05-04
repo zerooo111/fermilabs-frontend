@@ -41,6 +41,7 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
     if (!selectedMarketId || !liveMetrics || liveMetrics.market !== selectedMarketId) return null;
     return {
       mark_price_ui: liveMetrics.mark_price_ui,
+      oracle_price_ui: liveMetrics.oracle_price_ui,
       // funding_rate_hourly_pct * 100 was stored as bps, then divided by 10000 in legacy path.
       // Net result: funding_rate_hourly_pct / 100.
       funding_rate: liveMetrics.funding_rate_hourly_pct / 100,
@@ -66,6 +67,15 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
           <span className="text-xs whitespace-nowrap font-medium text-white/50">Mark Price</span>
           <span className="font-mono font-semibold text-base text-white">
             {marketStats?.mark_price_ui ? formatUiNumber(marketStats.mark_price_ui) : '0.0000'}
+          </span>
+        </div>
+
+        {/* Oracle Price — on-chain oracle (Pyth/Switchboard) sourced via the
+            harness mirror; shown alongside mark for liquidation context. */}
+        <div className="flex flex-col justify-center px-2 h-full border-r ">
+          <span className="text-xs whitespace-nowrap font-medium text-white/50">Oracle Price</span>
+          <span className="font-mono font-semibold text-base text-white">
+            {marketStats?.oracle_price_ui ? formatUiNumber(marketStats.oracle_price_ui) : '0.0000'}
           </span>
         </div>
 
