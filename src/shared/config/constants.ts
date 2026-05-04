@@ -7,7 +7,13 @@ import type { Commitment } from '@solana/web3.js';
 export const V2_READ_LAYER_STORAGE_KEY = 'fermi.useV2ReadLayer';
 
 function resolveV2ReadLayerFlag(): boolean {
-  const envDefault = (import.meta.env.VITE_USE_V2_READ_LAYER || 'false').toLowerCase() === 'true';
+  // Default to the v2 (Redis-backed) read layer. The legacy `/state/markets`
+  // path returns wrong `quote_lot_size` values for ETH/BTC (10 and 100; the
+  // on-chain truth and the trade ingester both use 1), which made the chart
+  // display ETH at 10× and BTC at 100× their real prices. Redis has the
+  // correct values, so v2 readers render correctly. Flag still overridable
+  // via env or localStorage for diagnostic comparison.
+  const envDefault = (import.meta.env.VITE_USE_V2_READ_LAYER || 'true').toLowerCase() === 'true';
   if (typeof window === 'undefined') return envDefault;
   try {
     const stored = window.localStorage.getItem(V2_READ_LAYER_STORAGE_KEY);
