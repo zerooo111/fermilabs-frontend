@@ -102,7 +102,9 @@ export function MyPositions() {
         size: closeDraft.size,
         mode: closeDraft.mode,
         markPrice: safeParseFloat(closeDraft.markPrice),
-        maxSlippageBps: Math.round(Math.max(0, safeParseFloat(closeDraft.slippagePercent, 0.5) * 100)),
+        maxSlippageBps: Math.round(
+          Math.max(0, safeParseFloat(closeDraft.slippagePercent, 0.5) * 100)
+        ),
         limitPrice: closeDraft.limitPrice,
       });
 
@@ -136,13 +138,13 @@ export function MyPositions() {
     return (
       <Table>
         <TableHeader>
-            <TableRow>
-              <TableHead className="text-center">Side</TableHead>
-              <TableHead>Market</TableHead>
-              <TableHead className="text-right">Size</TableHead>
-              <TableHead className="text-right">Entry Price</TableHead>
-              <TableHead className="text-right">Current Price</TableHead>
-              <TableHead className="text-right">PnL</TableHead>
+          <TableRow>
+            <TableHead className="text-center">Side</TableHead>
+            <TableHead>Market</TableHead>
+            <TableHead className="text-right">Size</TableHead>
+            <TableHead className="text-right">Entry Price</TableHead>
+            <TableHead className="text-right">Current Price</TableHead>
+            <TableHead className="text-right">PnL</TableHead>
             <TableHead className="text-right">Stop Loss</TableHead>
             <TableHead className="text-right">Take Profit</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -173,13 +175,13 @@ export function MyPositions() {
       );
     }
 
-      return positions.map((position, index) => {
-        // Convert string values to numbers for formatting
-        const basePosition = parseFloat(position.base_position);
-        const sideLabel = basePosition >= 0 ? 'Long' : 'Short';
-        const averageEntryPrice = parseFloat(position.average_entry_price);
-        const markPrice = parseFloat(position.mark_price);
-        const unrealizedPnl = parseFloat(position.unrealized_pnl);
+    return positions.map((position, index) => {
+      // Convert string values to numbers for formatting
+      const basePosition = parseFloat(position.base_position);
+      const sideLabel = basePosition >= 0 ? 'Long' : 'Short';
+      const averageEntryPrice = parseFloat(position.avg_entry_price);
+      const markPrice = parseFloat(position.mark_price);
+      const unrealizedPnl = parseFloat(position.unrealized_pnl);
       const stopLossPrice = position.stop_loss_price ? parseFloat(position.stop_loss_price) : null;
       const takeProfitPrice = position.take_profit_price
         ? parseFloat(position.take_profit_price)
@@ -208,19 +210,22 @@ export function MyPositions() {
           : safeParseFloat(activeCloseDraft.limitPrice)
         : 0;
       const closeSubmitDisabled =
-        !activeCloseDraft || !Number.isFinite(closePreviewPrice) || closePreviewPrice <= 0 || isClosing;
+        !activeCloseDraft ||
+        !Number.isFinite(closePreviewPrice) ||
+        closePreviewPrice <= 0 ||
+        isClosing;
 
-        return (
-          <TableRow key={positionKey} className="text-white/90">
-            <TableCell className="text-center">
-              <Badge variant={basePosition >= 0 ? 'success' : 'danger'}>{sideLabel}</Badge>
-            </TableCell>
-            <TableCell className="font-medium">{position.market_name}</TableCell>
-            <TableCell className="text-center font-mono tabular-nums">
-              {formatQuantity(Math.abs(basePosition), baseDecimals)}
-            </TableCell>
-            <TableCell className="text-center font-mono tabular-nums">
-              {formatPrice(averageEntryPrice, quoteDecimals)}
+      return (
+        <TableRow key={positionKey} className="text-white/90">
+          <TableCell className="text-center">
+            <Badge variant={basePosition >= 0 ? 'success' : 'danger'}>{sideLabel}</Badge>
+          </TableCell>
+          <TableCell className="font-medium">{position.market_name}</TableCell>
+          <TableCell className="text-center font-mono tabular-nums">
+            {formatQuantity(Math.abs(basePosition), baseDecimals)}
+          </TableCell>
+          <TableCell className="text-center font-mono tabular-nums">
+            {formatPrice(averageEntryPrice, quoteDecimals)}
           </TableCell>
           <TableCell className="text-center font-mono tabular-nums">
             {formatPrice(markPrice, quoteDecimals)}
@@ -242,7 +247,11 @@ export function MyPositions() {
               onOpenChange={open => handleClosePopoverOpenChange(position, index, open)}
             >
               <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" disabled={Boolean(closingPositionKey && !isClosing)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={Boolean(closingPositionKey && !isClosing)}
+                >
                   {isClosing ? (
                     <>
                       <Loader2 className="size-3 animate-spin mr-1" />
@@ -259,7 +268,9 @@ export function MyPositions() {
                     <div className="space-y-1">
                       <div className="text-sm font-medium">Close {activeCloseDraft.marketName}</div>
                       <div className="text-xs text-zinc-400">
-                        {activeCloseDraft.side === 'Buy' ? 'Buy to close short' : 'Sell to close long'}
+                        {activeCloseDraft.side === 'Buy'
+                          ? 'Buy to close short'
+                          : 'Sell to close long'}
                       </div>
                     </div>
 
@@ -321,7 +332,9 @@ export function MyPositions() {
                           value={activeCloseDraft.slippagePercent}
                           onValueChange={values =>
                             setCloseDraft(current =>
-                              current ? { ...current, slippagePercent: values.value || '' } : current
+                              current
+                                ? { ...current, slippagePercent: values.value || '' }
+                                : current
                             )
                           }
                           min={0}
