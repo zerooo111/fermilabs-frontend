@@ -208,6 +208,11 @@ export function useSSEStream() {
   // most on connect, owner switch, and broadcast lag.
   const coldLoadAbortRef = useRef<AbortController | null>(null);
 
+  // Tracks whether the SSE initial burst (book+meta+account) has completed
+  // for the current connection. Reset on every market switch so we never let
+  // the burst's potentially-empty account event overwrite existing positions.
+  const burstCompleteRef = useRef(false);
+
   async function coldLoadV2(mid: string) {
     const market = markets.find(m => m.uuid === mid);
     const ctx = market ? buildContextFromMarket(market) : ctxMapRef.current.get(mid);
@@ -348,7 +353,17 @@ export function useSSEStream() {
     const fallback = ctxMap.values().next().value ?? DEFAULT_CTX;
 
     setUserOrders(mapV2AccountOrders(event, ctxMap, fallback));
-    setUserPositions(mapV2AccountPositions(event, ctxMap, markPriceRef.current));
+
+    const newPositions = mapV2AccountPositions(event, ctxMap, markPriceRef.current);
+    // Guard: the server's initial burst account event can arrive with an empty
+    // positions array before it has loaded position state for the new connection.
+    // Only let an empty array overwrite existing positions once the burst is
+    // complete (burstCompleteRef = true after onReady fires). This prevents the
+    // visible flash to "no positions" on every market switch.
+    if (newPositions.length > 0 || burstCompleteRef.current) {
+      setUserPositions(newPositions);
+    }
+
     setAccountMetrics(mapV2AccountMargin(event, fallback.quoteDecimals));
     // userTradesAtom is not driven by the account event — it comes from the
     // /v2/trades/wallet/:owner endpoint called by features that need it.
@@ -362,9 +377,18 @@ export function useSSEStream() {
     try {
       seedCtxFromMarketsAtom();
       const snapshot = await fetchV2Account(owner);
-      setUserPositions(
-        mapV2AccountSnapshotPositions(snapshot, owner, ctxMapRef.current, markPriceRef.current)
+      const positions = mapV2AccountSnapshotPositions(
+        snapshot,
+        owner,
+        ctxMapRef.current,
+        markPriceRef.current
       );
+      // Same guard as the streaming path: don't overwrite existing positions
+      // with an empty array if the REST snapshot races ahead of position data.
+      // After the burst is complete, streaming events will carry the true state.
+      if (positions.length > 0 || burstCompleteRef.current) {
+        setUserPositions(positions);
+      }
     } catch {
       /* transient; streaming event or next resync will recover */
     }
@@ -372,12 +396,16 @@ export function useSSEStream() {
 
   v2Composite.callbacks.onResync = () => {
     // Broadcast lag — events may have been dropped. Re-seed atoms via REST.
+    burstCompleteRef.current = false;
     const mid = currentMarketRef.current;
     if (mid) void coldLoadV2(mid);
     const owner = publicKey?.toBase58();
     if (owner) void coldLoadV2Account(owner);
   };
   v2Composite.callbacks.onReady = () => {
+    // Initial burst complete — streaming account events can now be trusted
+    // even when they carry an empty positions array (user has no positions).
+    burstCompleteRef.current = true;
     // Eager initial burst (book+meta+account) already shipped via their
     // dedicated handlers before `ready`. Seed trades + enriched positions
     // via REST once so panels aren't empty while waiting for live events.
@@ -491,6 +519,9 @@ export function useSSEStream() {
     prevMarketRef.current = marketId;
 
     if (v2Enabled) {
+      // Reset burst guard so the new connection's initial events don't
+      // overwrite existing positions with an empty array.
+      burstCompleteRef.current = false;
       if (v2Composite.getState() === 'disconnected') {
         v2Composite.connect(marketId, publicKey?.toBase58() ?? null);
       } else {
