@@ -156,8 +156,25 @@ export function useSSEStream() {
     });
   }
 
+  // Seed context and mark prices for every known market so positions in
+  // markets other than the currently subscribed one render correctly.
+  // marketsAtom is already populated at startup — this is a memory read,
+  // not a network fetch.
+  function seedCtxFromMarketsAtom() {
+    for (const market of markets) {
+      if (!ctxMapRef.current.has(market.uuid)) {
+        ctxMapRef.current.set(market.uuid, buildContextFromMarket(market));
+      }
+      if (!markPriceRef.current.has(market.uuid) && market.perp_state?.mark_price) {
+        const quoteScale = Math.pow(10, market.quote_decimals);
+        markPriceRef.current.set(market.uuid, market.perp_state.mark_price / quoteScale);
+      }
+    }
+  }
+
   function handleAccountUpdate(data: SSEAccountUpdateEvent) {
     if (!data?.owner) return;
+    seedCtxFromMarketsAtom();
     const ctxMap = ctxMapRef.current;
     const fallback = ctxMap.values().next().value ?? DEFAULT_CTX;
 
@@ -324,6 +341,7 @@ export function useSSEStream() {
   v2Composite.callbacks.onAccount = data => {
     const event = data as V2AccountEvent;
     if (!event?.owner) return;
+    seedCtxFromMarketsAtom();
     const ctxMap = ctxMapRef.current;
     const fallback = ctxMap.values().next().value ?? DEFAULT_CTX;
 
