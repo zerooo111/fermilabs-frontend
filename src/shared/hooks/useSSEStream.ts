@@ -406,13 +406,11 @@ export function useSSEStream() {
     // Initial burst complete — streaming account events can now be trusted
     // even when they carry an empty positions array (user has no positions).
     burstCompleteRef.current = true;
-    // Eager initial burst (book+meta+account) already shipped via their
-    // dedicated handlers before `ready`. Seed trades + enriched positions
-    // via REST once so panels aren't empty while waiting for live events.
+    // Seed orderbook + recent trades via REST (the burst account event already
+    // populates positions, so we don't reload them here — positions are
+    // cross-market and must not be reset on every market switch).
     const mid = currentMarketRef.current;
     if (mid) void coldLoadV2(mid);
-    const owner = publicKey?.toBase58();
-    if (owner) void coldLoadV2Account(owner);
   };
 
   // --- Wire callbacks into the singleton clients via mutable ref ---
