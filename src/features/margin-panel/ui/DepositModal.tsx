@@ -137,7 +137,7 @@ export function DepositModal({ open, onClose }: Props) {
         {/* ── Input ── */}
         {step === 'input' && (
           <>
-            <div className="flex items-start gap-4 border-b border-border p-5">
+            <div className="flex items-start gap-4 border-b border-outline p-5">
               <div className="flex size-10 shrink-0 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
                 <ArrowCircleDown weight="duotone" className="size-5" />
               </div>
@@ -200,7 +200,7 @@ export function DepositModal({ open, onClose }: Props) {
 
               {/* New account info */}
               {!mangoAccountExists && (
-                <div className="flex gap-2.5 border border-border bg-card px-3 py-2.5">
+                <div className="flex gap-2.5 border border-outline bg-card px-3 py-2.5">
                   <Info
                     weight="duotone"
                     className="size-3.5 shrink-0 mt-0.5 text-muted-foreground"
@@ -280,7 +280,7 @@ export function DepositModal({ open, onClose }: Props) {
                 )}
               </div>
             </div>
-            <div className="border-t border-border p-4">
+            <div className="border-t border-outline p-4">
               <Button onClick={onClose} size="lg" className="w-full font-mono tracking-wide">
                 Done
               </Button>
@@ -298,7 +298,7 @@ export function DepositModal({ open, onClose }: Props) {
               </div>
               <p className="text-xs text-muted-foreground break-words leading-relaxed">{error}</p>
             </div>
-            <div className="flex gap-2 border-t border-border p-4">
+            <div className="flex gap-2 border-t border-outline p-4">
               <Button variant="outline" onClick={handleClose} className="flex-1 font-mono text-xs">
                 Cancel
               </Button>
@@ -315,7 +315,7 @@ export function DepositModal({ open, onClose }: Props) {
 
 function StepRow({ label, active }: { label: string; active: boolean }) {
   return (
-    <div className="flex w-full items-center gap-2.5 border border-border px-3 py-2">
+    <div className="flex w-full items-center gap-2.5 border border-outline px-3 py-2">
       {active ? (
         <Loader2 className="size-3 shrink-0 animate-spin text-accent" />
       ) : (

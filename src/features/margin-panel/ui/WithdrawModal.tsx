@@ -90,7 +90,7 @@ export function WithdrawModal({ open, onClose }: Props) {
         {/* ── Input ── */}
         {step === 'input' && (
           <>
-            <div className="flex items-start gap-4 border-b border-border p-5">
+            <div className="flex items-start gap-4 border-b border-outline p-5">
               <div className="flex size-10 shrink-0 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
                 <ArrowCircleUp weight="duotone" className="size-5" />
               </div>
@@ -216,7 +216,7 @@ export function WithdrawModal({ open, onClose }: Props) {
                 </p>
               </div>
             </div>
-            <div className="border-t border-border p-4">
+            <div className="border-t border-outline p-4">
               <Button onClick={onClose} size="lg" className="w-full font-mono tracking-wide">
                 Done
               </Button>
@@ -234,7 +234,7 @@ export function WithdrawModal({ open, onClose }: Props) {
               </div>
               <p className="text-xs text-muted-foreground break-words leading-relaxed">{error}</p>
             </div>
-            <div className="flex gap-2 border-t border-border p-4">
+            <div className="flex gap-2 border-t border-outline p-4">
               <Button variant="outline" onClick={handleClose} className="flex-1 font-mono text-xs">
                 Cancel
               </Button>
