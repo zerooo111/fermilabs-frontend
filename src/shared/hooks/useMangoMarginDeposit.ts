@@ -97,6 +97,30 @@ function toAccountNumLeBytes(value: number): Uint8Array {
   return bytes;
 }
 
+// web3.js's SendTransactionError carries on-chain logs that aren't in the
+// default message. Pull them out and stitch them into the thrown error so
+// the surfaced message in UI/PostHog is something the user (or we) can act
+// on, rather than the generic "Transaction simulation failed.".
+async function enrichSendError(err: unknown): Promise<Error> {
+  if (!(err instanceof Error)) return new Error(String(err));
+  // SendTransactionError exposes getLogs() (async) in @solana/web3.js >= 1.86.
+  const maybeWithLogs = err as Error & { getLogs?: () => Promise<string[] | null> };
+  let logs: string[] | null = null;
+  try {
+    if (typeof maybeWithLogs.getLogs === 'function') {
+      logs = await maybeWithLogs.getLogs();
+    }
+  } catch {
+    // best-effort; swallow log fetch failures
+  }
+  if (logs && logs.length > 0) {
+    const enriched = new Error(`${err.message}\n\nProgram logs:\n${logs.join('\n')}`);
+    enriched.name = err.name;
+    return enriched;
+  }
+  return err;
+}
+
 // Polling-based confirmation. Returns true on confirm/finalize, false on
 // timeout. Throws if the tx itself errored on-chain. We deliberately avoid
 // `connection.confirmTransaction` because its websocket subscription path
@@ -303,17 +327,29 @@ export function useMangoMarginDeposit() {
       let txSignature: string;
       try {
         txSignature = await connection.sendRawTransaction(signedTx.serialize(), {
-          skipPreflight: false,
-          // The wallet's RPC may have already broadcast a copy. Allow the
-          // duplicate so we don't lose track of the signature.
-          maxRetries: 5,
+          // skipPreflight avoids the "Blockhash not found" simulation error
+          // when the receiving RPC hasn't yet seen the (very recent) blockhash
+          // we used to sign. The wallet popup adds enough latency that
+          // preflight on a different node can race with blockhash propagation.
+          // Real on-chain failures still surface via getSignatureStatuses
+          // during the polling loop below.
+          skipPreflight: true,
+          preflightCommitment: config.devnet.commitment,
+          // Bump retries — the cluster will rebroadcast our signed tx until
+          // a leader picks it up or the blockhash expires.
+          maxRetries: 10,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (!msg.includes('already been processed')) throw err;
-        // Still keep the signature; the tx is on the network even though
-        // our send attempt was a no-op.
-        txSignature = localSig;
+        if (msg.includes('already been processed')) {
+          // Still keep the signature; the tx is on the network even though
+          // our send attempt was a no-op.
+          txSignature = localSig;
+        } else {
+          // Pull on-chain logs out of SendTransactionError when available so
+          // the surfaced error is actionable instead of "Simulation failed.".
+          throw await enrichSendError(err);
+        }
       }
 
       reportPhase('confirming');

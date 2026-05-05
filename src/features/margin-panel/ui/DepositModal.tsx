@@ -521,6 +521,18 @@ function friendlyDepositError(err: unknown): { kind: DepositErrorKind; message: 
     };
   }
 
+  if (
+    lower.includes('blockhash not found') ||
+    lower.includes('block height exceeded') ||
+    lower.includes('transaction was not confirmed')
+  ) {
+    return {
+      kind: 'simulation_failed',
+      message:
+        'The network was busy and your transaction expired before landing. Please try again — it usually works on the second attempt.',
+    };
+  }
+
   if (lower.includes('simulation failed') || lower.includes('preflight')) {
     return {
       kind: 'simulation_failed',
