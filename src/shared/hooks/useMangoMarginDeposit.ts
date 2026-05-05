@@ -1,7 +1,8 @@
 import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { PublicKey, Transaction } from '@solana/web3.js';
+import bs58 from 'bs58';
+import { ComputeBudgetProgram, PublicKey, Transaction } from '@solana/web3.js';
 import { useCallback } from 'react';
 import { API_ROUTES, config } from '@/shared/config/constants';
 import {
@@ -10,6 +11,31 @@ import {
   getAssociatedTokenAddress,
   toNative,
 } from '@/shared/lib/solana/helpers';
+
+// Mango v4 token deposit + account create together comfortably fit under
+// 300k CU; bump to 400k as a safety margin on a hot lane. Priority fee is
+// modest (50k microLamports/CU ~= 0.00002 SOL) — enough to keep the tx out
+// of starvation without burning fees on devnet.
+const COMPUTE_UNIT_LIMIT = 400_000;
+const COMPUTE_UNIT_PRICE_MICROLAMPORTS = 50_000;
+// How long we'll actively poll for confirmation before surfacing a
+// "still pending" state to the UI. The signed tx remains valid until the
+// blockhash expires (~60-90s) so polling longer than that is wasted.
+const CONFIRM_TIMEOUT_MS = 60_000;
+const CONFIRM_POLL_INTERVAL_MS = 1_500;
+
+// Thrown when the tx was sent successfully but didn't reach the requested
+// commitment within the timeout. The modal uses this to render a
+// "still pending" UI with an explorer link instead of treating it as a
+// hard failure (the deposit may still confirm on-chain shortly).
+export class DepositConfirmationTimeoutError extends Error {
+  readonly txSignature: string;
+  constructor(txSignature: string) {
+    super('deposit transaction is still pending confirmation');
+    this.name = 'DepositConfirmationTimeoutError';
+    this.txSignature = txSignature;
+  }
+}
 
 const DEFAULT_ACCOUNT_NAME = 'frontend';
 const DEFAULT_TOKEN_COUNT = 8;
@@ -58,12 +84,61 @@ export type DepositPhase =
 
 export interface DepositOptions {
   onPhase?: (phase: DepositPhase) => void;
+  // Fired as soon as the wallet returns a signed tx and we have a signature
+  // we can show to the user (even before send/confirm completes). The modal
+  // uses this to render an explorer link immediately so the user can verify
+  // the deposit even if the confirmation step stalls.
+  onSubmitted?: (txSignature: string) => void;
 }
 
 function toAccountNumLeBytes(value: number): Uint8Array {
   const bytes = new Uint8Array(4);
   new DataView(bytes.buffer).setUint32(0, value, true);
   return bytes;
+}
+
+// Polling-based confirmation. Returns true on confirm/finalize, false on
+// timeout. Throws if the tx itself errored on-chain. We deliberately avoid
+// `connection.confirmTransaction` because its websocket subscription path
+// hangs silently on lossy RPCs (api.devnet.solana.com drops notifications
+// under load), which is the root cause of the "deposit gets stuck, comes
+// later" reports.
+async function pollForConfirmation(
+  connection: import('@solana/web3.js').Connection,
+  signature: string,
+  lastValidBlockHeight: number,
+  commitment: import('@solana/web3.js').Commitment
+): Promise<boolean> {
+  const start = Date.now();
+  const target =
+    commitment === 'finalized' ? new Set(['finalized']) : new Set(['confirmed', 'finalized']);
+
+  while (Date.now() - start < CONFIRM_TIMEOUT_MS) {
+    const { value } = await connection.getSignatureStatuses([signature], {
+      searchTransactionHistory: false,
+    });
+    const status = value?.[0];
+    if (status) {
+      if (status.err) {
+        throw new Error(
+          `transaction failed on-chain: ${typeof status.err === 'string' ? status.err : JSON.stringify(status.err)}`
+        );
+      }
+      if (status.confirmationStatus && target.has(status.confirmationStatus)) {
+        return true;
+      }
+    }
+    // Stop early if the blockhash window has closed; the tx is dead and
+    // won't land anymore. Treat this as a hard timeout.
+    try {
+      const currentHeight = await connection.getBlockHeight(commitment);
+      if (currentHeight > lastValidBlockHeight) return false;
+    } catch {
+      // ignore — height check is best-effort
+    }
+    await new Promise(resolve => setTimeout(resolve, CONFIRM_POLL_INTERVAL_MS));
+  }
+  return false;
 }
 
 export function useMangoMarginDeposit() {
@@ -154,6 +229,15 @@ export function useMangoMarginDeposit() {
       let createMangoAccountTxSignature: string | null = null;
 
       const tx = new Transaction();
+      // Compute budget instructions go first so they apply to all subsequent
+      // ixs in this tx. Without these the deposit can fail silently under
+      // network load (CU starvation) or get stuck behind higher-priority txs.
+      tx.add(
+        ComputeBudgetProgram.setComputeUnitLimit({ units: COMPUTE_UNIT_LIMIT }),
+        ComputeBudgetProgram.setComputeUnitPrice({
+          microLamports: COMPUTE_UNIT_PRICE_MICROLAMPORTS,
+        })
+      );
       if (!depositContext.mango_account_exists) {
         const [expectedMangoAccountPk] = PublicKey.findProgramAddressSync(
           [
@@ -194,7 +278,9 @@ export function useMangoMarginDeposit() {
 
       // Manual sign → send → confirm so the caller can hook into each phase
       // for progressive UI updates. provider.sendAndConfirm bundles all three
-      // into one opaque promise.
+      // into one opaque promise and uses the websocket subscription path for
+      // confirmation, which silently drops notifications on lossy public RPCs
+      // and leaves the user staring at an indefinite spinner.
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash(
         config.devnet.commitment
       );
@@ -204,24 +290,49 @@ export function useMangoMarginDeposit() {
       reportPhase('awaiting-signature');
       const signedTx = await wallet.signTransaction(tx);
 
+      // Derive the signature locally so we can surface an explorer link to
+      // the user even if sendRawTransaction fails with "already processed".
+      const localSigBytes = signedTx.signatures[0]?.signature;
+      if (!localSigBytes) {
+        throw new Error('signed transaction is missing a signature');
+      }
+      const localSig = bs58.encode(localSigBytes);
+      options?.onSubmitted?.(localSig);
+
       reportPhase('sending');
       let txSignature: string;
       try {
         txSignature = await connection.sendRawTransaction(signedTx.serialize(), {
           skipPreflight: false,
+          // The wallet's RPC may have already broadcast a copy. Allow the
+          // duplicate so we don't lose track of the signature.
+          maxRetries: 5,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (!msg.includes('already been processed')) throw err;
-        txSignature = 'already-processed';
+        // Still keep the signature; the tx is on the network even though
+        // our send attempt was a no-op.
+        txSignature = localSig;
       }
 
-      if (txSignature !== 'already-processed') {
-        reportPhase('confirming');
-        await connection.confirmTransaction(
-          { signature: txSignature, blockhash, lastValidBlockHeight },
-          config.devnet.commitment
-        );
+      reportPhase('confirming');
+      const confirmed = await pollForConfirmation(
+        connection,
+        txSignature,
+        lastValidBlockHeight,
+        config.devnet.commitment
+      );
+
+      if (!confirmed) {
+        // Fire query invalidation defensively so the UI can recover on its
+        // own if the tx confirms shortly after the modal closes.
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['userBalances', owner.toBase58()] }),
+          queryClient.invalidateQueries({ queryKey: ['account', owner.toBase58()] }),
+          queryClient.invalidateQueries({ queryKey: ['positions', owner.toBase58()] }),
+        ]);
+        throw new DepositConfirmationTimeoutError(txSignature);
       }
 
       if (autoCreatedMangoAccount) {

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { Loader2 } from 'lucide-react';
-import { ArrowCircleDown, CheckCircle, Info, X } from '@phosphor-icons/react';
+import { ArrowCircleDown, CheckCircle, Clock, Info, X } from '@phosphor-icons/react';
+import { ExternalLink } from 'lucide-react';
 import axios from 'axios';
 import posthog from 'posthog-js';
 
@@ -16,6 +17,7 @@ import {
   DialogDescription,
 } from '@/shared/ui/dialog';
 import {
+  DepositConfirmationTimeoutError,
   useMangoMarginDeposit,
   type DepositContextResponse,
   type DepositPhase,
@@ -23,7 +25,13 @@ import {
 import { fetchTokenBalance } from '@/shared/lib/solana/helpers';
 import { API_ROUTES, config } from '@/shared/config/constants';
 
-type Step = 'loading' | 'input' | 'depositing' | 'success' | 'error';
+type Step = 'loading' | 'input' | 'depositing' | 'success' | 'pending' | 'error';
+
+// Solana Explorer link for a tx signature on the configured cluster.
+function getTxExplorerUrl(signature: string): string {
+  // Devnet for now; if mainnet ever lands here, derive from rpcUrl.
+  return `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
+}
 
 interface Props {
   open: boolean;
@@ -48,6 +56,10 @@ export function DepositModal({ open, onClose }: Props) {
   // Phase-aware progress for the depositing screen so the user sees granular
   // feedback (signing → sending → confirming) instead of a single spinner.
   const [phase, setPhase] = useState<DepositPhase>('preparing');
+  // Captured the moment the wallet returns a signed tx — surfaced as an
+  // explorer link so the user can verify the deposit themselves even if
+  // confirmation stalls on a flaky RPC.
+  const [txSignature, setTxSignature] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -59,6 +71,7 @@ export function DepositModal({ open, onClose }: Props) {
     setDepositedAmount(null);
     setAutoCreated(false);
     setPhase('preparing');
+    setTxSignature(null);
 
     const load = async () => {
       try {
@@ -94,27 +107,47 @@ export function DepositModal({ open, onClose }: Props) {
     setStep('depositing');
     setPhase('preparing');
     setError(null);
+    setTxSignature(null);
 
     try {
       const result = await depositMargin(parsed, {
         onPhase: setPhase,
+        onSubmitted: setTxSignature,
       });
       setDepositedAmount(result.uiAmount);
       setAutoCreated(result.autoCreatedMangoAccount);
+      setTxSignature(result.txSignature);
       setStep('success');
       posthog.capture('margin_deposit', {
         token: quoteToken,
         amount: result.uiAmount,
         auto_created_mango_account: result.autoCreatedMangoAccount,
+        tx_signature: result.txSignature,
         wallet: publicKey?.toBase58(),
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Deposit failed';
-      setError(msg);
+      // Confirmation timeout — tx is on the network, just hasn't confirmed.
+      // Don't treat this as a failure; route to the pending screen so the
+      // user can watch it on Explorer instead of getting a hard error.
+      if (err instanceof DepositConfirmationTimeoutError) {
+        setTxSignature(err.txSignature);
+        setStep('pending');
+        posthog.capture('margin_deposit_pending', {
+          token: quoteToken,
+          tx_signature: err.txSignature,
+          wallet: publicKey?.toBase58(),
+        });
+        return;
+      }
+
+      const friendly = friendlyDepositError(err);
+      setError(friendly.message);
       setStep('error');
       posthog.capture('margin_deposit_failed', {
         token: quoteToken,
-        error_message: msg,
+        error_message: friendly.message,
+        error_kind: friendly.kind,
+        tx_signature: txSignature,
         wallet: publicKey?.toBase58(),
       });
     }
@@ -254,6 +287,7 @@ export function DepositModal({ open, onClose }: Props) {
                   This transaction creates your margin account and deposits {quoteToken} together.
                 </p>
               )}
+              {txSignature && <ExplorerLink signature={txSignature} />}
             </div>
           </div>
         )}
@@ -284,10 +318,47 @@ export function DepositModal({ open, onClose }: Props) {
                   </p>
                 )}
               </div>
+              {txSignature && (
+                <div className="w-full px-2">
+                  <ExplorerLink signature={txSignature} />
+                </div>
+              )}
             </div>
             <div className="border-t border-outline p-4">
               <Button onClick={onClose} size="lg" className="w-full font-mono tracking-wide">
                 Done
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Pending (still confirming) ── */}
+        {step === 'pending' && (
+          <div className="flex flex-col gap-0">
+            <div className="flex flex-col items-center gap-4 px-6 py-10">
+              <div className="flex size-12 items-center justify-center border border-amber-400/30 bg-amber-400/10 text-amber-300">
+                <Clock weight="duotone" className="size-6" />
+              </div>
+              <div className="flex flex-col items-center gap-1.5 text-center">
+                <p className="text-sm font-medium">Still confirming</p>
+                <p className="text-xs text-muted-foreground leading-relaxed max-w-[260px]">
+                  Your transaction is on Solana but hasn't been confirmed yet. It usually finalizes
+                  within a few seconds — check the explorer for live status. Your balance will
+                  update automatically once it lands.
+                </p>
+              </div>
+              {txSignature && (
+                <div className="w-full px-2">
+                  <ExplorerLink signature={txSignature} prominent />
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 border-t border-outline p-4">
+              <Button variant="outline" onClick={onClose} className="flex-1 font-mono text-xs">
+                Close
+              </Button>
+              <Button onClick={() => setStep('input')} className="flex-1 font-mono text-xs">
+                New deposit
               </Button>
             </div>
           </div>
@@ -302,6 +373,15 @@ export function DepositModal({ open, onClose }: Props) {
                 <p className="text-sm font-medium">Deposit failed</p>
               </div>
               <p className="text-xs text-muted-foreground break-words leading-relaxed">{error}</p>
+              {txSignature && (
+                <>
+                  <p className="text-[10px] text-muted-foreground/80 leading-relaxed">
+                    A signed transaction was submitted before the failure. If it eventually
+                    confirms, your deposit will go through — verify on the explorer:
+                  </p>
+                  <ExplorerLink signature={txSignature} />
+                </>
+              )}
             </div>
             <div className="flex gap-2 border-t border-outline p-4">
               <Button variant="outline" onClick={handleClose} className="flex-1 font-mono text-xs">
@@ -366,6 +446,110 @@ function phaseSubline(phase: DepositPhase, quoteToken: string): string {
     case 'finalizing':
       return 'Updating balances…';
   }
+}
+
+function ExplorerLink({
+  signature,
+  prominent = false,
+}: {
+  signature: string;
+  prominent?: boolean;
+}) {
+  const short = `${signature.slice(0, 6)}…${signature.slice(-6)}`;
+  return (
+    <a
+      href={getTxExplorerUrl(signature)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`flex items-center justify-between gap-2 border px-3 py-2 transition-colors ${
+        prominent
+          ? 'border-amber-400/40 bg-amber-400/5 text-amber-200 hover:bg-amber-400/10'
+          : 'border-outline text-muted-foreground hover:bg-card hover:text-foreground'
+      }`}
+    >
+      <span className="font-mono text-[10px] uppercase tracking-[0.12em]">View on Explorer</span>
+      <span className="flex items-center gap-1.5 font-mono text-[10px] tabular-nums">
+        {short}
+        <ExternalLink className="size-3" />
+      </span>
+    </a>
+  );
+}
+
+// Maps the heterogeneous error shapes thrown by Solana web3.js, the wallet
+// adapter, and our own hook into a small set of user-facing messages.
+type DepositErrorKind =
+  | 'user_rejected'
+  | 'insufficient_sol'
+  | 'simulation_failed'
+  | 'rpc_unreachable'
+  | 'on_chain_error'
+  | 'wallet_disconnected'
+  | 'unknown';
+
+function friendlyDepositError(err: unknown): { kind: DepositErrorKind; message: string } {
+  const raw = err instanceof Error ? err.message : String(err ?? '');
+  const code = (err as { code?: number | string } | null)?.code;
+  const lower = raw.toLowerCase();
+
+  // User rejected in the wallet popup. Phantom uses code 4001; other wallets
+  // surface the rejection in plain text.
+  if (
+    code === 4001 ||
+    lower.includes('user rejected') ||
+    lower.includes('user denied') ||
+    lower.includes('rejected the request')
+  ) {
+    return { kind: 'user_rejected', message: 'Transaction was cancelled in your wallet.' };
+  }
+
+  if (lower.includes('wallet not connected') || lower.includes('not connected')) {
+    return {
+      kind: 'wallet_disconnected',
+      message: 'Wallet disconnected. Reconnect and try again.',
+    };
+  }
+
+  if (
+    lower.includes('insufficient lamports') ||
+    lower.includes('insufficient funds for rent') ||
+    lower.includes('attempt to debit an account but found no record of a prior credit')
+  ) {
+    return {
+      kind: 'insufficient_sol',
+      message: 'Not enough SOL in your wallet to cover network fees. Top up SOL and retry.',
+    };
+  }
+
+  if (lower.includes('simulation failed') || lower.includes('preflight')) {
+    return {
+      kind: 'simulation_failed',
+      message:
+        'Transaction simulation failed before submission. The deposit was not sent. Please retry — if this keeps happening, reload the page.',
+    };
+  }
+
+  if (
+    lower.includes('failed to fetch') ||
+    lower.includes('network error') ||
+    lower.includes('econnrefused') ||
+    lower.includes('etimedout') ||
+    lower.includes('timeout')
+  ) {
+    return {
+      kind: 'rpc_unreachable',
+      message: "Couldn't reach Solana. Check your connection and try again.",
+    };
+  }
+
+  if (lower.includes('transaction failed on-chain') || lower.includes('custom program error')) {
+    return {
+      kind: 'on_chain_error',
+      message: raw,
+    };
+  }
+
+  return { kind: 'unknown', message: raw || 'Deposit failed. Please try again.' };
 }
 
 function PhaseRow({ label, state }: { label: string; state: RowState }) {
