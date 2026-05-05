@@ -266,6 +266,8 @@ export interface V2AccountEvent {
       ts_ms?: string;
       avg_entry_price?: string;
       average_entry_price?: string;
+      pnl_unrealized_ui?: number;
+      trade_pnl_ui?: number;
     };
   }>;
   orders?: Array<{
@@ -371,7 +373,14 @@ export function mapV2AccountPositions(
           : basePositionUi !== 0
             ? Math.abs(quotePositionUi / basePositionUi)
             : 0;
-      const unrealizedPnlUi = quotePositionUi + basePositionUi * markPriceUi;
+      // Prefer server-computed PnL over the raw-quote derivation.
+      // quote_position_native is the raw Mango accumulator — not clean basis —
+      // so quote + base * mark diverges from the correct trade PnL.
+      const serverPnlUi = p.fields.pnl_unrealized_ui ?? p.fields.trade_pnl_ui ?? null;
+      const unrealizedPnlNative =
+        serverPnlUi !== null
+          ? Math.round(serverPnlUi * quoteScale)
+          : Math.round((quotePositionUi + basePositionUi * markPriceUi) * quoteScale);
       return {
         owner: event.owner,
         market_id: p.market,
@@ -380,7 +389,7 @@ export function mapV2AccountPositions(
         avg_entry_price: String(Math.round(avgEntryUi * quoteScale)),
         mark_price: String(Math.round(markPriceNative)),
         realized_pnl: '0',
-        unrealized_pnl: String(Math.round(unrealizedPnlUi * quoteScale)),
+        unrealized_pnl: String(unrealizedPnlNative),
         cumulative_funding: '0',
         base_decimals: baseDecimals,
         quote_decimals: quoteDecimals,

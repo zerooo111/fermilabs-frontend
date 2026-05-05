@@ -163,6 +163,10 @@ export interface SSEPosition {
   base_position_ui?: number;
   average_entry_price_ui?: number;
   mark_price_ui?: number;
+  /** Preferred server-provided unrealized PnL fields (UI-scaled). */
+  pnl_unrealized_ui?: number;
+  trade_pnl_ui?: number;
+  /** Legacy field name — kept for backward compat. */
   unrealized_pnl_ui?: number;
   realized_pnl_ui?: number;
 }
