@@ -213,6 +213,11 @@ export function useSSEStream() {
   // the burst's potentially-empty account event overwrite existing positions.
   const burstCompleteRef = useRef(false);
 
+  // Whether we have seeded positions from the REST snapshot for this wallet.
+  // Reset when the wallet changes so a new owner gets a fresh cold load.
+  // NOT reset on market switch — positions are cross-market and persist.
+  const initialAccountLoadedRef = useRef(false);
+
   async function coldLoadV2(mid: string) {
     const market = markets.find(m => m.uuid === mid);
     const ctx = market ? buildContextFromMarket(market) : ctxMapRef.current.get(mid);
@@ -406,11 +411,17 @@ export function useSSEStream() {
     // Initial burst complete — streaming account events can now be trusted
     // even when they carry an empty positions array (user has no positions).
     burstCompleteRef.current = true;
-    // Seed orderbook + recent trades via REST (the burst account event already
-    // populates positions, so we don't reload them here — positions are
-    // cross-market and must not be reset on every market switch).
+    // Seed orderbook + recent trades via REST on every market switch.
     const mid = currentMarketRef.current;
     if (mid) void coldLoadV2(mid);
+    // Seed positions from REST once per wallet session. Market switches must
+    // NOT re-trigger this: positions are cross-market and already in the atom.
+    // Subsequent updates come from streaming onAccount events.
+    if (!initialAccountLoadedRef.current) {
+      initialAccountLoadedRef.current = true;
+      const owner = publicKey?.toBase58();
+      if (owner) void coldLoadV2Account(owner);
+    }
   };
 
   // --- Wire callbacks into the singleton clients via mutable ref ---
@@ -551,6 +562,9 @@ export function useSSEStream() {
     const ownerStr = publicKey?.toBase58() ?? null;
     if (prevOwnerRef.current === ownerStr) return;
     prevOwnerRef.current = ownerStr;
+
+    // New wallet — allow a fresh REST seed for positions.
+    initialAccountLoadedRef.current = false;
 
     if (!ownerStr) {
       // Clear user-specific atoms on disconnect
