@@ -43,6 +43,9 @@ export function Header() {
           >
             <FermiLogo3d className="w-6 h-6 " />
             Fermi Trade
+            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-400/15 text-amber-300 border border-amber-400/30 leading-none">
+              Beta
+            </span>
           </Link>
           <Link
             to="/perps"
