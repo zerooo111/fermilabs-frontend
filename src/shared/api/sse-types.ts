@@ -164,6 +164,8 @@ export interface SSEPosition {
   average_entry_price_ui?: number;
   mark_price_ui?: number;
   unrealized_pnl_ui?: number;
+  pnl_unrealized_ui?: number;
+  pnl_unrealized_native_quote?: string;
   realized_pnl_ui?: number;
 }
 

@@ -266,6 +266,8 @@ export interface V2AccountEvent {
       ts_ms?: string;
       avg_entry_price?: string;
       average_entry_price?: string;
+      pnl_unrealized_ui?: number;
+      pnl_unrealized_native_quote?: string;
     };
   }>;
   orders?: Array<{
@@ -371,7 +373,16 @@ export function mapV2AccountPositions(
           : basePositionUi !== 0
             ? Math.abs(quotePositionUi / basePositionUi)
             : 0;
-      const unrealizedPnlUi = quotePositionUi + basePositionUi * markPriceUi;
+      const serverPnlNative =
+        p.fields.pnl_unrealized_native_quote !== undefined
+          ? num(p.fields.pnl_unrealized_native_quote)
+          : p.fields.pnl_unrealized_ui !== undefined
+            ? Math.round(p.fields.pnl_unrealized_ui * quoteScale)
+            : null;
+      const unrealizedPnlNative =
+        serverPnlNative !== null
+          ? serverPnlNative
+          : Math.round((quotePositionUi + basePositionUi * markPriceUi) * quoteScale);
       return {
         owner: event.owner,
         market_id: p.market,
@@ -380,7 +391,7 @@ export function mapV2AccountPositions(
         avg_entry_price: String(Math.round(avgEntryUi * quoteScale)),
         mark_price: String(Math.round(markPriceNative)),
         realized_pnl: '0',
-        unrealized_pnl: String(Math.round(unrealizedPnlUi * quoteScale)),
+        unrealized_pnl: String(unrealizedPnlNative),
         cumulative_funding: '0',
         base_decimals: baseDecimals,
         quote_decimals: quoteDecimals,
