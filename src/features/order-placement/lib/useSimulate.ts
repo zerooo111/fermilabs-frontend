@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   warmSimulate,
@@ -7,6 +8,15 @@ import {
 } from './simulateApi';
 import axios from 'axios';
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
+
 interface UseSimulateParams {
   owner: string | null;
   marketIndex: number | null;
@@ -15,6 +25,8 @@ interface UseSimulateParams {
   price: number | null;
   orderType: 'limit' | 'market';
   enabled: boolean;
+  /** Milliseconds to debounce quantity/price changes before firing. Default 500. */
+  debounceMs?: number;
 }
 
 export function useSimulate({
@@ -25,26 +37,30 @@ export function useSimulate({
   price,
   orderType,
   enabled,
+  debounceMs = 500,
 }: UseSimulateParams) {
+  const debouncedQuantity = useDebounce(quantity, debounceMs);
+  const debouncedPrice = useDebounce(price, debounceMs);
+
   const isMarket = orderType === 'market';
   const canRun =
     enabled &&
     !!owner &&
     marketIndex !== null &&
-    quantity > 0 &&
-    (isMarket || (price !== null && price > 0));
+    debouncedQuantity > 0 &&
+    (isMarket || (debouncedPrice !== null && debouncedPrice > 0));
 
   return useQuery<SimulateResponse>({
-    queryKey: ['simulate', owner, marketIndex, side, quantity, price, orderType],
+    queryKey: ['simulate', owner, marketIndex, side, debouncedQuantity, debouncedPrice, orderType],
     queryFn: async () => {
       const req: SimulateRequest = {
         owner: owner!,
         trade: {
           market_index: marketIndex!,
           side,
-          quantity,
+          quantity: debouncedQuantity,
           order_type: isMarket ? 'market' : 'limit',
-          ...(!isMarket && price !== null ? { price } : {}),
+          ...(!isMarket && debouncedPrice !== null ? { price: debouncedPrice } : {}),
         },
       };
 

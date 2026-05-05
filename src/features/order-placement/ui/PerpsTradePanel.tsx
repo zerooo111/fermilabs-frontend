@@ -66,15 +66,6 @@ function FeeBanner({
   );
 }
 
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(id);
-  }, [value, delay]);
-  return debounced;
-}
-
 function healthColor(ratio: number) {
   if (ratio < 0) return { bar: 'bg-danger', text: 'text-danger' };
   if (ratio < 10) return { bar: 'bg-orange-500', text: 'text-orange-400' };
@@ -207,18 +198,15 @@ export function PerpsTradePanel() {
   const orderValue = priceValue * sizeValue;
   const isMarketOrder = formState.orderType === 'market';
 
-  // Debounced form values for simulation (avoids hitting the API on every keystroke)
-  const debouncedPrice = useDebounce(priceValue, 400);
-  const debouncedSize = useDebounce(sizeValue, 400);
   const marketIndex = selectedMarket ? parseInt(selectedMarket.uuid, 10) : null;
-  const simulateEnabled = !!publicKey && !!selectedMarket && debouncedSize > 0;
+  const simulateEnabled = !!publicKey && !!selectedMarket && sizeValue > 0;
 
   const buySimulate = useSimulate({
     owner: publicKey?.toBase58() ?? null,
     marketIndex,
     side: 'buy',
-    quantity: debouncedSize,
-    price: isMarketOrder ? null : debouncedPrice > 0 ? debouncedPrice : null,
+    quantity: sizeValue,
+    price: isMarketOrder ? null : priceValue > 0 ? priceValue : null,
     orderType: isMarketOrder ? 'market' : 'limit',
     enabled: simulateEnabled,
   });
@@ -227,8 +215,8 @@ export function PerpsTradePanel() {
     owner: publicKey?.toBase58() ?? null,
     marketIndex,
     side: 'sell',
-    quantity: debouncedSize,
-    price: isMarketOrder ? null : debouncedPrice > 0 ? debouncedPrice : null,
+    quantity: sizeValue,
+    price: isMarketOrder ? null : priceValue > 0 ? priceValue : null,
     orderType: isMarketOrder ? 'market' : 'limit',
     enabled: simulateEnabled,
   });
