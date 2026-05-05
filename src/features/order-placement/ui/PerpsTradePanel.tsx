@@ -269,8 +269,6 @@ export function PerpsTradePanel() {
   }, [leverageLimits?.max, leverageValue]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    console.log('[PerpsTradePanel] Form input changed:', { field, value });
-
     // Validate numeric inputs for price, size, stopLoss, and takeProfit
     if (field === 'price' || field === 'size' || field === 'stopLoss' || field === 'takeProfit') {
       const stringValue = value as string;
@@ -327,7 +325,6 @@ export function PerpsTradePanel() {
           takeProfit: takeProfitValue ? safeParseFloat(takeProfitValue) : null,
         };
 
-        console.log('[PerpsTradePanel] Setting SL/TP values:', sltp);
         setSLTPValues(sltp);
       }
 
