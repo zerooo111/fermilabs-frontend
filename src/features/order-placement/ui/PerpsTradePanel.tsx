@@ -507,7 +507,7 @@ export function PerpsTradePanel() {
             </Tooltip>
           </div>
           <span className="tabular-nums font-semibold">
-            {computedLeverage !== null ? `${computedLeverage.toFixed(2)}×` : '—'}
+            {computedLeverage !== null ? `${computedLeverage.toFixed(2)}×` : '5×'}
           </span>
         </div>
 
