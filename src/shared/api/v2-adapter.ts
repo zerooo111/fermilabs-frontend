@@ -399,6 +399,65 @@ export function mapV2AccountPositions(
     .filter((p): p is Position => p !== null);
 }
 
+// ── REST account snapshot → Position[] ───────────────────────────────
+// /v2/snapshot/account/{owner} returns the full Redis hash per market:
+//   positions: { "<marketId>": { base, quote, avg_entry_price,
+//                                pnl_unrealized_ui, trade_pnl_ui, ... } }
+// All values are strings (Redis stores everything as strings).
+export function mapV2AccountSnapshotPositions(
+  snapshot: import('./v2-api').V2AccountSnapshot,
+  owner: string,
+  ctxMap: Map<string, MarketContext>,
+  markPriceByMarket: Map<string, number>
+): Position[] {
+  const posMap = (snapshot.positions ?? {}) as Record<string, Record<string, string>>;
+  return Object.entries(posMap)
+    .map(([marketId, fields]) => {
+      const baseLots = BigInt(fields.base ?? '0');
+      if (baseLots === 0n) return null;
+      const ctx = ctxMap.get(marketId);
+      const baseDecimals = ctx?.baseDecimals ?? 6;
+      const quoteDecimals = ctx?.quoteDecimals ?? 6;
+      const baseLotSize = ctx?.baseLotSize ?? 1;
+      const baseScale = Math.pow(10, baseDecimals);
+      const quoteScale = Math.pow(10, quoteDecimals);
+      const basePositionNative = Number(baseLots * BigInt(baseLotSize));
+      const basePositionUi = basePositionNative / baseScale;
+      const markPriceUi = markPriceByMarket.get(marketId) ?? 0;
+      const markPriceNative = Math.round(markPriceUi * quoteScale);
+      const avgEntryUi =
+        fields.avg_entry_price !== undefined ? parseFloat(fields.avg_entry_price) : null;
+      const serverPnlUi =
+        fields.pnl_unrealized_ui !== undefined
+          ? parseFloat(fields.pnl_unrealized_ui)
+          : fields.trade_pnl_ui !== undefined
+            ? parseFloat(fields.trade_pnl_ui)
+            : null;
+      const unrealizedPnlNative =
+        serverPnlUi !== null
+          ? Math.round(serverPnlUi * quoteScale)
+          : avgEntryUi !== null && markPriceUi !== 0
+            ? Math.round((markPriceUi - avgEntryUi) * basePositionUi * quoteScale)
+            : 0;
+      return {
+        owner,
+        market_id: marketId,
+        market_name: fields.market_name || ctx?.name || `Market ${marketId}`,
+        base_position: String(basePositionNative),
+        avg_entry_price: String(avgEntryUi !== null ? Math.round(avgEntryUi * quoteScale) : 0),
+        mark_price: String(markPriceNative),
+        realized_pnl: '0',
+        unrealized_pnl: String(unrealizedPnlNative),
+        cumulative_funding: '0',
+        base_decimals: baseDecimals,
+        quote_decimals: quoteDecimals,
+        base_mint: ctx?.baseMint || '',
+        quote_mint: ctx?.quoteMint || '',
+      } satisfies Position;
+    })
+    .filter((p): p is Position => p !== null);
+}
+
 export function mapV2AccountMargin(event: V2AccountEvent, quoteDecimals: number): MarginAccount {
   const totals = event.margin_summary?.totals ?? {};
   const quoteScale = Math.pow(10, quoteDecimals);

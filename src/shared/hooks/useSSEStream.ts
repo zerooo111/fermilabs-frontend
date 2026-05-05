@@ -32,11 +32,13 @@ import {
   mapV2MetaToMetadata,
   mapV2AccountOrders,
   mapV2AccountPositions,
+  mapV2AccountSnapshotPositions,
   mapV2AccountMargin,
   bestBidAskFromBook,
   type V2MetaEvent,
   type V2AccountEvent,
 } from '@/shared/api/v2-adapter';
+import { fetchV2Account } from '@/shared/api/v2-api';
 import {
   buildContextFromMarket,
   buildMarketContext,
@@ -352,17 +354,37 @@ export function useSSEStream() {
     // /v2/trades/wallet/:owner endpoint called by features that need it.
   };
 
+  // Seed positions from the REST snapshot which carries the full Redis hash
+  // (pnl_unrealized_ui, avg_entry_price, trade_pnl_ui, …). The streaming
+  // account event only carries basic fields (base/quote/orders), so the
+  // snapshot is the only reliable source for enriched PnL data.
+  async function coldLoadV2Account(owner: string) {
+    try {
+      seedCtxFromMarketsAtom();
+      const snapshot = await fetchV2Account(owner);
+      setUserPositions(
+        mapV2AccountSnapshotPositions(snapshot, owner, ctxMapRef.current, markPriceRef.current)
+      );
+    } catch {
+      /* transient; streaming event or next resync will recover */
+    }
+  }
+
   v2Composite.callbacks.onResync = () => {
     // Broadcast lag — events may have been dropped. Re-seed atoms via REST.
     const mid = currentMarketRef.current;
     if (mid) void coldLoadV2(mid);
+    const owner = publicKey?.toBase58();
+    if (owner) void coldLoadV2Account(owner);
   };
   v2Composite.callbacks.onReady = () => {
     // Eager initial burst (book+meta+account) already shipped via their
-    // dedicated handlers before `ready`. Seed trades via REST once so the
-    // panel isn't empty while we wait for the first live trade.
+    // dedicated handlers before `ready`. Seed trades + enriched positions
+    // via REST once so panels aren't empty while waiting for live events.
     const mid = currentMarketRef.current;
     if (mid) void coldLoadV2(mid);
+    const owner = publicKey?.toBase58();
+    if (owner) void coldLoadV2Account(owner);
   };
 
   // --- Wire callbacks into the singleton clients via mutable ref ---
