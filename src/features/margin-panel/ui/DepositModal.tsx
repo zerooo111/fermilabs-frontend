@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { Loader2 } from 'lucide-react';
-import { ArrowCircleDown, CheckCircle, Info, X } from '@phosphor-icons/react';
+import { ArrowCircleDown, CheckCircle, Info, UserPlus, X } from '@phosphor-icons/react';
 import axios from 'axios';
 import posthog from 'posthog-js';
 
@@ -22,7 +22,7 @@ import {
 import { fetchTokenBalance } from '@/shared/lib/solana/helpers';
 import { API_ROUTES, config } from '@/shared/config/constants';
 
-type Step = 'loading' | 'input' | 'depositing' | 'success' | 'error';
+type Step = 'loading' | 'create-prompt' | 'creating' | 'input' | 'depositing' | 'success' | 'error';
 
 interface Props {
   open: boolean;
@@ -33,17 +33,19 @@ export function DepositModal({ open, onClose }: Props) {
   const { publicKey } = useWallet();
   const wallet = useAnchorWallet();
   const { connection } = useConnection();
-  const { depositMargin } = useMangoMarginDeposit();
+  const { depositMargin, createMangoAccount } = useMangoMarginDeposit();
 
   const [step, setStep] = useState<Step>('loading');
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [quoteDecimals, setQuoteDecimals] = useState(6);
-  const [mangoAccountExists, setMangoAccountExists] = useState(true);
   const [quoteToken] = useState(config.devnet.quoteTokenName);
   const [amount, setAmount] = useState('');
   const [depositedAmount, setDepositedAmount] = useState<number | null>(null);
-  const [autoCreated, setAutoCreated] = useState(false);
+  const [accountWasJustCreated, setAccountWasJustCreated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Tracks which step to return to when retrying after an error so the user
+  // doesn't have to repeat the create-account step if the deposit alone failed.
+  const [errorReturnStep, setErrorReturnStep] = useState<Step>('input');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -53,7 +55,8 @@ export function DepositModal({ open, onClose }: Props) {
     setAmount('');
     setError(null);
     setDepositedAmount(null);
-    setAutoCreated(false);
+    setAccountWasJustCreated(false);
+    setErrorReturnStep('input');
 
     const load = async () => {
       try {
@@ -68,12 +71,19 @@ export function DepositModal({ open, onClose }: Props) {
         const balanceUi = Number(balanceRaw) / Math.pow(10, data.quote_decimals);
 
         setQuoteDecimals(data.quote_decimals);
-        setMangoAccountExists(data.mango_account_exists);
         setWalletBalance(balanceUi);
         setAmount(Math.min(balanceUi, data.default_ui_amount).toFixed(2));
-        setStep('input');
-        setTimeout(() => inputRef.current?.focus(), 50);
+
+        if (!data.mango_account_exists) {
+          // Sequential flow: prompt the user to create their margin account
+          // before they can enter a deposit amount.
+          setStep('create-prompt');
+        } else {
+          setStep('input');
+          setTimeout(() => inputRef.current?.focus(), 50);
+        }
       } catch (err) {
+        setErrorReturnStep('input');
         setError(err instanceof Error ? err.message : 'Failed to load balance');
         setStep('error');
       }
@@ -81,6 +91,31 @@ export function DepositModal({ open, onClose }: Props) {
 
     void load();
   }, [open, publicKey, wallet, connection]);
+
+  const handleCreateAccount = async () => {
+    setStep('creating');
+    setError(null);
+
+    try {
+      const result = await createMangoAccount();
+      setAccountWasJustCreated(!result.alreadyExisted);
+      setStep('input');
+      setTimeout(() => inputRef.current?.focus(), 50);
+      posthog.capture('mango_account_created', {
+        wallet: publicKey?.toBase58(),
+        already_existed: result.alreadyExisted,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to create margin account';
+      setError(msg);
+      setErrorReturnStep('create-prompt');
+      setStep('error');
+      posthog.capture('mango_account_create_failed', {
+        wallet: publicKey?.toBase58(),
+        error_message: msg,
+      });
+    }
+  };
 
   const handleDeposit = async () => {
     const parsed = parseFloat(amount);
@@ -92,7 +127,8 @@ export function DepositModal({ open, onClose }: Props) {
     try {
       const result = await depositMargin(parsed);
       setDepositedAmount(result.uiAmount);
-      setAutoCreated(result.autoCreatedMangoAccount);
+      // depositMargin can still auto-create as a safety net; surface either signal.
+      if (result.autoCreatedMangoAccount) setAccountWasJustCreated(true);
       setStep('success');
       posthog.capture('margin_deposit', {
         token: quoteToken,
@@ -103,6 +139,7 @@ export function DepositModal({ open, onClose }: Props) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Deposit failed';
       setError(msg);
+      setErrorReturnStep('input');
       setStep('error');
       posthog.capture('margin_deposit_failed', {
         token: quoteToken,
@@ -113,7 +150,7 @@ export function DepositModal({ open, onClose }: Props) {
   };
 
   const handleClose = () => {
-    if (step === 'depositing') return;
+    if (step === 'depositing' || step === 'creating') return;
     onClose();
   };
 
@@ -131,6 +168,63 @@ export function DepositModal({ open, onClose }: Props) {
             <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
               Loading balance…
             </p>
+          </div>
+        )}
+
+        {/* ── Create margin account prompt ── */}
+        {step === 'create-prompt' && (
+          <>
+            <div className="flex items-start gap-4 border-b border-outline p-5">
+              <div className="flex size-10 shrink-0 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
+                <UserPlus weight="duotone" className="size-5" />
+              </div>
+              <DialogHeader className="gap-1 pt-0.5">
+                <DialogTitle className="text-sm font-semibold">Create margin account</DialogTitle>
+                <DialogDescription className="text-xs">
+                  You need a margin account before you can deposit. This is a one-time setup.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <div className="flex flex-col gap-4 p-5">
+              <div className="flex gap-2.5 border border-outline bg-card px-3 py-2.5">
+                <Info weight="duotone" className="size-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  You'll sign one transaction to create the account. After it confirms, you'll be
+                  asked to sign a second transaction to deposit {quoteToken}.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <StepRow label="Create margin account" state="pending" />
+                <StepRow label={`Deposit ${quoteToken}`} state="idle" />
+              </div>
+
+              <Button
+                onClick={handleCreateAccount}
+                size="lg"
+                className="w-full font-mono tracking-wide"
+              >
+                Create margin account
+              </Button>
+            </div>
+          </>
+        )}
+
+        {/* ── Creating margin account ── */}
+        {step === 'creating' && (
+          <div className="flex flex-col items-center gap-5 px-6 py-12">
+            <div className="flex size-12 items-center justify-center border border-accent/30 bg-accent/10">
+              <Loader2 className="size-6 animate-spin text-accent" />
+            </div>
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <p className="text-sm font-medium">Confirm in your wallet</p>
+              <p className="text-xs text-muted-foreground">Creating margin account…</p>
+            </div>
+            <div className="flex flex-col items-center gap-1 w-full">
+              <StepRow label="Create margin account" state="active" />
+              <StepRow label={`Deposit ${quoteToken}`} state="idle" />
+            </div>
           </div>
         )}
 
@@ -198,16 +292,11 @@ export function DepositModal({ open, onClose }: Props) {
                 </p>
               )}
 
-              {/* New account info */}
-              {!mangoAccountExists && (
-                <div className="flex gap-2.5 border border-outline bg-card px-3 py-2.5">
-                  <Info
-                    weight="duotone"
-                    className="size-3.5 shrink-0 mt-0.5 text-muted-foreground"
-                  />
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    A margin account will be created for your wallet. Account setup and deposit are
-                    combined into a single transaction.
+              {accountWasJustCreated && (
+                <div className="flex gap-2.5 border border-success/30 bg-success/10 px-3 py-2.5">
+                  <CheckCircle weight="duotone" className="size-3.5 shrink-0 mt-0.5 text-success" />
+                  <p className="text-xs text-success leading-relaxed">
+                    Margin account ready. Enter an amount to deposit.
                   </p>
                 </div>
               )}
@@ -234,21 +323,11 @@ export function DepositModal({ open, onClose }: Props) {
             </div>
             <div className="flex flex-col items-center gap-1.5 text-center">
               <p className="text-sm font-medium">Confirm in your wallet</p>
-              <p className="text-xs text-muted-foreground">
-                {!mangoAccountExists
-                  ? 'Creating margin account and depositing…'
-                  : 'Depositing USDC…'}
-              </p>
+              <p className="text-xs text-muted-foreground">Depositing {quoteToken}…</p>
             </div>
             <div className="flex flex-col items-center gap-1 w-full">
-              {!mangoAccountExists ? (
-                <>
-                  <StepRow label="Create margin account" active />
-                  <StepRow label={`Deposit ${quoteToken}`} active />
-                </>
-              ) : (
-                <StepRow label={`Deposit ${quoteToken}`} active />
-              )}
+              <StepRow label="Create margin account" state="done" />
+              <StepRow label={`Deposit ${quoteToken}`} state="active" />
             </div>
           </div>
         )}
@@ -273,7 +352,7 @@ export function DepositModal({ open, onClose }: Props) {
                 <p className="font-mono text-xs text-muted-foreground uppercase tracking-widest">
                   {quoteToken} deposited
                 </p>
-                {autoCreated && (
+                {accountWasJustCreated && (
                   <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-accent/70">
                     Margin account created
                   </p>
@@ -302,7 +381,7 @@ export function DepositModal({ open, onClose }: Props) {
               <Button variant="outline" onClick={handleClose} className="flex-1 font-mono text-xs">
                 Cancel
               </Button>
-              <Button onClick={() => setStep('input')} className="flex-1 font-mono text-xs">
+              <Button onClick={() => setStep(errorReturnStep)} className="flex-1 font-mono text-xs">
                 Try again
               </Button>
             </div>
@@ -313,14 +392,30 @@ export function DepositModal({ open, onClose }: Props) {
   );
 }
 
-function StepRow({ label, active }: { label: string; active: boolean }) {
+type StepState = 'idle' | 'pending' | 'active' | 'done';
+
+function StepRow({ label, state }: { label: string; state: StepState }) {
+  const Icon = (() => {
+    switch (state) {
+      case 'active':
+        return <Loader2 className="size-3 shrink-0 animate-spin text-accent" />;
+      case 'done':
+        return <CheckCircle weight="duotone" className="size-3 shrink-0 text-success" />;
+      case 'pending':
+        return <div className="size-3 shrink-0 rounded-full border border-accent/50" />;
+      case 'idle':
+      default:
+        return <div className="size-3 shrink-0 rounded-full border border-outline" />;
+    }
+  })();
+
   return (
-    <div className="flex w-full items-center gap-2.5 border border-outline px-3 py-2">
-      {active ? (
-        <Loader2 className="size-3 shrink-0 animate-spin text-accent" />
-      ) : (
-        <CheckCircle weight="duotone" className="size-3 shrink-0 text-accent" />
-      )}
+    <div
+      className={`flex w-full items-center gap-2.5 border px-3 py-2 ${
+        state === 'idle' ? 'border-outline/60 opacity-60' : 'border-outline'
+      }`}
+    >
+      {Icon}
       <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </span>
