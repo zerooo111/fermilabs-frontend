@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { CheckCircle2, Copy, ExternalLink, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { solanaExplorerTxUrl } from '@/shared/config/constants';
 
 type OrderToastProps = {
   toastId: string | number;
@@ -50,7 +51,7 @@ function LatencyBadge({ ms }: { ms: number }) {
 
 function TxRow({ signature }: { signature: string }) {
   const [copied, setCopied] = useState(false);
-  const explorer = `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
+  const explorer = solanaExplorerTxUrl(signature);
   const short = `${signature.slice(0, 8)}…${signature.slice(-6)}`;
 
   const copy = () => {

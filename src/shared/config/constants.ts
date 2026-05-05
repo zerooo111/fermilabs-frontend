@@ -90,6 +90,11 @@ export const SelfTradeBehavior = {
 
 // Phase 4 canary: new Redis-backed read-layer routes. Served directly from the
 // gateway; no harness in the hot path. Gated behind `config.devnet.useV2ReadLayer`.
+export function solanaExplorerTxUrl(signature: string): string {
+  const cluster = config.devnet.rpcUrl.includes('devnet') ? '?cluster=devnet' : '';
+  return `https://explorer.solana.com/tx/${signature}${cluster}`;
+}
+
 export const API_ROUTES_V2 = {
   healthz: '/v2/healthz',
   markets: '/v2/markets',

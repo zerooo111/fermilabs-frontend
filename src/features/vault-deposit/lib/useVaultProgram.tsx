@@ -1,7 +1,7 @@
 /**
  * Hook for interacting with the vault program
  */
-import { config } from '../../../shared/config/constants';
+import { config, solanaExplorerTxUrl } from '../../../shared/config/constants';
 import { LiquidityVaultClient } from './vault_client';
 import { AnchorProvider } from '@coral-xyz/anchor';
 import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
@@ -31,7 +31,7 @@ export function useVaultClient() {
             <p className="font-semibold">Transaction sent successfully</p>
             <a
               className="text-blue-500 underline flex items-center gap-1"
-              href={`https://explorer.solana.com/tx/${txid}?cluster=devnet`}
+              href={solanaExplorerTxUrl(txid)}
               target="_blank"
               rel="noopener noreferrer"
             >

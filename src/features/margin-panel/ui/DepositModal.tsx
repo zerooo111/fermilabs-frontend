@@ -23,15 +23,11 @@ import {
   type DepositPhase,
 } from '@/shared/hooks/useMangoMarginDeposit';
 import { fetchTokenBalance } from '@/shared/lib/solana/helpers';
-import { API_ROUTES, config } from '@/shared/config/constants';
+import { API_ROUTES, config, solanaExplorerTxUrl } from '@/shared/config/constants';
 
 type Step = 'loading' | 'input' | 'depositing' | 'success' | 'pending' | 'error';
 
-// Solana Explorer link for a tx signature on the configured cluster.
-function getTxExplorerUrl(signature: string): string {
-  // Devnet for now; if mainnet ever lands here, derive from rpcUrl.
-  return `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
-}
+const getTxExplorerUrl = solanaExplorerTxUrl;
 
 interface Props {
   open: boolean;
