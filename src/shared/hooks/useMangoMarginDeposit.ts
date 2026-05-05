@@ -49,11 +49,15 @@ export interface MarginDepositResult {
   createMangoAccountTxSignature: string | null;
 }
 
-export interface CreateMangoAccountResult {
-  ok: boolean;
-  mangoAccount: string;
-  txSignature: string;
-  alreadyExisted: boolean;
+export type DepositPhase =
+  | 'preparing'
+  | 'awaiting-signature'
+  | 'sending'
+  | 'confirming'
+  | 'finalizing';
+
+export interface DepositOptions {
+  onPhase?: (phase: DepositPhase) => void;
 }
 
 function toAccountNumLeBytes(value: number): Uint8Array {
@@ -68,10 +72,14 @@ export function useMangoMarginDeposit() {
   const queryClient = useQueryClient();
 
   const depositMargin = useCallback(
-    async (requestedUiAmount?: number): Promise<MarginDepositResult> => {
+    async (requestedUiAmount?: number, options?: DepositOptions): Promise<MarginDepositResult> => {
       if (!wallet?.publicKey) {
         throw new Error('wallet not connected');
       }
+
+      const reportPhase = (phase: DepositPhase) => options?.onPhase?.(phase);
+
+      reportPhase('preparing');
 
       const owner = wallet.publicKey;
       const contextUrl = `${config.devnet.gatewayUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner.toBase58())}`;
@@ -144,8 +152,8 @@ export function useMangoMarginDeposit() {
 
       let autoCreatedMangoAccount = false;
       let createMangoAccountTxSignature: string | null = null;
-      let txSignature: string;
 
+      const tx = new Transaction();
       if (!depositContext.mango_account_exists) {
         const [expectedMangoAccountPk] = PublicKey.findProgramAddressSync(
           [
@@ -178,30 +186,52 @@ export function useMangoMarginDeposit() {
 
         // Combine both in one tx — avoids simulation ordering issues where
         // MetaMask sees the deposit instruction before the account exists.
-        const combinedTx = new Transaction().add(createIx, depositIx);
-        try {
-          txSignature = await provider.sendAndConfirm(combinedTx, []);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (!msg.includes('already been processed')) throw err;
-          txSignature = 'already-processed';
-        }
+        tx.add(createIx, depositIx);
         autoCreatedMangoAccount = true;
-        createMangoAccountTxSignature = txSignature;
       } else {
-        const depositTx = new Transaction().add(depositIx);
-        try {
-          txSignature = await provider.sendAndConfirm(depositTx, []);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (!msg.includes('already been processed')) throw err;
-          txSignature = 'already-processed';
-        }
+        tx.add(depositIx);
+      }
+
+      // Manual sign → send → confirm so the caller can hook into each phase
+      // for progressive UI updates. provider.sendAndConfirm bundles all three
+      // into one opaque promise.
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash(
+        config.devnet.commitment
+      );
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = owner;
+
+      reportPhase('awaiting-signature');
+      const signedTx = await wallet.signTransaction(tx);
+
+      reportPhase('sending');
+      let txSignature: string;
+      try {
+        txSignature = await connection.sendRawTransaction(signedTx.serialize(), {
+          skipPreflight: false,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes('already been processed')) throw err;
+        txSignature = 'already-processed';
+      }
+
+      if (txSignature !== 'already-processed') {
+        reportPhase('confirming');
+        await connection.confirmTransaction(
+          { signature: txSignature, blockhash, lastValidBlockHeight },
+          config.devnet.commitment
+        );
+      }
+
+      if (autoCreatedMangoAccount) {
+        createMangoAccountTxSignature = txSignature;
       }
 
       const uiAmount =
         Number(nativeAmount.toString()) / Math.pow(10, depositContext.quote_decimals);
 
+      reportPhase('finalizing');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['userBalances', owner.toBase58()] }),
         queryClient.invalidateQueries({ queryKey: ['account', owner.toBase58()] }),
@@ -305,91 +335,5 @@ export function useMangoMarginDeposit() {
     [connection, queryClient, wallet]
   );
 
-  const createMangoAccount = useCallback(async (): Promise<CreateMangoAccountResult> => {
-    if (!wallet?.publicKey) {
-      throw new Error('wallet not connected');
-    }
-
-    const owner = wallet.publicKey;
-    const contextUrl = `${config.devnet.gatewayUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner.toBase58())}`;
-    const { data: depositContext } = await axios.get<DepositContextResponse>(contextUrl);
-
-    const mangoAccountPk = new PublicKey(depositContext.mango_account);
-
-    if (depositContext.mango_account_exists) {
-      return {
-        ok: true,
-        mangoAccount: mangoAccountPk.toBase58(),
-        txSignature: 'already-exists',
-        alreadyExisted: true,
-      };
-    }
-
-    const [{ AnchorProvider, Program }, { IDL: MANGO_V4_IDL }] = await Promise.all([
-      import('@coral-xyz/anchor'),
-      import('@/shared/lib/mango-v4-idl'),
-    ]);
-    const provider = new AnchorProvider(connection, wallet, {
-      commitment: config.devnet.commitment,
-    });
-    const program = new Program(
-      MANGO_V4_IDL as any,
-      new PublicKey(depositContext.program_id),
-      provider
-    );
-
-    const groupPk = new PublicKey(depositContext.group);
-    const [expectedMangoAccountPk] = PublicKey.findProgramAddressSync(
-      [
-        new TextEncoder().encode('MangoAccount'),
-        groupPk.toBuffer(),
-        owner.toBuffer(),
-        toAccountNumLeBytes(depositContext.account_num),
-      ],
-      new PublicKey(depositContext.program_id)
-    );
-    if (!expectedMangoAccountPk.equals(mangoAccountPk)) {
-      throw new Error('deposit context mango account derivation mismatch');
-    }
-
-    const createIx = await program.methods
-      .accountCreate(
-        depositContext.account_num,
-        DEFAULT_TOKEN_COUNT,
-        DEFAULT_SERUM3_COUNT,
-        DEFAULT_PERP_COUNT,
-        DEFAULT_PERP_OO_COUNT,
-        DEFAULT_ACCOUNT_NAME
-      )
-      .accounts({
-        group: groupPk,
-        owner,
-        payer: owner,
-      })
-      .instruction();
-
-    const tx = new Transaction().add(createIx);
-    let txSignature: string;
-    try {
-      txSignature = await provider.sendAndConfirm(tx, []);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!msg.includes('already been processed')) throw err;
-      txSignature = 'already-processed';
-    }
-
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['account', owner.toBase58()] }),
-      queryClient.invalidateQueries({ queryKey: ['userBalances', owner.toBase58()] }),
-    ]);
-
-    return {
-      ok: true,
-      mangoAccount: mangoAccountPk.toBase58(),
-      txSignature,
-      alreadyExisted: false,
-    };
-  }, [connection, queryClient, wallet]);
-
-  return { depositMargin, withdrawMargin, createMangoAccount };
+  return { depositMargin, withdrawMargin };
 }
