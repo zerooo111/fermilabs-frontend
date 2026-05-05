@@ -146,8 +146,10 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
   }
 
   return (
-    <div className="flex flex-col h-[500px] flex-1 min-h-0 overflow-hidden py-2">
-      <div className="flex-1 flex flex-col overflow-y-auto divide-y divide-white/5  border-none">
+    <div
+      className={`flex flex-col flex-1 min-h-0 overflow-hidden ${fullView ? 'h-[500px] py-2' : ''}`}
+    >
+      <div className="flex-1 flex flex-col overflow-y-auto divide-y divide-white/5 border-none">
         {isLoading ? (
           Array.from({ length: rows }).map((_, i) => <SkeletonRow key={`skeleton-trade-${i}`} />)
         ) : (

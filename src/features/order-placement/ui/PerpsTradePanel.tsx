@@ -138,6 +138,7 @@ export function PerpsTradePanel() {
   const [submittingSide, setSubmittingSide] = useState<OrderSide | null>(null);
   const isSubmitting = submittingSide !== null;
   const [enableSLTP, setEnableSLTP] = useState(false);
+  const [customSlippage, setCustomSlippage] = useState(false);
   const [formState, setFormState] = useState<{
     price: string;
     size: string;
@@ -155,7 +156,7 @@ export function PerpsTradePanel() {
     marginMode: 'cross',
     stopLoss: '',
     takeProfit: '',
-    slippage: '1',
+    slippage: '0.25',
   });
 
   const { publicKey } = useWallet();
@@ -452,48 +453,76 @@ export function PerpsTradePanel() {
         )}
 
         {formState.orderType === 'market' && (
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5">
-              <label className="text-sm font-medium">Max Slippage</label>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="size-3.5 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <div className="text-xs">
-                    Maximum acceptable price deviation. 1% = 100 bps. Order is cancelled if fill
-                    price exceeds this threshold.
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <div className="flex gap-1.5">
-              {['0.5', '1', '2', '5'].map(pct => (
-                <Button
-                  key={pct}
-                  variant="outline"
-                  size="sm"
-                  className={`h-7 flex-1 text-xs ${
-                    formState.slippage === pct
-                      ? 'bg-white text-black font-bold hover:bg-white/90'
-                      : 'hover:bg-accent/50'
-                  }`}
-                  onClick={() => setFormState(prev => ({ ...prev, slippage: pct }))}
+          <div className="space-y-1.5 rounded-sm bg-muted/20 px-2 py-1.5 border border-outline/60">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <input
+                  type="checkbox"
+                  id="customSlippage"
+                  checked={customSlippage}
+                  onChange={e => {
+                    setCustomSlippage(e.target.checked);
+                    if (!e.target.checked) {
+                      setFormState(prev => ({ ...prev, slippage: '0.25' }));
+                    }
+                  }}
+                  className="h-3 w-3 rounded border-outline shrink-0"
+                />
+                <label
+                  htmlFor="customSlippage"
+                  className="text-[11px] text-muted-foreground cursor-pointer truncate"
                 >
-                  {pct}%
-                </Button>
-              ))}
+                  Custom slippage limit
+                </label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="size-3 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <div className="text-xs">
+                      Maximum acceptable price deviation. 1% = 100 bps. Order is cancelled if fill
+                      price exceeds this threshold. Defaults to 0.25%.
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <span className="text-[11px] tabular-nums text-foreground shrink-0">
+                {formState.slippage}%
+              </span>
             </div>
-            <NumberInput
-              value={formState.slippage}
-              onValueChange={values => setFormState(prev => ({ ...prev, slippage: values.value }))}
-              placeholder="1.00"
-              min={0.01}
-              max={100}
-              decimalScale={2}
-              allowNegative={false}
-              unit="%"
-            />
+            {customSlippage && (
+              <>
+                <div className="flex gap-1">
+                  {['0.25', '0.5', '1', '2'].map(pct => (
+                    <Button
+                      key={pct}
+                      variant="outline"
+                      size="sm"
+                      className={`h-6 flex-1 text-[11px] px-1 ${
+                        formState.slippage === pct
+                          ? 'bg-white text-black font-bold hover:bg-white/90'
+                          : 'hover:bg-accent/50'
+                      }`}
+                      onClick={() => setFormState(prev => ({ ...prev, slippage: pct }))}
+                    >
+                      {pct}%
+                    </Button>
+                  ))}
+                </div>
+                <NumberInput
+                  value={formState.slippage}
+                  onValueChange={values =>
+                    setFormState(prev => ({ ...prev, slippage: values.value }))
+                  }
+                  placeholder="0.25"
+                  min={0.01}
+                  max={100}
+                  decimalScale={2}
+                  allowNegative={false}
+                  unit="%"
+                />
+              </>
+            )}
           </div>
         )}
 
@@ -707,75 +736,9 @@ export function PerpsTradePanel() {
           )}
         </div>
 
-        {publicKey && feeHealth !== 'unknown' && (
-          <FeeBanner
-            tone={feeInsufficient ? 'danger' : feeHealth === 'warn' ? 'warn' : 'ok'}
-            availableLamports={feeStatus.data?.fee_account.available_balance_lamports}
-            onTopUp={() => setFeeCreditOpen(true)}
-          />
-        )}
-
-        {!publicKey ? (
-          <Button
-            variant="outline"
-            className="w-full flex items-center justify-center gap-2 mt-auto"
-            onClick={() => setVisible(true)}
-          >
-            <Wallet className="size-4" />
-            Connect Wallet to Trade
-          </Button>
-        ) : (
-          <div className="grid grid-cols-2 gap-2 mt-auto">
-            <Button
-              disabled={
-                (formState.orderType !== 'market' && priceValue <= 0) ||
-                sizeValue <= 0 ||
-                isSubmitting ||
-                feeInsufficient ||
-                buyWouldReject
-              }
-              variant="success"
-              onClick={() => handleOpenPosition('Buy')}
-            >
-              {submittingSide === 'Buy' ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Buying...
-                </>
-              ) : (
-                'Buy / Long'
-              )}
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={
-                (formState.orderType !== 'market' && priceValue <= 0) ||
-                sizeValue <= 0 ||
-                isSubmitting ||
-                feeInsufficient ||
-                sellWouldReject
-              }
-              onClick={() => handleOpenPosition('Sell')}
-            >
-              {submittingSide === 'Sell' ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Selling...
-                </>
-              ) : (
-                'Sell / Short'
-              )}
-            </Button>
-          </div>
-        )}
-
-        {/* Order summary — sits BELOW the action buttons. Static rows
-            (Size/Margin/Liq/Fee) and the After-Trade simulation block both
-            render unconditionally so the panel has a constant height; values
-            swap to "—" / empty bars before sim data arrives. The Alerts
-            block stays conditional but appears at the top of the panel —
-            so when it shows up it pushes only the summary content, never
-            the buy/sell buttons above. */}
+        {/* Order summary — sits directly above the action buttons so margin /
+            health info stays adjacent to the trade box. Pinned to the bottom
+            with mt-auto so summary + fee banner + buttons stay grouped. */}
         {(() => {
           const simResult = buySimulate.data ?? sellSimulate.data;
           const rejectReasons = simResult?.reject_reasons ?? [];
@@ -817,7 +780,7 @@ export function PerpsTradePanel() {
           })();
 
           return (
-            <div className={`bg-card border text-xs ${borderClass}`}>
+            <div className={`bg-card border text-xs mt-auto ${borderClass}`}>
               {/* Alerts — reject reasons and warnings (conditional). */}
               {hasAlerts && (
                 <div className="px-3 pt-2.5 pb-2 space-y-1.5 border-b border-outline">
@@ -889,6 +852,68 @@ export function PerpsTradePanel() {
             </div>
           );
         })()}
+
+        {publicKey && feeHealth !== 'unknown' && (
+          <FeeBanner
+            tone={feeInsufficient ? 'danger' : feeHealth === 'warn' ? 'warn' : 'ok'}
+            availableLamports={feeStatus.data?.fee_account.available_balance_lamports}
+            onTopUp={() => setFeeCreditOpen(true)}
+          />
+        )}
+
+        {!publicKey ? (
+          <Button
+            variant="outline"
+            className="w-full flex items-center justify-center gap-2"
+            onClick={() => setVisible(true)}
+          >
+            <Wallet className="size-4" />
+            Connect Wallet to Trade
+          </Button>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              disabled={
+                (formState.orderType !== 'market' && priceValue <= 0) ||
+                sizeValue <= 0 ||
+                isSubmitting ||
+                feeInsufficient ||
+                buyWouldReject
+              }
+              variant="success"
+              onClick={() => handleOpenPosition('Buy')}
+            >
+              {submittingSide === 'Buy' ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Buying...
+                </>
+              ) : (
+                'Buy / Long'
+              )}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={
+                (formState.orderType !== 'market' && priceValue <= 0) ||
+                sizeValue <= 0 ||
+                isSubmitting ||
+                feeInsufficient ||
+                sellWouldReject
+              }
+              onClick={() => handleOpenPosition('Sell')}
+            >
+              {submittingSide === 'Sell' ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Selling...
+                </>
+              ) : (
+                'Sell / Short'
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

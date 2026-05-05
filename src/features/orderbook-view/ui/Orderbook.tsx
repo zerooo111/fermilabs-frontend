@@ -2,7 +2,7 @@
  * Orderbook component
  * Displays the orderbook for the selected market
  */
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { isEqual } from 'lodash';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
@@ -17,7 +17,13 @@ import { Trades } from './Trades';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { ConnectionIndicator } from '@/shared/ui/ConnectionIndicator';
 
-const orderbookRows = 10;
+// Pixel sizes used to size rows / chrome. Keep in sync with the row/header
+// classNames below — these drive the dynamic row-count math.
+const ROW_HEIGHT_PX = 26;
+const HEADER_PX = 36; // column headers row (px-4 py-2 + text-xs)
+const SPREAD_PX = 36; // spread bar between asks and bids
+const MIN_ROWS_PER_SIDE = 5;
+const MAX_ROWS_PER_SIDE = 30;
 
 export function Orderbook() {
   const { selectedMarket } = useSelectedMarket();
@@ -28,6 +34,35 @@ export function Orderbook() {
   const showTradesTab = !!publicKey;
   const isLoading =
     connectionState === 'connecting' && orderbook.bids.length === 0 && orderbook.asks.length === 0;
+
+  // Dynamic row count — measured from the available content height. The Tabs
+  // wrapper fills its parent (chart sets the height in lg layout), so we
+  // measure the wrapper and subtract chrome to compute how many rows fit.
+  const tabContentRef = useRef<HTMLDivElement | null>(null);
+  const [contentHeight, setContentHeight] = useState<number>(0);
+
+  useEffect(() => {
+    const node = tabContentRef.current;
+    if (!node) return;
+    const update = () => setContentHeight(node.clientHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
+
+  const orderbookRows = useMemo(() => {
+    if (contentHeight <= 0) return 10;
+    const usable = contentHeight - HEADER_PX - SPREAD_PX;
+    const perSide = Math.floor(usable / 2 / ROW_HEIGHT_PX);
+    return Math.max(MIN_ROWS_PER_SIDE, Math.min(MAX_ROWS_PER_SIDE, perSide));
+  }, [contentHeight]);
+
+  const tradesRows = useMemo(() => {
+    if (contentHeight <= 0) return 20;
+    const usable = contentHeight - HEADER_PX;
+    return Math.max(MIN_ROWS_PER_SIDE * 2, Math.floor(usable / ROW_HEIGHT_PX));
+  }, [contentHeight]);
 
   // Process orderbook with memoization to prevent unnecessary re-renders
   const processedOrderbook = useMemo(() => {
@@ -50,6 +85,7 @@ export function Orderbook() {
     return lastProcessedRef.current;
   }, [
     orderbook,
+    orderbookRows,
     selectedMarket?.quoteTokenName,
     selectedMarket?.baseTokenName,
     selectedMarket?.baseDecimals,
@@ -57,6 +93,10 @@ export function Orderbook() {
   ]);
 
   const ROW_HEIGHT_CLASS = 'h-[26px]';
+  // Side height = orderbookRows × ROW_HEIGHT_PX, recomputed whenever the
+  // measured container resizes. Keeps bids and asks equally sized and packed
+  // tightly without overflow scrollbars.
+  const SIDE_HEIGHT_PX = orderbookRows * ROW_HEIGHT_PX;
 
   function SkeletonOrderbookRow() {
     return (
@@ -95,11 +135,11 @@ export function Orderbook() {
       </div>
 
       {/* Orderbook Content */}
-      <div className="flex flex-col h-[300px] md:h-[400px] lg:h-[500px] overflow-hidden">
+      <div className="flex flex-col">
         {isLoading || !processedOrderbook ? (
           <>
             {/* Skeleton Sells (asks) */}
-            <div className="flex-1 flex flex-col-reverse overflow-y-auto border-none">
+            <div className="flex flex-col-reverse shrink-0" style={{ height: SIDE_HEIGHT_PX }}>
               {Array.from({ length: orderbookRows }).map((_, i) => (
                 <SkeletonOrderbookRow key={`skeleton-sell-${i}`} />
               ))}
@@ -112,7 +152,7 @@ export function Orderbook() {
             </div>
 
             {/* Skeleton Buys (bids) */}
-            <div className="flex-1 flex flex-col overflow-y-auto border-none">
+            <div className="flex flex-col shrink-0" style={{ height: SIDE_HEIGHT_PX }}>
               {Array.from({ length: orderbookRows }).map((_, i) => (
                 <SkeletonOrderbookRow key={`skeleton-buy-${i}`} />
               ))}
@@ -121,7 +161,7 @@ export function Orderbook() {
         ) : (
           <>
             {/* Sells (asks) */}
-            <div className="flex-1 flex flex-col-reverse overflow-y-auto border-none">
+            <div className="flex flex-col-reverse shrink-0" style={{ height: SIDE_HEIGHT_PX }}>
               {processedOrderbook.sells.map((order, i) =>
                 order ? (
                   <OrderbookRow
@@ -148,7 +188,7 @@ export function Orderbook() {
             </div>
 
             {/* Buys (bids) */}
-            <div className="flex-1 flex flex-col overflow-y-auto border-none">
+            <div className="flex flex-col shrink-0" style={{ height: SIDE_HEIGHT_PX }}>
               {processedOrderbook.buys.map((order, i) =>
                 order ? (
                   <OrderbookRow
@@ -172,10 +212,10 @@ export function Orderbook() {
   );
 
   return (
-    <div className="w-full lg:w-[360px]">
+    <div className="w-full lg:w-[360px] h-full flex flex-col">
       {/* Tabs Header */}
-      <Tabs defaultValue="orderbook" className="h-full">
-        <TabsList className="border-b border-outline w-full   ">
+      <Tabs defaultValue="orderbook" className="flex flex-col flex-1 min-h-0">
+        <TabsList className="border-b border-outline w-full">
           <TabsTrigger value="orderbook" className="flex-1">
             Orderbook
           </TabsTrigger>
@@ -186,23 +226,25 @@ export function Orderbook() {
           )}
         </TabsList>
 
-        {/* Orderbook Tab */}
-        <TabsContent value="orderbook">{orderbookContent}</TabsContent>
+        {/* Tab content area — measured to drive dynamic row counts. */}
+        <div ref={tabContentRef} className="flex-1 min-h-0">
+          {/* Orderbook Tab */}
+          <TabsContent value="orderbook">{orderbookContent}</TabsContent>
 
-        {/* Trades Tab - only show when wallet is connected */}
-        {showTradesTab && (
-          <TabsContent value="trades">
-            {/* Column Headers (same as orderbook for consistent layout) */}
-            <div className="grid grid-cols-3 px-4 py-2 text-xs bg-card border-b border-outline shrink-0">
-              <div className="text-left font-mono">Price</div>
-              <div className="text-right font-mono">Size</div>
-              <div className="text-right font-mono">Total</div>
-            </div>
+          {/* Trades Tab - only show when wallet is connected */}
+          {showTradesTab && (
+            <TabsContent value="trades">
+              {/* Column Headers (same as orderbook for consistent layout) */}
+              <div className="grid grid-cols-3 px-4 py-2 text-xs bg-card border-b border-outline shrink-0">
+                <div className="text-left font-mono">Price</div>
+                <div className="text-right font-mono">Size</div>
+                <div className="text-right font-mono">Total</div>
+              </div>
 
-            {/* Trades Content: use same rows as Orderbook for consistency */}
-            <Trades rows={20} fullView={false} />
-          </TabsContent>
-        )}
+              <Trades rows={tradesRows} fullView={false} />
+            </TabsContent>
+          )}
+        </div>
       </Tabs>
     </div>
   );
