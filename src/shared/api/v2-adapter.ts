@@ -266,6 +266,8 @@ export interface V2AccountEvent {
       ts_ms?: string;
       avg_entry_price?: string;
       average_entry_price?: string;
+      mark_price_ui?: number;
+      market_name?: string;
       pnl_unrealized_ui?: number;
       trade_pnl_ui?: number;
     };
@@ -361,30 +363,25 @@ export function mapV2AccountPositions(
       const baseLots = BigInt(p.fields.base ?? '0');
       if (baseLots === 0n) return null;
       const basePositionNative = Number(baseLots * BigInt(baseLotSize));
-      const quotePositionNative = num(p.fields.quote);
-      const markPriceUi = markPriceByMarket.get(p.market) ?? 0;
-      const markPriceNative = markPriceUi * quoteScale;
       const basePositionUi = basePositionNative / baseScale;
-      const quotePositionUi = quotePositionNative / quoteScale;
+      // mark_price_ui comes from the position payload itself — no cross-market
+      // fetch needed. Fall back to markPriceByMarket only if not present.
+      const markPriceUi = p.fields.mark_price_ui ?? markPriceByMarket.get(p.market) ?? 0;
+      const markPriceNative = Math.round(markPriceUi * quoteScale);
       const apiAvgEntryPrice = p.fields.avg_entry_price ?? p.fields.average_entry_price;
-      const avgEntryUi =
-        apiAvgEntryPrice !== undefined
-          ? parseFloat(apiAvgEntryPrice)
-          : basePositionUi !== 0
-            ? Math.abs(quotePositionUi / basePositionUi)
-            : 0;
-      // Prefer server-computed PnL over the raw-quote derivation.
-      // quote_position_native is the raw Mango accumulator — not clean basis —
-      // so quote + base * mark diverges from the correct trade PnL.
+      const avgEntryUi = apiAvgEntryPrice !== undefined ? parseFloat(apiAvgEntryPrice) : 0;
+      // Prefer server-computed PnL. Fallback uses clean entry-price formula:
+      //   buy:  (mark - entry) * size
+      //   sell: (entry - mark) * size  →  unified: (mark - entry) * signedBase
       const serverPnlUi = p.fields.pnl_unrealized_ui ?? p.fields.trade_pnl_ui ?? null;
       const unrealizedPnlNative =
         serverPnlUi !== null
           ? Math.round(serverPnlUi * quoteScale)
-          : Math.round((quotePositionUi + basePositionUi * markPriceUi) * quoteScale);
+          : Math.round((markPriceUi - avgEntryUi) * basePositionUi * quoteScale);
       return {
         owner: event.owner,
         market_id: p.market,
-        market_name: ctx?.name || `Market ${p.market}`,
+        market_name: p.fields.market_name || ctx?.name || `Market ${p.market}`,
         base_position: String(basePositionNative),
         avg_entry_price: String(Math.round(avgEntryUi * quoteScale)),
         mark_price: String(Math.round(markPriceNative)),
