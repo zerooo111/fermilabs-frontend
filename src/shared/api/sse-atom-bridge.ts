@@ -204,18 +204,7 @@ export function mapPositions(
       const markPriceUi = markPriceNative / quoteScale;
       const averageEntryPriceUi =
         basePositionUi !== 0 ? Math.abs(quotePositionUi / basePositionUi) : 0;
-      const serverPnlNative =
-        p.pnl_unrealized_native_quote !== undefined
-          ? parseFiniteNumber(p.pnl_unrealized_native_quote)
-          : p.pnl_unrealized_ui !== undefined
-            ? uiToNative(p.pnl_unrealized_ui, quoteScale)
-            : p.unrealized_pnl_ui !== undefined
-              ? uiToNative(p.unrealized_pnl_ui, quoteScale)
-              : null;
-      const unrealizedPnlNative =
-        serverPnlNative !== null
-          ? serverPnlNative
-          : uiToNative(quotePositionUi + basePositionUi * markPriceUi, quoteScale);
+      const unrealizedPnlUi = quotePositionUi + basePositionUi * markPriceUi;
 
       return {
         owner,
@@ -230,7 +219,11 @@ export function mapPositions(
         mark_price: String(markPriceNative),
         realized_pnl:
           p.realized_pnl_ui !== undefined ? String(uiToNative(p.realized_pnl_ui, quoteScale)) : '0',
-        unrealized_pnl: String(unrealizedPnlNative),
+        unrealized_pnl: String(
+          p.unrealized_pnl_ui !== undefined
+            ? uiToNative(p.unrealized_pnl_ui, quoteScale)
+            : uiToNative(unrealizedPnlUi, quoteScale)
+        ),
         cumulative_funding: '0',
         base_decimals: baseDecimals,
         quote_decimals: quoteDecimals,
