@@ -208,15 +208,17 @@ export function mapPositions(
       const averageEntryPriceUi =
         p.average_entry_price_ui ??
         (basePositionUi !== 0 ? Math.abs(quotePositionUi / basePositionUi) : 0);
-      // Prefer the server-computed PnL field over a derived formula.
-      // Fallback: (mark - entry) * signedBase
+      // Always compute PnL from the known-correct entry and mark prices.
+      // The server's pnl_unrealized_ui field is unreliable across markets
+      // (correct for some, off by orders of magnitude for others due to a
+      // backend scaling bug). Formula: (mark - entry) * signedBase is
+      // unambiguous and consistent for both longs and shorts.
       //   buy  (base > 0): positive when mark > entry ✓
       //   sell (base < 0): positive when mark < entry ✓
-      const serverPnlUi = p.pnl_unrealized_ui ?? p.trade_pnl_ui ?? p.unrealized_pnl_ui ?? null;
-      const unrealizedPnlNative =
-        serverPnlUi !== null
-          ? uiToNative(serverPnlUi, quoteScale)
-          : uiToNative((markPriceUi - averageEntryPriceUi) * basePositionUi, quoteScale);
+      const unrealizedPnlNative = uiToNative(
+        (markPriceUi - averageEntryPriceUi) * basePositionUi,
+        quoteScale
+      );
 
       return {
         owner,

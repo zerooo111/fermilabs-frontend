@@ -377,21 +377,15 @@ export function mapV2AccountPositions(
       const markPriceNative = Math.round(markPriceUi * quoteScale);
       const apiAvgEntryPrice = p.fields.avg_entry_price ?? p.fields.average_entry_price;
       const avgEntryUi = apiAvgEntryPrice !== undefined ? parseFloat(apiAvgEntryPrice) : null;
-      // Prefer server-computed PnL. Fallback: (mark - entry) * signedBase.
-      // Only compute fallback when we have a real entry price — without it
-      // the formula would silently produce mark * size which is nonsense.
-      const serverPnlUi =
-        p.fields.pnl_unrealized_ui !== undefined
-          ? parseFloat(p.fields.pnl_unrealized_ui)
-          : p.fields.trade_pnl_ui !== undefined
-            ? parseFloat(p.fields.trade_pnl_ui)
-            : null;
+      // Always compute PnL from known-correct entry and mark prices.
+      // The server's pnl_unrealized_ui field has a backend scaling bug that
+      // produces wrong values for some markets (e.g. ETH, BTC) while SOL
+      // appears correct. Using the formula is consistent and unambiguous.
+      // Guard: if entry is unknown, PnL is 0 rather than mark * size nonsense.
       const unrealizedPnlNative =
-        serverPnlUi !== null
-          ? Math.round(serverPnlUi * quoteScale)
-          : avgEntryUi !== null && markPriceUi !== 0
-            ? Math.round((markPriceUi - avgEntryUi) * basePositionUi * quoteScale)
-            : 0;
+        avgEntryUi !== null && markPriceUi !== 0
+          ? Math.round((markPriceUi - avgEntryUi) * basePositionUi * quoteScale)
+          : 0;
       return {
         owner: event.owner,
         market_id: p.market,
@@ -439,18 +433,11 @@ export function mapV2AccountSnapshotPositions(
       const markPriceNative = Math.round(markPriceUi * quoteScale);
       const avgEntryUi =
         fields.avg_entry_price !== undefined ? parseFloat(fields.avg_entry_price) : null;
-      const serverPnlUi =
-        fields.pnl_unrealized_ui !== undefined
-          ? parseFloat(fields.pnl_unrealized_ui)
-          : fields.trade_pnl_ui !== undefined
-            ? parseFloat(fields.trade_pnl_ui)
-            : null;
+      // Always compute from entry + mark — server pnl_unrealized_ui is unreliable.
       const unrealizedPnlNative =
-        serverPnlUi !== null
-          ? Math.round(serverPnlUi * quoteScale)
-          : avgEntryUi !== null && markPriceUi !== 0
-            ? Math.round((markPriceUi - avgEntryUi) * basePositionUi * quoteScale)
-            : 0;
+        avgEntryUi !== null && markPriceUi !== 0
+          ? Math.round((markPriceUi - avgEntryUi) * basePositionUi * quoteScale)
+          : 0;
       return {
         owner,
         market_id: marketId,
