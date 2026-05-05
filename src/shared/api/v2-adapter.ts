@@ -369,21 +369,23 @@ export function mapV2AccountPositions(
       const markPriceUi = p.fields.mark_price_ui ?? markPriceByMarket.get(p.market) ?? 0;
       const markPriceNative = Math.round(markPriceUi * quoteScale);
       const apiAvgEntryPrice = p.fields.avg_entry_price ?? p.fields.average_entry_price;
-      const avgEntryUi = apiAvgEntryPrice !== undefined ? parseFloat(apiAvgEntryPrice) : 0;
-      // Prefer server-computed PnL. Fallback uses clean entry-price formula:
-      //   buy:  (mark - entry) * size
-      //   sell: (entry - mark) * size  →  unified: (mark - entry) * signedBase
+      const avgEntryUi = apiAvgEntryPrice !== undefined ? parseFloat(apiAvgEntryPrice) : null;
+      // Prefer server-computed PnL. Fallback: (mark - entry) * signedBase.
+      // Only compute fallback when we have a real entry price — without it
+      // the formula would silently produce mark * size which is nonsense.
       const serverPnlUi = p.fields.pnl_unrealized_ui ?? p.fields.trade_pnl_ui ?? null;
       const unrealizedPnlNative =
         serverPnlUi !== null
           ? Math.round(serverPnlUi * quoteScale)
-          : Math.round((markPriceUi - avgEntryUi) * basePositionUi * quoteScale);
+          : avgEntryUi !== null && markPriceUi !== 0
+            ? Math.round((markPriceUi - avgEntryUi) * basePositionUi * quoteScale)
+            : 0;
       return {
         owner: event.owner,
         market_id: p.market,
         market_name: p.fields.market_name || ctx?.name || `Market ${p.market}`,
         base_position: String(basePositionNative),
-        avg_entry_price: String(Math.round(avgEntryUi * quoteScale)),
+        avg_entry_price: String(avgEntryUi !== null ? Math.round(avgEntryUi * quoteScale) : 0),
         mark_price: String(Math.round(markPriceNative)),
         realized_pnl: '0',
         unrealized_pnl: String(unrealizedPnlNative),

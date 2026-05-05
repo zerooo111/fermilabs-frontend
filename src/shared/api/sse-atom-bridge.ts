@@ -202,13 +202,16 @@ export function mapPositions(
       const basePositionUi = basePositionNative / baseScale;
       const quotePositionUi = quotePositionNative / quoteScale;
       const markPriceUi = markPriceNative / quoteScale;
+      // Prefer server-provided entry price (clean basis) over the raw-quote
+      // derived value — quotePositionUi / basePositionUi is the accumulator,
+      // not a clean average entry price.
       const averageEntryPriceUi =
-        basePositionUi !== 0 ? Math.abs(quotePositionUi / basePositionUi) : 0;
+        p.average_entry_price_ui ??
+        (basePositionUi !== 0 ? Math.abs(quotePositionUi / basePositionUi) : 0);
       // Prefer the server-computed PnL field over a derived formula.
-      // Fallback uses clean entry-price formula (mark_price_ui is embedded in
-      // the position payload so no cross-market fetch is needed):
-      //   buy:  (mark - entry) * size
-      //   sell: (entry - mark) * size  →  unified: (mark - entry) * signedBase
+      // Fallback: (mark - entry) * signedBase
+      //   buy  (base > 0): positive when mark > entry ✓
+      //   sell (base < 0): positive when mark < entry ✓
       const serverPnlUi = p.pnl_unrealized_ui ?? p.trade_pnl_ui ?? p.unrealized_pnl_ui ?? null;
       const unrealizedPnlNative =
         serverPnlUi !== null
