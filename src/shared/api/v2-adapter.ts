@@ -265,11 +265,15 @@ export interface V2AccountEvent {
       reserved?: string;
       ts_ms?: string;
       avg_entry_price?: string;
+      avg_entry_price_per_base_lot?: string;
       average_entry_price?: string;
-      mark_price_ui?: number;
+      mark_price_ui?: string;
       market_name?: string;
-      pnl_unrealized_ui?: number;
-      trade_pnl_ui?: number;
+      // Redis stores all values as strings — use parseFloat() when reading
+      pnl_unrealized_ui?: string;
+      trade_pnl_ui?: string;
+      pnl_unrealized_native_quote?: string;
+      trade_pnl_native_quote?: string;
     };
   }>;
   orders?: Array<{
@@ -366,14 +370,22 @@ export function mapV2AccountPositions(
       const basePositionUi = basePositionNative / baseScale;
       // mark_price_ui comes from the position payload itself — no cross-market
       // fetch needed. Fall back to markPriceByMarket only if not present.
-      const markPriceUi = p.fields.mark_price_ui ?? markPriceByMarket.get(p.market) ?? 0;
+      const markPriceUi =
+        p.fields.mark_price_ui !== undefined
+          ? parseFloat(p.fields.mark_price_ui)
+          : (markPriceByMarket.get(p.market) ?? 0);
       const markPriceNative = Math.round(markPriceUi * quoteScale);
       const apiAvgEntryPrice = p.fields.avg_entry_price ?? p.fields.average_entry_price;
       const avgEntryUi = apiAvgEntryPrice !== undefined ? parseFloat(apiAvgEntryPrice) : null;
       // Prefer server-computed PnL. Fallback: (mark - entry) * signedBase.
       // Only compute fallback when we have a real entry price — without it
       // the formula would silently produce mark * size which is nonsense.
-      const serverPnlUi = p.fields.pnl_unrealized_ui ?? p.fields.trade_pnl_ui ?? null;
+      const serverPnlUi =
+        p.fields.pnl_unrealized_ui !== undefined
+          ? parseFloat(p.fields.pnl_unrealized_ui)
+          : p.fields.trade_pnl_ui !== undefined
+            ? parseFloat(p.fields.trade_pnl_ui)
+            : null;
       const unrealizedPnlNative =
         serverPnlUi !== null
           ? Math.round(serverPnlUi * quoteScale)
