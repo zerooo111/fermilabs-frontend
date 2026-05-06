@@ -19,7 +19,6 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { useSSEStream } from '@/shared/hooks/useSSEStream';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { gateOpenAtom, accessSessionAtom } from '@/features/access-gate';
-import { accountMetricsAtom } from '@/shared/api/sse-atoms';
 import { OnboardingModal } from '@/features/onboarding/ui/OnboardingModal';
 import { DepositModal } from '@/features/margin-panel/ui/DepositModal';
 
@@ -38,7 +37,6 @@ function PerpsPage() {
   const { publicKey } = useWallet();
   const setGateOpen = useSetAtom(gateOpenAtom);
   const session = useAtomValue(accessSessionAtom);
-  const accountMetrics = useAtomValue(accountMetricsAtom);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
 
@@ -58,19 +56,14 @@ function PerpsPage() {
     };
   }, [hasSession, setGateOpen]);
 
-  // Show onboarding once per wallet when the account has no balance.
-  // Wait for accountMetrics to arrive (SSE) before deciding — avoids a
-  // false-positive flash on first load while data is still in flight.
+  // Show onboarding once per wallet, regardless of balance.
   useEffect(() => {
-    if (!publicKey || !hasSession || !accountMetrics) return;
+    if (!publicKey || !hasSession) return;
     const key = `fermi_onboarding_v1_${publicKey.toBase58()}`;
     if (localStorage.getItem(key)) return;
-    const isEmpty = accountMetrics.equity_snapshot === 0 && accountMetrics.usdc_collateral === 0;
-    if (!isEmpty) return;
-    // Small delay so the page finishes rendering before the modal appears.
     const timer = setTimeout(() => setOnboardingOpen(true), 800);
     return () => clearTimeout(timer);
-  }, [publicKey, hasSession, accountMetrics]);
+  }, [publicKey, hasSession]);
 
   const handleOnboardingDeposit = () => {
     setOnboardingOpen(false);
