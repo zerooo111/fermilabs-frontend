@@ -19,8 +19,6 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { useSSEStream } from '@/shared/hooks/useSSEStream';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { gateOpenAtom, accessSessionAtom } from '@/features/access-gate';
-import { OnboardingModal } from '@/features/onboarding/ui/OnboardingModal';
-import { DepositModal } from '@/features/margin-panel/ui/DepositModal';
 
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
@@ -37,8 +35,6 @@ function PerpsPage() {
   const { publicKey } = useWallet();
   const setGateOpen = useSetAtom(gateOpenAtom);
   const session = useAtomValue(accessSessionAtom);
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const [depositOpen, setDepositOpen] = useState(false);
 
   const walletKey = publicKey?.toBase58();
   const hasSession = !!(
@@ -55,27 +51,6 @@ function PerpsPage() {
       setGateOpen(false);
     };
   }, [hasSession, setGateOpen]);
-
-  // Show onboarding once per wallet, regardless of balance.
-  useEffect(() => {
-    if (!publicKey || !hasSession) return;
-    const key = `fermi_onboarding_v1_${publicKey.toBase58()}`;
-    if (localStorage.getItem(key)) return;
-    const timer = setTimeout(() => setOnboardingOpen(true), 800);
-    return () => clearTimeout(timer);
-  }, [publicKey, hasSession]);
-
-  const handleOnboardingDeposit = () => {
-    setOnboardingOpen(false);
-    setDepositOpen(true);
-  };
-
-  const handleOnboardingDismiss = () => {
-    setOnboardingOpen(false);
-    if (publicKey) {
-      localStorage.setItem(`fermi_onboarding_v1_${publicKey.toBase58()}`, '1');
-    }
-  };
 
   const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
   useSSEStream();
@@ -141,12 +116,6 @@ function PerpsPage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-60px)] overflow-hidden">
-      <OnboardingModal
-        open={onboardingOpen}
-        onDeposit={handleOnboardingDeposit}
-        onDismiss={handleOnboardingDismiss}
-      />
-      <DepositModal open={depositOpen} onClose={() => setDepositOpen(false)} />
       {/* Main trading area - responsive layout */}
       <div className="flex flex-col lg:flex-row mx-2 md:mx-4 border-x border-outline divide-y lg:divide-y-0 lg:divide-x divide-outline">
         {/* Chart section - full width on mobile, flex-1 on desktop */}
