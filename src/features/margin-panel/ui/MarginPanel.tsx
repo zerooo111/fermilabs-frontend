@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Loader2, Wallet2, X, ArrowRight } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { toast } from 'sonner';
@@ -100,11 +101,24 @@ export function MarginPanel() {
 
   return (
     <>
+      {/* Dim + blur overlay — sits above page content (z-40) but below the
+          button and popover (z-[50]). Clicking anywhere on it dismisses. */}
+      {guideVisible &&
+        createPortal(
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            onClick={handleGuideDismiss}
+          />,
+          document.body
+        )}
+
       {/* Popover is anchored to the margin button and auto-opens for the guide.
           PopoverAnchor (not PopoverTrigger) so clicks still reach the DropdownMenu. */}
       <Popover open={guideVisible}>
         <PopoverAnchor asChild>
-          <div className="relative">
+          {/* relative z-[50] lifts the button above the overlay in the root
+              stacking context (the nav has no position so no stacking ctx). */}
+          <div className={`relative ${guideVisible ? 'z-[50]' : ''}`}>
             {/* Pulsing beacon — draws the eye to the button */}
             {guideVisible && (
               <span className="absolute -top-1 -right-1 flex size-2.5 z-10 pointer-events-none">
