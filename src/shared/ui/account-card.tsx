@@ -59,7 +59,7 @@ export function AccountCard() {
 
       {mangoAccount && (
         <div className="flex items-center justify-between px-3 md:px-4 py-2 border-b border-outline bg-card/50">
-          <span className="text-xs text-white/40">Mango Account</span>
+          <span className="text-xs text-white/40">Fermi Account</span>
           <button
             onClick={handleCopyMango}
             className="flex items-center gap-1.5 text-xs font-mono text-white/60 hover:text-white transition-colors"

@@ -88,7 +88,7 @@ export function MyAssets() {
             Deposited {(data?.uiAmount ?? 0).toLocaleString()}{' '}
             {selectedMarket?.quoteTokenName ?? 'USDC'}
           </div>
-          {data?.autoCreatedMangoAccount && <div className="text-xs">Created Mango account</div>}
+          {data?.autoCreatedMangoAccount && <div className="text-xs">Created Fermi account</div>}
         </div>
       ),
       error: (err: any) => (
