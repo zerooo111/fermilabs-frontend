@@ -35,17 +35,20 @@ export function MarginPanel() {
   const walletKey = publicKey?.toBase58() ?? null;
   const { shouldShow, dismiss } = useOnboarding(walletKey);
 
+  const freeCollateral = accountData?.free_collateral_snapshot ?? null;
+
   // Delay the guide slightly so the page finishes rendering first.
+  // Only show when the user has zero free collateral — the guide is for
+  // first-time depositors, not users who already have funds.
   const [guideVisible, setGuideVisible] = useState(false);
   useEffect(() => {
     if (!shouldShow) return;
+    if (freeCollateral === null || freeCollateral > 0) return;
     const t = setTimeout(() => setGuideVisible(true), 700);
     return () => clearTimeout(t);
-  }, [shouldShow]);
+  }, [shouldShow, freeCollateral]);
 
   if (!publicKey) return null;
-
-  const freeCollateral = accountData?.free_collateral_snapshot ?? null;
   const quoteDecimals = selectedMarket?.quoteDecimals ?? 2;
   const quoteToken = selectedMarket?.quoteTokenName ?? 'USDC';
 
