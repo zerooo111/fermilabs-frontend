@@ -84,7 +84,7 @@ export function DepositModal({ open, onClose }: Props) {
         setQuoteDecimals(data.quote_decimals);
         setMangoAccountExists(data.mango_account_exists);
         setWalletBalance(balanceUi);
-        setAmount(Math.min(balanceUi, data.default_ui_amount).toFixed(2));
+        setAmount(Math.min(balanceUi, data.default_ui_amount, MAX_DEPOSIT_UI).toFixed(2));
         setStep('input');
         setTimeout(() => inputRef.current?.focus(), 50);
       } catch (err) {
@@ -154,9 +154,11 @@ export function DepositModal({ open, onClose }: Props) {
     onClose();
   };
 
+  const MAX_DEPOSIT_UI = 1000;
   const parsedAmount = parseFloat(amount) || 0;
   const exceedsBalance = walletBalance !== null && parsedAmount > walletBalance;
-  const canDeposit = parsedAmount > 0 && !exceedsBalance;
+  const exceedsMax = parsedAmount > MAX_DEPOSIT_UI;
+  const canDeposit = parsedAmount > 0 && !exceedsBalance && !exceedsMax;
 
   return (
     <Dialog open={open} onOpenChange={v => !v && handleClose()}>
@@ -194,7 +196,10 @@ export function DepositModal({ open, onClose }: Props) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => walletBalance !== null && setAmount(walletBalance.toFixed(2))}
+                  onClick={() =>
+                    walletBalance !== null &&
+                    setAmount(Math.min(walletBalance, MAX_DEPOSIT_UI).toFixed(2))
+                  }
                   className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground hover:text-accent transition-colors"
                 >
                   Wallet:{' '}
@@ -222,7 +227,10 @@ export function DepositModal({ open, onClose }: Props) {
                 />
                 <button
                   type="button"
-                  onClick={() => walletBalance !== null && setAmount(walletBalance.toFixed(2))}
+                  onClick={() =>
+                    walletBalance !== null &&
+                    setAmount(Math.min(walletBalance, MAX_DEPOSIT_UI).toFixed(2))
+                  }
                   className="absolute right-2 top-1/2 -translate-y-1/2 border border-accent/30 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent hover:bg-accent/10 transition-colors"
                 >
                   Max
@@ -232,6 +240,11 @@ export function DepositModal({ open, onClose }: Props) {
               {exceedsBalance && (
                 <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-destructive">
                   Exceeds wallet balance
+                </p>
+              )}
+              {exceedsMax && !exceedsBalance && (
+                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-destructive">
+                  Max {MAX_DEPOSIT_UI.toLocaleString()} {quoteToken} per deposit during beta
                 </p>
               )}
 
