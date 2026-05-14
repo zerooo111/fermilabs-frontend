@@ -368,12 +368,11 @@ export function mapV2AccountPositions(
       if (baseLots === 0n) return null;
       const basePositionNative = Number(baseLots * BigInt(baseLotSize));
       const basePositionUi = basePositionNative / baseScale;
-      // mark_price_ui comes from the position payload itself — no cross-market
-      // fetch needed. Fall back to markPriceByMarket only if not present.
+      // Prefer the live market mark price (updated on every onMeta SSE event)
+      // over the stale value embedded in the position payload.
       const markPriceUi =
-        p.fields.mark_price_ui !== undefined
-          ? parseFloat(p.fields.mark_price_ui)
-          : (markPriceByMarket.get(p.market) ?? 0);
+        markPriceByMarket.get(p.market) ??
+        (p.fields.mark_price_ui !== undefined ? parseFloat(p.fields.mark_price_ui) : 0);
       const markPriceNative = Math.round(markPriceUi * quoteScale);
       const apiAvgEntryPrice = p.fields.avg_entry_price ?? p.fields.average_entry_price;
       const avgEntryUi = apiAvgEntryPrice !== undefined ? parseFloat(apiAvgEntryPrice) : null;

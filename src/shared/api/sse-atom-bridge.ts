@@ -195,10 +195,10 @@ export function mapPositions(
           ? uiToNative(p.base_position_ui, baseScale)
           : baseLotsToNative(p.base_position_lots, baseLotSize);
       const quotePositionNative = parseFiniteNumber(p.quote_position_native);
-      const markPriceNative =
-        p.mark_price_ui !== undefined
-          ? uiToNative(p.mark_price_ui, quoteScale)
-          : uiToNative(markPriceByMarket.get(p.market) ?? 0, quoteScale);
+      const markPriceNative = uiToNative(
+        markPriceByMarket.get(p.market) ?? p.mark_price_ui ?? 0,
+        quoteScale
+      );
       const basePositionUi = basePositionNative / baseScale;
       const quotePositionUi = quotePositionNative / quoteScale;
       const markPriceUi = markPriceNative / quoteScale;
