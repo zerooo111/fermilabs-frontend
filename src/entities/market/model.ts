@@ -163,6 +163,10 @@ export const sltpValuesAtom = atom<SLTPValues>({
   takeProfit: null,
 });
 
+export type PortfolioTab = 'orders' | 'positions' | 'trades' | 'assets';
+
+export const portfolioActiveTabAtom = atom<PortfolioTab>('orders');
+
 /**
  * Parse market name to extract base and quote token names
  * Handles both formats:

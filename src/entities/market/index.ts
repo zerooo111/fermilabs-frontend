@@ -9,7 +9,8 @@ export {
   useSelectedMarket,
   MarketModel,
   sltpValuesAtom,
+  portfolioActiveTabAtom,
   marketNameToSlug,
   findMarketBySlug,
 } from './model';
-export type { Market, MarketKind, SLTPValues } from './model';
+export type { Market, MarketKind, SLTPValues, PortfolioTab } from './model';

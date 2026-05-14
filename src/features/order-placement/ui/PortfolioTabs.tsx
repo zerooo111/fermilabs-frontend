@@ -6,16 +6,23 @@ import { MyAssets } from './MyAssets';
 import { MyPositions } from './MyPositions';
 import { AccountCard } from '@/shared/ui/account-card';
 import { Trades } from '@/features/orderbook-view/ui/Trades';
+import { useAtom } from 'jotai';
+import { portfolioActiveTabAtom, type PortfolioTab } from '@/entities/market';
 
 export function PortfolioTabs() {
   const { publicKey } = useWallet();
+  const [activeTab, setActiveTab] = useAtom(portfolioActiveTabAtom);
 
   return (
     <div className="flex flex-col md:flex-row flex-1 h-full mx-2 md:mx-4 border-x border-outline divide-y md:divide-y-0 md:divide-x divide-outline overflow-hidden">
       {/* Left side - Portfolio Tabs or Trades */}
       <div className="flex-1 min-w-0 overflow-hidden">
         {publicKey ? (
-          <Tabs defaultValue="orders" className="h-full flex flex-col">
+          <Tabs
+            value={activeTab}
+            onValueChange={value => setActiveTab(value as PortfolioTab)}
+            className="h-full flex flex-col"
+          >
             <TabsList className="w-full justify-start border-b border-outline rounded-none bg-transparent overflow-x-auto flex-shrink-0">
               <TabsTrigger value="orders">My Orders</TabsTrigger>
               <TabsTrigger value="positions">My Positions</TabsTrigger>

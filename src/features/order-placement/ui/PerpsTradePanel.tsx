@@ -12,7 +12,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
-import { useSelectedMarket, sltpValuesAtom } from '@/entities/market';
+import { useSelectedMarket, sltpValuesAtom, portfolioActiveTabAtom } from '@/entities/market';
 import {
   useFeeStatus,
   feeCreditDialogOpenAtom,
@@ -140,7 +140,7 @@ export function PerpsTradePanel() {
   }>({
     price: '',
     size: '',
-    orderType: 'limit',
+    orderType: 'market',
     marginMode: 'cross',
     stopLoss: '',
     takeProfit: '',
@@ -152,6 +152,7 @@ export function PerpsTradePanel() {
   const { selectedMarket } = useSelectedMarket();
   const { openPosition, openMarketPosition } = usePerps();
   const setSLTPValues = useSetAtom(sltpValuesAtom);
+  const setPortfolioActiveTab = useSetAtom(portfolioActiveTabAtom);
   const setFeeCreditOpen = useSetAtom(feeCreditDialogOpenAtom);
   const accountMetrics = useAtomValue(accountMetricsAtom);
   const feeStatus = useFeeStatus();
@@ -344,6 +345,7 @@ export function PerpsTradePanel() {
           takeProfit: '',
         }));
         setSLTPValues({ stopLoss: null, takeProfit: null });
+        setPortfolioActiveTab(isMarketOrder ? 'positions' : 'orders');
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to place order');
