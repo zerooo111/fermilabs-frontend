@@ -200,7 +200,7 @@ export function WaitlistDialog() {
                   posthog.capture('waitlist_start_trading_clicked', { source: source ?? null });
                   setOpen(false);
                   reset();
-                  window.location.href = '/perps';
+                  window.location.href = 'https://app.fermi.trade/perps';
                 }}
               >
                 Start trading
