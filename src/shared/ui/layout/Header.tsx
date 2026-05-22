@@ -67,9 +67,9 @@ export function Header() {
             <>
               <MarginPanel />
               <FeeCreditDialog />
-              <ConnectWallet />
             </>
           )}
+          <ConnectWallet />
         </div>
       </div>
     </nav>

@@ -26,12 +26,13 @@ import {
   AccessGateError,
 } from '../api/accessClient';
 import { readSession, writeSession, clearSession } from '../lib/cache';
-import { accessSessionAtom, gateLoadingAtom } from './accessAtoms';
+import { accessSessionAtom, gateLoadingAtom, gateOpenAtom } from './accessAtoms';
 
 export function useAccessGate() {
   const { connected, publicKey, signMessage, disconnecting } = useWallet();
   const setSession = useSetAtom(accessSessionAtom);
   const setLoading = useSetAtom(gateLoadingAtom);
+  const setGateOpen = useSetAtom(gateOpenAtom);
 
   // Guard against React StrictMode double-invocation triggering two
   // server-side challenge inserts for the same connect.
@@ -56,6 +57,7 @@ export function useAccessGate() {
           ...prev,
           [wallet]: { token: cached.token, expiresAt: cached.expiresAt },
         }));
+        setGateOpen(false);
         return;
       }
 
@@ -64,9 +66,12 @@ export function useAccessGate() {
         const status = await fetchStatus(wallet);
         if (cancelled) return;
 
-        // Not whitelisted, or wallet doesn't expose signMessage: nothing to
-        // do silently. The modal handles the manual redeem flow.
-        if (!status.whitelisted || !signMessage) return;
+        // Not whitelisted, or wallet doesn't expose signMessage: open the
+        // modal so the user can paste an invite code (or join the waitlist).
+        if (!status.whitelisted || !signMessage) {
+          setGateOpen(true);
+          return;
+        }
 
         // Whitelisted but no token: silent re-sign to mint a session.
         const challenge = await requestChallenge(wallet, 'session');
@@ -89,6 +94,7 @@ export function useAccessGate() {
           expiresAt: granted.expires_at,
           cachedAt: Date.now(),
         });
+        setGateOpen(false);
       } catch (e) {
         if (cancelled) return;
         if (e instanceof AccessGateError) {
@@ -96,7 +102,8 @@ export function useAccessGate() {
             toast.error('Sign-in failed. Please try connecting again.');
           }
         }
-        // Other errors: leave session unset; the page-level gate stays open.
+        // Fall back to the manual redeem flow so the user isn't stuck.
+        setGateOpen(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -106,17 +113,16 @@ export function useAccessGate() {
     return () => {
       cancelled = true;
     };
-  }, [connected, publicKey, signMessage, setSession, setLoading]);
+  }, [connected, publicKey, signMessage, setSession, setLoading, setGateOpen]);
 
   // Disconnect: reset the per-wallet guard so a reconnect re-runs the status
-  // check. Gate visibility itself is owned by the page (via hasSession) so we
-  // don't touch gateOpenAtom here — closing it would race the page's effect
-  // and leave authenticated-only UI mounted while the wallet is gone.
+  // check, and close the gate — the page is view-only without a wallet.
   useEffect(() => {
     if (disconnecting) {
       lastSeenWallet.current = null;
+      setGateOpen(false);
     }
-  }, [disconnecting]);
+  }, [disconnecting, setGateOpen]);
 
   // Helper exposed for the modal to call after a successful redeem and for
   // an "I have another code" flow.

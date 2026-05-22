@@ -15,10 +15,8 @@ import {
   findMarketBySlug,
   marketsAtom,
 } from '@/entities/market';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { useSSEStream } from '@/shared/hooks/useSSEStream';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { gateOpenAtom, accessSessionAtom } from '@/features/access-gate';
 
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
@@ -31,26 +29,6 @@ function PerpsPage() {
   const params = useParams();
   const initialLoadRef = useRef(false);
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
-
-  const { publicKey } = useWallet();
-  const setGateOpen = useSetAtom(gateOpenAtom);
-  const session = useAtomValue(accessSessionAtom);
-
-  const walletKey = publicKey?.toBase58();
-  const hasSession = !!(
-    walletKey &&
-    session[walletKey]?.token &&
-    session[walletKey].expiresAt - 5 * 60 > Math.floor(Date.now() / 1000)
-  );
-
-  // Keep the gate open while there is no valid session.
-  // Always close it when leaving the perps page so it doesn't follow the user.
-  useEffect(() => {
-    setGateOpen(!hasSession);
-    return () => {
-      setGateOpen(false);
-    };
-  }, [hasSession, setGateOpen]);
 
   const { selectMarket, selectedMarketId, loadMarkets } = useSelectedMarket();
   useSSEStream();
@@ -102,12 +80,6 @@ function PerpsPage() {
       navigate(`/perps/${slug}`, { replace: true });
     }
   }, [selectedMarketId, navigate]);
-
-  // Hard gate: do not render trading UI without a valid session.
-  // The InviteCodeModal is rendered globally (via gateOpenAtom) on top of this.
-  if (!hasSession) {
-    return <div className="min-h-[calc(100vh-60px)]" aria-hidden />;
-  }
 
   // Show inline skeleton while markets are loading
   if (isLoadingMarkets) {

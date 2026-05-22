@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import type { WalletName } from '@solana/wallet-adapter-base';
 import { useAtom, useSetAtom } from 'jotai';
-import { Loader2, Wallet } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Atom, Key, ArrowRight } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
@@ -68,10 +67,8 @@ function HeaderIcon({ children }: { children: React.ReactNode }) {
 }
 
 export function InviteCodeModal() {
-  const { publicKey, signMessage, wallet, wallets, select, connect, connecting, connected } =
-    useWallet();
+  const { publicKey, signMessage, disconnect } = useWallet();
   const [open, setOpen] = useAtom(gateOpenAtom);
-  const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null);
   const [, setSession] = useAtom(accessSessionAtom);
   const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -91,65 +88,17 @@ export function InviteCodeModal() {
     posthog.capture('invite_waitlist_clicked');
   };
 
-  // Dedupe wallets by adapter name (wallet-standard auto-discovery sometimes
-  // registers the same wallet twice — e.g. MetaMask via both injected and Snap).
-  // Keep installed wallets first, then loadable, hide unsupported.
-  const visibleWallets = useMemo(() => {
-    const seen = new Set<string>();
-    const out: typeof wallets = [];
-    const sorted = [...wallets].sort((a, b) => {
-      const score = (w: typeof a) =>
-        w.readyState === 'Installed' ? 0 : w.readyState === 'Loadable' ? 1 : 2;
-      return score(a) - score(b);
-    });
-    for (const w of sorted) {
-      if (w.readyState === 'Unsupported' || w.readyState === 'NotDetected') continue;
-      if (seen.has(w.adapter.name)) continue;
-      seen.add(w.adapter.name);
-      out.push(w);
-    }
-    return out;
-  }, [wallets]);
-
-  // After select(), once the wallet adapter has switched, fire connect() once.
-  // pendingWalletName is cleared as soon as connect is invoked so the effect
-  // can't loop if the user dismisses the wallet popup.
-  useEffect(() => {
-    if (!pendingWalletName) return;
-    if (!wallet || wallet.adapter.name !== pendingWalletName) return;
-    if (connecting || connected) return;
-    const walletName = wallet.adapter.name;
-    setPendingWalletName(null);
-    connect().catch(err => {
-      console.error('Wallet connect failed:', err);
-      toast.error('Wallet connection failed. Please try again.');
-      posthog.capture('invite_wallet_connect_failed', {
-        wallet_name: walletName,
-        error: err instanceof Error ? err.message : String(err),
+  // Dismissing the gate returns the user to view-only by disconnecting the
+  // wallet; otherwise an authenticated-only header (margin/fee) would render
+  // alongside a wallet that hasn't redeemed a session.
+  const handleDismiss = () => {
+    setOpen(false);
+    setCode('');
+    if (publicKey) {
+      disconnect().catch(err => {
+        console.error('Wallet disconnect failed:', err);
       });
-    });
-  }, [pendingWalletName, wallet, connecting, connected, connect]);
-
-  const handleSelectWallet = async (name: WalletName) => {
-    if (connecting) return;
-    posthog.capture('invite_wallet_selected', { wallet_name: name });
-    // Already-selected wallet (restored from localStorage after refresh):
-    // calling select() is a no-op, so connect() directly.
-    if (wallet?.adapter.name === name) {
-      try {
-        await connect();
-      } catch (err) {
-        console.error('Wallet connect failed:', err);
-        toast.error('Wallet connection failed. Please try again.');
-        posthog.capture('invite_wallet_connect_failed', {
-          wallet_name: name,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      return;
     }
-    setPendingWalletName(name);
-    select(name);
   };
 
   const handleRedeem = async () => {
@@ -208,17 +157,11 @@ export function InviteCodeModal() {
   return (
     <Dialog
       open={open}
-      modal={false}
-      onOpenChange={() => {
-        /* intentionally a no-op — gate dismisses only via explicit buttons */
+      onOpenChange={next => {
+        if (!next) handleDismiss();
       }}
     >
-      <DialogContent
-        onPointerDownOutside={e => e.preventDefault()}
-        onEscapeKeyDown={e => e.preventDefault()}
-        onInteractOutside={e => e.preventDefault()}
-        className="max-w-md gap-6 p-6 [&>button.absolute]:hidden"
-      >
+      <DialogContent className="max-w-md gap-6 p-6">
         {!acknowledged ? (
           // ── Step 1: Beta acknowledgement ──
           <>
@@ -251,66 +194,8 @@ export function InviteCodeModal() {
               I understand, continue
             </Button>
           </>
-        ) : // ── Step 2: Wallet connect ──
-        !publicKey ? (
-          <>
-            <DialogHeader className="gap-4">
-              <HeaderIcon>
-                <Wallet className="size-6" />
-              </HeaderIcon>
-              <div className="flex flex-col gap-2">
-                <DialogTitle className="text-lg font-semibold tracking-tight">
-                  Connect your wallet
-                </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  Connect a Solana wallet first. We'll then ask you for your invite code.
-                </DialogDescription>
-              </div>
-            </DialogHeader>
-
-            <div className="flex flex-col gap-1.5">
-              {visibleWallets.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-3 text-center border border-outline">
-                  No Solana wallet detected. Install Phantom, Solflare, or Backpack.
-                </p>
-              ) : (
-                visibleWallets.map(w => {
-                  const isPending = pendingWalletName === w.adapter.name;
-                  const isActive = wallet?.adapter.name === w.adapter.name && connecting;
-                  const busy = isPending || isActive;
-                  return (
-                    <button
-                      key={w.adapter.name}
-                      type="button"
-                      disabled={busy}
-                      onClick={() => handleSelectWallet(w.adapter.name)}
-                      className="flex items-center gap-3 px-3 py-2.5 border border-outline bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-left outline-none focus:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
-                    >
-                      <img src={w.adapter.icon} alt="" className="size-7 shrink-0" aria-hidden />
-                      <span className="flex-1 text-sm font-medium">{w.adapter.name}</span>
-                      {busy ? (
-                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                      ) : (
-                        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                          {w.readyState === 'Installed' ? 'Detected' : 'Install'}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-
-            <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
-              <span className="text-sm text-muted-foreground">No invite code?</span>
-              <Button variant="outline" size="sm" onClick={openWaitlist}>
-                Join the waitlist
-                <ArrowRight weight="bold" className="size-3.5" />
-              </Button>
-            </div>
-          </>
         ) : (
-          // ── Step 3: Redeem invite code ──
+          // ── Step 2: Redeem invite code ──
           <>
             <DialogHeader className="gap-4">
               <HeaderIcon>
