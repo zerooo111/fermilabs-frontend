@@ -39,8 +39,10 @@ export function useAccessGate() {
   const lastSeenWallet = useRef<string | null>(null);
 
   // Auth-flow effect: silently mint a session when a wallet connects.
-  // Does NOT touch gateOpenAtom — gate visibility is owned by the page (via
-  // its hasSession derivation) so we never race or override the page state.
+  // Never *opens* the gate — that's owned by the explicit Connect Wallet
+  // click in ConnectWallet.tsx — so a silent reconnect on page load (e.g.
+  // Phantom's trusted-app callback) doesn't pop the modal unprompted. We
+  // only close the gate when we've successfully hydrated a session.
   useEffect(() => {
     if (!connected || !publicKey) return;
     const wallet = publicKey.toBase58();
@@ -50,7 +52,6 @@ export function useAccessGate() {
     let cancelled = false;
 
     const run = async () => {
-      // 1. Cached session?
       const cached = readSession(wallet);
       if (cached) {
         setSession(prev => ({
@@ -66,14 +67,12 @@ export function useAccessGate() {
         const status = await fetchStatus(wallet);
         if (cancelled) return;
 
-        // Not whitelisted, or wallet doesn't expose signMessage: open the
-        // modal so the user can paste an invite code (or join the waitlist).
-        if (!status.whitelisted || !signMessage) {
-          setGateOpen(true);
-          return;
-        }
+        // Not whitelisted, or wallet doesn't expose signMessage: nothing to
+        // do silently. If the user explicitly opened the gate, it stays open
+        // (showing the code-entry step now that publicKey is set). If they
+        // didn't, we leave the page untouched.
+        if (!status.whitelisted || !signMessage) return;
 
-        // Whitelisted but no token: silent re-sign to mint a session.
         const challenge = await requestChallenge(wallet, 'session');
         if (cancelled) return;
         const sigBytes = await signMessage(new TextEncoder().encode(challenge.message));
@@ -102,8 +101,6 @@ export function useAccessGate() {
             toast.error('Sign-in failed. Please try connecting again.');
           }
         }
-        // Fall back to the manual redeem flow so the user isn't stuck.
-        setGateOpen(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
