@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import type { WalletName } from '@solana/wallet-adapter-base';
-import { useAtom, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { Loader2, Wallet } from 'lucide-react';
 import { Atom, Key, ArrowRight } from '@phosphor-icons/react';
 import { toast } from 'sonner';
@@ -19,7 +19,7 @@ import {
 import { Input } from '@/shared/ui/input';
 
 import { AccessGateError, redeemInvite, requestChallenge } from '../api/accessClient';
-import { gateOpenAtom, accessSessionAtom } from '../model/accessAtoms';
+import { gateOpenAtom, gateLoadingAtom, accessSessionAtom } from '../model/accessAtoms';
 import { writeSession } from '../lib/cache';
 import { waitlistOpenAtom, waitlistSourceAtom } from '@/features/waitlist';
 
@@ -80,6 +80,7 @@ export function InviteCodeModal() {
     disconnect,
   } = useWallet();
   const [open, setOpen] = useAtom(gateOpenAtom);
+  const gateLoading = useAtomValue(gateLoadingAtom);
   const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null);
   const [, setSession] = useAtom(accessSessionAtom);
   const [code, setCode] = useState('');
@@ -324,6 +325,28 @@ export function InviteCodeModal() {
                 Join the waitlist
                 <ArrowRight weight="bold" className="size-3.5" />
               </Button>
+            </div>
+          </>
+        ) : gateLoading ? (
+          // ── Step 2.5: Silent re-sign in flight (whitelisted wallets) ──
+          // Show a spinner instead of the code form so the user isn't asked
+          // to enter a code while their wallet signature popup is open.
+          <>
+            <DialogHeader className="gap-4">
+              <HeaderIcon>
+                <Key weight="duotone" className="size-7" />
+              </HeaderIcon>
+              <div className="flex flex-col gap-2">
+                <DialogTitle className="text-lg font-semibold tracking-tight">
+                  Checking access…
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                  Approve the signature request in your wallet to continue.
+                </DialogDescription>
+              </div>
+            </DialogHeader>
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           </>
         ) : (
