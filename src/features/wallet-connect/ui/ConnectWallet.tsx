@@ -6,11 +6,12 @@
 
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useSetAtom } from 'jotai';
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Copy, LogOut, Wallet } from 'lucide-react';
-import { toast } from 'sonner';
 import posthog from 'posthog-js';
 import { useServerConfig } from '@/entities/server';
+import { gateOpenAtom } from '@/features/access-gate';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,8 +26,7 @@ const LABELS = {
   'change-wallet': 'Change wallet',
   disconnect: 'Disconnect',
   connecting: 'Connecting...',
-  'no-wallet': 'Select Wallet',
-  'has-wallet': 'Connect',
+  connect: 'Connect Wallet',
 } as const;
 
 /**
@@ -34,8 +34,9 @@ const LABELS = {
  * Handles wallet selection and connection state
  */
 export function ConnectWallet() {
-  const { wallet, connect, disconnect, connected, connecting, publicKey } = useWallet();
+  const { wallet, disconnect, connected, connecting, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
+  const setGateOpen = useSetAtom(gateOpenAtom);
   const [copied, setCopied] = useState(false);
   useServerConfig();
 
@@ -69,34 +70,15 @@ export function ConnectWallet() {
       return `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`;
     }
     if (connecting) return LABELS['connecting'];
-    if (wallet) return LABELS['has-wallet'];
-    return LABELS['no-wallet'];
-  }, [connecting, publicKey, wallet]);
+    return LABELS['connect'];
+  }, [connecting, publicKey]);
 
-  const handleConnectClick = useCallback(async () => {
+  // Unconnected click defers to the access gate so wallet selection and
+  // invite-code redemption happen in a single unified modal flow.
+  const handleConnectClick = useCallback(() => {
     if (connected || connecting) return;
-    if (!wallet) {
-      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-      const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
-      if (typeof window !== 'undefined' && !window.isSecureContext && !isLocalHost) {
-        toast.error('Wallet extensions require HTTPS (or localhost/127.0.0.1) to connect.');
-      }
-      setVisible(true);
-      return;
-    }
-    try {
-      await connect();
-    } catch (error) {
-      // Toast is handled globally by WalletProvider.onError.
-      const err = error as { name?: string; message?: string };
-      posthog.capture('wallet_connection_failed', {
-        error_message: err?.message || err?.name || 'Unknown error',
-        wallet_name: wallet?.adapter?.name,
-      });
-      // If provider is unavailable or authorization was rejected, allow wallet re-selection.
-      setVisible(true);
-    }
-  }, [connected, connecting, wallet, connect, setVisible]);
+    setGateOpen(true);
+  }, [connected, connecting, setGateOpen]);
 
   const baseButton = (
     <Button variant="default" size="sm" onClick={handleConnectClick}>
