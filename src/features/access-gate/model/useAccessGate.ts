@@ -29,7 +29,7 @@ import { readSession, writeSession, clearSession } from '../lib/cache';
 import { accessSessionAtom, gateLoadingAtom, gateOpenAtom } from './accessAtoms';
 
 export function useAccessGate() {
-  const { connected, publicKey, signMessage, disconnecting } = useWallet();
+  const { connected, publicKey, signMessage } = useWallet();
   const setSession = useSetAtom(accessSessionAtom);
   const setLoading = useSetAtom(gateLoadingAtom);
   const setGateOpen = useSetAtom(gateOpenAtom);
@@ -117,12 +117,14 @@ export function useAccessGate() {
 
   // Disconnect: reset the per-wallet guard so a reconnect re-runs the status
   // check, and close the gate — the page is view-only without a wallet.
+  // Watch !connected directly so we cover adapters that skip the transient
+  // disconnecting state on a clean disconnect.
   useEffect(() => {
-    if (disconnecting) {
+    if (!connected) {
       lastSeenWallet.current = null;
       setGateOpen(false);
     }
-  }, [disconnecting, setGateOpen]);
+  }, [connected, setGateOpen]);
 
   // Helper exposed for the modal to call after a successful redeem and for
   // an "I have another code" flow.

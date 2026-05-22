@@ -11,7 +11,7 @@ import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Copy, LogOut, Wallet } from 'lucide-react';
 import posthog from 'posthog-js';
 import { useServerConfig } from '@/entities/server';
-import { gateOpenAtom } from '@/features/access-gate';
+import { gateOpenAtom, accessSessionAtom, clearSession } from '@/features/access-gate';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +37,7 @@ export function ConnectWallet() {
   const { wallet, disconnect, connected, connecting, publicKey } = useWallet();
   const { setVisible } = useWalletModal();
   const setGateOpen = useSetAtom(gateOpenAtom);
+  const setSession = useSetAtom(accessSessionAtom);
   const [copied, setCopied] = useState(false);
   useServerConfig();
 
@@ -80,6 +81,30 @@ export function ConnectWallet() {
     setGateOpen(true);
   }, [connected, connecting, setGateOpen]);
 
+  // Explicit disconnect = full logout: drop the cached session token so a
+  // subsequent reconnect re-prompts via the gate instead of silently
+  // restoring the previous session.
+  const handleDisconnect = useCallback(async () => {
+    const walletAddress = publicKey?.toBase58();
+    posthog.capture('wallet_disconnected', {
+      wallet_address: walletAddress,
+      wallet_name: wallet?.adapter?.name,
+    });
+    posthog.reset();
+    if (walletAddress) {
+      clearSession(walletAddress);
+      setSession(prev => {
+        const { [walletAddress]: _, ...rest } = prev;
+        return rest;
+      });
+    }
+    try {
+      await disconnect();
+    } catch (err) {
+      console.error('Wallet disconnect failed:', err);
+    }
+  }, [publicKey, wallet, disconnect, setSession]);
+
   const baseButton = (
     <Button variant="default" size="sm" onClick={handleConnectClick}>
       {connected && <div className="w-2 h-2 bg-green-400 animate-pulse" />}
@@ -103,17 +128,7 @@ export function ConnectWallet() {
           <Wallet className="size-4" />
           {LABELS['change-wallet']}
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => {
-            posthog.capture('wallet_disconnected', {
-              wallet_address: publicKey?.toBase58(),
-              wallet_name: wallet?.adapter?.name,
-            });
-            posthog.reset();
-            disconnect();
-          }}
-          className="text-red-600"
-        >
+        <DropdownMenuItem onClick={handleDisconnect} className="text-red-600">
           <LogOut className="size-4" />
           {LABELS['disconnect']}
         </DropdownMenuItem>
