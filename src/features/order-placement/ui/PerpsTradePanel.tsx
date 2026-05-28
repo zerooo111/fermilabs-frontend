@@ -244,12 +244,16 @@ export function PerpsTradePanel() {
       }
     }
 
+    // Entry reference for SL/TP validation: limit orders use the typed price,
+    // market orders have no limit price so they fall back to the live mark price.
+    const referencePrice = isMarketOrder ? (markPrice ?? 0) : priceValue;
+
     // Validate Stop Loss: cannot be above entry price
     if (field === 'stopLoss') {
       const stringValue = value as string;
       if (stringValue !== '') {
         const stopLossValue = safeParseFloat(stringValue);
-        if (priceValue > 0 && stopLossValue > priceValue) {
+        if (referencePrice > 0 && stopLossValue > referencePrice) {
           toast.error('Stop Loss cannot be above entry price');
           return; // Reject invalid stop loss
         }
@@ -261,7 +265,7 @@ export function PerpsTradePanel() {
       const stringValue = value as string;
       if (stringValue !== '') {
         const takeProfitValue = safeParseFloat(stringValue);
-        if (priceValue > 0 && takeProfitValue < priceValue) {
+        if (referencePrice > 0 && takeProfitValue < referencePrice) {
           toast.error('Take Profit cannot be below entry price');
           return; // Reject invalid take profit
         }
@@ -289,17 +293,19 @@ export function PerpsTradePanel() {
   };
 
   const handleOpenPosition = async (side: OrderSide) => {
-    // Validate SL/TP before submitting (skip for market orders since price is unknown)
-    if (enableSLTP && !isMarketOrder) {
+    // Validate SL/TP before submitting. Market orders have no limit price, so
+    // they validate against the live mark price as the entry reference.
+    if (enableSLTP) {
+      const referencePrice = isMarketOrder ? (markPrice ?? 0) : priceValue;
       const stopLossValue = safeParseFloat(formState.stopLoss);
       const takeProfitValue = safeParseFloat(formState.takeProfit);
 
-      if (formState.stopLoss && stopLossValue > priceValue) {
+      if (formState.stopLoss && referencePrice > 0 && stopLossValue > referencePrice) {
         toast.error('Stop Loss cannot be above entry price');
         return;
       }
 
-      if (formState.takeProfit && takeProfitValue < priceValue) {
+      if (formState.takeProfit && referencePrice > 0 && takeProfitValue < referencePrice) {
         toast.error('Take Profit cannot be below entry price');
         return;
       }
@@ -593,7 +599,6 @@ export function PerpsTradePanel() {
                 unit={selectedMarket?.quoteTokenName}
                 decimalScale={marketQuoteDecimals(selectedMarket)}
                 allowNegative={false}
-                disabled={formState.orderType === 'market'}
               />
               <NumberInput
                 id="takeProfit"
@@ -608,7 +613,6 @@ export function PerpsTradePanel() {
                 unit={selectedMarket?.quoteTokenName}
                 decimalScale={marketQuoteDecimals(selectedMarket)}
                 allowNegative={false}
-                disabled={formState.orderType === 'market'}
               />
             </div>
           )}
