@@ -26,7 +26,7 @@ import { useSelectedMarket } from '@/entities/market';
 import { usePositions } from '@/shared/hooks/usePositions';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
-import { recentMarketTradesAtom } from '@/shared/api/sse-atoms';
+import { recentMarketTradesAtom, marketMetricsAtom } from '@/shared/api/sse-atoms';
 import { nativeToUiNumber } from '@/shared/lib/harness-market';
 import { QUOTE_DECIMALS } from '@/shared/config/constants';
 import { toast } from 'sonner';
@@ -274,26 +274,40 @@ function PerpsChartContainerComponent() {
     placeholderData: undefined, // Don't show stale data from a different queryKey
   });
 
-  // Drive optimistic candles from the trades stream's last traded price.
-  // The /v2/candles historical endpoint is also trade-derived, so this keeps
-  // the live and historical OHLC consistent (no snap on refresh, no oracle
-  // ghost wicks during quiet periods). recentMarketTradesAtom is reset by
-  // useSSEStream on market change, so we don't need to filter by market.
-  // RecentTrade.price is native-scaled; convert to UI scale.
+  // Drive the forming candle from a live stream tick, so we fetch history once
+  // and then extend it in real time (no full refetch per update). The tick
+  // source matches each mode's historical series, keeping live and historical
+  // OHLC consistent:
+  //   • ltp  → last traded price from the trades stream (native → UI scale).
+  //            /v2/candles?price=ltp is also trade-derived, so no snap on
+  //            refresh and no oracle ghost wicks during quiet periods.
+  //   • mark → mark/oracle tick from the SSE `meta` stream (already UI scale),
+  //            matching the Pyth-index history from /v2/candles?price=mark.
+  // Both atoms are reset/rescoped by useSSEStream on market change.
   const recentTrades = useAtomValue(recentMarketTradesAtom);
+  const liveMetrics = useAtomValue(marketMetricsAtom);
   const lastTradePrice = useMemo(() => {
-    // In mark mode the chart is the Pyth index series; merging the on-venue
-    // last traded price would paint LTP wicks onto a mark chart and diverge
-    // from the historical /v2/candles?price=mark payload. Disable live merge.
-    if (priceSource === 'mark') return null;
     if (!selectedMarket?.uuid) return null;
+    if (priceSource === 'mark') {
+      // mark_price_ui is already UI-scaled (and currently tracks the on-chain
+      // oracle until the harness publishes a distinct mark — see ChartHeader).
+      if (!liveMetrics || liveMetrics.market !== selectedMarket.uuid) return null;
+      const mark = liveMetrics.mark_price_ui;
+      return Number.isFinite(mark) && mark > 0 ? mark : null;
+    }
     if (!recentTrades || recentTrades.length === 0) return null;
     // recentMarketTradesAtom is sorted desc by timestamp by mergeRecentTrades.
     const latest = recentTrades[0];
     if (!latest || !Number.isFinite(latest.price) || latest.price <= 0) return null;
     const quoteDecimals = selectedMarket.quote_decimals ?? QUOTE_DECIMALS;
     return nativeToUiNumber(latest.price, quoteDecimals);
-  }, [recentTrades, selectedMarket?.uuid, selectedMarket?.quote_decimals, priceSource]);
+  }, [
+    priceSource,
+    recentTrades,
+    liveMetrics,
+    selectedMarket?.uuid,
+    selectedMarket?.quote_decimals,
+  ]);
 
   // Keep ref in sync inline during render so the historicalData effect always
   // sees the latest price without an extra effect cycle per tick.

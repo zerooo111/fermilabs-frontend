@@ -296,13 +296,14 @@ export function getCurrentCandleTimestamp(timeframe: PerpsTimeframe): number {
 }
 
 /**
- * Update candles array with a new last-traded price.
+ * Update candles array with a new live price, extending the forming candle.
  *
- * Drives optimistic OHLC from executed trades to match what the historical
- * /v2/candles endpoint produces (it builds candles server-side from the
- * trades stream). Mark/oracle price is intentionally not used here — it
- * would paint wicks no trader could fill at and diverge from the historical
- * endpoint at every refresh.
+ * Source-agnostic: the caller passes whichever tick matches the active
+ * historical series, so live and historical OHLC stay consistent —
+ *   • ltp mode  → last traded price (matches the trade-derived /v2/candles).
+ *   • mark mode → mark/oracle tick (matches /v2/candles?price=mark).
+ * Passing the wrong source (e.g. an LTP trade price onto a mark chart) would
+ * paint wicks that diverge from the historical endpoint on every refresh.
  */
 export function updateCandlesWithLastTradePrice(
   candles: ExtendedPerpsOHLCVData[],
