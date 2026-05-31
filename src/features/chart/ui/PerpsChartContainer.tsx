@@ -76,8 +76,11 @@ function loadStoredChartType(): PerpsChartType {
   return 'candlestick';
 }
 
+// Default to 'mark': on a thin new venue the Pyth-index chart is smoother and
+// more representative than the sparse LTP chart. A user's explicit toggle is
+// persisted, so anyone who picks LTP keeps it.
 function loadStoredPriceSource(): PerpsPriceSource {
-  if (typeof window === 'undefined') return 'ltp';
+  if (typeof window === 'undefined') return 'mark';
   try {
     const stored = window.localStorage.getItem(PRICE_SOURCE_STORAGE_KEY);
     if (stored && (VALID_PRICE_SOURCES as string[]).includes(stored)) {
@@ -86,7 +89,7 @@ function loadStoredPriceSource(): PerpsPriceSource {
   } catch {
     // ignore storage access errors
   }
-  return 'ltp';
+  return 'mark';
 }
 
 function PerpsChartContainerComponent() {
