@@ -19,6 +19,7 @@ import {
   calculatePerpsPriceChange,
   updateCandlesWithLastTradePrice,
   PerpsTimeframe,
+  PerpsPriceSource,
   ExtendedPerpsOHLCVData,
 } from '@/features/chart/lib/perps-chart';
 import { useSelectedMarket } from '@/entities/market';
@@ -35,8 +36,10 @@ import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
 const TIMEFRAME_STORAGE_KEY = 'perps-chart:timeframe';
 const CHART_TYPE_STORAGE_KEY = 'perps-chart:chartType';
+const PRICE_SOURCE_STORAGE_KEY = 'perps-chart:priceSource';
 const VALID_TIMEFRAMES: PerpsTimeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
 const VALID_CHART_TYPES: PerpsChartType[] = ['candlestick', 'line', 'area', 'bar'];
+const VALID_PRICE_SOURCES: PerpsPriceSource[] = ['ltp', 'mark'];
 // Keyboard shortcuts 1..6 → timeframe
 const TIMEFRAME_SHORTCUTS: Record<string, PerpsTimeframe> = {
   '1': '1m',
@@ -73,9 +76,23 @@ function loadStoredChartType(): PerpsChartType {
   return 'candlestick';
 }
 
+function loadStoredPriceSource(): PerpsPriceSource {
+  if (typeof window === 'undefined') return 'ltp';
+  try {
+    const stored = window.localStorage.getItem(PRICE_SOURCE_STORAGE_KEY);
+    if (stored && (VALID_PRICE_SOURCES as string[]).includes(stored)) {
+      return stored as PerpsPriceSource;
+    }
+  } catch {
+    // ignore storage access errors
+  }
+  return 'ltp';
+}
+
 function PerpsChartContainerComponent() {
   const [timeInterval, setTimeInterval] = useState<PerpsTimeframe>(loadStoredTimeframe);
   const [chartType, setChartType] = useState<PerpsChartType>(loadStoredChartType);
+  const [priceSource, setPriceSource] = useState<PerpsPriceSource>(loadStoredPriceSource);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [reachedBeginningOfHistory, setReachedBeginningOfHistory] = useState(false);
   const { selectedMarket, selectMarket } = useSelectedMarket();
@@ -180,6 +197,15 @@ function PerpsChartContainerComponent() {
     }
   }, []);
 
+  const handlePriceSourceChange = useCallback((next: PerpsPriceSource) => {
+    setPriceSource(next);
+    try {
+      window.localStorage.setItem(PRICE_SOURCE_STORAGE_KEY, next);
+    } catch {
+      // ignore storage write errors
+    }
+  }, []);
+
   // Keyboard shortcuts: 1..6 switch timeframe. Ignore when user is typing.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -210,7 +236,7 @@ function PerpsChartContainerComponent() {
     isSuccess,
     error,
   } = useQuery<ExtendedPerpsOHLCVData[]>({
-    queryKey: ['perps-candlesticks', timeInterval, selectedMarket?.uuid],
+    queryKey: ['perps-candlesticks', timeInterval, selectedMarket?.uuid, priceSource],
     queryFn: async () => {
       if (!selectedMarket?.uuid) {
         throw new Error('No market selected');
@@ -224,17 +250,22 @@ function PerpsChartContainerComponent() {
         tf: timeInterval,
         from: startTime,
         to: endTime,
+        priceSource,
       });
 
       // Process the data for TradingView charts
-      return processPerpsCandleData(candleData, {
-        base_mint: selectedMarket.base_mint,
-        quote_mint: selectedMarket.quote_mint,
-        base_decimals: selectedMarket.base_decimals,
-        quote_decimals: selectedMarket.quote_decimals,
-        base_lot_size: selectedMarket.base_lot_size,
-        quote_lot_size: selectedMarket.quote_lot_size,
-      });
+      return processPerpsCandleData(
+        candleData,
+        {
+          base_mint: selectedMarket.base_mint,
+          quote_mint: selectedMarket.quote_mint,
+          base_decimals: selectedMarket.base_decimals,
+          quote_decimals: selectedMarket.quote_decimals,
+          base_lot_size: selectedMarket.base_lot_size,
+          quote_lot_size: selectedMarket.quote_lot_size,
+        },
+        priceSource
+      );
     },
     // Remove refetchInterval - only fetch when market/interval changes
     enabled: !!selectedMarket?.uuid,
@@ -251,6 +282,10 @@ function PerpsChartContainerComponent() {
   // RecentTrade.price is native-scaled; convert to UI scale.
   const recentTrades = useAtomValue(recentMarketTradesAtom);
   const lastTradePrice = useMemo(() => {
+    // In mark mode the chart is the Pyth index series; merging the on-venue
+    // last traded price would paint LTP wicks onto a mark chart and diverge
+    // from the historical /v2/candles?price=mark payload. Disable live merge.
+    if (priceSource === 'mark') return null;
     if (!selectedMarket?.uuid) return null;
     if (!recentTrades || recentTrades.length === 0) return null;
     // recentMarketTradesAtom is sorted desc by timestamp by mergeRecentTrades.
@@ -258,7 +293,7 @@ function PerpsChartContainerComponent() {
     if (!latest || !Number.isFinite(latest.price) || latest.price <= 0) return null;
     const quoteDecimals = selectedMarket.quote_decimals ?? QUOTE_DECIMALS;
     return nativeToUiNumber(latest.price, quoteDecimals);
-  }, [recentTrades, selectedMarket?.uuid, selectedMarket?.quote_decimals]);
+  }, [recentTrades, selectedMarket?.uuid, selectedMarket?.quote_decimals, priceSource]);
 
   // Keep ref in sync inline during render so the historicalData effect always
   // sees the latest price without an extra effect cycle per tick.
@@ -355,16 +390,21 @@ function PerpsChartContainerComponent() {
           tf: timeInterval,
           from: new Date(fromSec * 1000).toISOString(),
           to: new Date(toSec * 1000).toISOString(),
+          priceSource,
         });
 
-        const processed = processPerpsCandleData(rawCandles, {
-          base_mint: selectedMarket.base_mint,
-          quote_mint: selectedMarket.quote_mint,
-          base_decimals: selectedMarket.base_decimals,
-          quote_decimals: selectedMarket.quote_decimals,
-          base_lot_size: selectedMarket.base_lot_size,
-          quote_lot_size: selectedMarket.quote_lot_size,
-        });
+        const processed = processPerpsCandleData(
+          rawCandles,
+          {
+            base_mint: selectedMarket.base_mint,
+            quote_mint: selectedMarket.quote_mint,
+            base_decimals: selectedMarket.base_decimals,
+            quote_decimals: selectedMarket.quote_decimals,
+            base_lot_size: selectedMarket.base_lot_size,
+            quote_lot_size: selectedMarket.quote_lot_size,
+          },
+          priceSource
+        );
 
         const newOlder = processed
           .filter(c => c.time < earliestLoadedTime)
@@ -394,7 +434,7 @@ function PerpsChartContainerComponent() {
         setIsLoadingOlder(false);
       }
     },
-    [selectedMarket, timeInterval]
+    [selectedMarket, timeInterval, priceSource]
   );
 
   // Refetch errors that happen while we already have data should be
@@ -430,6 +470,8 @@ function PerpsChartContainerComponent() {
           onIntervalChange={handleIntervalChange}
           chartType={chartType}
           onChartTypeChange={handleChartTypeChange}
+          priceSource={priceSource}
+          onPriceSourceChange={handlePriceSourceChange}
         />
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <AlertCircle className="h-12 w-12 text-red-500" />
@@ -466,6 +508,8 @@ function PerpsChartContainerComponent() {
         onIntervalChange={handleIntervalChange}
         chartType={chartType}
         onChartTypeChange={handleChartTypeChange}
+        priceSource={priceSource}
+        onPriceSourceChange={handlePriceSourceChange}
         isRefreshing={isFetching && !isLoading}
       />
 

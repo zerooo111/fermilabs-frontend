@@ -20,9 +20,21 @@ export interface PerpsCandleParams {
   from?: string;
   to?: string;
   limit?: number;
+  /** Price source; defaults to 'ltp' (the server default). */
+  priceSource?: PerpsPriceSource;
 }
 
 export type PerpsTimeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
+
+/**
+ * Price source for the candles:
+ * - 'ltp'  — last traded price, derived from our trades hypertable (default).
+ * - 'mark' — Pyth index price. On a thin new venue the LTP chart is sparse,
+ *            so we offer a smoother mark series. Mark prices arrive already in
+ *            native USD (the server has no lot config to convert), so the
+ *            lots→UI conversion is skipped for mark candles.
+ */
+export type PerpsPriceSource = 'ltp' | 'mark';
 
 export interface ExtendedPerpsOHLCVData {
   time: number;
@@ -53,13 +65,18 @@ type RawKline = [
 const MAX_OHLC_LIMIT = 1500;
 
 export async function fetchPerpsCandles(params: PerpsCandleParams): Promise<Candle[]> {
-  const { marketId, tf = '1h', limit, from, to } = params;
+  const { marketId, tf = '1h', limit, from, to, priceSource = 'ltp' } = params;
 
   const path = config.devnet.useV2ReadLayer
     ? API_ROUTES_V2.candles.replace('{marketId}', encodeURIComponent(marketId))
     : `/ohlc/${encodeURIComponent(marketId)}`;
   const url = new URL(`${config.devnet.gatewayUrl}${path}`);
   url.searchParams.set('tf', tf);
+  // Only send price=mark; omitting it preserves the legacy/default ltp behavior
+  // (and the legacy /ohlc endpoint, which doesn't know the param).
+  if (priceSource === 'mark') {
+    url.searchParams.set('price', 'mark');
+  }
 
   // The endpoint expects from/to as Unix seconds.
   // The caller passes ISO strings — convert them.
@@ -156,17 +173,27 @@ export function getPerpsLoadMoreWindowSeconds(timeframe: PerpsTimeframe): number
  */
 export function processPerpsCandleData(
   candleData: Candle[],
-  market?: HarnessMarketConversionParams | null
+  market?: HarnessMarketConversionParams | null,
+  priceSource: PerpsPriceSource = 'ltp'
 ): ExtendedPerpsOHLCVData[] {
+  // Mark candles already arrive in native UI price (USD) from Pyth — the
+  // server has no lot config to convert them to price_lots, so we must NOT
+  // apply the lots→UI conversion that LTP candles need.
+  const toUi =
+    priceSource === 'mark'
+      ? (price: number) => price
+      : (price: number) => lotsPriceToUiWithMarket(price, market);
   return candleData.map(([timestampMs, open, high, low, close, volume]) => {
     try {
       return {
         time: Math.floor(timestampMs / 1000),
-        open: lotsPriceToUiWithMarket(open, market),
-        high: lotsPriceToUiWithMarket(high, market),
-        low: lotsPriceToUiWithMarket(low, market),
-        close: lotsPriceToUiWithMarket(close, market),
-        volume,
+        open: toUi(open),
+        high: toUi(high),
+        low: toUi(low),
+        close: toUi(close),
+        // Pyth mark candles have no volume — leave it undefined so the chart's
+        // volume histogram draws nothing instead of a flat zero baseline.
+        volume: priceSource === 'mark' ? undefined : volume,
       };
     } catch {
       return { time: Math.floor(Date.now() / 1000) };

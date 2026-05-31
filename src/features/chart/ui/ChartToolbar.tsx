@@ -1,8 +1,13 @@
 import { memo } from 'react';
-import { PerpsTimeframe } from '@/features/chart/lib/perps-chart';
+import { PerpsTimeframe, PerpsPriceSource } from '@/features/chart/lib/perps-chart';
 import { PerpsChartType } from '@/features/chart/ui/PerpsChart';
 import { cn } from '@/lib/utils';
 import { CandlestickChart, LineChart, AreaChart, BarChart3, Loader2 } from 'lucide-react';
+
+const PRICE_SOURCES: { label: string; value: PerpsPriceSource; title: string }[] = [
+  { label: 'LTP', value: 'ltp', title: 'Last traded price (from on-venue trades)' },
+  { label: 'Mark', value: 'mark', title: 'Mark price (Pyth index)' },
+];
 
 const INTERVALS: { label: string; value: PerpsTimeframe }[] = [
   { label: '1m', value: '1m' },
@@ -27,6 +32,8 @@ interface ChartToolbarProps {
   onChartTypeChange?: (chartType: PerpsChartType) => void;
   showChartType?: boolean;
   isRefreshing?: boolean;
+  priceSource?: PerpsPriceSource;
+  onPriceSourceChange?: (source: PerpsPriceSource) => void;
 }
 
 function ChartToolbarComponent({
@@ -36,6 +43,8 @@ function ChartToolbarComponent({
   onChartTypeChange,
   showChartType = true,
   isRefreshing,
+  priceSource,
+  onPriceSourceChange,
 }: ChartToolbarProps) {
   return (
     <div className="flex items-center h-8 px-2 gap-1 border-b border-outline bg-card">
@@ -77,6 +86,32 @@ function ChartToolbarComponent({
                 aria-label={label}
               >
                 <Icon className="size-3.5" />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {priceSource && onPriceSourceChange && (
+        <>
+          <div className="w-px h-4 bg-outline mx-1" />
+
+          {/* Price source: LTP vs Mark */}
+          <div className="flex items-center gap-0.5">
+            {PRICE_SOURCES.map(({ label, value, title }) => (
+              <button
+                key={value}
+                onClick={() => onPriceSourceChange(value)}
+                title={title}
+                aria-label={title}
+                className={cn(
+                  'px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40',
+                  priceSource === value
+                    ? 'text-white bg-white/15 font-medium'
+                    : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                )}
+              >
+                {label}
               </button>
             ))}
           </div>

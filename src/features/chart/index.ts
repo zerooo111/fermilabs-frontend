@@ -16,6 +16,7 @@ export {
 export type { TimeInterval, OHLCVData, CandleParams } from './lib/chart';
 export type {
   PerpsTimeframe,
+  PerpsPriceSource,
   PerpsCandleData,
   PerpsCandleParams,
   ExtendedPerpsOHLCVData,
