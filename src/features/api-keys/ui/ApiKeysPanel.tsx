@@ -284,7 +284,7 @@ function RateLimitsNote() {
         <div className="flex items-center justify-between gap-3">
           <dt className="text-rock/50">Requests</dt>
           <dd className="font-mono tabular-nums text-rock">
-            20<span className="text-rock/40"> req/s</span> · burst 40
+            200<span className="text-rock/40"> req/s</span> · burst 400
           </dd>
         </div>
         <div className="flex items-center justify-between gap-3">
@@ -293,7 +293,7 @@ function RateLimitsNote() {
         </div>
       </dl>
       <p className="text-[11px] leading-relaxed text-rock/40">
-        Sustained 20 req/s with bursts up to 40 (token bucket). Exceeding the limits returns 429 —
+        Sustained 200 req/s with bursts up to 400 (token bucket). Exceeding the limits returns 429 —
         back off and retry.
       </p>
     </div>
