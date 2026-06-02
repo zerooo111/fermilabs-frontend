@@ -28,6 +28,9 @@ import { useApiKeys } from '../model/useApiKeys';
 import { MAX_ACTIVE_KEYS } from '../model/apiKeysAtoms';
 import type { ApiKeyView, CreatedKey } from '../api/keysClient';
 
+// Support channel for limit-increase requests (kept in sync with LINKS.DISCORD).
+const DISCORD_URL = 'https://discord.gg/kNcktKSk7u';
+
 function maskHint(hint: string): string {
   // hint is a short tail like "…40a3" or "40a3"; render it with a masked prefix.
   const tail = hint.replace(/^…/, '');
@@ -295,6 +298,18 @@ function RateLimitsNote() {
       <p className="text-[11px] leading-relaxed text-rock/40">
         Sustained 200 req/s with bursts up to 400 (token bucket). Exceeding the limits returns 429 —
         back off and retry.
+      </p>
+      <p className="border-t border-outline pt-2.5 text-[11px] leading-relaxed text-rock/40">
+        Need higher limits?{' '}
+        <a
+          href={DISCORD_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-rock/70 underline underline-offset-2 transition-colors hover:text-rock"
+        >
+          Reach out on Discord
+        </a>
+        .
       </p>
     </div>
   );
