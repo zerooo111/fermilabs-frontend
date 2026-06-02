@@ -4,6 +4,7 @@ import { useAtomValue } from 'jotai';
 import { cn } from '@/lib/utils';
 import { ConnectWallet } from '../../../features/wallet-connect/ui/ConnectWallet';
 import { FeeCreditDialog } from '@/features/fee-credit';
+import { ApiKeysPanel } from '@/features/api-keys';
 import { MarginPanel } from '@/features/margin-panel/ui/MarginPanel';
 import { accessSessionAtom } from '@/features/access-gate';
 import FermiLogo3d from './FermiLogo';
@@ -67,6 +68,7 @@ export function Header() {
             <>
               <MarginPanel />
               <FeeCreditDialog />
+              <ApiKeysPanel />
             </>
           )}
           <ConnectWallet />
