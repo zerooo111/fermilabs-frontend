@@ -21,7 +21,6 @@ import {
   DialogTrigger,
 } from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
-import { Badge } from '@/shared/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +38,15 @@ function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+/** Small label set in the mono/uppercase treatment used across the trade UI. */
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-rock/40">
+      {children}
+    </span>
+  );
 }
 
 export function ApiKeysPanel() {
@@ -120,36 +128,38 @@ export function ApiKeysPanel() {
         </TooltipContent>
       </Tooltip>
 
-      <DialogContent className="max-w-lg gap-6 p-6">
-        <DialogHeader className="gap-4">
-          <div className="flex size-12 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
-            <KeyRound className="size-6" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <DialogTitle className="text-lg font-semibold tracking-tight">API Keys</DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-              Generate keys for programmatic access. Up to {MAX_ACTIVE_KEYS} active keys per wallet.
-            </DialogDescription>
+      <DialogContent className="max-w-lg gap-5 p-6">
+        <DialogHeader className="gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center border border-rock/15 bg-rock/10 text-rock">
+              <KeyRound className="size-5" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <DialogTitle className="text-lg font-semibold tracking-tight">API Keys</DialogTitle>
+              <DialogDescription className="text-sm leading-snug text-rock/50">
+                Programmatic access for the connected wallet. Up to {MAX_ACTIVE_KEYS} active keys.
+              </DialogDescription>
+            </div>
           </div>
         </DialogHeader>
 
         {!authorized ? (
           // Gentle empty state for non-whitelisted / signed-out wallets.
-          <div className="flex flex-col items-center gap-2 border border-outline bg-card px-4 py-8 text-center">
-            <KeyRound className="size-6 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground leading-relaxed">
+          <div className="flex flex-col items-center gap-3 border border-outline bg-card px-4 py-10 text-center">
+            <div className="flex size-10 items-center justify-center border border-outline bg-background text-rock/40">
+              <KeyRound className="size-5" />
+            </div>
+            <p className="max-w-[18rem] text-sm leading-relaxed text-rock/50">
               Redeem an invite and connect your wallet to manage API keys.
             </p>
           </div>
         ) : createdSecret ? (
           <CreatedSecretView created={createdSecret} onDone={dismissSecret} />
         ) : (
-          <div className="flex flex-col gap-4">
-            {/* Generate row */}
-            <div className="flex flex-col gap-2">
-              <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-                New key label
-              </label>
+          <div className="flex flex-col gap-5">
+            {/* Generate card */}
+            <div className="flex flex-col gap-3 border border-outline bg-card p-4">
+              <FieldLabel>New key label</FieldLabel>
               <div className="flex gap-2">
                 <Input
                   value={label}
@@ -197,45 +207,78 @@ export function ApiKeysPanel() {
                   </Button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground/70">
-                {activeCount} / {MAX_ACTIVE_KEYS} active keys used.
-              </p>
+              {/* Segmented usage indicator — one tick per allowed active key. */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  {Array.from({ length: MAX_ACTIVE_KEYS }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        'h-1 w-6 transition-colors',
+                        i < activeCount ? (atLimit ? 'bg-amber-400' : 'bg-rock') : 'bg-rock/15'
+                      )}
+                    />
+                  ))}
+                </div>
+                <span className="font-mono text-[11px] tabular-nums text-rock/50">
+                  {activeCount}/{MAX_ACTIVE_KEYS} active
+                </span>
+              </div>
             </div>
 
             {error && (
-              <p className="border border-danger/40 bg-red-900/20 px-3 py-2 text-xs text-danger">
+              <p className="border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
                 {error}
               </p>
             )}
 
             {/* Keys list */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
+              <FieldLabel>Your keys</FieldLabel>
               {loading && keys.length === 0 ? (
-                <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                <div className="flex items-center justify-center gap-2 border border-outline bg-card py-10 text-sm text-rock/50">
                   <Loader2 className="size-4 animate-spin" /> Loading keys…
                 </div>
               ) : keys.length === 0 ? (
-                <p className="border border-outline bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+                <p className="border border-outline bg-card px-4 py-8 text-center text-sm text-rock/50">
                   No API keys yet. Generate one above to get started.
                 </p>
               ) : (
-                keys.map(k => (
-                  <KeyRowItem
-                    key={k.id}
-                    row={k}
-                    confirming={confirmRevokeId === k.id}
-                    revoking={revokingId === k.id}
-                    onRequestRevoke={() => setConfirmRevokeId(k.id)}
-                    onCancelRevoke={() => setConfirmRevokeId(null)}
-                    onConfirmRevoke={() => handleRevoke(k.id)}
-                  />
-                ))
+                <div className="flex max-h-[280px] flex-col gap-2 overflow-y-auto pr-0.5">
+                  {keys.map(k => (
+                    <KeyRowItem
+                      key={k.id}
+                      row={k}
+                      confirming={confirmRevokeId === k.id}
+                      revoking={revokingId === k.id}
+                      onRequestRevoke={() => setConfirmRevokeId(k.id)}
+                      onCancelRevoke={() => setConfirmRevokeId(null)}
+                      onConfirmRevoke={() => handleRevoke(k.id)}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           </div>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function StatusPill({ active }: { active: boolean }) {
+  return (
+    <span className="flex shrink-0 items-center gap-1.5">
+      <span className={cn('size-1.5 rounded-full', active ? 'bg-success' : 'bg-rock/30')} />
+      <span
+        className={cn(
+          'font-mono text-[10px] uppercase tracking-[0.12em]',
+          active ? 'text-success' : 'text-rock/40'
+        )}
+      >
+        {active ? 'Active' : 'Revoked'}
+      </span>
+    </span>
   );
 }
 
@@ -257,64 +300,61 @@ function KeyRowItem({
   return (
     <div
       className={cn(
-        'flex flex-col gap-2 border border-outline bg-card p-3',
-        !row.active && 'opacity-60'
+        'group flex flex-col gap-2.5 border border-outline bg-card p-3 transition-colors',
+        row.active ? 'hover:border-rock/25' : 'opacity-50'
       )}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-sm font-medium">{row.label}</span>
-        <Badge variant={row.active ? 'success' : 'secondary'}>
-          {row.active ? 'Active' : 'Revoked'}
-        </Badge>
+        <span className="truncate text-sm font-medium text-rock">{row.label}</span>
+        <StatusPill active={row.active} />
       </div>
 
-      <div className="flex items-center gap-2">
-        {/* Redacted: the raw secret is shown only once, at create time. */}
-        <code className="flex-1 truncate font-mono text-xs text-muted-foreground">
-          {maskHint(row.key_hint)}
-        </code>
-      </div>
+      {/* Redacted: the raw secret is shown only once, at create time. */}
+      <code className="truncate font-mono text-xs tracking-wider text-rock/50">
+        {maskHint(row.key_hint)}
+      </code>
 
-      <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground/70">
-        <span>Created {formatDate(row.created_at)}</span>
-        <span className="font-mono">{row.max_connections} conn</span>
-      </div>
+      <div className="flex min-h-7 items-center justify-between gap-2">
+        <div className="flex items-center gap-2 font-mono text-[11px] text-rock/40">
+          <span>Created {formatDate(row.created_at)}</span>
+          <span className="size-0.5 rounded-full bg-rock/25" aria-hidden />
+          <span className="tabular-nums">{row.max_connections} conn</span>
+        </div>
 
-      {row.active &&
-        (confirming ? (
-          <div className="flex items-center justify-end gap-2 border-t border-outline pt-2">
-            <span className="mr-auto text-xs text-muted-foreground">Revoke this key?</span>
-            <Button variant="ghost" size="sm" onClick={onCancelRevoke} disabled={revoking}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={onConfirmRevoke}
-              disabled={revoking}
-              className="gap-1.5"
-            >
-              {revoking ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="size-3.5" />
-              )}
-              Revoke
-            </Button>
-          </div>
-        ) : (
-          <div className="flex justify-end border-t border-outline pt-2">
+        {row.active &&
+          (confirming ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-rock/60">Revoke?</span>
+              <Button variant="ghost" size="sm" onClick={onCancelRevoke} disabled={revoking}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={onConfirmRevoke}
+                disabled={revoking}
+                className="gap-1.5"
+              >
+                {revoking ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="size-3.5" />
+                )}
+                Revoke
+              </Button>
+            </div>
+          ) : (
             <Button
               variant="ghost"
               size="sm"
               onClick={onRequestRevoke}
-              className="gap-1.5 text-danger hover:text-danger"
+              className="gap-1.5 text-rock/40 transition-colors hover:text-danger group-hover:text-rock/70"
             >
               <Trash2 className="size-3.5" />
               Revoke
             </Button>
-          </div>
-        ))}
+          ))}
+      </div>
     </div>
   );
 }
@@ -349,30 +389,35 @@ function CreatedSecretView({ created, onDone }: { created: CreatedKey; onDone: (
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-          {created.label}
-        </span>
-        <div className="flex items-center gap-2 border border-outline bg-card p-3">
-          <code className="flex-1 break-all font-mono text-xs text-zinc-100">
+        <div className="flex items-center justify-between">
+          <FieldLabel>{created.label}</FieldLabel>
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-amber-300/80">
+            Shown once
+          </span>
+        </div>
+        <div className="border border-outline bg-background p-3">
+          <code className="block break-all font-mono text-xs leading-relaxed text-rock">
             {created.api_key}
           </code>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCopy}
-            className="shrink-0 gap-1.5"
-            aria-label="Copy API key"
-          >
-            {copied ? (
-              <>
-                <Check className="size-3.5 text-success" /> Copied
-              </>
-            ) : (
-              <>
-                <Copy className="size-3.5" /> Copy
-              </>
-            )}
-          </Button>
+          <div className="mt-3 flex justify-end border-t border-outline pt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopy}
+              className="gap-1.5"
+              aria-label="Copy API key"
+            >
+              {copied ? (
+                <>
+                  <Check className="size-3.5 text-success" /> Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="size-3.5" /> Copy key
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
