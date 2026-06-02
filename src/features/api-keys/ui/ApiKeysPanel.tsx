@@ -7,7 +7,7 @@
  * still fails gently (empty state) if the wallet isn't authorized.
  */
 import { useState } from 'react';
-import { AlertTriangle, Check, Copy, KeyRound, Loader2, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, Copy, Gauge, KeyRound, Loader2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
 
@@ -259,10 +259,44 @@ export function ApiKeysPanel() {
                 </div>
               )}
             </div>
+
+            <RateLimitsNote />
           </div>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Standard-tier limits applied to self-serve keys. These mirror what the
+ * gateway actually enforces (token-bucket rate limit + concurrent connection
+ * cap), shown so users can size their integration before they hit a 429.
+ */
+function RateLimitsNote() {
+  return (
+    <div className="flex flex-col gap-2.5 border border-outline bg-card p-4">
+      <div className="flex items-center gap-2">
+        <Gauge className="size-3.5 text-rock/50" />
+        <FieldLabel>Rate limits · Standard tier</FieldLabel>
+      </div>
+      <dl className="flex flex-col gap-2 text-xs">
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-rock/50">Requests</dt>
+          <dd className="font-mono tabular-nums text-rock">
+            20<span className="text-rock/40"> req/s</span> · burst 40
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-rock/50">Concurrent connections</dt>
+          <dd className="font-mono tabular-nums text-rock">5</dd>
+        </div>
+      </dl>
+      <p className="text-[11px] leading-relaxed text-rock/40">
+        Sustained 20 req/s with bursts up to 40 (token bucket). Exceeding the limits returns 429 —
+        back off and retry.
+      </p>
+    </div>
   );
 }
 
