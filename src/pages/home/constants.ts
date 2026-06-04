@@ -1,5 +1,5 @@
 export const LINKS = {
-  DOCS: 'https://docs-v2.fermilabs.xyz',
+  DOCS: 'https://github.com/Fermi-DEX/fermi-trade-documentation',
   APP: '/perps',
   WHITEPAPER: '/research.pdf',
   TWITTER: 'https://x.com/FermiLabs',
