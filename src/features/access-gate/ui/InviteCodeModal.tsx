@@ -57,6 +57,7 @@ const BETA_ITEMS = [
   "We're shipping fast. Features, fees, and UX may change as we iterate.",
   'Short downtimes and occasional bugs are possible during beta.',
   'Your feedback shapes what we build next.',
+  "By continuing, you confirm you're not a US person or located in a restricted jurisdiction.",
 ];
 
 function HeaderIcon({ children }: { children: React.ReactNode }) {
