@@ -152,7 +152,13 @@ export function MyTrades() {
     }
 
     return mergedTrades.map(trade => {
-      const isBuyer = trade.buyer_owner === pubkeyStr;
+      // Prefer the server-resolved wallet side. Trades are keyed by
+      // mango-account address, not the wallet pubkey, so comparing owners to
+      // `pubkeyStr` never matches and would mislabel every row as "Sell".
+      // Fall back to the owner comparison only when the server didn't provide
+      // a side (legacy rows).
+      const isBuyer =
+        trade.wallet_side != null ? trade.wallet_side === 'buy' : trade.buyer_owner === pubkeyStr;
       const side = isBuyer ? 'Buy' : 'Sell';
 
       return (

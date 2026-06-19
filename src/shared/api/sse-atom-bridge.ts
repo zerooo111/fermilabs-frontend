@@ -158,6 +158,7 @@ export function mapUserTrades(
       id: trade.trade_id,
       buyer_owner: trade.taker_side === 'bid' ? trade.taker_owner : trade.maker_owner,
       seller_owner: trade.taker_side === 'ask' ? trade.taker_owner : trade.maker_owner,
+      wallet_side: trade.wallet_side,
       price:
         trade.price_ui !== undefined
           ? uiToNative(trade.price_ui, quoteScale)

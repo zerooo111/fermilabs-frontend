@@ -38,6 +38,10 @@ interface V2WalletTradeRow {
   taker_side?: 'bid' | 'ask';
   maker_order_id?: string;
   taker_sequence?: string;
+  // Server-resolved side of the queried wallet ("buy"/"sell"). Authoritative —
+  // the wallet's own buy/sell can't be derived client-side because trades are
+  // keyed by mango-account address, not the wallet pubkey.
+  wallet_side?: 'buy' | 'sell';
 }
 
 /**
@@ -60,6 +64,7 @@ function v2WalletTradeToSSE(row: V2WalletTradeRow): SSETrade {
     ts_ms: Number.isFinite(ts) ? ts : 0,
     maker_order_id: row.maker_order_id,
     taker_sequence: row.taker_sequence ?? row.sequence ?? '0',
+    wallet_side: row.wallet_side,
   } as SSETrade;
 }
 

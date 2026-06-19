@@ -113,6 +113,14 @@ export interface Trade {
   timestamp: number;
   base_mint: string;
   quote_mint: string;
+  /**
+   * The viewing wallet's own side ("buy"/"sell") for this trade, when known.
+   * Set only for per-wallet ("my trades") rows, where the server resolves it
+   * from the wallet's full identity set. Prefer this over comparing owners to
+   * the wallet pubkey — trades are keyed by mango-account address, so the
+   * pubkey comparison never matches and would mislabel every row.
+   */
+  wallet_side?: 'buy' | 'sell';
 }
 
 export interface TokenBalance {

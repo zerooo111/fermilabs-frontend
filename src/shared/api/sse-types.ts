@@ -154,6 +154,13 @@ export interface SSETrade {
   // UI fields if provided
   price_ui?: number;
   qty_ui?: number;
+  /**
+   * The queried wallet's own side for this trade, resolved server-side from the
+   * wallet's full identity set (pubkey + mango accounts). Only present on rows
+   * from the per-wallet trades endpoint. Clients can't derive this themselves
+   * because trades are keyed by mango-account address, not the wallet pubkey.
+   */
+  wallet_side?: 'buy' | 'sell';
 }
 
 export interface SSEPosition {
