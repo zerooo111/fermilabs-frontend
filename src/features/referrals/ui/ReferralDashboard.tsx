@@ -3,8 +3,8 @@
  *
  * Two audiences share the page:
  *  - Referrers: mint/share codes, watch referees + accrued rewards, and claim.
- *  - Referees: apply a friend's code (pre-filled from a `?ref=` share link)
- *    before their first trade.
+ *  - Referees: apply a friend's code (pre-filled from a `?ref=` share link) at
+ *    any time — once per wallet, forever.
  *
  * Auth reuses the access-gate session via `useReferrals`; the body fails gently
  * (connect / redeem prompt) when the wallet isn't authorized. Money is shown
@@ -565,8 +565,9 @@ function BindCard({
         <h3 className="text-sm font-semibold text-rock">Have a referral code?</h3>
       </div>
       <p className="text-xs leading-relaxed text-rock/50">
-        Apply a friend's code <span className="text-rock/70">before your first trade</span>. It
-        links your wallet to them permanently — you can only do this once.
+        Apply a friend's code <span className="text-rock/70">any time</span> — they'll earn on the
+        volume you trade from here on. It links your wallet to them permanently, so you can only do
+        this once.
       </p>
       <div className="flex gap-2">
         <Input
@@ -598,8 +599,8 @@ function BindCard({
       {fromLink && (
         <div className="flex items-start gap-2 border border-rock/20 bg-rock/5 px-3 py-2 text-[11px] leading-relaxed text-rock/60">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-300" />
-          You followed a referral link. Applying this code is permanent and must be done before you
-          place your first trade.
+          You followed a referral link. Applying this code permanently links your wallet to this
+          referrer — you can only do it once.
         </div>
       )}
     </div>

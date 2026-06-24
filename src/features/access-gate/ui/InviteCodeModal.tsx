@@ -34,7 +34,6 @@ const REFERRAL_ERROR_COPY: Record<string, string> = {
   invalid_code: "That referral code doesn't exist — skipped.",
   self_referral: "You can't refer yourself — referral skipped.",
   already_bound: 'This wallet already has a referrer — referral skipped.',
-  already_trading: 'Referral codes must be applied before your first trade — skipped.',
 };
 
 /** Read an optional `?ref=` referral code from the current URL. */
@@ -463,8 +462,8 @@ export function InviteCodeModal() {
                   }}
                 />
                 <p className="text-xs text-muted-foreground/70 leading-relaxed">
-                  Were you referred? Add their code to credit them — it must be applied before your
-                  first trade.
+                  Were you referred? Add their code to credit them. You can also apply it later from
+                  the Referrals page — but only once.
                 </p>
               </div>
 

@@ -49,7 +49,6 @@ const ERROR_COPY: Record<string, string> = {
   invalid_code: "That referral code doesn't exist.",
   self_referral: "You can't refer yourself.",
   already_bound: 'This wallet is already linked to a referrer.',
-  already_trading: 'Referral codes must be applied before your first trade.',
   // claim
   below_min_claim: 'Your claimable balance is below the minimum payout.',
   // generic
