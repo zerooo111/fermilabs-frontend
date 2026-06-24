@@ -19,6 +19,7 @@ const LoadingPage = () => (
 export const HomePage = lazy(() => import('@/pages/home'));
 export const PerpsPage = lazy(() => import('@/pages/perps'));
 export const VaultPage = lazy(() => import('@/pages/vault'));
+export const ReferralsPage = lazy(() => import('@/pages/referrals'));
 
 // Wrapper components with Suspense and ErrorBoundary
 export const LazyHomePage = () => (
@@ -41,6 +42,14 @@ export const LazyVaultPage = () => (
   <ErrorBoundary>
     <Suspense fallback={<TradingSkeleton />}>
       <VaultPage />
+    </Suspense>
+  </ErrorBoundary>
+);
+
+export const LazyReferralsPage = () => (
+  <ErrorBoundary>
+    <Suspense fallback={<TradingSkeleton />}>
+      <ReferralsPage />
     </Suspense>
   </ErrorBoundary>
 );

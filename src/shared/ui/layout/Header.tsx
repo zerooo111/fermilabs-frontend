@@ -57,6 +57,15 @@ export function Header() {
           >
             Perps
           </Link>
+          <Link
+            to="/referrals"
+            className={cn(
+              'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
+              location.pathname === '/referrals' && 'text-white'
+            )}
+          >
+            Referrals
+          </Link>
           <span
             className={cn('text-xs font-medium px-2 py-0.5 rounded-full border', network.className)}
           >
