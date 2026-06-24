@@ -23,12 +23,14 @@ import {
   ReferralsError,
   getMe,
   listReferees,
+  listPayouts,
   createCode as createCodeRequest,
   bindCode as bindCodeRequest,
-  claimRewards as claimRequest,
+  requestPayout as requestPayoutRequest,
   type ReferralMe,
   type RefereeView,
-  type ClaimResult,
+  type Payout,
+  type PayoutRequest,
 } from '../api/referralsClient';
 
 /** Maps a raw backend error code to user-facing copy. */
@@ -74,8 +76,10 @@ export interface UseReferrals {
   createCode: (code?: string) => Promise<string | null>;
   /** Attach a referrer's code to this wallet. Returns true on success. */
   bind: (code: string) => Promise<boolean>;
-  /** Request a payout of the claimable balance. Returns the claim or null. */
-  claim: () => Promise<ClaimResult | null>;
+  /** The connected wallet's payout requests, newest first. */
+  payouts: Payout[];
+  /** Request a payout of the claimable balance. Returns the new payout or null. */
+  requestPayout: () => Promise<PayoutRequest | null>;
   refresh: () => Promise<void>;
   /** Last error code (machine-readable), for callers that branch on it. */
   lastErrorCode: string | null;
@@ -93,6 +97,7 @@ export function useReferrals(): UseReferrals {
 
   const [me, setMe] = useState<ReferralMe | null>(null);
   const [referees, setReferees] = useState<RefereeView[]>([]);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastErrorCode, setLastErrorCode] = useState<string | null>(null);
@@ -112,19 +117,23 @@ export function useReferrals(): UseReferrals {
     if (!t) {
       setMe(null);
       setReferees([]);
+      setPayouts([]);
       return;
     }
     setLoading(true);
     setError(null);
     setLastErrorCode(null);
     try {
-      // /me lazily accrues on the backend, so fetch it first, then the list.
+      // /me lazily accrues on the backend, so fetch it first, then the lists.
       const summary = await getMe(t);
       if (tokenRef.current !== t) return;
       setMe(summary);
       const rows = summary.referee_count > 0 ? await listReferees(t) : [];
       if (tokenRef.current !== t) return;
       setReferees(rows);
+      const pays = await listPayouts(t);
+      if (tokenRef.current !== t) return;
+      setPayouts(pays);
     } catch (e) {
       if (tokenRef.current !== t) return;
       setErr(e);
@@ -140,6 +149,7 @@ export function useReferrals(): UseReferrals {
     } else {
       setMe(null);
       setReferees([]);
+      setPayouts([]);
       setError(null);
       setLastErrorCode(null);
     }
@@ -189,7 +199,7 @@ export function useReferrals(): UseReferrals {
     [setErr]
   );
 
-  const claim = useCallback(async (): Promise<ClaimResult | null> => {
+  const requestPayout = useCallback(async (): Promise<PayoutRequest | null> => {
     const t = tokenRef.current;
     if (!t) {
       setError(ERROR_COPY.missing_wallet_auth);
@@ -198,8 +208,9 @@ export function useReferrals(): UseReferrals {
     setError(null);
     setLastErrorCode(null);
     try {
-      const result = await claimRequest(t);
-      // A claim moves the balance into a pending claim; re-read to reflect it.
+      const result = await requestPayoutRequest(t);
+      // The request moves the balance into a pending payout; re-read to reflect
+      // both the reduced claimable and the new payout row.
       void refresh();
       return result;
     } catch (e) {
@@ -212,11 +223,12 @@ export function useReferrals(): UseReferrals {
     authorized,
     me,
     referees,
+    payouts,
     loading,
     error,
     createCode,
     bind,
-    claim,
+    requestPayout,
     refresh,
     lastErrorCode,
   };

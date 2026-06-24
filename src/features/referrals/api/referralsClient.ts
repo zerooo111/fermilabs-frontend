@@ -66,11 +66,25 @@ export interface BindResult {
   referrer_wallet: string;
 }
 
-/** POST /v1/referrals/claim. */
-export interface ClaimResult {
-  claim_id: number;
+/** Response to POST /v1/referrals/payouts (a newly created payout request). */
+export interface PayoutRequest {
+  payout_id: number;
   amount: number;
   amount_usdc: number;
+  status: string;
+}
+
+/** A payout request row. GET /v1/referrals/payouts. */
+export type PayoutStatus = 'requested' | 'processing' | 'completed' | 'failed';
+export interface Payout {
+  id: number;
+  amount: number;
+  amount_usdc: number;
+  status: PayoutStatus;
+  tx_signature: string | null;
+  note: string | null;
+  requested_at: string;
+  processed_at: string | null;
 }
 
 export class ReferralsError extends Error {
@@ -148,13 +162,25 @@ export async function bindCode(token: string, code: string): Promise<BindResult>
 }
 
 /** Request a payout of the full claimable balance (must be ≥ the min threshold). */
-export async function claimRewards(token: string): Promise<ClaimResult> {
+export async function requestPayout(token: string): Promise<PayoutRequest> {
   try {
-    const res = await axios.post<ClaimResult>(
-      `${baseUrl()}/v1/referrals/claim`,
+    const res = await axios.post<PayoutRequest>(
+      `${baseUrl()}/v1/referrals/payouts`,
       {},
       { headers: authHeaders(token) }
     );
+    return res.data;
+  } catch (e) {
+    unwrapError(e);
+  }
+}
+
+/** List the connected wallet's payout requests, newest first. */
+export async function listPayouts(token: string): Promise<Payout[]> {
+  try {
+    const res = await axios.get<Payout[]>(`${baseUrl()}/v1/referrals/payouts`, {
+      headers: authHeaders(token),
+    });
     return res.data;
   } catch (e) {
     unwrapError(e);

@@ -22,6 +22,7 @@ import {
   Gift,
   Loader2,
   Plus,
+  Receipt,
   Share2,
   Ticket,
   Users,
@@ -31,10 +32,12 @@ import posthog from 'posthog-js';
 
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
+import { cn } from '@/lib/utils';
+import { solanaExplorerTxUrl } from '@/shared/config/constants';
 
 import { useReferrals } from '../model/useReferrals';
 import { REWARD_RATE_LABEL, MAX_CODES_PER_WALLET } from '../model/constants';
-import type { ReferralBinding } from '../api/referralsClient';
+import type { ReferralBinding, Payout, PayoutStatus } from '../api/referralsClient';
 
 // ─── helpers ─────────────────────────────────────────────────────────
 
@@ -141,8 +144,18 @@ function PanelEmpty({ loading, text }: { loading?: boolean; text?: string }) {
 
 export function ReferralDashboard() {
   const { publicKey } = useWallet();
-  const { authorized, me, referees, loading, error, createCode, bind, claim, refresh } =
-    useReferrals();
+  const {
+    authorized,
+    me,
+    referees,
+    payouts,
+    loading,
+    error,
+    createCode,
+    bind,
+    requestPayout,
+    refresh,
+  } = useReferrals();
 
   if (!publicKey || !authorized) {
     return <UnauthorizedState connected={!!publicKey} />;
@@ -162,15 +175,16 @@ export function ReferralDashboard() {
         <div className="flex min-w-0 flex-1 flex-col divide-y divide-outline">
           <CodesPanel codes={me?.codes ?? []} onCreate={createCode} loading={initialLoad} />
           <RefereesPanel referees={referees} loading={initialLoad} />
+          <PayoutsPanel payouts={payouts} loading={initialLoad} />
         </div>
         <div className="flex w-full flex-col divide-y divide-outline border-t border-outline lg:w-80 lg:border-t-0">
-          <ClaimPanel
+          <PayoutPanel
             claimable={me?.claimable_usdc ?? 0}
             minClaim={me?.min_claim_usdc ?? 0}
             pending={me?.pending_usdc ?? 0}
             nextSealAt={me?.next_seal_at}
             bucket={me?.accrual_bucket}
-            onClaim={claim}
+            onRequest={requestPayout}
           />
           <BindPanel referredBy={me?.referred_by ?? null} onBind={bind} onBound={refresh} />
         </div>
@@ -434,40 +448,40 @@ function RefereesPanel({
   );
 }
 
-// ─── claim ───────────────────────────────────────────────────────────
+// ─── payout request ──────────────────────────────────────────────────
 
-function ClaimPanel({
+function PayoutPanel({
   claimable,
   minClaim,
   pending,
   nextSealAt,
   bucket,
-  onClaim,
+  onRequest,
 }: {
   claimable: number;
   minClaim: number;
   pending: number;
   nextSealAt?: string;
   bucket?: string;
-  onClaim: () => Promise<{ amount_usdc: number } | null>;
+  onRequest: () => Promise<{ amount_usdc: number } | null>;
 }) {
-  const [claiming, setClaiming] = useState(false);
+  const [requesting, setRequesting] = useState(false);
   const belowMin = claimable < minClaim;
   const progress = minClaim > 0 ? Math.min(100, (claimable / minClaim) * 100) : 0;
   const hasPending = pending > 0;
 
-  const handleClaim = async () => {
-    setClaiming(true);
-    posthog.capture('referral_claim_attempted', { claimable });
-    const result = await onClaim();
-    setClaiming(false);
+  const handleRequest = async () => {
+    setRequesting(true);
+    posthog.capture('referral_payout_attempted', { claimable });
+    const result = await onRequest();
+    setRequesting(false);
     if (result) {
       toast.success(
-        `Claim requested for ${usd(result.amount_usdc)}. It will be paid to your wallet.`
+        `Payout requested for ${usd(result.amount_usdc)}. We'll send it to your wallet and mark it complete.`
       );
-      posthog.capture('referral_claim_succeeded', { amount_usdc: result.amount_usdc });
+      posthog.capture('referral_payout_succeeded', { amount_usdc: result.amount_usdc });
     } else {
-      posthog.capture('referral_claim_failed');
+      posthog.capture('referral_payout_failed');
     }
   };
 
@@ -510,17 +524,97 @@ function ClaimPanel({
 
         <Button
           className="w-full"
-          disabled={claiming || belowMin || claimable <= 0}
-          onClick={handleClaim}
+          disabled={requesting || belowMin || claimable <= 0}
+          onClick={handleRequest}
         >
-          {claiming ? <Loader2 className="size-4 animate-spin" /> : <Coins className="size-4" />}
-          {belowMin ? `Reach ${usd(minClaim)} to claim` : 'Claim rewards'}
+          {requesting ? <Loader2 className="size-4 animate-spin" /> : <Coins className="size-4" />}
+          {belowMin ? `Reach ${usd(minClaim)} to request` : 'Request payout'}
         </Button>
         <p className="text-[11px] leading-relaxed text-white/35">
-          Paid in USDC to your connected wallet by the treasury. The amount is removed from your
-          claimable balance once requested.
+          Requesting moves the amount out of your claimable balance into a pending payout. We send
+          the USDC to your wallet and mark it complete with the transaction.
         </p>
       </div>
+    </div>
+  );
+}
+
+// ─── payouts history ─────────────────────────────────────────────────
+
+const STATUS_STYLE: Record<PayoutStatus, { dot: string; text: string; label: string }> = {
+  requested: { dot: 'bg-white/40', text: 'text-white/60', label: 'Requested' },
+  processing: { dot: 'bg-amber-400', text: 'text-amber-300', label: 'Processing' },
+  completed: { dot: 'bg-success', text: 'text-success', label: 'Completed' },
+  failed: { dot: 'bg-danger', text: 'text-danger', label: 'Failed' },
+};
+
+function StatusChip({ status }: { status: PayoutStatus }) {
+  const s = STATUS_STYLE[status] ?? STATUS_STYLE.requested;
+  return (
+    <span className="flex items-center justify-end gap-1.5">
+      <span className={cn('size-1.5 rounded-full', s.dot)} />
+      <span className={cn('font-mono text-[10px] uppercase tracking-[0.12em]', s.text)}>
+        {s.label}
+      </span>
+    </span>
+  );
+}
+
+function PayoutsPanel({ payouts, loading }: { payouts: Payout[]; loading: boolean }) {
+  // Hide the panel entirely until there's a payout to show.
+  if (!loading && payouts.length === 0) return null;
+
+  return (
+    <div className="flex flex-col">
+      <PanelHeader
+        icon={Receipt}
+        title="Payouts"
+        right={
+          payouts.length > 0 ? (
+            <span className="font-mono text-[11px] tabular-nums text-white/40">
+              {payouts.length}
+            </span>
+          ) : undefined
+        }
+      />
+      {loading ? (
+        <PanelEmpty loading />
+      ) : (
+        <>
+          <div className="grid grid-cols-[1fr_1fr_auto] gap-3 border-b border-outline bg-card px-4 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-white/40">
+            <span>Amount</span>
+            <span>Requested</span>
+            <span className="text-right">Status</span>
+          </div>
+          <div className="divide-y divide-outline">
+            {payouts.map(p => (
+              <div
+                key={p.id}
+                className="grid grid-cols-[1fr_1fr_auto] items-center gap-x-3 gap-y-1.5 px-4 py-2.5"
+              >
+                <span className="font-mono text-xs tabular-nums text-rock">
+                  {usd(p.amount_usdc)}
+                </span>
+                <span className="font-mono text-xs text-white/45">
+                  {formatDate(p.requested_at)}
+                </span>
+                <StatusChip status={p.status} />
+                {p.tx_signature && (
+                  <a
+                    href={solanaExplorerTxUrl(p.tx_signature)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="col-span-3 truncate font-mono text-[11px] text-white/35 underline-offset-2 transition-colors hover:text-white/60 hover:underline"
+                  >
+                    tx {p.tx_signature.slice(0, 8)}…{p.tx_signature.slice(-8)}
+                  </a>
+                )}
+                {p.note && <span className="col-span-3 text-[11px] text-white/35">{p.note}</span>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

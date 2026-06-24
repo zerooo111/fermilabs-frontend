@@ -8,5 +8,7 @@ export type {
   RefereeView,
   CreatedCode,
   BindResult,
-  ClaimResult,
+  PayoutRequest,
+  Payout,
+  PayoutStatus,
 } from './api/referralsClient';
