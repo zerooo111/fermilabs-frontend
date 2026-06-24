@@ -34,6 +34,7 @@ import { Input } from '@/shared/ui/input';
 
 import { useReferrals } from '../model/useReferrals';
 import { REWARD_RATE_LABEL, MAX_CODES_PER_WALLET } from '../model/constants';
+import type { ReferralBinding } from '../api/referralsClient';
 
 // ─── helpers ─────────────────────────────────────────────────────────
 
@@ -145,7 +146,7 @@ export function ReferralDashboard() {
             minClaim={me?.min_claim_usdc ?? 0}
             onClaim={claim}
           />
-          <BindPanel onBind={bind} onBound={refresh} />
+          <BindPanel referredBy={me?.referred_by ?? null} onBind={bind} onBound={refresh} />
         </div>
       </div>
     </div>
@@ -479,9 +480,11 @@ function ClaimPanel({
 // ─── bind ────────────────────────────────────────────────────────────
 
 function BindPanel({
+  referredBy,
   onBind,
   onBound,
 }: {
+  referredBy: ReferralBinding | null;
   onBind: (code: string) => Promise<boolean>;
   onBound: () => void;
 }) {
@@ -524,16 +527,45 @@ function BindPanel({
     }
   };
 
-  if (bound) {
+  // Already bound (from /me) — or just bound this session before /me refreshed.
+  // One referrer per wallet, forever: show the binding, never the input.
+  if (referredBy || bound) {
     return (
       <div className="flex flex-col">
-        <PanelHeader icon={Gift} title="Referral code" />
-        <div className="flex items-start gap-2.5 p-4">
-          <Check className="mt-0.5 size-4 shrink-0 text-white/60" />
-          <p className="text-xs leading-relaxed text-white/55">
-            Code applied — your referrer earns a share of your taker volume from here on.
-          </p>
-        </div>
+        <PanelHeader icon={Gift} title="Referred by" />
+        {referredBy ? (
+          <div className="flex flex-col gap-3 p-4">
+            <div className="flex flex-col gap-1">
+              <Label>Applied code</Label>
+              <code className="font-mono text-sm font-semibold tracking-wider text-rock">
+                {referredBy.code.toUpperCase()}
+              </code>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] text-white/40">Referrer</span>
+              <span className="font-mono text-xs text-white/60">
+                {shortWallet(referredBy.referrer_wallet)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] text-white/40">Applied</span>
+              <span className="font-mono text-xs text-white/60">
+                {formatDate(referredBy.bound_at)}
+              </span>
+            </div>
+            <p className="flex items-start gap-2 border-t border-outline pt-3 text-[11px] leading-relaxed text-white/40">
+              <Check className="mt-0.5 size-3.5 shrink-0 text-white/50" />
+              Your referrer earns a share of your taker volume. A wallet can only be referred once.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2.5 p-4">
+            <Check className="mt-0.5 size-4 shrink-0 text-white/60" />
+            <p className="text-xs leading-relaxed text-white/55">
+              Code applied — your referrer now earns on your trades.
+            </p>
+          </div>
+        )}
       </div>
     );
   }

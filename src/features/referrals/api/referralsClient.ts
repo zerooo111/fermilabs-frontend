@@ -17,6 +17,13 @@ import { config } from '@/shared/config/constants';
 
 const baseUrl = (): string => config.devnet.gatewayUrl;
 
+/** The caller's own binding as a referee (the code it redeemed). */
+export interface ReferralBinding {
+  code: string;
+  referrer_wallet: string;
+  bound_at: string;
+}
+
 /** Summary for the connected wallet acting as a referrer. GET /v1/referrals/me. */
 export interface ReferralMe {
   codes: string[];
@@ -30,6 +37,8 @@ export interface ReferralMe {
   claimable_usdc: number;
   pending_today_usdc: number;
   min_claim_usdc: number;
+  /** This wallet's own referrer binding, or null if it never applied a code. */
+  referred_by: ReferralBinding | null;
 }
 
 /** One referred wallet. GET /v1/referrals/referees. */
