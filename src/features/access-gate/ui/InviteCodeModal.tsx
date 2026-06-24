@@ -40,7 +40,8 @@ const REFERRAL_ERROR_COPY: Record<string, string> = {
 /** Read an optional `?ref=` referral code from the current URL. */
 function readRefFromUrl(): string {
   try {
-    return new URLSearchParams(window.location.search).get('ref')?.trim() ?? '';
+    // Codes are case-insensitive, normalized to upper-case server-side.
+    return new URLSearchParams(window.location.search).get('ref')?.trim().toUpperCase() ?? '';
   } catch {
     return '';
   }
@@ -447,13 +448,13 @@ export function InviteCodeModal() {
                 </label>
                 <Input
                   value={referralCode}
-                  onChange={e => setReferralCode(e.target.value)}
+                  onChange={e => setReferralCode(e.target.value.toUpperCase())}
                   placeholder="friend's referral code"
                   disabled={submitting}
                   spellCheck={false}
                   autoComplete="off"
                   maxLength={20}
-                  className="h-11 font-mono text-sm tracking-wider placeholder:tracking-normal placeholder:font-sans placeholder:text-muted-foreground/40"
+                  className="h-11 font-mono text-sm uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground/40"
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !submitting && code.trim()) {
                       e.preventDefault();

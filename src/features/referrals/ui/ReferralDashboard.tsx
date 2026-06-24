@@ -244,13 +244,13 @@ function CodesCard({
         <div className="flex gap-2">
           <Input
             value={vanity}
-            onChange={e => setVanity(e.target.value)}
+            onChange={e => setVanity(e.target.value.toUpperCase())}
             placeholder="custom code (optional)"
             disabled={creating}
             spellCheck={false}
             autoComplete="off"
             maxLength={20}
-            className="h-10 text-sm"
+            className="h-10 text-sm uppercase placeholder:normal-case"
             onKeyDown={e => {
               if (e.key === 'Enter' && !creating && vanity.trim()) {
                 e.preventDefault();
@@ -497,7 +497,9 @@ function BindCard({
   onBound: () => void;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const refFromUrl = searchParams.get('ref') ?? '';
+  // Codes are case-insensitive and normalized to upper-case server-side; mirror
+  // that in the UI so what the user sees matches what gets stored.
+  const refFromUrl = (searchParams.get('ref') ?? '').toUpperCase();
   const [code, setCode] = useState(refFromUrl);
   const [binding, setBinding] = useState(false);
   const [bound, setBound] = useState(false);
@@ -566,13 +568,13 @@ function BindCard({
       <div className="flex gap-2">
         <Input
           value={code}
-          onChange={e => setCode(e.target.value)}
+          onChange={e => setCode(e.target.value.toUpperCase())}
           placeholder="referral code"
           disabled={binding}
           spellCheck={false}
           autoComplete="off"
           maxLength={20}
-          className="h-10 text-sm"
+          className="h-10 text-sm uppercase placeholder:normal-case"
           onKeyDown={e => {
             if (e.key === 'Enter' && !binding && code.trim()) {
               e.preventDefault();
