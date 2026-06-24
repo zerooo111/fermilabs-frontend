@@ -303,10 +303,13 @@ function CodesCard({
 
 function CodeRow({ code }: { code: string }) {
   const [copiedLink, setCopiedLink] = useState(false);
+  // Codes are case-insensitive; always display/share the upper-case form so
+  // legacy lower-case codes still render consistently.
+  const display = code.toUpperCase();
 
   const handleCopyLink = async () => {
-    await copy(shareLink(code), 'Share link');
-    posthog.capture('referral_link_copied', { code });
+    await copy(shareLink(display), 'Share link');
+    posthog.capture('referral_link_copied', { code: display });
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 1500);
   };
@@ -315,16 +318,16 @@ function CodeRow({ code }: { code: string }) {
     <div className="flex items-center justify-between gap-3 border border-outline bg-background p-3">
       <div className="flex min-w-0 flex-col gap-0.5">
         <code className="truncate font-mono text-sm font-semibold tracking-wider text-rock">
-          {code}
+          {display}
         </code>
-        <span className="truncate font-mono text-[11px] text-rock/40">{shareLink(code)}</span>
+        <span className="truncate font-mono text-[11px] text-rock/40">{shareLink(display)}</span>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         <Button
           variant="ghost"
           size="sm"
           className="gap-1.5 text-rock/50 hover:text-rock"
-          onClick={() => copy(code, 'Code')}
+          onClick={() => copy(display, 'Code')}
           aria-label="Copy code"
         >
           <Copy className="size-3.5" />
