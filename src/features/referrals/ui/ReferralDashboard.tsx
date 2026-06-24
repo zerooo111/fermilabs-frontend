@@ -6,10 +6,10 @@
  *  - Referees: apply a friend's code (pre-filled from a `?ref=` share link) at
  *    any time — once per wallet, forever.
  *
- * Auth reuses the access-gate session via `useReferrals`; the body fails gently
- * (connect / redeem prompt) when the wallet isn't authorized. Money is shown
- * from the backend's `*_usdc` convenience views — we never do lots→USDC math
- * client-side.
+ * Visual language follows the trading terminal (perps page): flat panels
+ * delineated by thin `border-outline` dividers and subtle `bg-card` headers —
+ * no rounded cards, no tinted fills. Money is shown from the backend's `*_usdc`
+ * convenience views — we never do lots→USDC math client-side.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -24,28 +24,18 @@ import {
   Plus,
   Share2,
   Ticket,
-  TrendingUp,
   Users,
-  Wallet,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
 
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
-import { cn } from '@/lib/utils';
 
 import { useReferrals } from '../model/useReferrals';
-import { REWARD_RATE_LABEL } from '../model/constants';
+import { REWARD_RATE_LABEL, MAX_CODES_PER_WALLET } from '../model/constants';
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-rock/40">
-      {children}
-    </span>
-  );
-}
+// ─── helpers ─────────────────────────────────────────────────────────
 
 function usd(n: number | undefined): string {
   if (n === undefined || Number.isNaN(n)) return '$0.00';
@@ -81,6 +71,50 @@ async function copy(text: string, label: string) {
   }
 }
 
+// ─── shared layout primitives ────────────────────────────────────────
+
+function PanelHeader({
+  icon: Icon,
+  title,
+  right,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className="flex h-11 items-center gap-2 border-b border-outline bg-card px-4">
+      <Icon className="size-3.5 text-white/40" />
+      <span className="text-sm font-medium text-rock">{title}</span>
+      {right && <div className="ml-auto">{right}</div>}
+    </div>
+  );
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-white/40">
+      {children}
+    </span>
+  );
+}
+
+function PanelEmpty({ loading, text }: { loading?: boolean; text?: string }) {
+  return (
+    <div className="flex items-center justify-center gap-2 px-4 py-10 text-sm text-white/40">
+      {loading ? (
+        <>
+          <Loader2 className="size-4 animate-spin" /> Loading…
+        </>
+      ) : (
+        text
+      )}
+    </div>
+  );
+}
+
+// ─── root ────────────────────────────────────────────────────────────
+
 export function ReferralDashboard() {
   const { publicKey } = useWallet();
   const { authorized, me, referees, loading, error, createCode, bind, claim, refresh } =
@@ -90,105 +124,71 @@ export function ReferralDashboard() {
     return <UnauthorizedState connected={!!publicKey} />;
   }
 
+  const initialLoad = loading && !me;
+
   return (
-    <div className="flex flex-col gap-6">
-      <StatGrid
-        claimable={me?.claimable_usdc}
-        lifetime={me?.lifetime_reward_usdc}
-        pending={me?.pending_today_usdc}
-        refereeCount={me?.referee_count ?? 0}
-        loading={loading && !me}
-      />
+    <div className="border border-outline">
+      <StatRow me={me} loading={initialLoad} />
 
       {error && (
-        <p className="border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
-          {error}
-        </p>
+        <div className="border-t border-outline bg-card px-4 py-2 text-xs text-danger">{error}</div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="flex flex-col gap-6 lg:col-span-3">
-          <CodesCard codes={me?.codes ?? []} onCreate={createCode} loading={loading && !me} />
-          <RefereesCard referees={referees} loading={loading && !me} />
+      <div className="flex flex-col border-t border-outline lg:flex-row lg:divide-x lg:divide-outline">
+        <div className="flex min-w-0 flex-1 flex-col divide-y divide-outline">
+          <CodesPanel codes={me?.codes ?? []} onCreate={createCode} loading={initialLoad} />
+          <RefereesPanel referees={referees} loading={initialLoad} />
         </div>
-        <div className="flex flex-col gap-6 lg:col-span-2">
-          <ClaimCard
+        <div className="flex w-full flex-col divide-y divide-outline border-t border-outline lg:w-80 lg:border-t-0">
+          <ClaimPanel
             claimable={me?.claimable_usdc ?? 0}
             minClaim={me?.min_claim_usdc ?? 0}
             onClaim={claim}
           />
-          <BindCard onBind={bind} onBound={refresh} />
+          <BindPanel onBind={bind} onBound={refresh} />
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Unauthorized ────────────────────────────────────────────────────
+// ─── unauthorized ────────────────────────────────────────────────────
 
 function UnauthorizedState({ connected }: { connected: boolean }) {
   return (
-    <div className="flex flex-col items-center gap-4 border border-outline bg-card px-6 py-16 text-center">
-      <div className="flex size-12 items-center justify-center border border-outline bg-background text-rock/40">
-        <Gift className="size-6" />
-      </div>
-      <h2 className="text-lg font-semibold text-rock">Referral programme</h2>
-      <p className="max-w-sm text-sm leading-relaxed text-rock/50">
+    <div className="flex flex-col items-center gap-3 border border-outline px-6 py-16 text-center">
+      <Gift className="size-6 text-white/30" />
+      <h2 className="text-base font-medium text-rock">Referral programme</h2>
+      <p className="max-w-sm text-sm leading-relaxed text-white/50">
         {connected
           ? 'This wallet does not have access yet. Redeem an invite to mint a referral code and start earning.'
           : 'Connect a whitelisted wallet to mint a referral code, track your referrals, and claim rewards.'}
       </p>
-      <p className="max-w-sm text-xs leading-relaxed text-rock/40">
+      <p className="max-w-sm text-xs leading-relaxed text-white/35">
         Earn {REWARD_RATE_LABEL} of the taker volume traded by everyone you refer — forever.
       </p>
     </div>
   );
 }
 
-// ─── Stats ───────────────────────────────────────────────────────────
+// ─── overview strip ──────────────────────────────────────────────────
 
-function StatGrid({
-  claimable,
-  lifetime,
-  pending,
-  refereeCount,
-  loading,
-}: {
-  claimable?: number;
-  lifetime?: number;
-  pending?: number;
-  refereeCount: number;
-  loading: boolean;
-}) {
-  const cards = [
-    { label: 'Claimable', value: usd(claimable), icon: Coins, accent: true },
-    { label: 'Lifetime earned', value: usd(lifetime), icon: TrendingUp },
-    { label: 'Pending today', value: usd(pending), icon: Wallet },
-    { label: 'Referees', value: refereeCount.toLocaleString(), icon: Users },
+function StatRow({ me, loading }: { me: ReturnType<typeof useReferrals>['me']; loading: boolean }) {
+  const cells = [
+    { label: 'Claimable', value: usd(me?.claimable_usdc) },
+    { label: 'Lifetime earned', value: usd(me?.lifetime_reward_usdc) },
+    { label: 'Pending today', value: usd(me?.pending_today_usdc) },
+    { label: 'Referees', value: (me?.referee_count ?? 0).toLocaleString() },
   ];
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {cards.map(c => (
-        <div
-          key={c.label}
-          className={cn(
-            'flex flex-col gap-3 border bg-card p-4',
-            c.accent ? 'border-success/30 bg-success/5' : 'border-outline'
-          )}
-        >
-          <div className="flex items-center justify-between">
-            <FieldLabel>{c.label}</FieldLabel>
-            <c.icon className={cn('size-3.5', c.accent ? 'text-success' : 'text-rock/40')} />
-          </div>
+    <div className="grid grid-cols-2 divide-x divide-y divide-outline lg:grid-cols-4 lg:divide-y-0">
+      {cells.map(c => (
+        <div key={c.label} className="flex flex-col gap-1.5 p-4">
+          <Label>{c.label}</Label>
           {loading ? (
-            <div className="skeleton-bone h-7 w-24" />
+            <div className="skeleton-bone h-6 w-20" />
           ) : (
-            <span
-              className={cn(
-                'font-mono text-2xl font-semibold tabular-nums',
-                c.accent ? 'text-success' : 'text-rock'
-              )}
-            >
+            <span className="font-mono text-xl font-semibold tabular-nums text-rock">
               {c.value}
             </span>
           )}
@@ -198,9 +198,9 @@ function StatGrid({
   );
 }
 
-// ─── Codes ───────────────────────────────────────────────────────────
+// ─── codes ───────────────────────────────────────────────────────────
 
-function CodesCard({
+function CodesPanel({
   codes,
   onCreate,
   loading,
@@ -211,6 +211,7 @@ function CodesCard({
 }) {
   const [vanity, setVanity] = useState('');
   const [creating, setCreating] = useState(false);
+  const atLimit = codes.length >= MAX_CODES_PER_WALLET;
 
   const handleCreate = async (useVanity: boolean) => {
     const code = useVanity ? vanity.trim() : undefined;
@@ -232,36 +233,39 @@ function CodesCard({
   };
 
   return (
-    <div className="flex flex-col gap-4 border border-outline bg-card p-5">
-      <div className="flex items-center gap-2">
-        <Ticket className="size-4 text-rock/50" />
-        <h3 className="text-sm font-semibold text-rock">Your referral codes</h3>
-      </div>
+    <div className="flex flex-col">
+      <PanelHeader
+        icon={Ticket}
+        title="Referral codes"
+        right={
+          <span className="font-mono text-[11px] tabular-nums text-white/40">
+            {codes.length}/{MAX_CODES_PER_WALLET}
+          </span>
+        }
+      />
 
-      {/* Create row */}
-      <div className="flex flex-col gap-2">
-        <FieldLabel>Create a code</FieldLabel>
+      <div className="flex flex-col gap-2 border-b border-outline px-4 py-3">
         <div className="flex gap-2">
           <Input
             value={vanity}
             onChange={e => setVanity(e.target.value.toUpperCase())}
             placeholder="custom code (optional)"
-            disabled={creating}
+            disabled={creating || atLimit}
             spellCheck={false}
             autoComplete="off"
             maxLength={20}
-            className="h-10 text-sm uppercase placeholder:normal-case"
+            className="h-9 text-sm uppercase placeholder:normal-case"
             onKeyDown={e => {
-              if (e.key === 'Enter' && !creating && vanity.trim()) {
+              if (e.key === 'Enter' && !creating && !atLimit && vanity.trim()) {
                 e.preventDefault();
                 void handleCreate(true);
               }
             }}
           />
           <Button
-            size="lg"
-            className="h-10 shrink-0 gap-1.5 px-4"
-            disabled={creating || !vanity.trim()}
+            size="sm"
+            className="h-9 shrink-0 gap-1.5 px-3"
+            disabled={creating || atLimit || !vanity.trim()}
             onClick={() => handleCreate(true)}
           >
             {creating ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
@@ -270,33 +274,25 @@ function CodesCard({
         </div>
         <button
           type="button"
-          disabled={creating}
+          disabled={creating || atLimit}
           onClick={() => handleCreate(false)}
-          className="self-start font-mono text-[11px] uppercase tracking-wide text-rock/40 underline-offset-2 transition-colors hover:text-rock/70 hover:underline disabled:opacity-50"
+          className="self-start font-mono text-[11px] uppercase tracking-wide text-white/40 underline-offset-2 transition-colors hover:text-white/70 hover:underline disabled:opacity-40"
         >
-          or generate a random code
+          {atLimit ? 'code limit reached' : 'or generate a random code'}
         </button>
       </div>
 
-      {/* Code list */}
-      <div className="flex flex-col gap-2">
-        <FieldLabel>Share to earn</FieldLabel>
-        {loading ? (
-          <div className="flex items-center justify-center gap-2 border border-outline bg-background py-8 text-sm text-rock/50">
-            <Loader2 className="size-4 animate-spin" /> Loading…
-          </div>
-        ) : codes.length === 0 ? (
-          <p className="border border-outline bg-background px-4 py-8 text-center text-sm text-rock/50">
-            No codes yet. Create one above to start referring.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {codes.map(code => (
-              <CodeRow key={code} code={code} />
-            ))}
-          </div>
-        )}
-      </div>
+      {loading ? (
+        <PanelEmpty loading />
+      ) : codes.length === 0 ? (
+        <PanelEmpty text="No codes yet. Create one above to start referring." />
+      ) : (
+        <div className="divide-y divide-outline">
+          {codes.map(code => (
+            <CodeRow key={code} code={code} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -315,23 +311,23 @@ function CodeRow({ code }: { code: string }) {
   };
 
   return (
-    <div className="flex items-center justify-between gap-3 border border-outline bg-background p-3">
+    <div className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-card/60">
       <div className="flex min-w-0 flex-col gap-0.5">
         <code className="truncate font-mono text-sm font-semibold tracking-wider text-rock">
           {display}
         </code>
-        <span className="truncate font-mono text-[11px] text-rock/40">{shareLink(display)}</span>
+        <span className="truncate font-mono text-[11px] text-white/35">{shareLink(display)}</span>
       </div>
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className="flex shrink-0 items-center gap-1">
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1.5 text-rock/50 hover:text-rock"
+          className="gap-1.5 text-white/50 hover:text-rock"
           onClick={() => copy(display, 'Code')}
           aria-label="Copy code"
         >
           <Copy className="size-3.5" />
-          Code
+          Copy
         </Button>
         <Button
           variant="outline"
@@ -342,7 +338,7 @@ function CodeRow({ code }: { code: string }) {
         >
           {copiedLink ? (
             <>
-              <Check className="size-3.5 text-success" /> Copied
+              <Check className="size-3.5" /> Copied
             </>
           ) : (
             <>
@@ -355,9 +351,9 @@ function CodeRow({ code }: { code: string }) {
   );
 }
 
-// ─── Referees ────────────────────────────────────────────────────────
+// ─── referees ────────────────────────────────────────────────────────
 
-function RefereesCard({
+function RefereesPanel({
   referees,
   loading,
 }: {
@@ -365,58 +361,55 @@ function RefereesCard({
   loading: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-4 border border-outline bg-card p-5">
-      <div className="flex items-center gap-2">
-        <Users className="size-4 text-rock/50" />
-        <h3 className="text-sm font-semibold text-rock">Your referees</h3>
-        {referees.length > 0 && (
-          <span className="font-mono text-[11px] tabular-nums text-rock/40">
-            ({referees.length})
-          </span>
-        )}
-      </div>
+    <div className="flex flex-1 flex-col">
+      <PanelHeader
+        icon={Users}
+        title="Referees"
+        right={
+          referees.length > 0 ? (
+            <span className="font-mono text-[11px] tabular-nums text-white/40">
+              {referees.length}
+            </span>
+          ) : undefined
+        }
+      />
 
       {loading ? (
-        <div className="flex items-center justify-center gap-2 border border-outline bg-background py-10 text-sm text-rock/50">
-          <Loader2 className="size-4 animate-spin" /> Loading…
-        </div>
+        <PanelEmpty loading />
       ) : referees.length === 0 ? (
-        <p className="border border-outline bg-background px-4 py-10 text-center text-sm text-rock/50">
-          No referees yet. Share your code to start earning rewards.
-        </p>
+        <PanelEmpty text="No referees yet. Share your code to start earning." />
       ) : (
-        <div className="max-h-[320px] overflow-y-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Wallet</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead className="text-right">Earned</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {referees.map(r => (
-                <TableRow key={r.referee_wallet}>
-                  <TableCell className="font-mono text-xs text-rock/80">
-                    {shortWallet(r.referee_wallet)}
-                  </TableCell>
-                  <TableCell className="text-xs text-rock/50">{formatDate(r.bound_at)}</TableCell>
-                  <TableCell className="text-right font-mono text-xs tabular-nums text-success">
-                    {usd(r.accrued_reward_usdc)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <>
+          <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-3 border-b border-outline bg-card px-4 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-white/40">
+            <span>Wallet</span>
+            <span>Joined</span>
+            <span className="text-right">Earned</span>
+          </div>
+          <div className="max-h-[320px] divide-y divide-outline overflow-y-auto">
+            {referees.map(r => (
+              <div
+                key={r.referee_wallet}
+                className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-3 px-4 py-2.5"
+              >
+                <span className="truncate font-mono text-xs text-rock/90">
+                  {shortWallet(r.referee_wallet)}
+                </span>
+                <span className="font-mono text-xs text-white/45">{formatDate(r.bound_at)}</span>
+                <span className="text-right font-mono text-xs tabular-nums text-rock">
+                  {usd(r.accrued_reward_usdc)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
 }
 
-// ─── Claim ───────────────────────────────────────────────────────────
+// ─── claim ───────────────────────────────────────────────────────────
 
-function ClaimCard({
+function ClaimPanel({
   claimable,
   minClaim,
   onClaim,
@@ -445,54 +438,47 @@ function ClaimCard({
   };
 
   return (
-    <div className="flex flex-col gap-4 border border-success/30 bg-success/5 p-5">
-      <div className="flex items-center gap-2">
-        <Coins className="size-4 text-success" />
-        <h3 className="text-sm font-semibold text-rock">Claim rewards</h3>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <FieldLabel>Available to claim</FieldLabel>
-        <span className="font-mono text-3xl font-semibold tabular-nums text-success">
-          {usd(claimable)}
-        </span>
-      </div>
-
-      {belowMin && (
-        <div className="flex flex-col gap-2">
-          <div className="h-1.5 w-full overflow-hidden bg-rock/10">
-            <div
-              className="h-full bg-success/60 transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className="text-[11px] leading-relaxed text-rock/50">
-            Minimum payout is {usd(minClaim)}. Keep referring to reach the threshold.
-          </p>
+    <div className="flex flex-col">
+      <PanelHeader icon={Coins} title="Rewards" />
+      <div className="flex flex-col gap-4 p-4">
+        <div className="flex flex-col gap-1">
+          <Label>Available to claim</Label>
+          <span className="font-mono text-2xl font-semibold tabular-nums text-rock">
+            {usd(claimable)}
+          </span>
         </div>
-      )}
 
-      <Button
-        variant="success"
-        size="lg"
-        className="w-full"
-        disabled={claiming || belowMin || claimable <= 0}
-        onClick={handleClaim}
-      >
-        {claiming ? <Loader2 className="size-4 animate-spin" /> : <Coins className="size-4" />}
-        {belowMin ? `Reach ${usd(minClaim)} to claim` : 'Claim rewards'}
-      </Button>
-      <p className="text-[11px] leading-relaxed text-rock/40">
-        Claims are paid out in USDC to your connected wallet by the treasury. The pending amount is
-        removed from your claimable balance once requested.
-      </p>
+        {belowMin && (
+          <div className="flex flex-col gap-1.5">
+            <div className="h-1 w-full overflow-hidden bg-white/10">
+              <div className="h-full bg-rock/40 transition-all" style={{ width: `${progress}%` }} />
+            </div>
+            <span className="text-[11px] leading-relaxed text-white/40">
+              Minimum payout is {usd(minClaim)}. Keep referring to reach it.
+            </span>
+          </div>
+        )}
+
+        <Button
+          className="w-full"
+          disabled={claiming || belowMin || claimable <= 0}
+          onClick={handleClaim}
+        >
+          {claiming ? <Loader2 className="size-4 animate-spin" /> : <Coins className="size-4" />}
+          {belowMin ? `Reach ${usd(minClaim)} to claim` : 'Claim rewards'}
+        </Button>
+        <p className="text-[11px] leading-relaxed text-white/35">
+          Paid in USDC to your connected wallet by the treasury. The amount is removed from your
+          claimable balance once requested.
+        </p>
+      </div>
     </div>
   );
 }
 
-// ─── Bind ────────────────────────────────────────────────────────────
+// ─── bind ────────────────────────────────────────────────────────────
 
-function BindCard({
+function BindPanel({
   onBind,
   onBound,
 }: {
@@ -528,7 +514,6 @@ function BindCard({
       setBound(true);
       toast.success('Referral code applied. Your referrer now earns on your trades.');
       posthog.capture('referral_bind_succeeded');
-      // Clear the ?ref= param so a refresh doesn't re-trigger.
       if (refFromUrl) {
         searchParams.delete('ref');
         setSearchParams(searchParams, { replace: true });
@@ -541,68 +526,61 @@ function BindCard({
 
   if (bound) {
     return (
-      <div className="flex flex-col items-center gap-3 border border-success/30 bg-success/5 p-5 text-center">
-        <div className="flex size-10 items-center justify-center border border-success/40 bg-success/10 text-success">
-          <Check className="size-5" />
+      <div className="flex flex-col">
+        <PanelHeader icon={Gift} title="Referral code" />
+        <div className="flex items-start gap-2.5 p-4">
+          <Check className="mt-0.5 size-4 shrink-0 text-white/60" />
+          <p className="text-xs leading-relaxed text-white/55">
+            Code applied — your referrer earns a share of your taker volume from here on.
+          </p>
         </div>
-        <p className="text-sm font-medium text-rock">Referral code applied</p>
-        <p className="max-w-[18rem] text-xs leading-relaxed text-rock/50">
-          You're all set — your referrer earns a share of your taker volume from here on.
-        </p>
       </div>
     );
   }
 
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-4 border bg-card p-5',
-        fromLink ? 'border-rock/30' : 'border-outline'
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <Gift className="size-4 text-rock/50" />
-        <h3 className="text-sm font-semibold text-rock">Have a referral code?</h3>
-      </div>
-      <p className="text-xs leading-relaxed text-rock/50">
-        Apply a friend's code <span className="text-rock/70">any time</span> — they'll earn on the
-        volume you trade from here on. It links your wallet to them permanently, so you can only do
-        this once.
-      </p>
-      <div className="flex gap-2">
-        <Input
-          value={code}
-          onChange={e => setCode(e.target.value.toUpperCase())}
-          placeholder="referral code"
-          disabled={binding}
-          spellCheck={false}
-          autoComplete="off"
-          maxLength={20}
-          className="h-10 text-sm uppercase placeholder:normal-case"
-          onKeyDown={e => {
-            if (e.key === 'Enter' && !binding && code.trim()) {
-              e.preventDefault();
-              void handleBind();
-            }
-          }}
-        />
-        <Button
-          size="lg"
-          className="h-10 shrink-0 gap-1.5 px-4"
-          disabled={binding || !code.trim()}
-          onClick={handleBind}
-        >
-          {binding ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-          Apply
-        </Button>
-      </div>
-      {fromLink && (
-        <div className="flex items-start gap-2 border border-rock/20 bg-rock/5 px-3 py-2 text-[11px] leading-relaxed text-rock/60">
-          <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-300" />
-          You followed a referral link. Applying this code permanently links your wallet to this
-          referrer — you can only do it once.
+    <div className="flex flex-col">
+      <PanelHeader icon={Gift} title="Have a referral code?" />
+      <div className="flex flex-col gap-3 p-4">
+        <p className="text-[11px] leading-relaxed text-white/45">
+          Apply a friend's code any time — they'll earn on the volume you trade from here on. It
+          links your wallet to them permanently, so you can only do this once.
+        </p>
+        <div className="flex gap-2">
+          <Input
+            value={code}
+            onChange={e => setCode(e.target.value.toUpperCase())}
+            placeholder="referral code"
+            disabled={binding}
+            spellCheck={false}
+            autoComplete="off"
+            maxLength={20}
+            className="h-9 text-sm uppercase placeholder:normal-case"
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !binding && code.trim()) {
+                e.preventDefault();
+                void handleBind();
+              }
+            }}
+          />
+          <Button
+            size="sm"
+            className="h-9 shrink-0 gap-1.5 px-3"
+            disabled={binding || !code.trim()}
+            onClick={handleBind}
+          >
+            {binding ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+            Apply
+          </Button>
         </div>
-      )}
+        {fromLink && (
+          <p className="flex items-start gap-2 text-[11px] leading-relaxed text-white/40">
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-white/40" />
+            You followed a referral link. Applying this code permanently links your wallet to this
+            referrer — you can only do it once.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

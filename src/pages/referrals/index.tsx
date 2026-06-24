@@ -9,12 +9,12 @@ import { ReferralDashboard, REWARD_RATE_LABEL } from '@/features/referrals';
 
 function ReferralsPage() {
   return (
-    <div className="flex flex-col min-h-[calc(100vh-60px)] px-4 py-8">
-      <div className="mx-auto w-full max-w-5xl space-y-8">
+    <div className="flex flex-col min-h-[calc(100vh-60px)] px-2 py-6 md:px-4 md:py-8">
+      <div className="mx-auto w-full max-w-5xl space-y-5">
         {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-rock">Referrals</h1>
-          <p className="text-rock/60">
+        <div className="flex flex-col gap-1 px-1">
+          <h1 className="text-xl font-semibold tracking-tight text-rock">Referrals</h1>
+          <p className="text-sm text-white/50">
             Share your code and earn {REWARD_RATE_LABEL} of the taker volume traded by everyone you
             refer — forever.
           </p>
