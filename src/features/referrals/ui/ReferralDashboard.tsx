@@ -421,21 +421,25 @@ function RefereesPanel({
         <PanelEmpty text="No referees yet. Share your code to start earning." />
       ) : (
         <>
-          <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-3 border-b border-outline bg-card px-4 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-white/40">
+          <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr] gap-3 border-b border-outline bg-card px-4 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-white/40">
             <span>Wallet</span>
             <span>Joined</span>
+            <span className="text-right">Volume</span>
             <span className="text-right">Earned</span>
           </div>
           <div className="max-h-[320px] divide-y divide-outline overflow-y-auto">
             {referees.map(r => (
               <div
                 key={r.referee_wallet}
-                className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-3 px-4 py-2.5"
+                className="grid grid-cols-[1.4fr_1fr_1fr_1fr] items-center gap-3 px-4 py-2.5"
               >
                 <span className="truncate font-mono text-xs text-rock/90">
                   {shortWallet(r.referee_wallet)}
                 </span>
                 <span className="font-mono text-xs text-white/45">{formatDate(r.bound_at)}</span>
+                <span className="text-right font-mono text-xs tabular-nums text-white/70">
+                  {usd(r.accrued_volume_usdc)}
+                </span>
                 <span className="text-right font-mono text-xs tabular-nums text-rock">
                   {usd(r.accrued_reward_usdc)}
                 </span>

@@ -50,7 +50,9 @@ export interface ReferralMe {
 export interface RefereeView {
   referee_wallet: string;
   bound_at: string;
+  /** Lifetime accrued taker quote-volume — native quote-lots + USDC view. */
   accrued_volume: number;
+  accrued_volume_usdc: number;
   accrued_reward: number;
   accrued_reward_usdc: number;
 }
