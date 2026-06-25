@@ -6,6 +6,31 @@ import type { Commitment } from '@solana/web3.js';
 
 export const V2_READ_LAYER_STORAGE_KEY = 'fermi.useV2ReadLayer';
 
+/**
+ * Feature flag for the referral programme (dashboard page, nav link, and the
+ * invite-modal referral-code field). Soft-launched **off** by default; opt in
+ * per-browser with `localStorage.setItem('fermi.referralsEnabled','true')` then
+ * reload (resolved at module load, like the v2 read-layer flag). Env override:
+ * `VITE_REFERRALS_ENABLED=true`.
+ */
+export const REFERRALS_ENABLED_STORAGE_KEY = 'fermi.referralsEnabled';
+
+function resolveReferralsEnabled(): boolean {
+  const envDefault = (import.meta.env.VITE_REFERRALS_ENABLED || 'false').toLowerCase() === 'true';
+  if (typeof window === 'undefined') return envDefault;
+  try {
+    const stored = window.localStorage.getItem(REFERRALS_ENABLED_STORAGE_KEY);
+    if (stored === 'true') return true;
+    if (stored === 'false') return false;
+  } catch {
+    // localStorage unavailable (SSR, privacy mode) — fall back to env.
+  }
+  return envDefault;
+}
+
+/** Resolved once at module load; toggling localStorage requires a reload. */
+export const REFERRALS_ENABLED = resolveReferralsEnabled();
+
 function resolveV2ReadLayerFlag(): boolean {
   // Default to the v2 (Redis-backed) read layer. The legacy `/state/markets`
   // path returns wrong `quote_lot_size` values for ETH/BTC (10 and 100; the

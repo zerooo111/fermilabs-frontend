@@ -26,6 +26,7 @@ import { waitlistOpenAtom, waitlistSourceAtom } from '@/features/waitlist';
 // to avoid pulling `useReferrals` — which imports this feature's atoms — into
 // the module graph here.
 import { bindCode, ReferralsError } from '@/features/referrals/api/referralsClient';
+import { REFERRALS_ENABLED } from '@/shared/config/constants';
 
 const BETA_ACK_KEY = 'fermi.betaAck';
 
@@ -241,7 +242,7 @@ export function InviteCodeModal() {
       // so bind here. The invite is already redeemed — a referral failure must
       // never block entry, so we surface it as a soft toast and continue.
       const ref = referralCode.trim();
-      if (ref) {
+      if (REFERRALS_ENABLED && ref) {
         try {
           await bindCode(granted.token, ref);
           toast.success('Referral code applied.');
@@ -438,34 +439,36 @@ export function InviteCodeModal() {
                 </p>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-                  Referral Code
-                  <span className="font-sans tracking-normal text-muted-foreground/50 normal-case">
-                    Optional
-                  </span>
-                </label>
-                <Input
-                  value={referralCode}
-                  onChange={e => setReferralCode(e.target.value.toUpperCase())}
-                  placeholder="friend's referral code"
-                  disabled={submitting}
-                  spellCheck={false}
-                  autoComplete="off"
-                  maxLength={20}
-                  className="h-11 font-mono text-sm uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground/40"
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !submitting && code.trim()) {
-                      e.preventDefault();
-                      void handleRedeem();
-                    }
-                  }}
-                />
-                <p className="text-xs text-muted-foreground/70 leading-relaxed">
-                  Were you referred? Add their code to credit them. You can also apply it later from
-                  the Referrals page — but only once.
-                </p>
-              </div>
+              {REFERRALS_ENABLED && (
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                    Referral Code
+                    <span className="font-sans tracking-normal text-muted-foreground/50 normal-case">
+                      Optional
+                    </span>
+                  </label>
+                  <Input
+                    value={referralCode}
+                    onChange={e => setReferralCode(e.target.value.toUpperCase())}
+                    placeholder="friend's referral code"
+                    disabled={submitting}
+                    spellCheck={false}
+                    autoComplete="off"
+                    maxLength={20}
+                    className="h-11 font-mono text-sm uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground/40"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !submitting && code.trim()) {
+                        e.preventDefault();
+                        void handleRedeem();
+                      }
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                    Were you referred? Add their code to credit them. You can also apply it later
+                    from the Referrals page — but only once.
+                  </p>
+                </div>
+              )}
 
               <Button
                 onClick={handleRedeem}
