@@ -28,22 +28,15 @@ export interface ReferralBinding {
 export interface ReferralMe {
   codes: string[];
   referee_count: number;
-  /** Native quote-lots (exact). */
+  /** Native quote-lots (exact). Computed live from trades, minus payouts. */
   lifetime_reward: number;
   claimable: number;
-  /** Live estimate for the current open epoch — not yet claimable. */
-  pending: number;
   /** USDC views (display only). */
   lifetime_reward_usdc: number;
   claimable_usdc: number;
-  pending_usdc: number;
   min_claim_usdc: number;
   /** This wallet's own referrer binding, or null if it never applied a code. */
   referred_by: ReferralBinding | null;
-  /** ISO timestamp when `pending` seals into claimable (start of next bucket). */
-  next_seal_at: string;
-  /** Accrual epoch granularity: "hour" | "day". */
-  accrual_bucket: string;
 }
 
 /** One referred wallet. GET /v1/referrals/referees. */

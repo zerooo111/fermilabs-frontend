@@ -61,29 +61,6 @@ function shortWallet(w: string): string {
   return w.length > 12 ? `${w.slice(0, 4)}…${w.slice(-4)}` : w;
 }
 
-/** Absolute clock time (local), e.g. "14:00". */
-function clockTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-/** Coarse "in 34 min" / "in 2h 5m" until `iso`. */
-function timeUntil(iso: string): string {
-  const ms = new Date(iso).getTime() - Date.now();
-  if (!Number.isFinite(ms) || ms <= 0) return 'shortly';
-  const mins = Math.round(ms / 60000);
-  if (mins < 60) return `in ${mins} min`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m ? `in ${h}h ${m}m` : `in ${h}h`;
-}
-
-/** Human word for the open epoch, given the accrual bucket. */
-function openEpochWord(bucket: string | undefined): string {
-  return bucket === 'hour' ? 'this hour' : 'today';
-}
-
 function shareLink(code: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.fermi.trade';
   return `${origin}/referrals?ref=${encodeURIComponent(code)}`;
@@ -181,9 +158,6 @@ export function ReferralDashboard() {
           <PayoutPanel
             claimable={me?.claimable_usdc ?? 0}
             minClaim={me?.min_claim_usdc ?? 0}
-            pending={me?.pending_usdc ?? 0}
-            nextSealAt={me?.next_seal_at}
-            bucket={me?.accrual_bucket}
             onRequest={requestPayout}
           />
           <BindPanel referredBy={me?.referred_by ?? null} onBind={bind} onBound={refresh} />
@@ -218,11 +192,10 @@ function StatRow({ me, loading }: { me: ReturnType<typeof useReferrals>['me']; l
   const cells = [
     { label: 'Claimable', value: usd(me?.claimable_usdc) },
     { label: 'Lifetime earned', value: usd(me?.lifetime_reward_usdc) },
-    { label: 'Pending', value: usd(me?.pending_usdc) },
     { label: 'Referees', value: (me?.referee_count ?? 0).toLocaleString() },
   ];
   return (
-    <div className="grid grid-cols-2 divide-x divide-y divide-outline lg:grid-cols-4 lg:divide-y-0">
+    <div className="grid grid-cols-3 divide-x divide-outline">
       {cells.map(c => (
         <div key={c.label} className="flex flex-col gap-1.5 p-4">
           <Label>{c.label}</Label>
@@ -457,22 +430,15 @@ function RefereesPanel({
 function PayoutPanel({
   claimable,
   minClaim,
-  pending,
-  nextSealAt,
-  bucket,
   onRequest,
 }: {
   claimable: number;
   minClaim: number;
-  pending: number;
-  nextSealAt?: string;
-  bucket?: string;
   onRequest: () => Promise<{ amount_usdc: number } | null>;
 }) {
   const [requesting, setRequesting] = useState(false);
   const belowMin = claimable < minClaim;
   const progress = minClaim > 0 ? Math.min(100, (claimable / minClaim) * 100) : 0;
-  const hasPending = pending > 0;
 
   const handleRequest = async () => {
     setRequesting(true);
@@ -499,21 +465,6 @@ function PayoutPanel({
             {usd(claimable)}
           </span>
         </div>
-
-        {hasPending && (
-          <div className="flex flex-col gap-1 border-t border-outline pt-3">
-            <div className="flex items-center justify-between gap-2">
-              <Label>Pending {openEpochWord(bucket)}</Label>
-              <span className="font-mono text-sm tabular-nums text-white/70">{usd(pending)}</span>
-            </div>
-            {nextSealAt && (
-              <p className="text-[11px] leading-relaxed text-white/40">
-                Locks in &amp; becomes claimable {timeUntil(nextSealAt)}
-                {clockTime(nextSealAt) ? ` (${clockTime(nextSealAt)})` : ''}.
-              </p>
-            )}
-          </div>
-        )}
 
         {belowMin && (
           <div className="flex flex-col gap-1.5">
