@@ -38,11 +38,11 @@ export function useAccessGate() {
   // server-side challenge inserts for the same connect.
   const lastSeenWallet = useRef<string | null>(null);
 
-  // Auth-flow effect: silently mint a session when a wallet connects.
-  // Never *opens* the gate — that's owned by the explicit Connect Wallet
-  // click in ConnectWallet.tsx — so a silent reconnect on page load (e.g.
-  // Phantom's trusted-app callback) doesn't pop the modal unprompted. We
-  // only close the gate when we've successfully hydrated a session.
+  // Auth-flow effect: on every wallet connect, verify access. A cached/valid
+  // session hydrates silently; a whitelisted wallet silently re-signs; a wallet
+  // that is NOT whitelisted gets the invite modal opened so it's prompted for a
+  // code (invite or referral) instead of reaching a trade UI that would only
+  // fail server-side. We close the gate once a session is hydrated.
   useEffect(() => {
     if (!connected || !publicKey) return;
     const wallet = publicKey.toBase58();
@@ -67,11 +67,16 @@ export function useAccessGate() {
         const status = await fetchStatus(wallet);
         if (cancelled) return;
 
-        // Not whitelisted, or wallet doesn't expose signMessage: nothing to
-        // do silently. If the user explicitly opened the gate, it stays open
-        // (showing the code-entry step now that publicKey is set). If they
-        // didn't, we leave the page untouched.
-        if (!status.whitelisted || !signMessage) return;
+        // Connected wallet has no access → open the gate so it's prompted for an
+        // invite or referral code. Clear loading first so the modal shows the
+        // code-entry step, not the "approve signature" spinner.
+        if (!status.whitelisted) {
+          setLoading(false);
+          setGateOpen(true);
+          return;
+        }
+        // Whitelisted but the adapter can't sign — nothing to do silently.
+        if (!signMessage) return;
 
         const challenge = await requestChallenge(wallet, 'session');
         if (cancelled) return;
