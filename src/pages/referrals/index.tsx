@@ -5,7 +5,7 @@
  * feature, mirroring the vault page's layout conventions. All data, auth, and
  * actions live in the feature; the page only frames it.
  */
-import { ReferralDashboard, REWARD_RATE_LABEL } from '@/features/referrals';
+import { ReferralDashboard } from '@/features/referrals';
 
 function ReferralsPage() {
   return (
@@ -14,9 +14,8 @@ function ReferralsPage() {
         {/* Header */}
         <div className="flex flex-col gap-1 px-1">
           <h1 className="text-xl font-semibold tracking-tight text-rock">Referrals</h1>
-          <p className="text-sm text-white/50">
-            Share your code and earn {REWARD_RATE_LABEL} of the taker volume traded by everyone you
-            refer — forever.
+          <p className="text-sm text-white/60">
+            Invite friends, track their trading, and claim your rewards.
           </p>
         </div>
 
