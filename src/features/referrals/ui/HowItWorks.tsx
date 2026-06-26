@@ -27,8 +27,8 @@ export function HowItWorks() {
               <step.icon className="size-4" />
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium text-rock">
-                <span className="mr-1.5 font-mono text-xs text-white/40">{i + 1}</span>
+              <span className="flex items-baseline gap-1.5 text-sm font-medium text-rock">
+                <span className="font-mono text-xs tabular-nums text-white/40">{i + 1}</span>
                 {step.title}
               </span>
               <span className="text-xs leading-relaxed text-white/60">{step.body}</span>
