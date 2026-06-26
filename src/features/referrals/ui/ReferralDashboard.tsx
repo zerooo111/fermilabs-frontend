@@ -36,7 +36,11 @@ import { cn } from '@/lib/utils';
 import { solanaExplorerTxUrl } from '@/shared/config/constants';
 
 import { useReferrals } from '../model/useReferrals';
-import { REWARD_RATE_LABEL, MAX_CODES_PER_WALLET } from '../model/constants';
+import {
+  REWARD_RATE_LABEL,
+  MAX_CODES_PER_WALLET,
+  MAX_REFERRALS_PER_CODE,
+} from '../model/constants';
 import type { ReferralBinding, Payout, PayoutStatus } from '../api/referralsClient';
 
 // ─── helpers ─────────────────────────────────────────────────────────
@@ -304,11 +308,17 @@ function CodesPanel({
       ) : codes.length === 0 ? (
         <PanelEmpty text="No codes yet. Create one above to start referring." />
       ) : (
-        <div className="divide-y divide-outline">
-          {codes.map(code => (
-            <CodeRow key={code} code={code} />
-          ))}
-        </div>
+        <>
+          <div className="divide-y divide-outline">
+            {codes.map(code => (
+              <CodeRow key={code} code={code} />
+            ))}
+          </div>
+          <p className="border-t border-outline px-4 py-2.5 text-[11px] leading-relaxed text-white/40">
+            Each code can refer up to {MAX_REFERRALS_PER_CODE} people for now — this limit will
+            increase in the future.
+          </p>
+        </>
       )}
     </div>
   );

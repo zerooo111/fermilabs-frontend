@@ -12,3 +12,6 @@ export const REWARD_RATE_LABEL = '0.02%';
 
 /** Max referral codes a wallet may mint (mirrors backend MAX_CODES_PER_WALLET). */
 export const MAX_CODES_PER_WALLET = 1;
+
+/** Max people a single referral code can refer (mirrors backend REFERRAL_INVITE_MAX_USES). */
+export const MAX_REFERRALS_PER_CODE = 10;
