@@ -22,22 +22,15 @@ import { AccessGateError, redeemInvite, requestChallenge } from '../api/accessCl
 import { gateOpenAtom, gateLoadingAtom, accessSessionAtom } from '../model/accessAtoms';
 import { writeSession } from '../lib/cache';
 import { waitlistOpenAtom, waitlistSourceAtom } from '@/features/waitlist';
-// Import the bind call directly from the client module (not the feature index)
-// to avoid pulling `useReferrals` — which imports this feature's atoms — into
-// the module graph here.
-import { bindCode, ReferralsError } from '@/features/referrals/api/referralsClient';
 import { REFERRALS_ENABLED } from '@/shared/config/constants';
 
 const BETA_ACK_KEY = 'fermi.betaAck';
 
-/** Friendly copy for referral-bind failures surfaced during invite redemption. */
-const REFERRAL_ERROR_COPY: Record<string, string> = {
-  invalid_code: "That referral code doesn't exist — skipped.",
-  self_referral: "You can't refer yourself — referral skipped.",
-  already_bound: 'This wallet already has a referrer — referral skipped.',
-};
-
-/** Read an optional `?ref=` referral code from the current URL. */
+/**
+ * Read an optional `?ref=` referral code from the current URL. Referral codes
+ * double as invite codes, so a share link can pre-fill the invite field
+ * directly — the gate redeems it and attributes the referrer server-side.
+ */
 function readRefFromUrl(): string {
   try {
     // Codes are case-insensitive, normalized to upper-case server-side.
@@ -106,10 +99,10 @@ export function InviteCodeModal() {
   const gateLoading = useAtomValue(gateLoadingAtom);
   const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null);
   const [, setSession] = useAtom(accessSessionAtom);
-  const [code, setCode] = useState('');
-  // Optional referral code, pre-filled from a `?ref=` share link. Applied
-  // after a successful invite redemption (best-effort — see handleRedeem).
-  const [referralCode, setReferralCode] = useState(() => readRefFromUrl());
+  // Pre-fill the invite field from a `?ref=` share link: a referral code is a
+  // valid invite code, so redeeming it grants access and the backend attributes
+  // the referrer automatically. Only when the referral feature is enabled.
+  const [code, setCode] = useState(() => (REFERRALS_ENABLED ? readRefFromUrl() : ''));
   const [submitting, setSubmitting] = useState(false);
   const [acknowledged, setAcknowledged] = useState(() => readBetaAck());
   const setWaitlistOpen = useSetAtom(waitlistOpenAtom);
@@ -237,25 +230,8 @@ export function InviteCodeModal() {
       });
       posthog.capture('invite_redeem_succeeded', { wallet_address: wallet });
 
-      // Best-effort referral bind. A wallet redeeming an invite is the ideal
-      // attribution moment (no prior trades), and we now hold a session token,
-      // so bind here. The invite is already redeemed — a referral failure must
-      // never block entry, so we surface it as a soft toast and continue.
-      const ref = referralCode.trim();
-      if (REFERRALS_ENABLED && ref) {
-        try {
-          await bindCode(granted.token, ref);
-          toast.success('Referral code applied.');
-          posthog.capture('invite_referral_bound', { wallet_address: wallet });
-        } catch (e) {
-          const refCode = e instanceof ReferralsError ? e.code : 'network_error';
-          toast.error(REFERRAL_ERROR_COPY[refCode] ?? 'Referral code could not be applied.');
-          posthog.capture('invite_referral_bind_failed', {
-            wallet_address: wallet,
-            error_code: refCode,
-          });
-        }
-      }
+      // If the redeemed code was a referral code, the backend already attributed
+      // the referrer during redeem — nothing to do client-side.
 
       toast.success('Welcome to Fermilabs.');
       setOpen(false);
@@ -438,37 +414,6 @@ export function InviteCodeModal() {
                   fee.
                 </p>
               </div>
-
-              {REFERRALS_ENABLED && (
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-                    Referral Code
-                    <span className="font-sans tracking-normal text-muted-foreground/50 normal-case">
-                      Optional
-                    </span>
-                  </label>
-                  <Input
-                    value={referralCode}
-                    onChange={e => setReferralCode(e.target.value.toUpperCase())}
-                    placeholder="friend's referral code"
-                    disabled={submitting}
-                    spellCheck={false}
-                    autoComplete="off"
-                    maxLength={20}
-                    className="h-11 font-mono text-sm uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground/40"
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && !submitting && code.trim()) {
-                        e.preventDefault();
-                        void handleRedeem();
-                      }
-                    }}
-                  />
-                  <p className="text-xs text-muted-foreground/70 leading-relaxed">
-                    Were you referred? Add their code to credit them. You can also apply it later
-                    from the Referrals page — but only once.
-                  </p>
-                </div>
-              )}
 
               <Button
                 onClick={handleRedeem}
