@@ -304,7 +304,8 @@ export function InviteCodeModal() {
                   Connect your wallet
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  Connect a Solana wallet first. We'll then ask you for your invite code.
+                  Connect a Solana wallet first. We'll then ask you for your{' '}
+                  {REFERRALS_ENABLED ? 'invite or referral code' : 'invite code'}.
                 </DialogDescription>
               </div>
             </DialogHeader>
@@ -381,10 +382,12 @@ export function InviteCodeModal() {
               </HeaderIcon>
               <div className="flex flex-col gap-2">
                 <DialogTitle className="text-lg font-semibold tracking-tight">
-                  Enter your invite code
+                  Enter your {REFERRALS_ENABLED ? 'code' : 'invite code'}
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  Wallet connected. Paste the code we sent you to unlock trading.
+                  {REFERRALS_ENABLED
+                    ? 'Wallet connected. Paste an invite code or a referral code to unlock trading.'
+                    : 'Wallet connected. Paste the code we sent you to unlock trading.'}
                 </DialogDescription>
               </div>
             </DialogHeader>
@@ -392,12 +395,14 @@ export function InviteCodeModal() {
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-                  Invite Code
+                  {REFERRALS_ENABLED ? 'Invite or Referral Code' : 'Invite Code'}
                 </label>
                 <Input
                   value={code}
                   onChange={e => setCode(e.target.value)}
-                  placeholder="FERMI-XXXX-XXXX"
+                  placeholder={
+                    REFERRALS_ENABLED ? 'FERMI-XXXX-XXXX or referral code' : 'FERMI-XXXX-XXXX'
+                  }
                   disabled={submitting}
                   spellCheck={false}
                   autoComplete="off"
@@ -410,6 +415,9 @@ export function InviteCodeModal() {
                   }}
                 />
                 <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                  {REFERRALS_ENABLED
+                    ? "Have a friend's referral code? It works here too — you'll get access and they'll be credited. "
+                    : ''}
                   You'll sign a one-time message to prove wallet ownership. No transaction or gas
                   fee.
                 </p>
