@@ -258,43 +258,46 @@ function CodesPanel({
         }
       />
 
-      <div className="flex flex-col gap-2 border-b border-outline px-4 py-3">
-        <div className="flex gap-2">
-          <Input
-            value={vanity}
-            onChange={e => setVanity(e.target.value.toUpperCase())}
-            placeholder="custom code (optional)"
-            disabled={creating || atLimit}
-            spellCheck={false}
-            autoComplete="off"
-            maxLength={20}
-            className="h-9 text-sm uppercase placeholder:normal-case"
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !creating && !atLimit && vanity.trim()) {
-                e.preventDefault();
-                void handleCreate(true);
-              }
-            }}
-          />
-          <Button
-            size="sm"
-            className="h-9 shrink-0 gap-1.5 px-3"
-            disabled={creating || atLimit || !vanity.trim()}
-            onClick={() => handleCreate(true)}
+      {/* Hide the create section entirely once the wallet is at its code limit. */}
+      {!atLimit && (
+        <div className="flex flex-col gap-2 border-b border-outline px-4 py-3">
+          <div className="flex gap-2">
+            <Input
+              value={vanity}
+              onChange={e => setVanity(e.target.value.toUpperCase())}
+              placeholder="custom code (optional)"
+              disabled={creating}
+              spellCheck={false}
+              autoComplete="off"
+              maxLength={20}
+              className="h-9 text-sm uppercase placeholder:normal-case"
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !creating && vanity.trim()) {
+                  e.preventDefault();
+                  void handleCreate(true);
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              className="h-9 shrink-0 gap-1.5 px-3"
+              disabled={creating || !vanity.trim()}
+              onClick={() => handleCreate(true)}
+            >
+              {creating ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+              Create
+            </Button>
+          </div>
+          <button
+            type="button"
+            disabled={creating}
+            onClick={() => handleCreate(false)}
+            className="self-start font-mono text-[11px] uppercase tracking-wide text-white/40 underline-offset-2 transition-colors hover:text-white/70 hover:underline disabled:opacity-40"
           >
-            {creating ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-            Create
-          </Button>
+            or generate a random code
+          </button>
         </div>
-        <button
-          type="button"
-          disabled={creating || atLimit}
-          onClick={() => handleCreate(false)}
-          className="self-start font-mono text-[11px] uppercase tracking-wide text-white/40 underline-offset-2 transition-colors hover:text-white/70 hover:underline disabled:opacity-40"
-        >
-          {atLimit ? 'code limit reached' : 'or generate a random code'}
-        </button>
-      </div>
+      )}
 
       {loading ? (
         <PanelEmpty loading />
