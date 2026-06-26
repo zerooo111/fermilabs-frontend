@@ -11,4 +11,4 @@ export const REWARD_RATE_BPS = 2;
 export const REWARD_RATE_LABEL = '0.02%';
 
 /** Max referral codes a wallet may mint (mirrors backend MAX_CODES_PER_WALLET). */
-export const MAX_CODES_PER_WALLET = 10;
+export const MAX_CODES_PER_WALLET = 1;
