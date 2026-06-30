@@ -8,7 +8,7 @@ import { ApiKeysPanel } from '@/features/api-keys';
 import { MarginPanel } from '@/features/margin-panel/ui/MarginPanel';
 import { accessSessionAtom } from '@/features/access-gate';
 import FermiLogo3d from './FermiLogo';
-import { config, REFERRALS_ENABLED } from '@/shared/config/constants';
+import { config } from '@/shared/config/constants';
 
 function getNetwork(rpcUrl: string): { label: string; className: string } {
   if (rpcUrl.includes('mainnet'))
@@ -57,17 +57,15 @@ export function Header() {
           >
             Perps
           </Link>
-          {REFERRALS_ENABLED && (
-            <Link
-              to="/referrals"
-              className={cn(
-                'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
-                location.pathname === '/referrals' && 'text-white'
-              )}
-            >
-              Referrals
-            </Link>
-          )}
+          <Link
+            to="/referrals"
+            className={cn(
+              'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
+              location.pathname === '/referrals' && 'text-white'
+            )}
+          >
+            Referrals
+          </Link>
           <span
             className={cn('text-xs font-medium px-2 py-0.5 rounded-full border', network.className)}
           >

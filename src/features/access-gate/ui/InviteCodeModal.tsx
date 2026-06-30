@@ -22,7 +22,6 @@ import { AccessGateError, redeemInvite, requestChallenge } from '../api/accessCl
 import { gateOpenAtom, gateLoadingAtom, accessSessionAtom } from '../model/accessAtoms';
 import { writeSession } from '../lib/cache';
 import { waitlistOpenAtom, waitlistSourceAtom } from '@/features/waitlist';
-import { REFERRALS_ENABLED } from '@/shared/config/constants';
 
 const BETA_ACK_KEY = 'fermi.betaAck';
 
@@ -101,8 +100,8 @@ export function InviteCodeModal() {
   const [, setSession] = useAtom(accessSessionAtom);
   // Pre-fill the invite field from a `?ref=` share link: a referral code is a
   // valid invite code, so redeeming it grants access and the backend attributes
-  // the referrer automatically. Only when the referral feature is enabled.
-  const [code, setCode] = useState(() => (REFERRALS_ENABLED ? readRefFromUrl() : ''));
+  // the referrer automatically.
+  const [code, setCode] = useState(() => readRefFromUrl());
   const [submitting, setSubmitting] = useState(false);
   const [acknowledged, setAcknowledged] = useState(() => readBetaAck());
   const setWaitlistOpen = useSetAtom(waitlistOpenAtom);
@@ -304,8 +303,8 @@ export function InviteCodeModal() {
                   Connect your wallet
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  Connect a Solana wallet first. We'll then ask you for your{' '}
-                  {REFERRALS_ENABLED ? 'invite or referral code' : 'invite code'}.
+                  Connect a Solana wallet first. We'll then ask you for your invite or referral
+                  code.
                 </DialogDescription>
               </div>
             </DialogHeader>
@@ -382,12 +381,10 @@ export function InviteCodeModal() {
               </HeaderIcon>
               <div className="flex flex-col gap-2">
                 <DialogTitle className="text-lg font-semibold tracking-tight">
-                  Enter your {REFERRALS_ENABLED ? 'code' : 'invite code'}
+                  Enter your code
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  {REFERRALS_ENABLED
-                    ? 'Wallet connected. Paste an invite code or a referral code to unlock trading.'
-                    : 'Wallet connected. Paste the code we sent you to unlock trading.'}
+                  Wallet connected. Paste an invite code or a referral code to unlock trading.
                 </DialogDescription>
               </div>
             </DialogHeader>
@@ -395,14 +392,12 @@ export function InviteCodeModal() {
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-                  {REFERRALS_ENABLED ? 'Invite or Referral Code' : 'Invite Code'}
+                  Invite or Referral Code
                 </label>
                 <Input
                   value={code}
                   onChange={e => setCode(e.target.value)}
-                  placeholder={
-                    REFERRALS_ENABLED ? 'FERMI-XXXX-XXXX or referral code' : 'FERMI-XXXX-XXXX'
-                  }
+                  placeholder="FERMI-XXXX-XXXX or referral code"
                   disabled={submitting}
                   spellCheck={false}
                   autoComplete="off"
@@ -415,11 +410,9 @@ export function InviteCodeModal() {
                   }}
                 />
                 <p className="text-xs text-muted-foreground/70 leading-relaxed">
-                  {REFERRALS_ENABLED
-                    ? "Have a friend's referral code? It works here too — you'll get access and they'll be credited. "
-                    : ''}
-                  You'll sign a one-time message to prove wallet ownership. No transaction or gas
-                  fee.
+                  Have a friend's referral code? It works here too — you'll get access and they'll
+                  be credited. You'll sign a one-time message to prove wallet ownership. No
+                  transaction or gas fee.
                 </p>
               </div>
 
