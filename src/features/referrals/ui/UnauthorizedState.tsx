@@ -16,8 +16,8 @@ export function UnauthorizedState({ connected }: { connected: boolean }) {
         </div>
         <h2 className="text-base font-medium text-rock">Referral programme</h2>
         <p className="max-w-md text-sm leading-relaxed text-white/65">
-          Earn {REWARD_RATE_LABEL} of every trade your friends make on Fermi — forever, paid in
-          USDC.
+          Earn {REWARD_RATE_LABEL} of every trade your friends make on Fermi — forever, paid
+          in&nbsp;USDC.
         </p>
         <p className="max-w-sm text-xs leading-relaxed text-white/55">
           {connected
