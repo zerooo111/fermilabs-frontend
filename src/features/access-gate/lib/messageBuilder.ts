@@ -15,10 +15,10 @@ export function buildRedeemMessage(
   expires: string
 ): string {
   return (
-    `app.fermilabs.io wants you to sign in with your Solana account:\n` +
+    `app.fermi.trade wants you to sign in with your Solana account:\n` +
     `${wallet}\n\n` +
     `By signing, you grant this wallet trading access on Fermilabs.\n\n` +
-    `URI: https://app.fermilabs.io\n` +
+    `URI: https://app.fermi.trade\n` +
     `Chain: solana\n` +
     `Nonce: ${nonce}\n` +
     `Issued At: ${issued}\n` +

@@ -98,7 +98,7 @@ export function WaitlistDialog() {
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground leading-relaxed max-w-xs">
                   We'll email you when a spot opens. Watch for our note from{' '}
-                  <span className="font-mono text-foreground">fermilabs.io</span>.
+                  <span className="font-mono text-foreground">fermi.trade</span>.
                 </DialogDescription>
               </div>
             </div>
