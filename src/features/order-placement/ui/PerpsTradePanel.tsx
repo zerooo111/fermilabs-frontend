@@ -137,6 +137,7 @@ export function PerpsTradePanel() {
     stopLoss: string;
     takeProfit: string;
     slippage: string;
+    reduceOnly: boolean;
   }>({
     price: '',
     size: '',
@@ -145,6 +146,7 @@ export function PerpsTradePanel() {
     stopLoss: '',
     takeProfit: '',
     slippage: '0.25',
+    reduceOnly: false,
   });
 
   const { publicKey } = useWallet();
@@ -329,6 +331,7 @@ export function PerpsTradePanel() {
           marginMode: formState.marginMode,
           maxSlippageBps: Math.round(safeParseFloat(formState.slippage, 1) * 100),
           markPrice: markPrice!,
+          reduceOnly: formState.reduceOnly,
         });
       } else {
         result = await openPosition({
@@ -339,6 +342,7 @@ export function PerpsTradePanel() {
           size: formState.size,
           stopLoss: enableSLTP && formState.stopLoss ? formState.stopLoss : undefined,
           takeProfit: enableSLTP && formState.takeProfit ? formState.takeProfit : undefined,
+          reduceOnly: formState.reduceOnly,
         });
       }
 
@@ -517,6 +521,30 @@ export function PerpsTradePanel() {
           <span className="tabular-nums font-semibold">
             {computedLeverage !== null ? `${computedLeverage.toFixed(2)}×` : '5×'}
           </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="reduceOnly"
+            checked={formState.reduceOnly}
+            onChange={e => setFormState(prev => ({ ...prev, reduceOnly: e.target.checked }))}
+            className="h-4 w-4 rounded border-outline"
+          />
+          <label htmlFor="reduceOnly" className="text-sm font-medium cursor-pointer">
+            Reduce Only
+          </label>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="size-3.5 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <div className="text-xs">
+                Only reduces or closes your existing position. The order will never increase your
+                position or open one in the opposite direction.
+              </div>
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         <div>

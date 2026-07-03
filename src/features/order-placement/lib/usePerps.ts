@@ -45,6 +45,7 @@ interface PerpsSubmitOrderParams {
   takeProfit?: string;
   orderType?: OrderType;
   maxSlippageBps?: number;
+  reduceOnly?: boolean;
 }
 
 interface PerpsMarketOrderParams {
@@ -54,6 +55,7 @@ interface PerpsMarketOrderParams {
   marginMode: MarginMode;
   maxSlippageBps: number;
   markPrice: number;
+  reduceOnly?: boolean;
 }
 
 interface PerpsClosePositionParams {
@@ -913,6 +915,7 @@ export function usePerps() {
     side,
     price,
     size,
+    reduceOnly = false,
   }: PerpsSubmitOrderParams): Promise<{ success: boolean; error?: string }> => {
     const priceValue = Number(price);
     const sizeValue = Number(size);
@@ -940,7 +943,7 @@ export function usePerps() {
         side,
         price: priceValue,
         size: sizeValue,
-        reduceOnly: false,
+        reduceOnly,
         orderType: QueuePlaceOrderType.Limit,
         clientOrderId: randomU64(),
         marketMeta,
@@ -985,6 +988,7 @@ export function usePerps() {
     size,
     maxSlippageBps,
     markPrice,
+    reduceOnly = false,
   }: PerpsMarketOrderParams): Promise<{ success: boolean; error?: string }> => {
     const sizeValue = Number(size);
     try {
@@ -1014,7 +1018,7 @@ export function usePerps() {
         side,
         price: effectivePrice,
         size: sizeValue,
-        reduceOnly: false,
+        reduceOnly,
         orderType: QueuePlaceOrderType.Market,
         clientOrderId: randomU64(),
         marketMeta,
