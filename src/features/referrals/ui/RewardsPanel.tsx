@@ -1,7 +1,9 @@
 /**
- * The single home for money: claimable balance (the hero metric), the claim
- * action with min-payout progress, plus lifetime earned and referee count as
- * secondary stats. This is the only place the claimable number appears.
+ * The single home for money — the "common rewards + payout" surface shared by
+ * both reward sources. Shows the combined **total fees earned** (referral +
+ * rebate) with a breakdown, then the claimable balance (the hero metric) and
+ * the claim action with min-payout progress. This is the only place the
+ * claimable number appears.
  */
 import { useState } from 'react';
 import { Coins, Loader2 } from 'lucide-react';
@@ -17,14 +19,19 @@ import { Eyebrow, FOCUS_RING, Panel, PanelHeader } from './primitives';
 export function RewardsPanel({
   claimable,
   lifetime,
-  refereeCount,
+  referral,
+  rebate,
   minClaim,
   onRequest,
   loading,
 }: {
   claimable: number;
+  /** Combined lifetime reward (referral + rebate), USDC. */
   lifetime: number;
-  refereeCount: number;
+  /** Referral component of the lifetime reward, USDC. */
+  referral: number;
+  /** Rebate component of the lifetime reward, USDC. */
+  rebate: number;
   minClaim: number;
   onRequest: () => Promise<{ amount_usdc: number } | null>;
   loading: boolean;
@@ -52,40 +59,62 @@ export function RewardsPanel({
     <Panel>
       <PanelHeader icon={Coins} title="Rewards" />
       <div className="flex flex-col gap-4 p-4">
+        {/* Total fees earned — combined across both sources. */}
         <div className="flex flex-col gap-1">
-          <Eyebrow>Claimable</Eyebrow>
+          <Eyebrow>Total fees earned</Eyebrow>
           {loading ? (
             <div className="skeleton-bone h-8 w-28" />
           ) : (
-            <span className="font-mono text-3xl font-semibold tabular-nums text-rock">
-              {usd(claimable)}
+            <span className="font-mono text-2xl font-semibold tabular-nums text-rock">
+              {usd(lifetime)}
             </span>
           )}
         </div>
 
-        {!loading && belowMin && (
-          <div className="flex flex-col gap-1.5">
-            <div className="h-1 w-full overflow-hidden bg-white/10">
-              <div className="h-full bg-rock/50 transition-all" style={{ width: `${progress}%` }} />
-            </div>
-            <span className="text-[11px] leading-relaxed text-white/55">
-              Minimum payout is {usd(minClaim)}. Keep referring to reach it.
-            </span>
+        <div className="grid grid-cols-2 gap-3">
+          <Stat label="Referral" value={usd(referral)} loading={loading} />
+          <Stat label="Rebate" value={usd(rebate)} loading={loading} />
+        </div>
+
+        {/* Claimable balance + claim action. */}
+        <div className="flex flex-col gap-3 border-t border-outline pt-4">
+          <div className="flex flex-col gap-1">
+            <Eyebrow>Claimable</Eyebrow>
+            {loading ? (
+              <div className="skeleton-bone h-8 w-28" />
+            ) : (
+              <span className="font-mono text-3xl font-semibold tabular-nums text-rock">
+                {usd(claimable)}
+              </span>
+            )}
           </div>
-        )}
 
-        <Button
-          className={cn('w-full gap-2', FOCUS_RING)}
-          disabled={loading || requesting || belowMin || claimable <= 0}
-          onClick={handleRequest}
-        >
-          {requesting ? <Loader2 className="size-4 animate-spin" /> : <Coins className="size-4" />}
-          {belowMin ? `Reach ${usd(minClaim)} to claim` : 'Request payout'}
-        </Button>
+          {!loading && belowMin && claimable > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <div className="h-1 w-full overflow-hidden bg-white/10">
+                <div
+                  className="h-full bg-rock/50 transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <span className="text-[11px] leading-relaxed text-white/55">
+                Minimum payout is {usd(minClaim)}. Keep trading and referring to reach it.
+              </span>
+            </div>
+          )}
 
-        <div className="grid grid-cols-2 gap-3 border-t border-outline pt-4">
-          <Stat label="Lifetime earned" value={usd(lifetime)} loading={loading} />
-          <Stat label="Referees" value={refereeCount.toLocaleString()} loading={loading} />
+          <Button
+            className={cn('w-full gap-2', FOCUS_RING)}
+            disabled={loading || requesting || belowMin || claimable <= 0}
+            onClick={handleRequest}
+          >
+            {requesting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Coins className="size-4" />
+            )}
+            {belowMin ? `Reach ${usd(minClaim)} to claim` : 'Claim fees'}
+          </Button>
         </div>
 
         <p className="text-[11px] leading-relaxed text-white/55">

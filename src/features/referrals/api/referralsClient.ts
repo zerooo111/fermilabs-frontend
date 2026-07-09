@@ -24,16 +24,31 @@ export interface ReferralBinding {
   bound_at: string;
 }
 
-/** Summary for the connected wallet acting as a referrer. GET /v1/referrals/me. */
+/** Summary for the connected wallet. GET /v1/referrals/me. */
 export interface ReferralMe {
   codes: string[];
   referee_count: number;
-  /** Native quote-lots (exact). Computed live from trades, minus payouts. */
+  /**
+   * Native quote-lots (exact). `lifetime_reward` is the combined lifetime
+   * reward (referral + rebate); the two components break it down. `claimable`
+   * nets the combined total against non-failed payouts.
+   */
   lifetime_reward: number;
+  referral_reward: number;
+  rebate_reward: number;
   claimable: number;
+  /** This wallet's own all-time taker volume + derived fees (native quote-lots). */
+  own_volume: number;
+  own_fees: number;
+  /** True iff this wallet has bound a referral code (so it earns a rebate). */
+  is_bound: boolean;
   /** USDC views (display only). */
   lifetime_reward_usdc: number;
+  referral_reward_usdc: number;
+  rebate_reward_usdc: number;
   claimable_usdc: number;
+  own_volume_usdc: number;
+  own_fees_usdc: number;
   min_claim_usdc: number;
   /** This wallet's own referrer binding, or null if it never applied a code. */
   referred_by: ReferralBinding | null;
