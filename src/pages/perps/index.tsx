@@ -17,6 +17,7 @@ import {
 } from '@/entities/market';
 import { useAtomValue } from 'jotai';
 import { useSSEStream } from '@/shared/hooks/useSSEStream';
+import { PauseCircle } from 'lucide-react';
 
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
@@ -88,6 +89,13 @@ function PerpsPage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-60px)] overflow-hidden">
+      <div className="mx-2 md:mx-4 mt-2 flex items-center justify-center gap-2 border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-center text-sm text-amber-300">
+        <PauseCircle className="size-4 shrink-0" />
+        <span>
+          The exchange is temporarily paused while we migrate the program to a new version.
+        </span>
+      </div>
+
       {/* Main trading area - responsive layout */}
       <div className="flex flex-col lg:flex-row mx-2 md:mx-4 border-x border-outline divide-y lg:divide-y-0 lg:divide-x divide-outline">
         {/* Chart section - full width on mobile, flex-1 on desktop */}
