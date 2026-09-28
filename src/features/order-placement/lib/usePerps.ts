@@ -26,7 +26,7 @@ import {
   uiPriceToLots,
   uiQuoteToLots,
 } from '@/shared/lib/mango-execution-queue';
-import { getMangoClientAndGroup } from '@/shared/lib/mango-client';
+import { fetchFermiAccount, getMangoClientAndGroup } from '@/shared/lib/mango-client';
 import { buildCanonicalPerpRemainingAccounts } from '@/shared/lib/mango-canonical-accounts';
 import { useAccountMangoAccount } from '@/shared/hooks/useAccount';
 import { getWalletAuthToken } from '@/features/access-gate';
@@ -514,7 +514,11 @@ export function usePerps() {
 
       const startedAt = performance.now();
       const { client, group } = await getMangoClientAndGroup(connection, serverConfig);
-      const mangoAccount = await client.getMangoAccount(new PublicKey(mangoAccountPk));
+      const mangoAccount = await fetchFermiAccount(
+        client,
+        connection,
+        new PublicKey(mangoAccountPk)
+      );
       const remainingAccounts = await buildCanonicalPerpRemainingAccounts({
         client,
         group,

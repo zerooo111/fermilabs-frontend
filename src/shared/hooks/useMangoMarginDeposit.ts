@@ -265,7 +265,7 @@ export function useMangoMarginDeposit() {
       if (!depositContext.mango_account_exists) {
         const [expectedMangoAccountPk] = PublicKey.findProgramAddressSync(
           [
-            new TextEncoder().encode('MangoAccount'),
+            new TextEncoder().encode('FermiAccount'),
             groupPk.toBuffer(),
             owner.toBuffer(),
             toAccountNumLeBytes(depositContext.account_num),

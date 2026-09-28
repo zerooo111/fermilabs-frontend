@@ -1,5 +1,5 @@
 import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
-import { Group, MangoClient } from '@blockworks-foundation/mango-v4';
+import { Group, MangoAccount, MangoClient } from '@blockworks-foundation/mango-v4';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { config } from '@/shared/config/constants';
 import type { ServerConfig } from '@/entities/server';
@@ -51,6 +51,28 @@ export async function getMangoClientAndGroup(
     return { client, group, connection };
   })();
   return cached;
+}
+
+// sha256("account:FermiAccount")[..8] / sha256("account:MangoAccount")[..8]. The
+// program renamed its user account (naming-migration.md §2) but the layout after
+// the discriminator is unchanged. The upstream SDK decodes with its bundled IDL
+// ('mangoAccount'), so swap the discriminator back before handing it the bytes.
+const FERMI_ACCOUNT_DISCRIMINATOR = Uint8Array.from([245, 36, 51, 8, 90, 127, 231, 244]);
+const MANGO_ACCOUNT_DISCRIMINATOR = Uint8Array.from([243, 228, 247, 3, 169, 52, 175, 31]);
+
+export async function fetchFermiAccount(
+  client: MangoClient,
+  connection: Connection,
+  accountPk: PublicKey
+): Promise<MangoAccount> {
+  const ai = await connection.getAccountInfo(accountPk);
+  if (!ai) throw new Error(`Fermi account ${accountPk.toBase58()} not found`);
+  if (!FERMI_ACCOUNT_DISCRIMINATOR.every((b, i) => ai.data[i] === b)) {
+    throw new Error(`Account ${accountPk.toBase58()} is not a FermiAccount`);
+  }
+  const data = Buffer.from(ai.data);
+  data.set(MANGO_ACCOUNT_DISCRIMINATOR, 0);
+  return client.getMangoAccountFromAi(accountPk, { ...ai, data });
 }
 
 export async function reloadMangoGroup(

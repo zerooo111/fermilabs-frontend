@@ -241,7 +241,7 @@ export type MangoV4 = {
           };
         },
         {
-          name: 'buybackFeesSwapMangoAccountOpt';
+          name: 'buybackFeesSwapFermiAccountOpt';
           type: {
             option: 'publicKey';
           };
@@ -1359,7 +1359,7 @@ export type MangoV4 = {
               {
                 kind: 'const';
                 type: 'string';
-                value: 'MangoAccount';
+                value: 'FermiAccount';
               },
               {
                 kind: 'account';
@@ -1439,7 +1439,7 @@ export type MangoV4 = {
               {
                 kind: 'const';
                 type: 'string';
-                value: 'MangoAccount';
+                value: 'FermiAccount';
               },
               {
                 kind: 'account';
@@ -1523,7 +1523,7 @@ export type MangoV4 = {
               {
                 kind: 'const';
                 type: 'string';
-                value: 'MangoAccount';
+                value: 'FermiAccount';
               },
               {
                 kind: 'account';
@@ -3312,9 +3312,9 @@ export type MangoV4 = {
       name: 'serum3SettleFunds';
       docs: [
         'Deprecated instruction that used to settles all free funds from the OpenOrders account',
-        'into the MangoAccount.',
+        'into the FermiAccount.',
         '',
-        'Any serum "referrer rebates" (ui fees) are considered Mango fees.',
+        'Any serum "referrer rebates" (ui fees) are considered Fermi fees.',
       ];
       accounts: [
         {
@@ -3404,7 +3404,7 @@ export type MangoV4 = {
       name: 'serum3SettleFundsV2';
       docs: [
         'Like Serum3SettleFunds, but `fees_to_dao` determines if referrer rebates are considered fees',
-        'or are credited to the MangoAccount.',
+        'or are credited to the FermiAccount.',
       ];
       accounts: [
         {
@@ -7410,7 +7410,7 @@ export type MangoV4 = {
             type: 'u128';
           },
           {
-            name: 'buybackFeesSwapMangoAccount';
+            name: 'buybackFeesSwapFermiAccount';
             type: 'publicKey';
           },
           {
@@ -7464,7 +7464,7 @@ export type MangoV4 = {
       };
     },
     {
-      name: 'mangoAccount';
+      name: 'fermiAccount';
       type: {
         kind: 'struct';
         fields: [
@@ -7961,7 +7961,7 @@ export type MangoV4 = {
           {
             name: 'perpMarketIndex';
             docs: [
-              "Index of this perp market. Other data, like the MangoAccount's PerpPosition",
+              "Index of this perp market. Other data, like the FermiAccount's PerpPosition",
               "reference this market via this index. Unique for this group's perp markets.",
             ];
             type: 'u16';
@@ -9190,7 +9190,7 @@ export type MangoV4 = {
       };
     },
     {
-      name: 'MangoAccountFixed';
+      name: 'FermiAccountFixed';
       type: {
         kind: 'struct';
         fields: [
@@ -9403,7 +9403,7 @@ export type MangoV4 = {
           },
           {
             name: 'ownerSlot';
-            docs: ["Index into the owning MangoAccount's PerpOpenOrders"];
+            docs: ["Index into the owning FermiAccount's PerpOpenOrders"];
             type: 'u8';
           },
           {
@@ -9438,7 +9438,7 @@ export type MangoV4 = {
           },
           {
             name: 'owner';
-            docs: ['Address of the owning MangoAccount'];
+            docs: ['Address of the owning FermiAccount'];
             type: 'publicKey';
           },
           {
@@ -10912,7 +10912,7 @@ export type MangoV4 = {
   ];
   events: [
     {
-      name: 'MangoAccountData';
+      name: 'FermiAccountData';
       fields: [
         {
           name: 'initHealth';
@@ -10941,12 +10941,12 @@ export type MangoV4 = {
       name: 'PerpBalanceLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -10991,12 +10991,12 @@ export type MangoV4 = {
       name: 'TokenBalanceLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -11026,12 +11026,12 @@ export type MangoV4 = {
       name: 'FlashLoanLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -11057,12 +11057,12 @@ export type MangoV4 = {
       name: 'FlashLoanLogV2';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -11088,12 +11088,12 @@ export type MangoV4 = {
       name: 'FlashLoanLogV3';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -11119,12 +11119,12 @@ export type MangoV4 = {
       name: 'WithdrawLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -11154,12 +11154,12 @@ export type MangoV4 = {
       name: 'DepositLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -11189,7 +11189,7 @@ export type MangoV4 = {
       name: 'FillLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -11279,7 +11279,7 @@ export type MangoV4 = {
       name: 'FillLogV2';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -11364,7 +11364,7 @@ export type MangoV4 = {
       name: 'FillLogV3';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -11459,7 +11459,7 @@ export type MangoV4 = {
       name: 'PerpUpdateFundingLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -11519,7 +11519,7 @@ export type MangoV4 = {
       name: 'PerpUpdateFundingLogV2';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -11591,7 +11591,7 @@ export type MangoV4 = {
       name: 'UpdateIndexLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -11661,7 +11661,7 @@ export type MangoV4 = {
       name: 'UpdateRateLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -11691,7 +11691,7 @@ export type MangoV4 = {
       name: 'UpdateRateLogV2';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -11741,7 +11741,7 @@ export type MangoV4 = {
       name: 'TokenLiqWithTokenLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -11796,7 +11796,7 @@ export type MangoV4 = {
       name: 'TokenLiqWithTokenLogV2';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -11861,12 +11861,12 @@ export type MangoV4 = {
       name: 'Serum3OpenOrdersBalanceLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -11911,12 +11911,12 @@ export type MangoV4 = {
       name: 'Serum3OpenOrdersBalanceLogV2';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -11966,12 +11966,12 @@ export type MangoV4 = {
       name: 'OpenbookV2OpenOrdersBalanceLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -12021,12 +12021,12 @@ export type MangoV4 = {
       name: 'WithdrawLoanOriginationFeeLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -12053,12 +12053,12 @@ export type MangoV4 = {
       name: 'WithdrawLoanLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -12097,7 +12097,7 @@ export type MangoV4 = {
       name: 'TokenLiqBankruptcyLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12157,12 +12157,12 @@ export type MangoV4 = {
       name: 'DeactivateTokenPositionLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -12187,12 +12187,12 @@ export type MangoV4 = {
       name: 'DeactivatePerpPositionLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -12232,7 +12232,7 @@ export type MangoV4 = {
       name: 'TokenMetaDataLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12267,7 +12267,7 @@ export type MangoV4 = {
       name: 'TokenMetaDataLogV2';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12307,7 +12307,7 @@ export type MangoV4 = {
       name: 'PerpMarketMetaDataLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12347,7 +12347,7 @@ export type MangoV4 = {
       name: 'Serum3RegisterMarketLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12387,7 +12387,7 @@ export type MangoV4 = {
       name: 'OpenbookV2RegisterMarketLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12427,7 +12427,7 @@ export type MangoV4 = {
       name: 'PerpLiqBaseOrPositivePnlLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12477,7 +12477,7 @@ export type MangoV4 = {
       name: 'PerpLiqBaseOrPositivePnlLogV2';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12537,7 +12537,7 @@ export type MangoV4 = {
       name: 'PerpLiqBaseOrPositivePnlLogV3';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12602,7 +12602,7 @@ export type MangoV4 = {
       name: 'PerpLiqBankruptcyLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12657,7 +12657,7 @@ export type MangoV4 = {
       name: 'PerpLiqNegativePnlOrBankruptcyLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12687,17 +12687,17 @@ export type MangoV4 = {
       name: 'PerpSettlePnlLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccountA';
+          name: 'fermiAccountA';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccountB';
+          name: 'fermiAccountB';
           type: 'publicKey';
           index: false;
         },
@@ -12727,12 +12727,12 @@ export type MangoV4 = {
       name: 'PerpSettleFeesLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -12752,12 +12752,12 @@ export type MangoV4 = {
       name: 'AccountBuybackFeesWithMngoLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -12787,7 +12787,7 @@ export type MangoV4 = {
       name: 'FilledPerpOrderLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12807,12 +12807,12 @@ export type MangoV4 = {
       name: 'PerpTakerTradeLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -12862,7 +12862,7 @@ export type MangoV4 = {
       name: 'PerpForceClosePositionLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12902,7 +12902,7 @@ export type MangoV4 = {
       name: 'TokenForceCloseBorrowsWithTokenLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -12957,7 +12957,7 @@ export type MangoV4 = {
       name: 'TokenForceCloseBorrowsWithTokenLogV2';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -13022,12 +13022,12 @@ export type MangoV4 = {
       name: 'TokenConditionalSwapCreateLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -13102,12 +13102,12 @@ export type MangoV4 = {
       name: 'TokenConditionalSwapCreateLogV2';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -13192,12 +13192,12 @@ export type MangoV4 = {
       name: 'TokenConditionalSwapCreateLogV3';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -13297,7 +13297,7 @@ export type MangoV4 = {
       name: 'TokenConditionalSwapTriggerLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -13367,7 +13367,7 @@ export type MangoV4 = {
       name: 'TokenConditionalSwapTriggerLogV2';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -13447,7 +13447,7 @@ export type MangoV4 = {
       name: 'TokenConditionalSwapTriggerLogV3';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
@@ -13537,12 +13537,12 @@ export type MangoV4 = {
       name: 'TokenConditionalSwapCancelLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -13557,12 +13557,12 @@ export type MangoV4 = {
       name: 'TokenConditionalSwapStartLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -13592,12 +13592,12 @@ export type MangoV4 = {
       name: 'TokenCollateralFeeLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -13627,12 +13627,12 @@ export type MangoV4 = {
       name: 'ForceWithdrawLog';
       fields: [
         {
-          name: 'mangoGroup';
+          name: 'fermiGroup';
           type: 'publicKey';
           index: false;
         },
         {
-          name: 'mangoAccount';
+          name: 'fermiAccount';
           type: 'publicKey';
           index: false;
         },
@@ -14281,7 +14281,7 @@ export const IDL: MangoV4 = {
           },
         },
         {
-          name: 'buybackFeesSwapMangoAccountOpt',
+          name: 'buybackFeesSwapFermiAccountOpt',
           type: {
             option: 'publicKey',
           },
@@ -15399,7 +15399,7 @@ export const IDL: MangoV4 = {
               {
                 kind: 'const',
                 type: 'string',
-                value: 'MangoAccount',
+                value: 'FermiAccount',
               },
               {
                 kind: 'account',
@@ -15479,7 +15479,7 @@ export const IDL: MangoV4 = {
               {
                 kind: 'const',
                 type: 'string',
-                value: 'MangoAccount',
+                value: 'FermiAccount',
               },
               {
                 kind: 'account',
@@ -15563,7 +15563,7 @@ export const IDL: MangoV4 = {
               {
                 kind: 'const',
                 type: 'string',
-                value: 'MangoAccount',
+                value: 'FermiAccount',
               },
               {
                 kind: 'account',
@@ -17352,9 +17352,9 @@ export const IDL: MangoV4 = {
       name: 'serum3SettleFunds',
       docs: [
         'Deprecated instruction that used to settles all free funds from the OpenOrders account',
-        'into the MangoAccount.',
+        'into the FermiAccount.',
         '',
-        'Any serum "referrer rebates" (ui fees) are considered Mango fees.',
+        'Any serum "referrer rebates" (ui fees) are considered Fermi fees.',
       ],
       accounts: [
         {
@@ -17444,7 +17444,7 @@ export const IDL: MangoV4 = {
       name: 'serum3SettleFundsV2',
       docs: [
         'Like Serum3SettleFunds, but `fees_to_dao` determines if referrer rebates are considered fees',
-        'or are credited to the MangoAccount.',
+        'or are credited to the FermiAccount.',
       ],
       accounts: [
         {
@@ -21450,7 +21450,7 @@ export const IDL: MangoV4 = {
             type: 'u128',
           },
           {
-            name: 'buybackFeesSwapMangoAccount',
+            name: 'buybackFeesSwapFermiAccount',
             type: 'publicKey',
           },
           {
@@ -21504,7 +21504,7 @@ export const IDL: MangoV4 = {
       },
     },
     {
-      name: 'mangoAccount',
+      name: 'fermiAccount',
       type: {
         kind: 'struct',
         fields: [
@@ -22001,7 +22001,7 @@ export const IDL: MangoV4 = {
           {
             name: 'perpMarketIndex',
             docs: [
-              "Index of this perp market. Other data, like the MangoAccount's PerpPosition",
+              "Index of this perp market. Other data, like the FermiAccount's PerpPosition",
               "reference this market via this index. Unique for this group's perp markets.",
             ],
             type: 'u16',
@@ -23230,7 +23230,7 @@ export const IDL: MangoV4 = {
       },
     },
     {
-      name: 'MangoAccountFixed',
+      name: 'FermiAccountFixed',
       type: {
         kind: 'struct',
         fields: [
@@ -23443,7 +23443,7 @@ export const IDL: MangoV4 = {
           },
           {
             name: 'ownerSlot',
-            docs: ["Index into the owning MangoAccount's PerpOpenOrders"],
+            docs: ["Index into the owning FermiAccount's PerpOpenOrders"],
             type: 'u8',
           },
           {
@@ -23478,7 +23478,7 @@ export const IDL: MangoV4 = {
           },
           {
             name: 'owner',
-            docs: ['Address of the owning MangoAccount'],
+            docs: ['Address of the owning FermiAccount'],
             type: 'publicKey',
           },
           {
@@ -24952,7 +24952,7 @@ export const IDL: MangoV4 = {
   ],
   events: [
     {
-      name: 'MangoAccountData',
+      name: 'FermiAccountData',
       fields: [
         {
           name: 'initHealth',
@@ -24981,12 +24981,12 @@ export const IDL: MangoV4 = {
       name: 'PerpBalanceLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -25031,12 +25031,12 @@ export const IDL: MangoV4 = {
       name: 'TokenBalanceLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -25066,12 +25066,12 @@ export const IDL: MangoV4 = {
       name: 'FlashLoanLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -25097,12 +25097,12 @@ export const IDL: MangoV4 = {
       name: 'FlashLoanLogV2',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -25128,12 +25128,12 @@ export const IDL: MangoV4 = {
       name: 'FlashLoanLogV3',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -25159,12 +25159,12 @@ export const IDL: MangoV4 = {
       name: 'WithdrawLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -25194,12 +25194,12 @@ export const IDL: MangoV4 = {
       name: 'DepositLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -25229,7 +25229,7 @@ export const IDL: MangoV4 = {
       name: 'FillLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -25319,7 +25319,7 @@ export const IDL: MangoV4 = {
       name: 'FillLogV2',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -25404,7 +25404,7 @@ export const IDL: MangoV4 = {
       name: 'FillLogV3',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -25499,7 +25499,7 @@ export const IDL: MangoV4 = {
       name: 'PerpUpdateFundingLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -25559,7 +25559,7 @@ export const IDL: MangoV4 = {
       name: 'PerpUpdateFundingLogV2',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -25631,7 +25631,7 @@ export const IDL: MangoV4 = {
       name: 'UpdateIndexLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -25701,7 +25701,7 @@ export const IDL: MangoV4 = {
       name: 'UpdateRateLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -25731,7 +25731,7 @@ export const IDL: MangoV4 = {
       name: 'UpdateRateLogV2',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -25781,7 +25781,7 @@ export const IDL: MangoV4 = {
       name: 'TokenLiqWithTokenLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -25836,7 +25836,7 @@ export const IDL: MangoV4 = {
       name: 'TokenLiqWithTokenLogV2',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -25901,12 +25901,12 @@ export const IDL: MangoV4 = {
       name: 'Serum3OpenOrdersBalanceLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -25951,12 +25951,12 @@ export const IDL: MangoV4 = {
       name: 'Serum3OpenOrdersBalanceLogV2',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -26006,12 +26006,12 @@ export const IDL: MangoV4 = {
       name: 'OpenbookV2OpenOrdersBalanceLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -26061,12 +26061,12 @@ export const IDL: MangoV4 = {
       name: 'WithdrawLoanOriginationFeeLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -26093,12 +26093,12 @@ export const IDL: MangoV4 = {
       name: 'WithdrawLoanLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -26137,7 +26137,7 @@ export const IDL: MangoV4 = {
       name: 'TokenLiqBankruptcyLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26197,12 +26197,12 @@ export const IDL: MangoV4 = {
       name: 'DeactivateTokenPositionLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -26227,12 +26227,12 @@ export const IDL: MangoV4 = {
       name: 'DeactivatePerpPositionLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -26272,7 +26272,7 @@ export const IDL: MangoV4 = {
       name: 'TokenMetaDataLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26307,7 +26307,7 @@ export const IDL: MangoV4 = {
       name: 'TokenMetaDataLogV2',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26347,7 +26347,7 @@ export const IDL: MangoV4 = {
       name: 'PerpMarketMetaDataLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26387,7 +26387,7 @@ export const IDL: MangoV4 = {
       name: 'Serum3RegisterMarketLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26427,7 +26427,7 @@ export const IDL: MangoV4 = {
       name: 'OpenbookV2RegisterMarketLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26467,7 +26467,7 @@ export const IDL: MangoV4 = {
       name: 'PerpLiqBaseOrPositivePnlLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26517,7 +26517,7 @@ export const IDL: MangoV4 = {
       name: 'PerpLiqBaseOrPositivePnlLogV2',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26577,7 +26577,7 @@ export const IDL: MangoV4 = {
       name: 'PerpLiqBaseOrPositivePnlLogV3',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26642,7 +26642,7 @@ export const IDL: MangoV4 = {
       name: 'PerpLiqBankruptcyLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26697,7 +26697,7 @@ export const IDL: MangoV4 = {
       name: 'PerpLiqNegativePnlOrBankruptcyLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26727,17 +26727,17 @@ export const IDL: MangoV4 = {
       name: 'PerpSettlePnlLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccountA',
+          name: 'fermiAccountA',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccountB',
+          name: 'fermiAccountB',
           type: 'publicKey',
           index: false,
         },
@@ -26767,12 +26767,12 @@ export const IDL: MangoV4 = {
       name: 'PerpSettleFeesLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -26792,12 +26792,12 @@ export const IDL: MangoV4 = {
       name: 'AccountBuybackFeesWithMngoLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -26827,7 +26827,7 @@ export const IDL: MangoV4 = {
       name: 'FilledPerpOrderLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26847,12 +26847,12 @@ export const IDL: MangoV4 = {
       name: 'PerpTakerTradeLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -26902,7 +26902,7 @@ export const IDL: MangoV4 = {
       name: 'PerpForceClosePositionLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26942,7 +26942,7 @@ export const IDL: MangoV4 = {
       name: 'TokenForceCloseBorrowsWithTokenLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -26997,7 +26997,7 @@ export const IDL: MangoV4 = {
       name: 'TokenForceCloseBorrowsWithTokenLogV2',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -27062,12 +27062,12 @@ export const IDL: MangoV4 = {
       name: 'TokenConditionalSwapCreateLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -27142,12 +27142,12 @@ export const IDL: MangoV4 = {
       name: 'TokenConditionalSwapCreateLogV2',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -27232,12 +27232,12 @@ export const IDL: MangoV4 = {
       name: 'TokenConditionalSwapCreateLogV3',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -27337,7 +27337,7 @@ export const IDL: MangoV4 = {
       name: 'TokenConditionalSwapTriggerLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -27407,7 +27407,7 @@ export const IDL: MangoV4 = {
       name: 'TokenConditionalSwapTriggerLogV2',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -27487,7 +27487,7 @@ export const IDL: MangoV4 = {
       name: 'TokenConditionalSwapTriggerLogV3',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
@@ -27577,12 +27577,12 @@ export const IDL: MangoV4 = {
       name: 'TokenConditionalSwapCancelLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -27597,12 +27597,12 @@ export const IDL: MangoV4 = {
       name: 'TokenConditionalSwapStartLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -27632,12 +27632,12 @@ export const IDL: MangoV4 = {
       name: 'TokenCollateralFeeLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
@@ -27667,12 +27667,12 @@ export const IDL: MangoV4 = {
       name: 'ForceWithdrawLog',
       fields: [
         {
-          name: 'mangoGroup',
+          name: 'fermiGroup',
           type: 'publicKey',
           index: false,
         },
         {
-          name: 'mangoAccount',
+          name: 'fermiAccount',
           type: 'publicKey',
           index: false,
         },
