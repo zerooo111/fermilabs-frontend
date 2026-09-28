@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { useSelectedMarket } from '@/entities/market';
 import { useMangoMarginDeposit } from '@/shared/hooks/useMangoMarginDeposit';
+import { useAccessOwner } from '@/features/access-gate';
 
 interface TokenBalance {
   available: string;
@@ -26,17 +27,18 @@ type BalanceData = Record<string, TokenBalance>;
 
 export function MyAssets() {
   const { publicKey } = useWallet();
+  const accessOwner = useAccessOwner();
   const { selectedMarket } = useSelectedMarket();
   const { fetchUserBalances, requestAirdrop } = useSequencerApi();
   const { depositMargin } = useMangoMarginDeposit();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['userBalances', publicKey?.toBase58()],
+    queryKey: ['userBalances', accessOwner],
     queryFn: async () => {
-      if (!publicKey) return null;
-      return (await fetchUserBalances(publicKey.toBase58())) as BalanceData;
+      if (!accessOwner) return null;
+      return (await fetchUserBalances(accessOwner)) as BalanceData;
     },
-    enabled: !!publicKey,
+    enabled: !!accessOwner,
     refetchInterval: 1000, // Refetch every 1 second
     staleTime: 1000, // Keep cache fresh when switching tabs
   });

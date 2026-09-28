@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import type { WalletName } from '@solana/wallet-adapter-base';
+import { WalletError, type WalletName } from '@solana/wallet-adapter-base';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { Loader2, Wallet } from 'lucide-react';
 import { Atom, Key, ArrowRight } from '@phosphor-icons/react';
@@ -239,6 +239,15 @@ export function InviteCodeModal() {
       if (e instanceof AccessGateError) {
         toast.error(ERROR_COPY[e.code] ?? `Could not redeem (${e.code}).`);
         posthog.capture('invite_redeem_failed', { wallet_address: wallet, error_code: e.code });
+      } else if (e instanceof WalletError) {
+        // Wallet refused or couldn't show the signature request — not a network issue.
+        toast.error('Your wallet did not sign the request. Please try again.');
+        posthog.capture('invite_redeem_failed', {
+          wallet_address: wallet,
+          error_code: 'wallet_error',
+          error_name: e.name,
+          error_message: e.message,
+        });
       } else {
         toast.error('Network error. Please retry.');
         posthog.capture('invite_redeem_failed', {

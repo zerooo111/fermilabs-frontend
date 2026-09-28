@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { accountMetricsAtom } from '@/shared/api/sse-atoms';
+import { useAccessOwner } from '@/features/access-gate';
 
 type FeeBannerTone = 'ok' | 'warn' | 'danger';
 
@@ -150,6 +151,7 @@ export function PerpsTradePanel() {
   });
 
   const { publicKey } = useWallet();
+  const accessOwner = useAccessOwner();
   const { setVisible } = useWalletModal();
   const { selectedMarket } = useSelectedMarket();
   const { openPosition, openMarketPosition } = usePerps();
@@ -163,9 +165,9 @@ export function PerpsTradePanel() {
 
   // Warm the simulation cache as soon as the wallet connects, before the user fills the form
   useEffect(() => {
-    if (!publicKey) return;
-    warmSimulate(publicKey.toBase58()).catch(() => {});
-  }, [publicKey]);
+    if (!accessOwner) return;
+    warmSimulate(accessOwner).catch(() => {});
+  }, [accessOwner]);
 
   // Fetch market stats to get mark price
   const { data: marketsData } = useMarketStats({
@@ -199,10 +201,10 @@ export function PerpsTradePanel() {
   const isMarketOrder = formState.orderType === 'market';
 
   const marketIndex = selectedMarket ? parseInt(selectedMarket.uuid, 10) : null;
-  const simulateEnabled = !!publicKey && !!selectedMarket && sizeValue > 0;
+  const simulateEnabled = !!accessOwner && !!selectedMarket && sizeValue > 0;
 
   const buySimulate = useSimulate({
-    owner: publicKey?.toBase58() ?? null,
+    owner: accessOwner,
     marketIndex,
     side: 'buy',
     quantity: sizeValue,
@@ -212,7 +214,7 @@ export function PerpsTradePanel() {
   });
 
   const sellSimulate = useSimulate({
-    owner: publicKey?.toBase58() ?? null,
+    owner: accessOwner,
     marketIndex,
     side: 'sell',
     quantity: sizeValue,

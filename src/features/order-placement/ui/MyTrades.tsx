@@ -22,6 +22,7 @@ import { mapWalletTradesForMarket } from '@/shared/api/sse-atom-bridge';
 import { shortenAddress } from '@/shared/lib/solana/helpers';
 import type { SSETrade } from '@/shared/api/sse-types';
 import type { Trade } from '@/shared/api/useSequencerApi';
+import { useAccessOwner } from '@/features/access-gate';
 
 const PAGE_SIZE = 50;
 
@@ -49,7 +50,7 @@ export function MyTrades() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const pubkeyStr = publicKey?.toBase58() ?? null;
+  const pubkeyStr = useAccessOwner();
   const marketId = selectedMarket?.uuid ?? null;
 
   useEffect(() => {

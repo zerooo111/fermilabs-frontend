@@ -8,7 +8,6 @@
  */
 import { useEffect, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { useWallet } from '@solana/wallet-adapter-react';
 import { selectedMarketIdAtom, marketsAtom } from '@/entities/market';
 import { orderbookAtom } from '@/entities/orderbook/model';
 import {
@@ -59,6 +58,7 @@ import type {
   SSETradesStreamSnapshot,
 } from '@/shared/api/sse-types';
 import { config } from '@/shared/config/constants';
+import { useAccessOwner } from '@/features/access-gate/model/useAccessOwner';
 
 const RECENT_TRADES_PREFETCH_LIMIT = 50;
 const RECENT_TRADES_MAX = 50;
@@ -95,7 +95,8 @@ function mergeRecentTrades(
 }
 
 export function useSSEStream() {
-  const { publicKey } = useWallet();
+  // Only wallets with an access session subscribe to account-scoped events.
+  const accessOwner = useAccessOwner();
   const marketId = useAtomValue(selectedMarketIdAtom);
   const markets = useAtomValue(marketsAtom);
 
@@ -404,7 +405,7 @@ export function useSSEStream() {
     burstCompleteRef.current = false;
     const mid = currentMarketRef.current;
     if (mid) void coldLoadV2(mid);
-    const owner = publicKey?.toBase58();
+    const owner = accessOwner;
     if (owner) void coldLoadV2Account(owner);
   };
   v2Composite.callbacks.onReady = () => {
@@ -419,7 +420,7 @@ export function useSSEStream() {
     // Subsequent updates come from streaming onAccount events.
     if (!initialAccountLoadedRef.current) {
       initialAccountLoadedRef.current = true;
-      const owner = publicKey?.toBase58();
+      const owner = accessOwner;
       if (owner) void coldLoadV2Account(owner);
     }
   };
@@ -500,13 +501,13 @@ export function useSSEStream() {
     if (marketId) {
       prefetchRecentTrades(marketId);
       if (v2Enabled) {
-        v2Composite.connect(marketId, publicKey?.toBase58() ?? null);
+        v2Composite.connect(marketId, accessOwner);
         // Seed orderbook immediately via REST so the UI renders before the
         // first composite event arrives (typically within one RTT but can
         // be slower on cold connect).
         void coldLoadV2(marketId);
       } else {
-        client.connect(marketId, publicKey?.toBase58() ?? null);
+        client.connect(marketId, accessOwner);
         tradesClient.connect(marketId);
       }
     }
@@ -532,14 +533,14 @@ export function useSSEStream() {
       // overwrite existing positions with an empty array.
       burstCompleteRef.current = false;
       if (v2Composite.getState() === 'disconnected') {
-        v2Composite.connect(marketId, publicKey?.toBase58() ?? null);
+        v2Composite.connect(marketId, accessOwner);
       } else {
         v2Composite.switchMarket(marketId);
       }
       void coldLoadV2(marketId);
     } else {
       if (client.getState() === 'disconnected') {
-        client.connect(marketId, publicKey?.toBase58() ?? null);
+        client.connect(marketId, accessOwner);
       } else {
         client.switchMarket(marketId);
       }
@@ -557,9 +558,9 @@ export function useSSEStream() {
   }, [marketId]);
 
   // --- Wallet connect/disconnect ---
-  const prevOwnerRef = useRef(publicKey?.toBase58() ?? null);
+  const prevOwnerRef = useRef(accessOwner);
   useEffect(() => {
-    const ownerStr = publicKey?.toBase58() ?? null;
+    const ownerStr = accessOwner;
     if (prevOwnerRef.current === ownerStr) return;
     prevOwnerRef.current = ownerStr;
 
@@ -582,5 +583,5 @@ export function useSSEStream() {
       client.switchOwner(ownerStr);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publicKey]);
+  }, [accessOwner]);
 }

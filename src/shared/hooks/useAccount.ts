@@ -4,6 +4,7 @@ import axios from 'axios';
 import { accountMetricsAtom } from '@/shared/api/sse-atoms';
 import { config, API_ROUTES, API_ROUTES_V2 } from '@/shared/config/constants';
 import { Position } from './usePositions';
+import { useAccessOwner } from '@/features/access-gate/model/useAccessOwner';
 
 export interface MarginReservation {
   order_id: number;
@@ -114,10 +115,13 @@ async function fetchV2AccountSnapshot(owner: string): Promise<V2AccountSnapshot>
  * interval.
  */
 export function useV2Account(owner: string | null | undefined) {
+  // Skip account reads until the wallet has passed the access gate.
+  const accessOwner = useAccessOwner();
+  const hasAccess = !!owner && owner === accessOwner;
   return useQuery({
     queryKey: ['v2-account', owner],
     queryFn: () => fetchV2AccountSnapshot(owner!),
-    enabled: !!owner && config.devnet.useV2ReadLayer,
+    enabled: hasAccess && config.devnet.useV2ReadLayer,
     refetchInterval: 5_000,
     // Live updates arrive via the composite SSE stream — the query is just a
     // cold-load / refresh fallback for panels that aren't mounted inside a
@@ -134,6 +138,7 @@ export function useAccountMangoAccount(owner: string | null | undefined): {
   isLoading: boolean;
 } {
   const v2 = useV2Account(owner);
+  const accessOwner = useAccessOwner();
 
   // v1 fallback: deposit-context endpoint carries mango_account on every env.
   const v1 = useQuery({
@@ -144,7 +149,7 @@ export function useAccountMangoAccount(owner: string | null | undefined): {
       );
       return data.mango_account ?? null;
     },
-    enabled: !!owner && !config.devnet.useV2ReadLayer,
+    enabled: !!owner && owner === accessOwner && !config.devnet.useV2ReadLayer,
     staleTime: 30_000,
     refetchInterval: false,
   });
