@@ -92,6 +92,8 @@ interface PerpsChartComponentProps {
   isLoadingOlder?: boolean;
   reachedBeginningOfHistory?: boolean;
   error?: Error | null;
+  /** Shown when loading has finished but there are no candles to draw. */
+  emptyMessage?: string;
   selectedMarketName?: string;
   stopLoss?: number | null;
   takeProfit?: number | null;
@@ -198,6 +200,7 @@ function PerpsChartComponent({
   isLoadingOlder,
   reachedBeginningOfHistory,
   error,
+  emptyMessage = 'No data yet',
   selectedMarketName,
   stopLoss,
   takeProfit,
@@ -971,8 +974,9 @@ function PerpsChartComponent({
   }, [stopLoss, takeProfit, entryPrice, unrealizedPnl, data, chartColors]);
 
   const hasNoData = !data || data.length === 0;
-  const showLoading = (Boolean(isLoading) || hasNoData) && !error;
+  const showLoading = Boolean(isLoading) && !error;
   const showErrorOverlay = Boolean(error) && hasNoData;
+  const showEmptyOverlay = hasNoData && !showLoading && !showErrorOverlay;
 
   // The candle displayed in the OHLC legend: hovered candle, or the latest
   // when the crosshair is outside the chart.
@@ -1085,6 +1089,11 @@ function PerpsChartComponent({
               {error?.message || 'Failed to load chart'}
             </span>
           </div>
+        </div>
+      )}
+      {showEmptyOverlay && (
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <span className="text-sm text-muted-foreground">{emptyMessage}</span>
         </div>
       )}
       {showLoading && (

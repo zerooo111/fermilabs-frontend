@@ -544,6 +544,7 @@ function PerpsChartContainerComponent() {
             isLoadingOlder={isLoadingOlder}
             reachedBeginningOfHistory={reachedBeginningOfHistory}
             error={hasNoCandles ? (error as Error | null) : null}
+            emptyMessage={priceSource === 'mark' ? 'No price data yet' : 'No trades yet'}
             selectedMarketName={selectedMarket?.name}
             stopLoss={positionData.stopLoss}
             takeProfit={positionData.takeProfit}
