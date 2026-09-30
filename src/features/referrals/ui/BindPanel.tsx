@@ -73,27 +73,27 @@ export function BindPanel({
   // Already bound — show a compact confirmation, never the input.
   if (referredBy || bound) {
     return (
-      <Panel className="bg-card/20">
+      <Panel>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-          <span className="flex items-center gap-2 text-sm text-white/70">
-            <Check className="size-4 shrink-0 text-success" />
+          <span className="flex items-center gap-2 text-sm text-fg-secondary">
+            <Check className="size-4 shrink-0 text-positive-fg" />
             You were referred
           </span>
           {referredBy && (
             <>
               <span className="flex items-center gap-2 text-xs">
                 <Eyebrow>Code</Eyebrow>
-                <code className="font-mono text-rock">{referredBy.code.toUpperCase()}</code>
+                <code className="font-mono text-fg-primary">{referredBy.code.toUpperCase()}</code>
               </span>
               <span className="flex items-center gap-2 text-xs">
                 <Eyebrow>Referrer</Eyebrow>
-                <span className="font-mono text-white/70">
+                <span className="font-mono text-fg-primary">
                   {shortWallet(referredBy.referrer_wallet)}
                 </span>
               </span>
               <span className="flex items-center gap-2 text-xs">
                 <Eyebrow>Applied</Eyebrow>
-                <span className="font-mono text-white/70">{formatDate(referredBy.bound_at)}</span>
+                <span className="font-mono text-fg-primary">{formatDate(referredBy.bound_at)}</span>
               </span>
             </>
           )}
@@ -103,23 +103,23 @@ export function BindPanel({
   }
 
   return (
-    <Panel className="bg-card/20">
+    <Panel>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
         className={cn(
-          'flex items-center gap-2 px-4 py-3 text-left text-sm text-white/70 transition-colors hover:text-rock',
+          'flex items-center gap-2 px-4 py-3 text-left text-sm text-fg-secondary transition-colors hover:text-fg-primary',
           FOCUS_RING
         )}
       >
-        <Gift className="size-4 shrink-0 text-white/50" />
+        <Gift className="size-4 shrink-0 text-fg-tertiary" />
         Were you referred? Apply a friend&apos;s code
         <ChevronDown className={cn('ml-auto size-4 transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
-        <div className="flex flex-col gap-3 border-t border-outline px-4 py-3">
-          <p className="text-[11px] leading-relaxed text-white/55">
+        <div className="flex flex-col gap-3 border-t border-line-subtle px-4 py-3">
+          <p className="text-[11px] leading-relaxed text-fg-secondary">
             Applying a code permanently links your wallet to that referrer — you can only do this
             once.
           </p>
@@ -151,8 +151,8 @@ export function BindPanel({
             </Button>
           </div>
           {fromLink && (
-            <p className="flex items-start gap-2 text-[11px] leading-relaxed text-white/55">
-              <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
+            <p className="flex items-start gap-2 text-[11px] leading-relaxed text-fg-secondary">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning-fg" />
               You followed a referral link. Applying this code permanently links your wallet to this
               referrer.
             </p>

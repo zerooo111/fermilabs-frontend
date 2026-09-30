@@ -89,16 +89,16 @@ export function WaitlistDialog() {
           // ── Success state ──
           <>
             <div className="flex flex-col items-center gap-5 pt-4 pb-2 text-center">
-              <div className="flex size-20 items-center justify-center border border-success/30 bg-success/10">
-                <CheckCircle weight="duotone" className="size-12 text-success" />
+              <div className="flex size-20 items-center justify-center border border-positive-line bg-positive-muted">
+                <CheckCircle weight="duotone" className="size-12 text-positive-fg" />
               </div>
               <div className="flex flex-col gap-2">
                 <DialogTitle className="text-xl font-semibold tracking-tight">
                   You're on the list
                 </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                <DialogDescription className="text-sm text-fg-secondary leading-relaxed max-w-xs">
                   We'll email you when a spot opens. Watch for our note from{' '}
-                  <span className="font-mono text-foreground">fermi.trade</span>.
+                  <span className="font-mono text-fg-primary">fermi.trade</span>.
                 </DialogDescription>
               </div>
             </div>
@@ -119,14 +119,14 @@ export function WaitlistDialog() {
           // ── Form state ──
           <>
             <DialogHeader className="gap-4">
-              <div className="flex size-12 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
+              <div className="flex size-12 items-center justify-center border border-line bg-surface-raised text-fg-primary">
                 <EnvelopeSimple weight="duotone" className="size-7" />
               </div>
               <div className="flex flex-col gap-2">
                 <DialogTitle className="text-lg font-semibold tracking-tight">
                   Get early access
                 </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                <DialogDescription className="text-sm text-fg-secondary leading-relaxed">
                   We're onboarding traders in waves. Drop your email and we'll send an invite when a
                   spot opens.
                 </DialogDescription>
@@ -135,7 +135,7 @@ export function WaitlistDialog() {
 
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-fg-tertiary">
                   Email
                 </label>
                 <Input
@@ -157,9 +157,9 @@ export function WaitlistDialog() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-fg-tertiary">
                   Twitter / X{' '}
-                  <span className="normal-case tracking-normal opacity-60 font-sans">
+                  <span className="normal-case tracking-normal text-fg-tertiary font-sans">
                     (optional)
                   </span>
                 </label>
@@ -191,8 +191,8 @@ export function WaitlistDialog() {
               </Button>
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
-              <span className="text-sm text-muted-foreground">Already have an invite?</span>
+            <div className="flex items-center justify-between gap-3 border-t border-line-subtle pt-4">
+              <span className="text-sm text-fg-secondary">Already have an invite?</span>
               <Button
                 variant="outline"
                 size="sm"

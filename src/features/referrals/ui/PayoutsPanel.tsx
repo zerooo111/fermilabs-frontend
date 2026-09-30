@@ -22,10 +22,10 @@ const STATUS: Record<
   PayoutStatus,
   { dot: string; label: string; variant: React.ComponentProps<typeof Badge>['variant'] }
 > = {
-  requested: { dot: 'bg-white/50', label: 'Requested', variant: 'secondary' },
-  processing: { dot: 'bg-amber-400', label: 'Processing', variant: 'outline' },
-  completed: { dot: 'bg-success', label: 'Completed', variant: 'success' },
-  failed: { dot: 'bg-danger', label: 'Failed', variant: 'danger' },
+  requested: { dot: 'bg-fg-tertiary', label: 'Requested', variant: 'secondary' },
+  processing: { dot: 'bg-warning-solid', label: 'Processing', variant: 'warning' },
+  completed: { dot: 'bg-positive-solid', label: 'Completed', variant: 'positive' },
+  failed: { dot: 'bg-negative-solid', label: 'Failed', variant: 'negative' },
 };
 
 function StatusBadge({ status }: { status: PayoutStatus }) {
@@ -58,7 +58,7 @@ export function PayoutsPanel({ payouts, loading }: { payouts: Payout[]; loading:
       ) : (
         <div className="max-h-[360px] overflow-y-auto">
           <Table>
-            <TableHeader className="sticky top-0 z-10">
+            <TableHeader className="sticky top-0 z-10 bg-surface-raised">
               <TableRow className="hover:bg-transparent">
                 <TableHead className={TH}>
                   <Eyebrow>Amount</Eyebrow>
@@ -80,7 +80,7 @@ export function PayoutsPanel({ payouts, loading }: { payouts: Payout[]; loading:
                       <TableCell
                         className={cn(
                           TD,
-                          'font-mono text-xs tabular-nums text-rock',
+                          'font-mono text-xs tabular-nums text-fg-primary',
                           hasDetail && 'border-0 pb-1'
                         )}
                       >
@@ -89,7 +89,7 @@ export function PayoutsPanel({ payouts, loading }: { payouts: Payout[]; loading:
                       <TableCell
                         className={cn(
                           TD,
-                          'font-mono text-xs text-white/55',
+                          'font-mono text-xs text-fg-secondary',
                           hasDetail && 'border-0 pb-1'
                         )}
                       >
@@ -110,7 +110,7 @@ export function PayoutsPanel({ payouts, loading }: { payouts: Payout[]; loading:
                               target="_blank"
                               rel="noopener noreferrer"
                               className={cn(
-                                'truncate font-mono text-[11px] text-white/55 underline-offset-2 transition-colors hover:text-white/80 hover:underline',
+                                'truncate font-mono text-[11px] text-fg-secondary underline-offset-2 transition-colors hover:text-fg-primary hover:underline',
                                 FOCUS_RING
                               )}
                             >
@@ -118,7 +118,7 @@ export function PayoutsPanel({ payouts, loading }: { payouts: Payout[]; loading:
                             </a>
                           )}
                           {p.note && (
-                            <span className="block text-[11px] text-white/55">{p.note}</span>
+                            <span className="block text-[11px] text-fg-secondary">{p.note}</span>
                           )}
                         </TableCell>
                       </TableRow>

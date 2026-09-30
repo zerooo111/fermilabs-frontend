@@ -76,7 +76,7 @@ const BETA_ITEMS = [
 
 function HeaderIcon({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex size-12 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
+    <div className="flex size-12 items-center justify-center border border-line bg-surface-raised text-fg-primary">
       {children}
     </div>
   );
@@ -270,7 +270,7 @@ export function InviteCodeModal() {
                 <DialogTitle className="text-lg font-semibold tracking-tight">
                   Welcome to Fermilabs
                 </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                <DialogDescription className="text-sm text-fg-secondary leading-relaxed">
                   A few things to know before you start trading.
                 </DialogDescription>
               </div>
@@ -280,7 +280,7 @@ export function InviteCodeModal() {
               {BETA_ITEMS.map((item, i) => (
                 <li
                   key={i}
-                  className="text-sm text-muted-foreground border-l-2 border-accent/30 pl-3 py-1 leading-relaxed"
+                  className="text-sm text-fg-secondary border-l-2 border-line-strong pl-3 py-1 leading-relaxed"
                 >
                   {item}
                 </li>
@@ -302,7 +302,7 @@ export function InviteCodeModal() {
                 <DialogTitle className="text-lg font-semibold tracking-tight">
                   Connect your wallet
                 </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                <DialogDescription className="text-sm text-fg-secondary leading-relaxed">
                   Connect a Solana wallet first. We'll then ask you for your invite or referral
                   code.
                 </DialogDescription>
@@ -311,7 +311,7 @@ export function InviteCodeModal() {
 
             <div className="flex flex-col gap-1.5">
               {visibleWallets.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-3 text-center border border-outline">
+                <p className="text-sm text-fg-secondary py-3 text-center border border-line">
                   No Solana wallet detected. Install Phantom, Solflare, or Backpack.
                 </p>
               ) : (
@@ -325,14 +325,14 @@ export function InviteCodeModal() {
                       type="button"
                       disabled={busy}
                       onClick={() => handleSelectWallet(w.adapter.name)}
-                      className="flex items-center gap-3 px-3 py-2.5 border border-outline bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-left outline-none focus:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
+                      className="flex items-center gap-3 px-3 py-2.5 border border-line bg-surface-raised hover:border-line-strong hover:bg-state-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-left outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
                     >
                       <img src={w.adapter.icon} alt="" className="size-7 shrink-0" aria-hidden />
                       <span className="flex-1 text-sm font-medium">{w.adapter.name}</span>
                       {busy ? (
-                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                        <Loader2 className="size-4 animate-spin text-fg-tertiary" />
                       ) : (
-                        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-tertiary">
                           {w.readyState === 'Installed' ? 'Detected' : 'Install'}
                         </span>
                       )}
@@ -342,8 +342,8 @@ export function InviteCodeModal() {
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
-              <span className="text-sm text-muted-foreground">No invite code?</span>
+            <div className="flex items-center justify-between gap-3 border-t border-line-subtle pt-4">
+              <span className="text-sm text-fg-secondary">No invite code?</span>
               <Button variant="outline" size="sm" onClick={openWaitlist}>
                 Join the waitlist
                 <ArrowRight weight="bold" className="size-3.5" />
@@ -363,13 +363,13 @@ export function InviteCodeModal() {
                 <DialogTitle className="text-lg font-semibold tracking-tight">
                   Checking access…
                 </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                <DialogDescription className="text-sm text-fg-secondary leading-relaxed">
                   Approve the signature request in your wallet to continue.
                 </DialogDescription>
               </div>
             </DialogHeader>
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              <Loader2 className="size-6 animate-spin text-fg-tertiary" />
             </div>
           </>
         ) : (
@@ -383,7 +383,7 @@ export function InviteCodeModal() {
                 <DialogTitle className="text-lg font-semibold tracking-tight">
                   Enter your code
                 </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                <DialogDescription className="text-sm text-fg-secondary leading-relaxed">
                   Wallet connected. Paste an invite code or a referral code to unlock trading.
                 </DialogDescription>
               </div>
@@ -391,7 +391,7 @@ export function InviteCodeModal() {
 
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-fg-tertiary">
                   Invite or Referral Code
                 </label>
                 <Input
@@ -401,7 +401,7 @@ export function InviteCodeModal() {
                   disabled={submitting}
                   spellCheck={false}
                   autoComplete="off"
-                  className="h-11 font-mono text-sm tracking-widest placeholder:tracking-normal placeholder:font-sans placeholder:text-muted-foreground/40"
+                  className="h-11 font-mono text-sm tracking-widest placeholder:tracking-normal placeholder:font-sans placeholder:text-fg-tertiary"
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !submitting && code.trim()) {
                       e.preventDefault();
@@ -409,7 +409,7 @@ export function InviteCodeModal() {
                     }
                   }}
                 />
-                <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                <p className="text-xs text-fg-tertiary leading-relaxed">
                   Have a friend's referral code? It works here too — you'll get access and they'll
                   be credited. You'll sign a one-time message to prove wallet ownership. No
                   transaction or gas fee.
@@ -433,8 +433,8 @@ export function InviteCodeModal() {
               </Button>
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
-              <span className="text-sm text-muted-foreground">No invite code?</span>
+            <div className="flex items-center justify-between gap-3 border-t border-line-subtle pt-4">
+              <span className="text-sm text-fg-secondary">No invite code?</span>
               <Button variant="outline" size="sm" onClick={openWaitlist}>
                 Join the waitlist
                 <ArrowRight weight="bold" className="size-3.5" />

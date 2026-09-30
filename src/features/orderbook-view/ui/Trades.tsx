@@ -54,24 +54,24 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
             }`}
           >
             <div className="text-left">
-              <div className="h-3 w-16 bg-white/10 rounded animate-pulse" />
+              <div className="h-3 w-16 skeleton-bone" />
             </div>
             <div className="text-right">
-              <div className="h-3 w-12 bg-white/10 rounded animate-pulse ml-auto" />
+              <div className="h-3 w-12 skeleton-bone ml-auto" />
             </div>
             <div className="text-right">
-              <div className="h-3 w-14 bg-white/10 rounded animate-pulse ml-auto" />
+              <div className="h-3 w-14 skeleton-bone ml-auto" />
             </div>
             {fullView && (
               <>
                 <div className="text-left">
-                  <div className="h-3 w-20 bg-white/10 rounded animate-pulse" />
+                  <div className="h-3 w-20 skeleton-bone" />
                 </div>
                 <div className="text-left">
-                  <div className="h-3 w-20 bg-white/10 rounded animate-pulse" />
+                  <div className="h-3 w-20 skeleton-bone" />
                 </div>
                 <div className="text-right">
-                  <div className="h-3 w-16 bg-white/10 rounded animate-pulse ml-auto" />
+                  <div className="h-3 w-16 skeleton-bone ml-auto" />
                 </div>
               </>
             )}
@@ -99,7 +99,7 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
 
     return (
       <div
-        className={`relative font-medium w-full select-none hover:bg-white/3 ${ROW_HEIGHT_CLASS}`}
+        className={`relative font-medium w-full select-none hover:bg-state-hover ${ROW_HEIGHT_CLASS}`}
       >
         <div className="relative z-10 px-4 h-full flex items-center">
           <div
@@ -107,8 +107,9 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
               `grid gap-4 items-center font-mono text-xs leading-none tracking-tight w-full ${
                 fullView ? 'grid-cols-6' : 'grid-cols-3'
               }`,
-              direction === 'up' && 'text-success',
-              direction === 'down' && 'text-danger'
+              direction === 'up' && 'text-positive-fg',
+              direction === 'down' && 'text-negative-fg',
+              direction === 'flat' && 'text-fg-secondary'
             )}
           >
             <div className="text-left">
@@ -123,17 +124,17 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
             {fullView && (
               <>
                 <div className="text-center">
-                  <span className="tabular-nums text-white/60">
+                  <span className="tabular-nums text-fg-secondary">
                     {buyer_owner ? formatAddress(buyer_owner) : '-'}
                   </span>
                 </div>
                 <div className="text-center">
-                  <span className="tabular-nums text-white/60">
+                  <span className="tabular-nums text-fg-secondary">
                     {seller_owner ? formatAddress(seller_owner) : '-'}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="tabular-nums text-white/60">
+                  <span className="tabular-nums text-fg-secondary">
                     {timestamp ? formatTimestamp(timestamp) : '-'}
                   </span>
                 </div>
@@ -149,7 +150,7 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
     <div
       className={`flex flex-col flex-1 min-h-0 overflow-hidden ${fullView ? 'h-[500px] py-2' : ''}`}
     >
-      <div className="flex-1 flex flex-col overflow-y-auto divide-y divide-white/5 border-none">
+      <div className="flex-1 flex flex-col overflow-y-auto divide-y divide-line-faint border-none">
         {isLoading ? (
           Array.from({ length: rows }).map((_, i) => <SkeletonRow key={`skeleton-trade-${i}`} />)
         ) : (

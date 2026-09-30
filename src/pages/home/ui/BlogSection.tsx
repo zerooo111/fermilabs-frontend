@@ -20,11 +20,11 @@ const BLOG_POSTS = [
 
 export default function BlogSection() {
   return (
-    <section className="flex flex-col py-12 md:py-20 px-4 md:px-8 border-t border-rock/20">
-      <h2 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-7xl mb-4 md:mb-6 leading-tight text-rock">
+    <section className="flex flex-col py-12 md:py-20 px-4 md:px-8 border-t border-line-on-brand">
+      <h2 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-7xl mb-4 md:mb-6 leading-tight text-fg-primary">
         From the blog
       </h2>
-      <p className="text-lg sm:text-xl md:text-2xl text-rock/80 max-w-2xl mb-10 md:mb-16">
+      <p className="text-lg sm:text-xl md:text-2xl text-fg-secondary max-w-2xl mb-10 md:mb-16">
         Deep dives into market structure, protocol design, and the future of onchain trading.
       </p>
 
@@ -35,7 +35,7 @@ export default function BlogSection() {
             href={post.url}
             target="_blank"
             rel="noreferrer"
-            className="group border border-rock/20 bg-dark-forest/50 hover:border-rock/40 transition-all duration-200 flex flex-col overflow-hidden"
+            className="group border border-line-on-brand bg-surface-brand/50 hover:border-line-on-brand-strong transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-line-focus flex flex-col overflow-hidden"
           >
             <div className="aspect-[2/1] overflow-hidden">
               <img
@@ -45,11 +45,11 @@ export default function BlogSection() {
               />
             </div>
             <div className="p-5 md:p-6 flex flex-col flex-1">
-              <h3 className="font-display text-xl sm:text-2xl md:text-3xl text-rock mb-2 md:mb-3 leading-tight">
+              <h3 className="font-display text-xl sm:text-2xl md:text-3xl text-fg-primary mb-2 md:mb-3 leading-tight">
                 {post.title}
               </h3>
-              <p className="text-rock/70 text-base sm:text-lg flex-1">{post.description}</p>
-              <div className="mt-4 flex items-center gap-2 text-rock/60 group-hover:text-rock transition-colors duration-200 text-sm sm:text-base font-medium">
+              <p className="text-fg-secondary text-base sm:text-lg flex-1">{post.description}</p>
+              <div className="mt-4 flex items-center gap-2 text-fg-secondary group-hover:text-fg-primary transition-colors duration-200 text-sm sm:text-base font-medium">
                 Read more
                 <ArrowRight
                   weight="bold"

@@ -95,26 +95,26 @@ export function MintTokens() {
   };
 
   return (
-    <div className="border border-zinc-300 bg-white p-6 flex flex-col gap-3">
+    <div className="border border-line bg-surface-base text-fg-primary p-6 flex flex-col gap-3">
       <h1>Airdrop tokens </h1>
       <div className="flex flex-col gap-3 flex-wrap">
         <div className="gap-3 flex flex-wrap">
           <Input
-            className="flex-1 bg-zinc-100"
+            className="flex-1 bg-surface-sunken"
             name="tokenMintAddress"
             value={tokenAddress}
             onChange={e => setTokenAddress(e.target.value)}
             placeholder="Enter token mint address"
           />
           <Input
-            className="flex-1 bg-zinc-100"
+            className="flex-1 bg-surface-sunken"
             name="recipientAddress"
             value={recipientAddress}
             onChange={e => setRecipientAddress(e.target.value)}
             placeholder="Enter recipient address"
           />
           <Input
-            className="flex-1 bg-zinc-100"
+            className="flex-1 bg-surface-sunken"
             name="tokenAmount"
             value={tokenAmount}
             onChange={e => setTokenAmount(Number(e.target.value))}

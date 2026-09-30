@@ -166,8 +166,8 @@ export function DepositModal({ open, onClose }: Props) {
         {/* ── Loading ── */}
         {step === 'loading' && (
           <div className="flex flex-col items-center gap-3 py-12 px-6">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+            <Loader2 className="size-5 animate-spin text-fg-tertiary" />
+            <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-fg-tertiary">
               Loading balance…
             </p>
           </div>
@@ -176,8 +176,8 @@ export function DepositModal({ open, onClose }: Props) {
         {/* ── Input ── */}
         {step === 'input' && (
           <>
-            <div className="flex items-start gap-4 border-b border-outline p-5">
-              <div className="flex size-10 shrink-0 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
+            <div className="flex items-start gap-4 border-b border-line-subtle p-5">
+              <div className="flex size-10 shrink-0 items-center justify-center border border-line bg-surface-raised text-fg-primary">
                 <ArrowCircleDown weight="duotone" className="size-5" />
               </div>
               <DialogHeader className="gap-1 pt-0.5">
@@ -191,7 +191,7 @@ export function DepositModal({ open, onClose }: Props) {
             <div className="flex flex-col gap-4 p-5">
               {/* Balance row */}
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-fg-tertiary">
                   Amount
                 </span>
                 <button
@@ -200,7 +200,7 @@ export function DepositModal({ open, onClose }: Props) {
                     walletBalance !== null &&
                     setAmount(Math.min(walletBalance, MAX_DEPOSIT_UI).toFixed(2))
                   }
-                  className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground hover:text-accent transition-colors"
+                  className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-tertiary hover:text-fg-primary transition-colors outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
                 >
                   Wallet:{' '}
                   <span className="tabular-nums">
@@ -231,30 +231,27 @@ export function DepositModal({ open, onClose }: Props) {
                     walletBalance !== null &&
                     setAmount(Math.min(walletBalance, MAX_DEPOSIT_UI).toFixed(2))
                   }
-                  className="absolute right-2 top-1/2 -translate-y-1/2 border border-accent/30 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent hover:bg-accent/10 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 border border-line px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-fg-secondary hover:bg-state-hover hover:text-fg-primary transition-colors outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
                 >
                   Max
                 </button>
               </div>
 
               {exceedsBalance && (
-                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-destructive">
+                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-negative-fg">
                   Exceeds wallet balance
                 </p>
               )}
               {exceedsMax && !exceedsBalance && (
-                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-destructive">
+                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-negative-fg">
                   Max {MAX_DEPOSIT_UI.toLocaleString()} {quoteToken} per deposit during beta
                 </p>
               )}
 
               {!mangoAccountExists && (
-                <div className="flex gap-2.5 border border-outline bg-card px-3 py-2.5">
-                  <Info
-                    weight="duotone"
-                    className="size-3.5 shrink-0 mt-0.5 text-muted-foreground"
-                  />
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                <div className="flex gap-2.5 border border-line-subtle bg-surface-sunken px-3 py-2.5">
+                  <Info weight="duotone" className="size-3.5 shrink-0 mt-0.5 text-fg-tertiary" />
+                  <p className="text-xs text-fg-secondary leading-relaxed">
                     A margin account will be created and funded in a single transaction.
                   </p>
                 </div>
@@ -278,12 +275,12 @@ export function DepositModal({ open, onClose }: Props) {
         {step === 'depositing' && (
           <div className="flex flex-col gap-5 px-6 py-8">
             <div className="flex flex-col items-center gap-3">
-              <div className="flex size-12 items-center justify-center border border-accent/30 bg-accent/10">
-                <Loader2 className="size-6 animate-spin text-accent" />
+              <div className="flex size-12 items-center justify-center border border-line bg-surface-raised">
+                <Loader2 className="size-6 animate-spin text-fg-secondary" />
               </div>
               <div className="flex flex-col items-center gap-1 text-center">
                 <p className="text-sm font-medium">{phaseHeadline(phase)}</p>
-                <p className="text-xs text-muted-foreground">{phaseSubline(phase, quoteToken)}</p>
+                <p className="text-xs text-fg-secondary">{phaseSubline(phase, quoteToken)}</p>
               </div>
             </div>
             <div className="flex flex-col gap-1 w-full">
@@ -292,7 +289,7 @@ export function DepositModal({ open, onClose }: Props) {
               <PhaseRow label="Submit to Solana" state={rowState(phase, 'sending')} />
               <PhaseRow label="Confirm on-chain" state={rowState(phase, 'confirming')} />
               {!mangoAccountExists && (
-                <p className="mt-1 px-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/70">
+                <p className="mt-1 px-1 font-mono text-[9px] uppercase tracking-[0.12em] text-fg-tertiary">
                   This transaction creates your margin account and deposits {quoteToken} together.
                 </p>
               )}
@@ -305,11 +302,11 @@ export function DepositModal({ open, onClose }: Props) {
         {step === 'success' && (
           <div className="flex flex-col gap-0">
             <div className="flex flex-col items-center gap-4 px-6 py-10">
-              <div className="flex size-12 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
+              <div className="flex size-12 items-center justify-center border border-positive-line bg-positive-muted text-positive-fg">
                 <CheckCircle weight="duotone" className="size-6" />
               </div>
               <div className="flex flex-col items-center gap-1 text-center">
-                <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-fg-tertiary">
                   Deposit complete
                 </p>
                 <p className="font-mono text-3xl tabular-nums">
@@ -318,11 +315,11 @@ export function DepositModal({ open, onClose }: Props) {
                     maximumFractionDigits: quoteDecimals,
                   })}
                 </p>
-                <p className="font-mono text-xs text-muted-foreground uppercase tracking-widest">
+                <p className="font-mono text-xs text-fg-tertiary uppercase tracking-widest">
                   {quoteToken} deposited
                 </p>
                 {autoCreated && (
-                  <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-accent/70">
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-positive-fg">
                     Margin account created
                   </p>
                 )}
@@ -333,7 +330,7 @@ export function DepositModal({ open, onClose }: Props) {
                 </div>
               )}
             </div>
-            <div className="border-t border-outline p-4">
+            <div className="border-t border-line-subtle p-4">
               <Button onClick={onClose} size="lg" className="w-full font-mono tracking-wide">
                 Done
               </Button>
@@ -345,12 +342,12 @@ export function DepositModal({ open, onClose }: Props) {
         {step === 'pending' && (
           <div className="flex flex-col gap-0">
             <div className="flex flex-col items-center gap-4 px-6 py-10">
-              <div className="flex size-12 items-center justify-center border border-amber-400/30 bg-amber-400/10 text-amber-300">
+              <div className="flex size-12 items-center justify-center border border-warning-line bg-warning-muted text-warning-fg">
                 <Clock weight="duotone" className="size-6" />
               </div>
               <div className="flex flex-col items-center gap-1.5 text-center">
                 <p className="text-sm font-medium">Still confirming</p>
-                <p className="text-xs text-muted-foreground leading-relaxed max-w-[260px]">
+                <p className="text-xs text-fg-secondary leading-relaxed max-w-[260px]">
                   Your transaction is on Solana but hasn't been confirmed yet. It usually finalizes
                   within a few seconds — check the explorer for live status. Your balance will
                   update automatically once it lands.
@@ -362,7 +359,7 @@ export function DepositModal({ open, onClose }: Props) {
                 </div>
               )}
             </div>
-            <div className="flex gap-2 border-t border-outline p-4">
+            <div className="flex gap-2 border-t border-line-subtle p-4">
               <Button variant="outline" onClick={onClose} className="flex-1 font-mono text-xs">
                 Close
               </Button>
@@ -378,13 +375,13 @@ export function DepositModal({ open, onClose }: Props) {
           <div className="flex flex-col gap-0">
             <div className="flex flex-col gap-3 p-5">
               <div className="flex items-center gap-2">
-                <X className="size-4 text-destructive" />
+                <X className="size-4 text-negative-fg" />
                 <p className="text-sm font-medium">Deposit failed</p>
               </div>
-              <p className="text-xs text-muted-foreground break-words leading-relaxed">{error}</p>
+              <p className="text-xs text-fg-secondary break-words leading-relaxed">{error}</p>
               {txSignature && (
                 <>
-                  <p className="text-[10px] text-muted-foreground/80 leading-relaxed">
+                  <p className="text-[10px] text-fg-tertiary leading-relaxed">
                     A signed transaction was submitted before the failure. If it eventually
                     confirms, your deposit will go through — verify on the explorer:
                   </p>
@@ -392,7 +389,7 @@ export function DepositModal({ open, onClose }: Props) {
                 </>
               )}
             </div>
-            <div className="flex gap-2 border-t border-outline p-4">
+            <div className="flex gap-2 border-t border-line-subtle p-4">
               <Button variant="outline" onClick={handleClose} className="flex-1 font-mono text-xs">
                 Cancel
               </Button>
@@ -470,10 +467,10 @@ function ExplorerLink({
       href={getTxExplorerUrl(signature)}
       target="_blank"
       rel="noopener noreferrer"
-      className={`flex items-center justify-between gap-2 border px-3 py-2 transition-colors ${
+      className={`flex items-center justify-between gap-2 border px-3 py-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-line-focus ${
         prominent
-          ? 'border-amber-400/40 bg-amber-400/5 text-amber-200 hover:bg-amber-400/10'
-          : 'border-outline text-muted-foreground hover:bg-card hover:text-foreground'
+          ? 'border-warning-line bg-warning-muted text-warning-fg hover:bg-state-hover'
+          : 'border-line text-fg-secondary hover:bg-state-hover hover:text-fg-primary'
       }`}
     >
       <span className="font-mono text-[10px] uppercase tracking-[0.12em]">View on Explorer</span>
@@ -577,25 +574,25 @@ function PhaseRow({ label, state }: { label: string; state: RowState }) {
   const Icon = (() => {
     switch (state) {
       case 'active':
-        return <Loader2 className="size-3 shrink-0 animate-spin text-accent" />;
+        return <Loader2 className="size-3 shrink-0 animate-spin text-fg-secondary" />;
       case 'done':
-        return <CheckCircle weight="duotone" className="size-3 shrink-0 text-success" />;
+        return <CheckCircle weight="duotone" className="size-3 shrink-0 text-positive-fg" />;
       case 'pending':
       default:
-        return <div className="size-3 shrink-0 rounded-full border border-outline" />;
+        return <div className="size-3 shrink-0 rounded-full border border-line" />;
     }
   })();
 
   return (
     <div
       className={`flex w-full items-center gap-2.5 border px-3 py-2 transition-colors ${
-        state === 'pending' ? 'border-outline/60 opacity-60' : 'border-outline'
+        state === 'pending' ? 'border-line-subtle opacity-60' : 'border-line'
       }`}
     >
       {Icon}
       <span
         className={`font-mono text-[10px] uppercase tracking-[0.12em] ${
-          state === 'done' ? 'text-foreground/80' : 'text-muted-foreground'
+          state === 'done' ? 'text-fg-secondary' : 'text-fg-tertiary'
         }`}
       >
         {label}

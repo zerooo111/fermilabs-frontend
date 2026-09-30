@@ -491,10 +491,12 @@ function PerpsChartContainerComponent() {
           onPriceSourceChange={handlePriceSourceChange}
         />
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <AlertCircle className="h-12 w-12 text-red-500" />
+          <AlertCircle className="h-12 w-12 text-negative-fg" />
           <div className="text-center">
-            <h3 className="text-lg font-medium text-red-500 mb-1">Failed to fetch chart data</h3>
-            <p className="text-sm text-muted-foreground max-w-md mb-4">
+            <h3 className="text-lg font-medium text-negative-fg mb-1">
+              Failed to fetch chart data
+            </h3>
+            <p className="text-sm text-fg-secondary max-w-md mb-4">
               {error instanceof Error ? error.message : 'Unknown error'}
             </p>
           </div>
@@ -544,6 +546,7 @@ function PerpsChartContainerComponent() {
             isLoadingOlder={isLoadingOlder}
             reachedBeginningOfHistory={reachedBeginningOfHistory}
             error={hasNoCandles ? (error as Error | null) : null}
+            emptyMessage={priceSource === 'mark' ? 'No price data yet' : 'No trades yet'}
             selectedMarketName={selectedMarket?.name}
             stopLoss={positionData.stopLoss}
             takeProfit={positionData.takeProfit}

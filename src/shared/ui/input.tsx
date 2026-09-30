@@ -10,8 +10,8 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<'input'>>(
         type={type}
         data-slot="input"
         className={cn(
-          'file:text-zinc-100 placeholder:text-zinc-500 selection:bg-primary selection:text-primary-foreground border border-outline flex h-9 w-full min-w-0 bg-card px-3 py-1 text-base text-zinc-100 shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
-          'aria-invalid:border-destructive',
+          'file:text-fg-primary placeholder:text-fg-tertiary selection:bg-state-strong selection:text-fg-primary border border-line flex h-9 w-full min-w-0 bg-surface-sunken px-3 py-1 text-base text-fg-primary shadow-xs transition-[color,box-shadow,border-color] outline-none hover:border-line-strong focus-visible:border-line-strong focus-visible:ring-2 focus-visible:ring-line-focus file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+          'aria-invalid:border-negative-line aria-invalid:focus-visible:ring-negative-line',
           className
         )}
         {...props}

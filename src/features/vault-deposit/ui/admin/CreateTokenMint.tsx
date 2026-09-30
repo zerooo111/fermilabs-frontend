@@ -35,25 +35,25 @@ export function CreateTokenMintFlow() {
   // mint tokens to the keypair
 
   return (
-    <div className="border border-zinc-300 bg-white p-6 flex flex-col gap-3">
+    <div className="border border-line bg-surface-base text-fg-primary p-6 flex flex-col gap-3">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl">Create Token Mint</h1>
         <Button onClick={handleCreateMint}>Create Mint</Button>
       </div>
       {tokenMint && (
-        <div className="flex gap-2 hover:text-blue-500"> Token Mint: {tokenMint.toBase58()} </div>
+        <div className="flex gap-2 hover:text-info-fg"> Token Mint: {tokenMint.toBase58()} </div>
       )}
       {tokenMintTx && (
         <a
           href={`https://explorer.solana.com/tx/${tokenMintTx}`}
           target="_blank"
           rel="noreferrer"
-          className="text-blue-500"
+          className="text-info-fg outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
         >
           View Transaction on Solan Explorer
         </a>
       )}
-      <hr className="w-full border-zinc-300" />
+      <hr className="w-full border-line-subtle" />
     </div>
   );
 }

@@ -131,31 +131,33 @@ export function FeeCreditDialog() {
               className={cn(
                 'gap-2 px-2.5 font-mono tabular-nums',
                 health === 'danger' &&
-                  'ring-danger/60 text-danger hover:ring-danger hover:text-danger',
-                health === 'warn' && 'ring-amber-400/50 text-amber-300 hover:ring-amber-400/80'
+                  'ring-negative-line text-negative-fg hover:ring-negative-fg hover:text-negative-fg',
+                health === 'warn' && 'ring-warning-line text-warning-fg hover:ring-warning-fg'
               )}
             >
               <span className="relative flex items-center">
                 <Coins className="size-3.5" />
                 <span
                   className={cn(
-                    'absolute -right-1 -top-1 size-1.5 rounded-full ring-1 ring-background',
-                    health === 'ok' && 'bg-success',
-                    health === 'warn' && 'bg-amber-400 animate-pulse',
-                    health === 'danger' && 'bg-danger animate-pulse',
-                    health === 'unknown' && 'bg-rock/30'
+                    'absolute -right-1 -top-1 size-1.5 rounded-full ring-1 ring-surface-canvas',
+                    health === 'ok' && 'bg-positive-solid',
+                    health === 'warn' && 'bg-warning-solid animate-pulse',
+                    health === 'danger' && 'bg-negative-solid animate-pulse',
+                    health === 'unknown' && 'bg-fg-disabled'
                   )}
                 />
               </span>
               <span className="flex items-baseline gap-1">
-                <span className="font-sans text-xs text-rock/60">Fees</span>
+                <span className="font-sans text-xs text-fg-secondary">Fees</span>
                 {hasData ? (
                   <>
                     <span className="text-sm">{formatSolFromLamports(available)}</span>
-                    <span className="text-[10px] text-rock/50 font-sans tracking-wide">SOL</span>
+                    <span className="text-[10px] text-fg-tertiary font-sans tracking-wide">
+                      SOL
+                    </span>
                   </>
                 ) : statusQuery.isLoading ? (
-                  <span className="text-rock/40 text-sm">——</span>
+                  <span className="text-fg-disabled text-sm">——</span>
                 ) : null}
               </span>
             </Button>
@@ -164,22 +166,22 @@ export function FeeCreditDialog() {
         <TooltipContent side="bottom" className="font-mono text-xs">
           {hasData ? (
             <div className="space-y-0.5">
-              <div className="font-sans text-rock/70">Relayer fee credit</div>
+              <div className="font-sans text-fg-secondary">Relayer fee credit</div>
               <div className="flex justify-between gap-6">
-                <span className="text-rock/60 font-sans">Available</span>
+                <span className="text-fg-tertiary font-sans">Available</span>
                 <span>{formatSolFromLamports(available)} SOL</span>
               </div>
               {quoted !== null && (
                 <div className="flex justify-between gap-6">
-                  <span className="text-rock/60 font-sans">Quoted fee</span>
+                  <span className="text-fg-tertiary font-sans">Quoted fee</span>
                   <span>{formatSolFromLamports(quoted)} SOL</span>
                 </div>
               )}
               {health === 'danger' && (
-                <div className="text-danger font-sans mt-1">Top up to keep trading</div>
+                <div className="text-negative-fg font-sans mt-1">Top up to keep trading</div>
               )}
               {health === 'warn' && (
-                <div className="text-amber-300 font-sans mt-1">Running low</div>
+                <div className="text-warning-fg font-sans mt-1">Running low</div>
               )}
             </div>
           ) : (
@@ -196,24 +198,24 @@ export function FeeCreditDialog() {
         </DialogHeader>
 
         {isLoadingMangoAccount ? (
-          <div className="flex items-center gap-2 text-sm text-rock/60 py-4">
+          <div className="flex items-center gap-2 text-sm text-fg-secondary py-4">
             <Loader2 className="size-4 animate-spin" /> Loading account...
           </div>
         ) : !mangoAccountPk ? (
-          <div className="text-sm text-rock/60 py-4">
+          <div className="text-sm text-fg-secondary py-4">
             No Fermi account found. Deposit margin first from the trade panel.
           </div>
         ) : statusQuery.isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-rock/60 py-4">
+          <div className="flex items-center gap-2 text-sm text-fg-secondary py-4">
             <Loader2 className="size-4 animate-spin" /> Loading fee status...
           </div>
         ) : statusQuery.isError ? (
-          <div className="text-sm text-danger py-4">
+          <div className="text-sm text-negative-fg py-4">
             Failed to load fee status: {(statusQuery.error as Error)?.message}
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="border border-outline bg-card p-3 space-y-1.5 text-xs font-mono">
+            <div className="border border-line bg-surface-raised p-3 space-y-1.5 text-xs font-mono">
               <Row
                 label="Available"
                 value={`${formatSolFromLamports(feeAccount?.available_balance_lamports)} SOL`}
@@ -235,8 +237,8 @@ export function FeeCreditDialog() {
             </div>
 
             {quote && (
-              <div className="border border-outline bg-card p-3 space-y-1.5 text-xs font-mono">
-                <div className="text-rock/60 font-sans mb-1">Current quote</div>
+              <div className="border border-line bg-surface-raised p-3 space-y-1.5 text-xs font-mono">
+                <div className="text-fg-tertiary font-sans mb-1">Current quote</div>
                 <Row
                   label="Quoted fee"
                   value={`${formatSolFromLamports(quote.quoted_fee_lamports)} SOL`}
@@ -249,14 +251,14 @@ export function FeeCreditDialog() {
                   label="Emergency max"
                   value={`${formatSolFromLamports(quote.emergency_max_fee_lamports)} SOL`}
                 />
-                {quote.warning && <div className="text-xs text-danger">⚠ {quote.warning}</div>}
+                {quote.warning && <div className="text-xs text-warning-fg">⚠ {quote.warning}</div>}
               </div>
             )}
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Top up amount</label>
-                <span className="text-xs text-rock/60">SOL</span>
+                <span className="text-xs text-fg-tertiary">SOL</span>
               </div>
               <div className="flex gap-1.5">
                 {DEPOSIT_PRESETS_SOL.map(v => (
@@ -264,9 +266,10 @@ export function FeeCreditDialog() {
                     key={v}
                     variant="outline"
                     size="sm"
+                    aria-pressed={amountSol === v.toString()}
                     className={`h-8 flex-1 text-xs ${
                       amountSol === v.toString()
-                        ? 'bg-rock text-background font-bold hover:bg-rock/90'
+                        ? 'bg-state-selected border-line-strong text-fg-primary font-bold'
                         : ''
                     }`}
                     onClick={() => setAmountSol(v.toString())}
@@ -299,7 +302,7 @@ export function FeeCreditDialog() {
                 )}
               </Button>
               {deposit?.deposit_address && (
-                <div className="text-[10px] text-rock/60 font-mono break-all">
+                <div className="text-[10px] text-fg-tertiary font-mono break-all">
                   Deposit address: {deposit.deposit_address}
                 </div>
               )}
@@ -314,7 +317,7 @@ export function FeeCreditDialog() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-rock/60 font-sans">{label}</span>
+      <span className="text-fg-tertiary font-sans">{label}</span>
       <span className="tabular-nums">{value}</span>
     </div>
   );

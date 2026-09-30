@@ -5,19 +5,20 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  "inline-flex cursor-pointer items-center justify-center gap-2 hover:scale-101 hover:rounded-md active:scale-99 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex cursor-pointer items-center justify-center gap-2 active:scale-99 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-line-focus focus-visible:ring-offset-2 focus-visible:ring-offset-surface-canvas aria-invalid:ring-2 aria-invalid:ring-negative-line",
   {
     variants: {
       variant: {
-        default: 'bg-rock text-background shadow-xs hover:bg-primary/90',
-        destructive:
-          'bg-danger text-white shadow-xs hover:brightness-125 focus-visible:ring-danger/20',
-        success:
-          'bg-success text-white shadow-xs hover:brightness-125 focus-visible:ring-success/20',
-        outline: 'ring  ring-inset ring-outline bg-background hover:bg-card shadow-xs',
-        secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
-        link: 'text-primary underline-offset-4 hover:underline',
+        default: 'bg-surface-inverse text-fg-inverse shadow-xs hover:bg-surface-inverse-hover',
+        destructive: 'bg-negative-solid text-fg-inverse shadow-xs hover:bg-negative-solid-hover',
+        success: 'bg-positive-solid text-fg-inverse shadow-xs hover:bg-positive-solid-hover',
+        outline:
+          'border border-line bg-transparent text-fg-primary shadow-xs hover:border-line-strong hover:bg-state-hover active:bg-state-pressed',
+        secondary:
+          'border border-line bg-surface-raised text-fg-primary shadow-xs hover:bg-state-hover active:bg-state-pressed',
+        ghost:
+          'text-fg-secondary hover:bg-state-hover hover:text-fg-primary active:bg-state-pressed',
+        link: 'text-fg-primary underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',

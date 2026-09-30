@@ -14,7 +14,7 @@ export function PortfolioTabs() {
   const [activeTab, setActiveTab] = useAtom(portfolioActiveTabAtom);
 
   return (
-    <div className="flex flex-col md:flex-row flex-1 h-full mx-2 md:mx-4 border-x border-outline divide-y md:divide-y-0 md:divide-x divide-outline overflow-hidden">
+    <div className="flex flex-col md:flex-row flex-1 h-full mx-2 md:mx-4 border-x border-line divide-y md:divide-y-0 md:divide-x divide-line overflow-hidden">
       {/* Left side - Portfolio Tabs or Trades */}
       <div className="flex-1 min-w-0 overflow-hidden">
         {publicKey ? (
@@ -23,7 +23,7 @@ export function PortfolioTabs() {
             onValueChange={value => setActiveTab(value as PortfolioTab)}
             className="h-full flex flex-col"
           >
-            <TabsList className="w-full justify-start border-b border-outline rounded-none bg-transparent overflow-x-auto flex-shrink-0">
+            <TabsList className="w-full justify-start border-b border-line rounded-none bg-transparent overflow-x-auto flex-shrink-0">
               <TabsTrigger value="orders">My Orders</TabsTrigger>
               <TabsTrigger value="positions">My Positions</TabsTrigger>
               <TabsTrigger value="trades">My Trades</TabsTrigger>
@@ -46,10 +46,10 @@ export function PortfolioTabs() {
           </Tabs>
         ) : (
           <div className="flex flex-col h-full">
-            <h3 className="text-base md:text-lg px-3 md:px-4 h-12 leading-12 bg-card border-b border-outline font-medium">
+            <h3 className="text-base md:text-lg px-3 md:px-4 h-12 leading-12 bg-surface-raised border-b border-line font-medium">
               Trades
             </h3>
-            <div className="grid grid-cols-6 px-4 py-2 text-xs bg-card border-b border-outline shrink-0">
+            <div className="grid grid-cols-6 px-4 py-2 text-xs bg-surface-raised border-b border-line-subtle text-fg-tertiary shrink-0">
               <div className="text-left font-mono">Price</div>
               <div className="text-center font-mono">Size</div>
               <div className="text-center font-mono">Total</div>

@@ -80,7 +80,7 @@ export function MyOrders() {
     if (myOrders.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={7} className="h-24 text-center text-sm text-neutral-500">
+          <TableCell colSpan={7} className="h-24 text-center text-sm text-fg-tertiary">
             No active orders
           </TableCell>
         </TableRow>
@@ -91,10 +91,10 @@ export function MyOrders() {
 
     return myOrders.map(order => {
       return (
-        <TableRow key={order.order_id} className="text-xs text-white/75">
+        <TableRow key={order.order_id} className="text-xs text-fg-primary">
           <TableCell>{order.order_id}</TableCell>
           <TableCell>
-            <Badge variant={order.side === 'Buy' ? 'success' : 'danger'}>{order.side}</Badge>
+            <Badge variant={order.side === 'Buy' ? 'positive' : 'negative'}>{order.side}</Badge>
           </TableCell>
           <TableCell className="font-mono tabular-nums">
             {formatPrice(order.price, selectedMarket.quoteDecimals)} {selectedMarket.quoteTokenName}

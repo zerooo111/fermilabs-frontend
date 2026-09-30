@@ -9,7 +9,7 @@ export default function HeroSection() {
   return (
     <section
       ref={containerRef}
-      className="relative w-full px-4 border-b border-b-rock/20 overflow-hidden"
+      className="relative w-full px-4 border-b border-b-line-on-brand overflow-hidden"
     >
       <div className="flex flex-col items-center  relative pt-12 md:pt-24">
         <h1 className="text-5xl lg:text-7xl leading-tight md:leading-relaxed font-display text-center md:text-left">
@@ -25,7 +25,7 @@ export default function HeroSection() {
 
           <a
             href={'#features'}
-            className="hover:brightness-120 bg-amber-200 group text-dark-forest px-6 sm:px-8 py-3 sm:py-4 text-lg sm:text-xl md:text-2xl font-medium flex items-center justify-center gap-3 sm:gap-4 relative overflow-hidden duration-150 ease-out"
+            className="bg-accent-solid hover:bg-accent-solid-hover group text-fg-on-accent px-6 sm:px-8 py-3 sm:py-4 text-lg sm:text-xl md:text-2xl font-medium flex items-center justify-center gap-3 sm:gap-4 relative overflow-hidden duration-150 ease-out outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
           >
             Explore
             <ArrowRight
@@ -54,8 +54,8 @@ export default function HeroSection() {
 
       {/* Gradients */}
 
-      <div className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/3 mix-blend-multiply h-200 blur-3xl opacity-40 w-120  bg-black/20 blur-5xl -skew-x-24 pointer-events-none" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 mix-blend-soft-light opacity-40 blur-3xl h-80 w-2/3 bg-radial from-amber-100 to-rock/25 to-70% blur-5xl " />
+      <div className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/3 mix-blend-multiply h-200 blur-3xl opacity-40 w-120  bg-surface-sunken/20 blur-5xl -skew-x-24 pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 mix-blend-soft-light opacity-40 blur-3xl h-80 w-2/3 bg-radial from-accent-fg to-fg-primary/25 to-70% blur-5xl " />
     </section>
   );
 }

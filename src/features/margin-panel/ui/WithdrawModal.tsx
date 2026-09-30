@@ -90,8 +90,8 @@ export function WithdrawModal({ open, onClose }: Props) {
         {/* ── Input ── */}
         {step === 'input' && (
           <>
-            <div className="flex items-start gap-4 border-b border-outline p-5">
-              <div className="flex size-10 shrink-0 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
+            <div className="flex items-start gap-4 border-b border-line-subtle p-5">
+              <div className="flex size-10 shrink-0 items-center justify-center border border-line bg-surface-raised text-fg-primary">
                 <ArrowCircleUp weight="duotone" className="size-5" />
               </div>
               <DialogHeader className="gap-1 pt-0.5">
@@ -104,7 +104,7 @@ export function WithdrawModal({ open, onClose }: Props) {
 
             <div className="flex flex-col gap-4 p-5">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-fg-tertiary">
                   Amount
                 </span>
                 <button
@@ -113,7 +113,7 @@ export function WithdrawModal({ open, onClose }: Props) {
                     maxWithdraw !== null &&
                     setAmount((Math.floor(maxWithdraw * 100) / 100).toFixed(2))
                   }
-                  className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground hover:text-accent transition-colors"
+                  className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-tertiary hover:text-fg-primary transition-colors outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
                 >
                   Available:{' '}
                   <span className="tabular-nums">
@@ -143,7 +143,7 @@ export function WithdrawModal({ open, onClose }: Props) {
                     maxWithdraw !== null &&
                     setAmount((Math.floor(maxWithdraw * 100) / 100).toFixed(2))
                   }
-                  className="absolute right-2 top-1/2 -translate-y-1/2 border border-accent/30 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-accent hover:bg-accent/10 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 border border-line px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-fg-secondary hover:bg-state-hover hover:text-fg-primary transition-colors outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
                 >
                   Max
                 </button>
@@ -151,18 +151,18 @@ export function WithdrawModal({ open, onClose }: Props) {
 
               <div className="flex items-center justify-between">
                 {exceedsBalance ? (
-                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-destructive">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-negative-fg">
                     Exceeds available balance
                   </p>
                 ) : (
-                  <p className="font-mono text-[10px] text-muted-foreground/50 tracking-[0.1em]">
+                  <p className="font-mono text-[10px] text-fg-tertiary tracking-[0.1em]">
                     Snapshot balance · ±0.005 {quoteToken} tolerance
                   </p>
                 )}
               </div>
 
               {maxWithdraw === 0 && (
-                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-tertiary">
                   No funds available to withdraw
                 </p>
               )}
@@ -184,12 +184,12 @@ export function WithdrawModal({ open, onClose }: Props) {
         {/* ── Withdrawing ── */}
         {step === 'withdrawing' && (
           <div className="flex flex-col items-center gap-5 px-6 py-12">
-            <div className="flex size-12 items-center justify-center border border-accent/30 bg-accent/10">
-              <Loader2 className="size-6 animate-spin text-accent" />
+            <div className="flex size-12 items-center justify-center border border-line bg-surface-raised">
+              <Loader2 className="size-6 animate-spin text-fg-secondary" />
             </div>
             <div className="flex flex-col items-center gap-1.5 text-center">
               <p className="text-sm font-medium">Confirm in your wallet</p>
-              <p className="text-xs text-muted-foreground">Withdrawing {quoteToken}…</p>
+              <p className="text-xs text-fg-secondary">Withdrawing {quoteToken}…</p>
             </div>
           </div>
         )}
@@ -198,11 +198,11 @@ export function WithdrawModal({ open, onClose }: Props) {
         {step === 'success' && (
           <div className="flex flex-col gap-0">
             <div className="flex flex-col items-center gap-4 px-6 py-10">
-              <div className="flex size-12 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
+              <div className="flex size-12 items-center justify-center border border-positive-line bg-positive-muted text-positive-fg">
                 <CheckCircle weight="duotone" className="size-6" />
               </div>
               <div className="flex flex-col items-center gap-1 text-center">
-                <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-fg-tertiary">
                   Withdrawal complete
                 </p>
                 <p className="font-mono text-3xl tabular-nums">
@@ -211,12 +211,12 @@ export function WithdrawModal({ open, onClose }: Props) {
                     maximumFractionDigits: 2,
                   })}
                 </p>
-                <p className="font-mono text-xs text-muted-foreground uppercase tracking-widest">
+                <p className="font-mono text-xs text-fg-tertiary uppercase tracking-widest">
                   {quoteToken} sent to wallet
                 </p>
               </div>
             </div>
-            <div className="border-t border-outline p-4">
+            <div className="border-t border-line-subtle p-4">
               <Button onClick={onClose} size="lg" className="w-full font-mono tracking-wide">
                 Done
               </Button>
@@ -229,12 +229,12 @@ export function WithdrawModal({ open, onClose }: Props) {
           <div className="flex flex-col gap-0">
             <div className="flex flex-col gap-3 p-5">
               <div className="flex items-center gap-2">
-                <X className="size-4 text-destructive" />
+                <X className="size-4 text-negative-fg" />
                 <p className="text-sm font-medium">Withdrawal failed</p>
               </div>
-              <p className="text-xs text-muted-foreground break-words leading-relaxed">{error}</p>
+              <p className="text-xs text-fg-secondary break-words leading-relaxed">{error}</p>
             </div>
-            <div className="flex gap-2 border-t border-outline p-4">
+            <div className="flex gap-2 border-t border-line-subtle p-4">
               <Button variant="outline" onClick={handleClose} className="flex-1 font-mono text-xs">
                 Cancel
               </Button>

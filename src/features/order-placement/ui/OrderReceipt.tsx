@@ -29,7 +29,7 @@ export function OrderReceipt({ receipt }: OrderReceiptProps) {
               href={tickExplorerUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-sm font-mono text-blue-500 hover:text-blue-600"
+              className="flex items-center gap-1 text-sm font-mono text-info-fg hover:text-fg-primary"
             >
               {receipt.expected_tick}
               <ExternalLink className="size-3" />
@@ -41,7 +41,7 @@ export function OrderReceipt({ receipt }: OrderReceiptProps) {
               href={txExplorerUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-sm font-mono text-blue-500 hover:text-blue-600 truncate max-w-[200px]"
+              className="flex items-center gap-1 text-sm font-mono text-info-fg hover:text-fg-primary truncate max-w-[200px]"
             >
               {receipt.tx_hash.slice(0, 8)}
               <ExternalLink className="size-3" />

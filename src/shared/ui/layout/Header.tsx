@@ -12,12 +12,15 @@ import { config } from '@/shared/config/constants';
 
 function getNetwork(rpcUrl: string): { label: string; className: string } {
   if (rpcUrl.includes('mainnet'))
-    return { label: 'Mainnet', className: 'text-green-400 bg-green-500/15 border-green-500/30' };
+    return {
+      label: 'Mainnet',
+      className: 'text-positive-fg bg-positive-muted border-positive-line',
+    };
   if (rpcUrl.includes('devnet'))
-    return { label: 'Devnet', className: 'text-amber-400 bg-amber-500/15 border-amber-500/30' };
+    return { label: 'Devnet', className: 'text-warning-fg bg-warning-muted border-warning-line' };
   if (rpcUrl.includes('testnet'))
-    return { label: 'Testnet', className: 'text-blue-400 bg-blue-500/15 border-blue-500/30' };
-  return { label: 'Custom', className: 'text-zinc-400 bg-zinc-500/15 border-zinc-500/30' };
+    return { label: 'Testnet', className: 'text-info-fg bg-info-muted border-info-line' };
+  return { label: 'Custom', className: 'text-fg-secondary bg-surface-raised border-line' };
 }
 
 export function Header() {
@@ -35,33 +38,42 @@ export function Header() {
   const network = getNetwork(config.devnet.rpcUrl);
 
   return (
-    <nav className="w-full h-14 flex items-center p-3 border-b border-outline bg-background">
+    <nav className="w-full h-14 flex items-center p-3 border-b border-line bg-surface-canvas">
       <div className="flex items-center justify-between flex-1">
         <div className="flex items-center gap-3 relative">
           <Link
             to="/"
-            className="flex font-semibold items-center px-2 py-1 gap-2 text-lg text-primary"
+            className="flex font-semibold items-center px-2 py-1 gap-2 text-lg text-fg-primary"
           >
             <FermiLogo3d className="w-6 h-6 " />
             Fermi Trade
-            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-400/15 text-amber-300 border border-amber-400/30 leading-none">
+            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-warning-muted text-warning-fg border border-warning-line leading-none">
               Beta
             </span>
           </Link>
           <Link
             to="/perps"
             className={cn(
-              'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
-              location.pathname === '/perps' && 'text-white'
+              'duration-100 ease-out relative text-fg-tertiary hover:text-fg-primary group px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-line-focus',
+              location.pathname === '/perps' && 'text-fg-primary'
             )}
           >
             Perps
           </Link>
           <Link
+            to="/vaults"
+            className={cn(
+              'duration-100 ease-out relative text-fg-tertiary hover:text-fg-primary group px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-line-focus',
+              location.pathname.startsWith('/vaults') && 'text-fg-primary'
+            )}
+          >
+            Vaults
+          </Link>
+          <Link
             to="/referrals"
             className={cn(
-              'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
-              location.pathname === '/referrals' && 'text-white'
+              'duration-100 ease-out relative text-fg-tertiary hover:text-fg-primary group px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-line-focus',
+              location.pathname === '/referrals' && 'text-fg-primary'
             )}
           >
             Referrals

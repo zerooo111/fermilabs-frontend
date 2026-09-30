@@ -107,7 +107,7 @@ export function ConnectWallet() {
 
   const baseButton = (
     <Button variant="default" size="sm" onClick={handleConnectClick}>
-      {connected && <div className="w-2 h-2 bg-green-400 animate-pulse" />}
+      {connected && <div className="w-2 h-2 bg-positive-line" />}
       {buttonContent}
     </Button>
   );
@@ -128,7 +128,7 @@ export function ConnectWallet() {
           <Wallet className="size-4" />
           {LABELS['change-wallet']}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleDisconnect} className="text-red-600">
+        <DropdownMenuItem onClick={handleDisconnect} variant="destructive">
           <LogOut className="size-4" />
           {LABELS['disconnect']}
         </DropdownMenuItem>

@@ -31,11 +31,11 @@ export function InitVaultFlow() {
   };
 
   return (
-    <div className="border border-zinc-300 bg-white p-6 flex flex-col gap-3">
+    <div className="border border-line bg-surface-base text-fg-primary p-6 flex flex-col gap-3">
       <h1 className="text-xl">Init Vault</h1>
       <form onSubmit={handleSubmit} className="flex gap-3">
         <Input
-          className="flex-1 bg-zinc-100"
+          className="flex-1 bg-surface-sunken"
           name="tokenMintAddress"
           placeholder="Token Mint Address"
         />
@@ -46,13 +46,13 @@ export function InitVaultFlow() {
           href={`https://explorer.solana.com/tx/${txn}`}
           target="_blank"
           rel="noreferrer"
-          className="text-blue-500"
+          className="text-info-fg outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
         >
           View Transaction on Solana Explorer
         </a>
       )}
-      {error && <div className="text-red-500 font-mono font-medium">{error}</div>}
-      <div className="bg-zinc-100 p-3">
+      {error && <div className="text-negative-fg font-mono font-medium">{error}</div>}
+      <div className="bg-surface-sunken p-3 text-fg-secondary">
         <pre>{JSON.stringify(vaultData, null, 2)}</pre>
       </div>
     </div>

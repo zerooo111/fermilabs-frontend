@@ -3,6 +3,7 @@
  * Allows users to place buy and sell orders for perpetual contracts
  */
 import { Button } from '@/shared/ui/button';
+import { Checkbox } from '@/shared/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { useState, useEffect, useMemo } from 'react';
@@ -31,9 +32,9 @@ import { accountMetricsAtom } from '@/shared/api/sse-atoms';
 type FeeBannerTone = 'ok' | 'warn' | 'danger';
 
 const FEE_BANNER_STYLES: Record<FeeBannerTone, string> = {
-  ok: 'bg-success/10 border-success/30 text-success',
-  warn: 'bg-amber-400/10 border-amber-400/30 text-amber-300',
-  danger: 'bg-danger/10 border-danger/30 text-danger',
+  ok: 'bg-positive-muted border-positive-line text-positive-fg',
+  warn: 'bg-warning-muted border-warning-line text-warning-fg',
+  danger: 'bg-negative-muted border-negative-line text-negative-fg',
 };
 
 function FeeBanner({
@@ -66,10 +67,10 @@ function FeeBanner({
 }
 
 function healthColor(ratio: number) {
-  if (ratio < 0) return { bar: 'bg-danger', text: 'text-danger' };
-  if (ratio < 10) return { bar: 'bg-orange-500', text: 'text-orange-400' };
-  if (ratio < 30) return { bar: 'bg-amber-400', text: 'text-amber-400' };
-  return { bar: 'bg-success', text: 'text-success' };
+  if (ratio < 0) return { bar: 'bg-negative-solid', text: 'text-negative-fg' };
+  if (ratio < 10) return { bar: 'bg-warning-solid', text: 'text-warning-fg' };
+  if (ratio < 30) return { bar: 'bg-warning-solid', text: 'text-warning-fg' };
+  return { bar: 'bg-positive-solid', text: 'text-positive-fg' };
 }
 
 function InlineHealthBar({ label, ratio }: { label: string; ratio?: number }) {
@@ -79,9 +80,9 @@ function InlineHealthBar({ label, ratio }: { label: string; ratio?: number }) {
   if (ratio === undefined) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-muted-foreground shrink-0 w-28">{label}</span>
-        <div className="flex-1 h-0.5 bg-outline overflow-hidden" />
-        <span className="tabular-nums shrink-0 text-muted-foreground">—</span>
+        <span className="text-fg-secondary shrink-0 w-28">{label}</span>
+        <div className="flex-1 h-0.5 bg-line-subtle overflow-hidden" />
+        <span className="tabular-nums shrink-0 text-fg-tertiary">—</span>
       </div>
     );
   }
@@ -89,8 +90,8 @@ function InlineHealthBar({ label, ratio }: { label: string; ratio?: number }) {
   const clamped = Math.max(0, Math.min(100, ratio));
   return (
     <div className="flex items-center gap-2">
-      <span className="text-muted-foreground shrink-0 w-28">{label}</span>
-      <div className="flex-1 h-0.5 bg-outline overflow-hidden">
+      <span className="text-fg-secondary shrink-0 w-28">{label}</span>
+      <div className="flex-1 h-0.5 bg-line-subtle overflow-hidden">
         <div
           className={`h-full transition-all duration-500 ${bar}`}
           style={{ width: `${clamped}%` }}
@@ -370,7 +371,7 @@ export function PerpsTradePanel() {
         value={formState.orderType}
         onValueChange={value => handleInputChange('orderType', value)}
       >
-        <TabsList className="w-full border-b border-outline">
+        <TabsList className="w-full border-b border-line">
           <TabsTrigger value="limit" className="flex-1">
             Limit
           </TabsTrigger>
@@ -393,7 +394,7 @@ export function PerpsTradePanel() {
                     const formattedPrice = markPrice.toFixed(marketQuoteDecimals(selectedMarket));
                     setFormState(prev => ({ ...prev, price: formattedPrice }));
                   }}
-                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                  className="text-xs text-fg-tertiary hover:text-fg-primary underline outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
                 >
                   Market
                 </button>
@@ -417,30 +418,30 @@ export function PerpsTradePanel() {
         )}
 
         {formState.orderType === 'market' && (
-          <div className="space-y-1.5 rounded-sm bg-muted/20 px-2 py-1.5 border border-outline/60">
+          <div className="space-y-1.5 rounded-sm bg-surface-sunken px-2 py-1.5 border border-line-subtle">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
-                <input
-                  type="checkbox"
+                <Checkbox
                   id="customSlippage"
                   checked={customSlippage}
-                  onChange={e => {
-                    setCustomSlippage(e.target.checked);
-                    if (!e.target.checked) {
+                  onCheckedChange={value => {
+                    const checked = value === true;
+                    setCustomSlippage(checked);
+                    if (!checked) {
                       setFormState(prev => ({ ...prev, slippage: '0.25' }));
                     }
                   }}
-                  className="h-3 w-3 rounded border-outline shrink-0"
+                  className="size-3 rounded-[2px]"
                 />
                 <label
                   htmlFor="customSlippage"
-                  className="text-[11px] text-muted-foreground cursor-pointer truncate"
+                  className="text-[11px] text-fg-secondary cursor-pointer truncate"
                 >
                   Custom slippage limit
                 </label>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="size-3 text-muted-foreground cursor-help shrink-0" />
+                    <Info className="size-3 text-fg-tertiary cursor-help shrink-0" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <div className="text-xs">
@@ -450,7 +451,7 @@ export function PerpsTradePanel() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <span className="text-[11px] tabular-nums text-foreground shrink-0">
+              <span className="text-[11px] tabular-nums text-fg-primary shrink-0">
                 {formState.slippage}%
               </span>
             </div>
@@ -462,10 +463,11 @@ export function PerpsTradePanel() {
                       key={pct}
                       variant="outline"
                       size="sm"
+                      aria-pressed={formState.slippage === pct}
                       className={`h-6 flex-1 text-[11px] px-1 ${
                         formState.slippage === pct
-                          ? 'bg-white text-black font-bold hover:bg-white/90'
-                          : 'hover:bg-accent/50'
+                          ? 'bg-surface-inverse text-fg-inverse font-bold hover:bg-surface-inverse-hover'
+                          : 'hover:bg-state-hover'
                       }`}
                       onClick={() => setFormState(prev => ({ ...prev, slippage: pct }))}
                     >
@@ -505,11 +507,11 @@ export function PerpsTradePanel() {
         />
 
         <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <span className="font-medium text-foreground">Leverage</span>
+          <div className="flex items-center gap-1.5 text-fg-secondary">
+            <span className="font-medium text-fg-primary">Leverage</span>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="size-3.5 text-muted-foreground cursor-help" />
+                <Info className="size-3.5 text-fg-tertiary cursor-help" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <div className="text-xs">
@@ -524,19 +526,19 @@ export function PerpsTradePanel() {
         </div>
 
         <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
+          <Checkbox
             id="reduceOnly"
             checked={formState.reduceOnly}
-            onChange={e => setFormState(prev => ({ ...prev, reduceOnly: e.target.checked }))}
-            className="h-4 w-4 rounded border-outline"
+            onCheckedChange={value =>
+              setFormState(prev => ({ ...prev, reduceOnly: value === true }))
+            }
           />
           <label htmlFor="reduceOnly" className="text-sm font-medium cursor-pointer">
             Reduce Only
           </label>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Info className="size-3.5 text-muted-foreground cursor-help" />
+              <Info className="size-3.5 text-fg-tertiary cursor-help" />
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
               <div className="text-xs">
@@ -567,13 +569,13 @@ export function PerpsTradePanel() {
 
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
+            <Checkbox
               id="enableSLTP"
               checked={enableSLTP}
-              onChange={e => {
-                setEnableSLTP(e.target.checked);
-                if (!e.target.checked) {
+              onCheckedChange={value => {
+                const checked = value === true;
+                setEnableSLTP(checked);
+                if (!checked) {
                   setFormState(prev => ({ ...prev, stopLoss: '', takeProfit: '' }));
                   setSLTPValues({ stopLoss: null, takeProfit: null });
                 } else {
@@ -592,14 +594,13 @@ export function PerpsTradePanel() {
                   }
                 }
               }}
-              className="h-4 w-4 rounded border-outline"
             />
             <label htmlFor="enableSLTP" className="text-sm font-medium cursor-pointer">
               Stop loss / Take Profit
             </label>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="size-3.5 text-muted-foreground cursor-help" />
+                <Info className="size-3.5 text-fg-tertiary cursor-help" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <div className="space-y-1">
@@ -654,7 +655,8 @@ export function PerpsTradePanel() {
           const rejectReasons = simResult?.reject_reasons ?? [];
           const warnings = simResult?.warnings ?? [];
           const hasAlerts = rejectReasons.length > 0 || warnings.length > 0;
-          const borderClass = rejectReasons.length > 0 ? 'border-danger/40' : 'border-outline';
+          const borderClass =
+            rejectReasons.length > 0 ? 'border-negative-line' : 'border-line-subtle';
 
           const FIXED_LEVERAGE = 5;
 
@@ -691,18 +693,18 @@ export function PerpsTradePanel() {
           })();
 
           return (
-            <div className={`bg-card border text-xs mt-auto ${borderClass}`}>
+            <div className={`bg-surface-sunken border text-xs mt-auto ${borderClass}`}>
               {/* Alerts — reject reasons and warnings (conditional). */}
               {hasAlerts && (
-                <div className="px-3 pt-2.5 pb-2 space-y-1.5 border-b border-outline">
+                <div className="px-3 pt-2.5 pb-2 space-y-1.5 border-b border-line-subtle">
                   {rejectReasons.map((r, i) => (
-                    <div key={i} className="flex items-start gap-1.5 text-danger">
+                    <div key={i} className="flex items-start gap-1.5 text-negative-fg">
                       <XCircle className="size-3 mt-0.5 shrink-0" />
                       <span>{r}</span>
                     </div>
                   ))}
                   {warnings.map((w, i) => (
-                    <div key={i} className="flex items-start gap-1.5 text-amber-400">
+                    <div key={i} className="flex items-start gap-1.5 text-warning-fg">
                       <AlertTriangle className="size-3 mt-0.5 shrink-0" />
                       <span>{w}</span>
                     </div>
@@ -712,42 +714,48 @@ export function PerpsTradePanel() {
 
               {/* Static order details — always rendered. */}
               <div className="px-3 py-2.5 space-y-2">
-                <div className="flex items-center justify-between text-muted-foreground">
+                <div className="flex items-center justify-between text-fg-secondary">
                   <span>Size</span>
-                  <span className="tabular-nums text-foreground">
+                  <span className="tabular-nums text-fg-primary">
                     {sizeValue > 0
                       ? `${sizeValue.toFixed(marketBaseDecimals(selectedMarket))} ${selectedMarket?.baseTokenName ?? ''}`
                       : '—'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-muted-foreground">
+                <div className="flex items-center justify-between text-fg-secondary">
                   <span>Margin</span>
-                  <span className="tabular-nums text-foreground">{marginDisplay}</span>
+                  <span className="tabular-nums text-fg-primary">{marginDisplay}</span>
                 </div>
-                <div className="flex items-center justify-between text-muted-foreground">
+                <div className="flex items-center justify-between text-fg-secondary">
                   <span>Est. Liq. Price</span>
-                  <span className="tabular-nums text-foreground">{liqPriceDisplay}</span>
+                  <span className="tabular-nums text-fg-primary">{liqPriceDisplay}</span>
                 </div>
-                <div className="flex items-center justify-between text-muted-foreground">
+                <div className="flex items-center justify-between text-fg-secondary">
                   <span>Fee</span>
-                  <span className="tabular-nums text-foreground">0.01%</span>
+                  <span className="tabular-nums text-fg-primary">0.01%</span>
                 </div>
               </div>
 
               {/* After Trade — always rendered with placeholders so the panel
                   has a constant height while pre-trade simulation is in flight. */}
-              <div className="px-3 pb-2.5 pt-2 border-t border-dashed border-outline space-y-2">
-                <div className="flex items-center justify-between text-muted-foreground">
+              <div className="px-3 pb-2.5 pt-2 border-t border-dashed border-line-subtle space-y-2">
+                <div className="flex items-center justify-between text-fg-tertiary">
                   <span className="uppercase tracking-wide text-[10px]">After Trade</span>
-                  {simLoading && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+                  {simLoading && <Loader2 className="size-3 animate-spin text-fg-tertiary" />}
                 </div>
                 <InlineHealthBar label="Init Health" ratio={simResult?.after.init_health_ratio} />
                 <InlineHealthBar label="Maint Health" ratio={simResult?.after.maint_health_ratio} />
-                <div className="flex items-center justify-between text-muted-foreground pt-0.5">
+                <div className="flex items-center justify-between text-fg-secondary pt-0.5">
                   <span>Health Impact</span>
                   {simResult ? (
                     <span
-                      className={`tabular-nums ${simResult.delta.init_health_ui_quote < 0 ? 'text-danger' : 'text-success'}`}
+                      className={`tabular-nums ${
+                        simResult.delta.init_health_ui_quote < 0
+                          ? 'text-negative-fg'
+                          : simResult.delta.init_health_ui_quote > 0
+                            ? 'text-positive-fg'
+                            : 'text-fg-secondary'
+                      }`}
                     >
                       {simResult.delta.init_health_ui_quote < 0 ? '−' : '+'}$
                       {Math.abs(simResult.delta.init_health_ui_quote).toLocaleString(undefined, {
@@ -756,7 +764,7 @@ export function PerpsTradePanel() {
                       })}
                     </span>
                   ) : (
-                    <span className="tabular-nums text-muted-foreground">—</span>
+                    <span className="tabular-nums text-fg-tertiary">—</span>
                   )}
                 </div>
               </div>

@@ -155,7 +155,7 @@ export default function UnicornScene({
       data-us-arialabel={ariaLabel}
       data-us-lazyload={lazyLoad ? 'true' : ''}
     >
-      {error && <div className="text-red-500">{error}</div>}
+      {error && <div className="text-negative-fg">{error}</div>}
     </div>
   );
 }

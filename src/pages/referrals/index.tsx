@@ -13,8 +13,8 @@ function ReferralsPage() {
       <div className="mx-auto w-full max-w-5xl space-y-5">
         {/* Header */}
         <div className="flex flex-col gap-1 px-1">
-          <h1 className="text-xl font-semibold tracking-tight text-rock">Rewards</h1>
-          <p className="text-sm text-white/60">
+          <h1 className="text-xl font-semibold tracking-tight text-fg-primary">Rewards</h1>
+          <p className="text-sm text-fg-secondary">
             Earn a rebate on your own fees, invite friends, and claim your rewards.
           </p>
         </div>

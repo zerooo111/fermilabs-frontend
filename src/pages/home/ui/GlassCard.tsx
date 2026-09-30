@@ -26,7 +26,7 @@ export function GlassCardContent({
 }: React.PropsWithChildren<{ className?: string }>) {
   return (
     <div
-      className={`flex flex-col gap-4 md:gap-6 text-lg sm:text-xl md:text-2xl text-rock/90 ${className}`}
+      className={`flex flex-col gap-4 md:gap-6 text-lg sm:text-xl md:text-2xl text-fg-primary ${className}`}
     >
       {children}
     </div>

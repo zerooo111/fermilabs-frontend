@@ -51,19 +51,19 @@ export function TradingStatsPanel({ me, loading }: { me: ReferralMe | null; load
 
         {!loading &&
           (bound ? (
-            <p className="flex items-start gap-2 text-[11px] leading-relaxed text-white/55">
-              <Gift className="mt-px size-3.5 shrink-0 text-rock/70" />
+            <p className="flex items-start gap-2 text-[11px] leading-relaxed text-fg-secondary">
+              <Gift className="mt-px size-3.5 shrink-0 text-fg-secondary" />
               You get {REBATE_SHARE_LABEL} of the fees you pay back as a rebate ({REBATE_RATE_LABEL}{' '}
               of your volume), added to your claimable rewards. Only trades after you applied a code
               count.
             </p>
           ) : (
-            <div className="flex items-start gap-2 border border-outline bg-card/40 px-3 py-2.5">
-              <Lock className="mt-0.5 size-3.5 shrink-0 text-white/45" />
-              <p className="text-[11px] leading-relaxed text-white/60">
+            <div className="flex items-start gap-2 border border-line-subtle bg-surface-raised px-3 py-2.5">
+              <Lock className="mt-0.5 size-3.5 shrink-0 text-fg-tertiary" />
+              <p className="text-[11px] leading-relaxed text-fg-secondary">
                 Apply a referral code to unlock a{' '}
-                <span className="text-rock">{REBATE_SHARE_LABEL} rebate</span> on the fees you pay.
-                Head to the <span className="text-rock">Referrals</span> tab to add one.
+                <span className="text-fg-primary">{REBATE_SHARE_LABEL} rebate</span> on the fees you
+                pay. Head to the <span className="text-fg-primary">Referrals</span> tab to add one.
               </p>
             </div>
           ))}
@@ -88,10 +88,10 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1.5 border border-outline bg-card/40 p-3">
+    <div className="flex flex-col gap-1.5 border border-line-subtle bg-surface-raised p-3">
       <div className="flex items-center gap-1.5">
         <Eyebrow>{label}</Eyebrow>
-        {hint && <span className="font-mono text-[10px] text-white/35">{hint}</span>}
+        {hint && <span className="font-mono text-[10px] text-fg-tertiary">{hint}</span>}
       </div>
       {loading ? (
         <div className="skeleton-bone h-6 w-20" />
@@ -99,7 +99,7 @@ function StatCard({
         <span
           className={cn(
             'font-mono text-lg font-semibold tabular-nums',
-            locked ? 'text-white/40' : accent ? 'text-rock' : 'text-white/90'
+            locked ? 'text-fg-disabled' : accent ? 'text-positive-fg' : 'text-fg-primary'
           )}
         >
           {value}

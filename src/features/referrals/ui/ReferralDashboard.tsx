@@ -12,7 +12,7 @@
  *      the combined total earned, the claimable balance + claim, and the payout
  *      (distribution) history.
  *
- * Visual language follows the trading terminal: flat `border-outline` panels,
+ * Visual language follows the trading terminal: flat `border-line` panels,
  * money read straight from the backend's `*_usdc` views (never lots→USDC math
  * client-side). This is a thin composition root; each panel owns its own
  * loading/empty state.
@@ -59,7 +59,7 @@ export function ReferralDashboard() {
     <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
       <div className="flex min-w-0 flex-col gap-4">
         {error && (
-          <div className="border border-danger/40 bg-danger/10 px-4 py-2.5 text-xs text-danger">
+          <div className="border border-negative-line bg-negative-muted px-4 py-2.5 text-xs text-negative-fg">
             {error}
           </div>
         )}
@@ -69,7 +69,7 @@ export function ReferralDashboard() {
             Referrals tab and auto-opens/fills from ?ref, so open that tab by
             default when the param is present (new users bind at the gate). */}
         <Tabs defaultValue={hasRef ? 'referrals' : 'trading'}>
-          <TabsList className="w-full justify-start border-b border-outline">
+          <TabsList className="w-full justify-start border-b border-line">
             <TabsTrigger value="trading">Trading</TabsTrigger>
             <TabsTrigger value="referrals">Referrals</TabsTrigger>
           </TabsList>

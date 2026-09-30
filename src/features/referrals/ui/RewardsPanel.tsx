@@ -65,7 +65,7 @@ export function RewardsPanel({
           {loading ? (
             <div className="skeleton-bone h-8 w-28" />
           ) : (
-            <span className="font-mono text-2xl font-semibold tabular-nums text-rock">
+            <span className="font-mono text-2xl font-semibold tabular-nums text-fg-primary">
               {usd(lifetime)}
             </span>
           )}
@@ -77,13 +77,13 @@ export function RewardsPanel({
         </div>
 
         {/* Claimable balance + claim action. */}
-        <div className="flex flex-col gap-3 border-t border-outline pt-4">
+        <div className="flex flex-col gap-3 border-t border-line-subtle pt-4">
           <div className="flex flex-col gap-1">
             <Eyebrow>Claimable</Eyebrow>
             {loading ? (
               <div className="skeleton-bone h-8 w-28" />
             ) : (
-              <span className="font-mono text-3xl font-semibold tabular-nums text-rock">
+              <span className="font-mono text-3xl font-semibold tabular-nums text-fg-primary">
                 {usd(claimable)}
               </span>
             )}
@@ -91,13 +91,13 @@ export function RewardsPanel({
 
           {!loading && belowMin && claimable > 0 && (
             <div className="flex flex-col gap-1.5">
-              <div className="h-1 w-full overflow-hidden bg-white/10">
+              <div className="h-1 w-full overflow-hidden bg-line-subtle">
                 <div
-                  className="h-full bg-rock/50 transition-all"
+                  className="h-full bg-fg-primary transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <span className="text-[11px] leading-relaxed text-white/55">
+              <span className="text-[11px] leading-relaxed text-fg-secondary">
                 Minimum payout is {usd(minClaim)}. Keep trading and referring to reach it.
               </span>
             </div>
@@ -117,7 +117,7 @@ export function RewardsPanel({
           </Button>
         </div>
 
-        <p className="text-[11px] leading-relaxed text-white/55">
+        <p className="text-[11px] leading-relaxed text-fg-secondary">
           Requesting moves the amount into a pending payout. We send the USDC to your wallet and
           mark it complete with the transaction.
         </p>
@@ -133,7 +133,9 @@ function Stat({ label, value, loading }: { label: string; value: string; loading
       {loading ? (
         <div className="skeleton-bone h-5 w-16" />
       ) : (
-        <span className="font-mono text-base font-semibold tabular-nums text-rock">{value}</span>
+        <span className="font-mono text-base font-semibold tabular-nums text-fg-primary">
+          {value}
+        </span>
       )}
     </div>
   );

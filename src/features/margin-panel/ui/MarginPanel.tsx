@@ -108,10 +108,7 @@ export function MarginPanel() {
           button and popover (z-[50]). Clicking anywhere on it dismisses. */}
       {guideVisible &&
         createPortal(
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            onClick={handleGuideDismiss}
-          />,
+          <div className="fixed inset-0 bg-scrim z-40" onClick={handleGuideDismiss} />,
           document.body
         )}
 
@@ -125,8 +122,8 @@ export function MarginPanel() {
             {/* Pulsing beacon — draws the eye to the button */}
             {guideVisible && (
               <span className="absolute -top-1 -right-1 flex size-2.5 z-10 pointer-events-none">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex rounded-full size-2.5 bg-primary" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-info-solid opacity-75" />
+                <span className="relative inline-flex rounded-full size-2.5 bg-info-solid" />
               </span>
             )}
 
@@ -135,16 +132,16 @@ export function MarginPanel() {
                 <Button variant="outline" size="sm" className="gap-2 px-2.5 font-mono tabular-nums">
                   <Wallet2 className="size-3.5 shrink-0" />
                   <span className="flex items-baseline gap-1">
-                    <span className="text-xs text-rock/60 font-sans">Margin</span>
+                    <span className="text-xs text-fg-secondary font-sans">Margin</span>
                     {freeCollateral !== null ? (
                       <>
                         <span className="text-sm">
                           {freeCollateral.toFixed(Math.min(quoteDecimals, 2))}
                         </span>
-                        <span className="text-[10px] text-rock/50 font-sans">{quoteToken}</span>
+                        <span className="text-[10px] text-fg-tertiary font-sans">{quoteToken}</span>
                       </>
                     ) : (
-                      <span className="text-rock/40 text-sm">——</span>
+                      <span className="text-fg-tertiary text-sm">——</span>
                     )}
                   </span>
                 </Button>
@@ -172,7 +169,7 @@ export function MarginPanel() {
                 <DropdownMenuItem
                   onClick={handleAirdrop}
                   disabled={isAirdropping}
-                  className="text-rock/60"
+                  className="text-fg-secondary"
                 >
                   {isAirdropping ? <Loader2 className="size-4 animate-spin" /> : null}
                   Airdrop Test {quoteToken}
@@ -191,18 +188,18 @@ export function MarginPanel() {
           onOpenAutoFocus={e => e.preventDefault()}
         >
           {/* Arrow indicator */}
-          <div className="flex items-center gap-2 px-3 pt-3 pb-2 border-b border-outline">
-            <span className="text-xs font-medium text-foreground">Start by depositing USDC</span>
+          <div className="flex items-center gap-2 px-3 pt-3 pb-2 border-b border-line-subtle">
+            <span className="text-xs font-medium text-fg-primary">Start by depositing USDC</span>
             <button
               onClick={handleGuideDismiss}
-              className="ml-auto text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              className="ml-auto text-fg-tertiary hover:text-fg-primary transition-colors shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
               aria-label="Dismiss"
             >
               <X className="size-3.5" />
             </button>
           </div>
           <div className="px-3 py-3 space-y-3">
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-xs text-fg-secondary leading-relaxed">
               Add USDC as collateral to your margin account before placing your first trade.
             </p>
             <Button size="sm" className="w-full gap-1.5" onClick={handleGuideDeposit}>
@@ -211,7 +208,7 @@ export function MarginPanel() {
             </Button>
             <button
               onClick={handleGuideDismiss}
-              className="w-full text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full text-[11px] text-fg-tertiary hover:text-fg-primary transition-colors outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
             >
               I'll do it later
             </button>

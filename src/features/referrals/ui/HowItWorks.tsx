@@ -20,18 +20,18 @@ const STEPS = [
 export function HowItWorks() {
   return (
     <Panel>
-      <div className="grid grid-cols-1 divide-y divide-outline sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+      <div className="grid grid-cols-1 divide-y divide-line-subtle sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {STEPS.map((step, i) => (
           <div key={step.title} className="flex items-start gap-3 p-4">
-            <div className="flex size-8 shrink-0 items-center justify-center border border-outline bg-card text-rock">
+            <div className="flex size-8 shrink-0 items-center justify-center border border-line bg-surface-raised text-fg-primary">
               <step.icon className="size-4" />
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="flex items-baseline gap-1.5 text-sm font-medium text-rock">
-                <span className="font-mono text-xs tabular-nums text-white/40">{i + 1}</span>
+              <span className="flex items-baseline gap-1.5 text-sm font-medium text-fg-primary">
+                <span className="font-mono text-xs tabular-nums text-fg-tertiary">{i + 1}</span>
                 {step.title}
               </span>
-              <span className="text-xs leading-relaxed text-white/60">{step.body}</span>
+              <span className="text-xs leading-relaxed text-fg-secondary">{step.body}</span>
             </div>
           </div>
         ))}

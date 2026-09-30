@@ -6,9 +6,9 @@ export default function FeaturesSection() {
   return (
     <section
       id="features"
-      className="flex flex-col lg:divide-y divide-rock/20 mt-20 md:mt-40 border-y border-rock/20"
+      className="flex flex-col lg:divide-y divide-line-on-brand mt-20 md:mt-40 border-y border-line-on-brand"
     >
-      <div className="flex flex-wrap lg:divide-x divide-rock/20">
+      <div className="flex flex-wrap lg:divide-x divide-line-on-brand">
         <GlassCard className="w-full lg:w-1/2">
           <GlassCardTitle>Crypto's fairest orderbook</GlassCardTitle>
           <GlassCardContent>
@@ -24,7 +24,7 @@ export default function FeaturesSection() {
             </p>
           </GlassCardContent>
         </GlassCard>
-        <div className="w-full border-y border-rock/20 lg:border-y-0 lg:w-1/2 flex items-center justify-center py-12 lg:py-0">
+        <div className="w-full border-y border-line-on-brand lg:border-y-0 lg:w-1/2 flex items-center justify-center py-12 lg:py-0">
           <div className="size-80 md:size-120 lg:size-full">
             <UnicornScene
               projectId="rU2x4bWOA1sTDCVnhmet?production=true"
@@ -34,8 +34,8 @@ export default function FeaturesSection() {
           </div>
         </div>
       </div>
-      <div className="flex flex-wrap lg:divide-x divide-rock/20">
-        <div className="w-full border-y border-rock/20 lg:border-y-0 lg:w-1/2 flex items-center justify-center py-12 lg:py-0 order-2 lg:order-1">
+      <div className="flex flex-wrap lg:divide-x divide-line-on-brand">
+        <div className="w-full border-y border-line-on-brand lg:border-y-0 lg:w-1/2 flex items-center justify-center py-12 lg:py-0 order-2 lg:order-1">
           <div className="size-80 md:size-120 lg:size-full">
             <UnicornScene projectId="hYf4ksJ9xrUOFcE3EDql" className="size-full" lazyLoad={true} />
           </div>
@@ -59,7 +59,7 @@ export default function FeaturesSection() {
         </GlassCard>
       </div>
 
-      <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-rock/20">
+      <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-line-on-brand">
         <GlassCard className="w-full lg:w-1/2">
           <GlassCardTitle>Fermi's liquidity layer</GlassCardTitle>
           <GlassCardContent>
@@ -69,22 +69,22 @@ export default function FeaturesSection() {
             </p>
             <p>So far, three protocols are integrated:</p>
             <div className="flex flex-col gap-4 mt-6 font-display text-2xl sm:text-3xl md:text-4xl">
-              <div className="glass-card p-3 sm:p-4 shadow-xl border border-rock/30 bg-dark-forest/50 flex items-center gap-3 sm:gap-4">
+              <div className="glass-card p-3 sm:p-4 shadow-xl border border-line-on-brand-strong bg-surface-brand/50 flex items-center gap-3 sm:gap-4">
                 <HandArrowUp weight="duotone" size={28} className="sm:w-8 sm:h-8" />
                 Lending protocol
               </div>
-              <div className="glass-card p-3 sm:p-4 shadow-xl border border-rock/30   bg-dark-forest/50 flex items-center gap-3 sm:gap-4">
+              <div className="glass-card p-3 sm:p-4 shadow-xl border border-line-on-brand-strong   bg-surface-brand/50 flex items-center gap-3 sm:gap-4">
                 <Vault size={28} className="sm:w-8 sm:h-8" />
                 Market-making vault
               </div>
-              <div className="glass-card p-3 sm:p-4 shadow-xl  border border-rock/30 bg-dark-forest/50 flex items-center gap-3 sm:gap-4">
+              <div className="glass-card p-3 sm:p-4 shadow-xl  border border-line-on-brand-strong bg-surface-brand/50 flex items-center gap-3 sm:gap-4">
                 <FediverseLogo size={28} className="sm:w-8 sm:h-8" />
                 Decentralized exchange
               </div>
             </div>
           </GlassCardContent>
         </GlassCard>
-        <div className="w-full lg:w-1/2 border-y border-rock/20 lg:border-y-0 flex items-center justify-center py-12 lg:py-0">
+        <div className="w-full lg:w-1/2 border-y border-line-on-brand lg:border-y-0 flex items-center justify-center py-12 lg:py-0">
           <div className="size-80 md:size-120 lg:size-full">
             <UnicornScene
               projectId="63ON74BtloYSYdehHwTw?production=true"

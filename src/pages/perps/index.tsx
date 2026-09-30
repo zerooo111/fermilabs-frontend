@@ -89,7 +89,7 @@ function PerpsPage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-60px)] overflow-hidden">
-      <div className="mx-2 md:mx-4 mt-2 flex items-center justify-center gap-2 border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-center text-sm text-amber-300">
+      <div className="mx-2 md:mx-4 mt-2 flex items-center justify-center gap-2 border border-warning-line bg-warning-muted px-4 py-2 text-center text-sm text-warning-fg">
         <PauseCircle className="size-4 shrink-0" />
         <span>
           The exchange is temporarily paused while we migrate the program to a new version.
@@ -97,7 +97,7 @@ function PerpsPage() {
       </div>
 
       {/* Main trading area - responsive layout */}
-      <div className="flex flex-col lg:flex-row mx-2 md:mx-4 border-x border-outline divide-y lg:divide-y-0 lg:divide-x divide-outline">
+      <div className="flex flex-col lg:flex-row mx-2 md:mx-4 border-x border-line divide-y lg:divide-y-0 lg:divide-x divide-line">
         {/* Chart section - full width on mobile, flex-1 on desktop */}
         <div className="flex-1 min-w-0 overflow-hidden">
           <MemoizedPerpsChartContainer />
@@ -115,7 +115,7 @@ function PerpsPage() {
       </div>
 
       {/* Portfolio section - always full width at bottom */}
-      <div className="flex-1 flex flex-col border-t border-outline overflow-hidden">
+      <div className="flex-1 flex flex-col border-t border-line overflow-hidden">
         <MemoizedPortfolioTabs />
       </div>
     </div>

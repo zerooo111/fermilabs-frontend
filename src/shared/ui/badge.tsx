@@ -5,18 +5,23 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const badgeVariants = cva(
-  'inline-flex items-center justify-center border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden',
+  'inline-flex items-center justify-center border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none outline-none focus-visible:ring-2 focus-visible:ring-line-focus aria-invalid:border-negative-line transition-[color,box-shadow] overflow-hidden',
   {
     variants: {
       variant: {
-        default: 'border-outline bg-card text-zinc-100 [a&]:hover:bg-zinc-800',
-        secondary: 'border-outline bg-zinc-800 text-zinc-300 [a&]:hover:bg-zinc-700',
-        destructive:
-          'border-outline bg-red-900/50 text-red-200 [a&]:hover:bg-red-900/70 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
-        success:
-          'border-emerald-700/50 bg-emerald-900/30 text-emerald-400 [a&]:hover:bg-emerald-900/50',
-        danger: 'border-red-700/50 bg-red-900/30 text-red-400 [a&]:hover:bg-red-900/50',
-        outline: 'border-outline text-zinc-300 [a&]:hover:bg-card [a&]:hover:text-zinc-100',
+        default: 'border-line bg-surface-raised text-fg-primary [a&]:hover:bg-state-hover',
+        secondary:
+          'border-line-subtle bg-surface-overlay text-fg-secondary [a&]:hover:bg-state-hover',
+        outline:
+          'border-line text-fg-secondary [a&]:hover:bg-state-hover [a&]:hover:text-fg-primary',
+        positive: 'border-positive-line bg-positive-muted text-positive-fg',
+        negative: 'border-negative-line bg-negative-muted text-negative-fg',
+        warning: 'border-warning-line bg-warning-muted text-warning-fg',
+        info: 'border-info-line bg-info-muted text-info-fg',
+        // Older names, kept so existing call sites keep working.
+        success: 'border-positive-line bg-positive-muted text-positive-fg',
+        danger: 'border-negative-line bg-negative-muted text-negative-fg',
+        destructive: 'border-negative-line bg-negative-muted text-negative-fg',
       },
     },
     defaultVariants: {

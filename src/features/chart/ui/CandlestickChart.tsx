@@ -20,21 +20,11 @@ import {
 } from 'lightweight-charts';
 import { useEffect, useRef, memo, useMemo } from 'react';
 import { ExtendedOHLCVData, TimeInterval } from '@/features/chart/lib/chart';
+import { readChartColors, withAlpha } from '@/shared/lib/color-tokens';
 
 // Offset UTC timestamps so lightweight-charts (which assumes UTC) displays local time
 const tzOffsetSeconds = new Date().getTimezoneOffset() * -60;
 const toLocalTimestamp = (utcSeconds: number): number => utcSeconds + tzOffsetSeconds;
-
-// Custom hook to get CSS custom properties
-const useChartColors = () => {
-  return useMemo(() => {
-    const root = getComputedStyle(document.documentElement);
-    return {
-      buyColor: root.getPropertyValue('--color-buy-chart')?.trim() || '#10b981',
-      sellColor: root.getPropertyValue('--color-sell-chart')?.trim() || '#ef4444',
-    };
-  }, []);
-};
 
 interface ChartComponentProps {
   data: ExtendedOHLCVData[];
@@ -95,16 +85,17 @@ const getTimeScaleOptions = (interval: TimeInterval): Partial<TimeScaleOptions> 
 };
 
 function CandlestickChartComponent({ data, interval, colors, className }: ChartComponentProps) {
-  const chartColors = useChartColors();
+  // Tokens are static at runtime, so read them once per mount
+  const chartColors = useMemo(() => readChartColors(), []);
 
   const {
     backgroundColor = 'transparent',
-    upColor = chartColors.buyColor,
-    downColor = chartColors.sellColor,
-    textColor = '#94a3b8', // Subtle text color
-    wickUpColor = chartColors.buyColor,
-    wickDownColor = chartColors.sellColor,
-    gridColor = 'rgba(148, 163, 184, 0.1)', // Very subtle grid
+    upColor = chartColors.up,
+    downColor = chartColors.down,
+    textColor = chartColors.text,
+    wickUpColor = chartColors.up,
+    wickDownColor = chartColors.down,
+    gridColor = chartColors.grid,
   } = colors || {};
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -150,7 +141,7 @@ function CandlestickChartComponent({ data, interval, colors, className }: ChartC
           horzLines: { color: gridColor },
         },
         timeScale: {
-          borderColor: gridColor,
+          borderColor: chartColors.border,
           timeVisible: true,
           secondsVisible: false,
           ...getTimeScaleOptions(interval),
@@ -166,13 +157,15 @@ function CandlestickChartComponent({ data, interval, colors, className }: ChartC
           mode: 1,
           vertLine: {
             width: 1,
-            color: 'rgba(148, 163, 184, 0.4)',
+            color: chartColors.crosshair,
             style: 3,
+            labelBackgroundColor: chartColors.labelBackground,
           },
           horzLine: {
             width: 1,
-            color: 'rgba(148, 163, 184, 0.4)',
+            color: chartColors.crosshair,
             style: 3,
+            labelBackgroundColor: chartColors.labelBackground,
           },
         },
         width: clientWidth,
@@ -198,7 +191,7 @@ function CandlestickChartComponent({ data, interval, colors, className }: ChartC
 
       // Create volume histogram series with separate scale
       const volumeSeries = chart.addSeries(HistogramSeries, {
-        color: 'rgba(148, 163, 184, 0.5)',
+        color: withAlpha(chartColors.crosshair, 0.5),
         priceFormat: {
           type: 'volume',
         },
@@ -270,7 +263,7 @@ function CandlestickChartComponent({ data, interval, colors, className }: ChartC
           volumeData.push({
             time,
             value: item.volume,
-            color: isUp ? upColor + '80' : downColor + '80', // Add transparency
+            color: withAlpha(isUp ? upColor : downColor, 0.5),
           });
         }
       });
@@ -360,6 +353,7 @@ function CandlestickChartComponent({ data, interval, colors, className }: ChartC
     wickUpColor,
     wickDownColor,
     gridColor,
+    chartColors,
   ]);
 
   return <div ref={chartContainerRef} className={`w-full h-full min-h-[400px] ${className}`} />;

@@ -40,7 +40,7 @@ export function RefereesPanel({
       ) : (
         <div className="max-h-[360px] overflow-y-auto">
           <Table>
-            <TableHeader className="sticky top-0 z-10">
+            <TableHeader className="sticky top-0 z-10 bg-surface-raised">
               <TableRow className="hover:bg-transparent">
                 <TableHead className={TH}>
                   <Eyebrow>Wallet</Eyebrow>
@@ -59,19 +59,19 @@ export function RefereesPanel({
             <TableBody>
               {referees.map(r => (
                 <TableRow key={r.referee_wallet}>
-                  <TableCell className={`${TD} font-mono text-xs text-rock/90`}>
+                  <TableCell className={`${TD} font-mono text-xs text-fg-primary`}>
                     {shortWallet(r.referee_wallet)}
                   </TableCell>
-                  <TableCell className={`${TD} font-mono text-xs text-white/55`}>
+                  <TableCell className={`${TD} font-mono text-xs text-fg-secondary`}>
                     {formatDate(r.bound_at)}
                   </TableCell>
                   <TableCell
-                    className={`${TD} text-right font-mono text-xs tabular-nums text-white/75`}
+                    className={`${TD} text-right font-mono text-xs tabular-nums text-fg-secondary`}
                   >
                     {usd(r.accrued_volume_usdc)}
                   </TableCell>
                   <TableCell
-                    className={`${TD} text-right font-mono text-xs tabular-nums text-rock`}
+                    className={`${TD} text-right font-mono text-xs tabular-nums text-fg-primary`}
                   >
                     {usd(r.accrued_reward_usdc)}
                   </TableCell>

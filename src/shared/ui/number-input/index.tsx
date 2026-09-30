@@ -17,7 +17,7 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
     return (
       <div className={cn('relative', className)}>
         {label && (
-          <Label className="text-sm text-zinc-300" htmlFor={name}>
+          <Label className="text-sm text-fg-secondary" htmlFor={name}>
             {label}
           </Label>
         )}
@@ -33,12 +33,12 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
           getInputRef={ref}
         />
         {unit && (
-          <span className="absolute text-zinc-300 right-2.5 text-xs font-medium bottom-2.5">
+          <span className="absolute text-fg-tertiary right-2.5 text-xs font-medium bottom-2.5">
             {' '}
             {unit}{' '}
           </span>
         )}
-        {error && <span className="text-red-500 text-xs mt-1">{error}</span>}
+        {error && <span className="text-negative-fg text-xs mt-1">{error}</span>}
       </div>
     );
   }

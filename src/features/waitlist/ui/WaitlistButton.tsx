@@ -18,7 +18,7 @@ interface WaitlistButtonProps {
   label?: string;
   /** If true, render the right arrow icon (matches landing CTAs). */
   withArrow?: boolean;
-  /** Override styling. Defaults to the amber-200 CTA style. */
+  /** Override styling. Defaults to the accent-solid CTA style. */
   className?: string;
   /** Hide the icon entirely (e.g. for nav links). */
   variant?: 'cta' | 'inline';
@@ -50,7 +50,7 @@ export function WaitlistButton({
         onClick={handleClick}
         className={
           className ??
-          'underline underline-offset-2 decoration-rock/40 hover:decoration-amber-200 hover:text-amber-100 duration-150 ease-out'
+          'underline underline-offset-2 decoration-line-on-brand-strong hover:decoration-accent-solid hover:text-accent-fg duration-150 ease-out outline-none focus-visible:ring-2 focus-visible:ring-line-focus'
         }
       >
         {label}
@@ -64,7 +64,7 @@ export function WaitlistButton({
       onClick={handleClick}
       className={
         className ??
-        'hover:brightness-120 bg-amber-200 group text-dark-forest px-6 sm:px-8 py-3 sm:py-4 text-lg sm:text-xl md:text-2xl font-medium flex items-center justify-center gap-3 sm:gap-4 relative overflow-hidden duration-150 ease-out cursor-pointer'
+        'bg-accent-solid hover:bg-accent-solid-hover group text-fg-on-accent px-6 sm:px-8 py-3 sm:py-4 text-lg sm:text-xl md:text-2xl font-medium flex items-center justify-center gap-3 sm:gap-4 relative overflow-hidden duration-150 ease-out cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-line-focus'
       }
     >
       {label}

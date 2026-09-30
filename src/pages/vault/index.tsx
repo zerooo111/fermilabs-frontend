@@ -18,6 +18,7 @@ import {
 } from '../../shared/ui/select';
 import { Button } from '../../shared/ui/button';
 import { NumberInput } from '../../shared/ui/number-input';
+import { FOCUS_RING } from '../../shared/ui/panel';
 
 import { useVaultClient } from '../../features/vault-deposit';
 import { checkOrCreateAssociatedTokenAccount } from '../../shared/lib/solana/helpers';
@@ -326,14 +327,14 @@ function VaultPage() {
       <div className="max-w-lg mx-auto w-full space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Vault</h1>
-          <p className="text-white/60">Deposit assets to earn yield</p>
+          <h1 className="text-3xl font-bold text-fg-primary">Vault</h1>
+          <p className="text-fg-secondary">Deposit assets to earn yield</p>
         </div>
 
         {/* Main Card */}
-        <div className="border border-outline bg-card/20 backdrop-blur">
+        <div className="border border-line">
           {/* Token Selector */}
-          <div className="p-4 border-b border-outline">
+          <div className="p-4 border-b border-line-subtle">
             <Select
               value={selectedToken?.mint ?? ''}
               onValueChange={value => {
@@ -355,29 +356,31 @@ function VaultPage() {
           </div>
 
           {/* Stats Row */}
-          <div className="grid grid-cols-2 divide-x divide-outline border-b border-outline">
+          <div className="grid grid-cols-2 divide-x divide-line-subtle border-b border-line-subtle">
             <div className="p-4 text-center">
-              <p className="text-xs text-white/50 uppercase tracking-wide mb-1">Total Deposited</p>
-              <p className="text-xl font-mono font-semibold">
+              <p className="text-xs text-fg-tertiary uppercase tracking-wide mb-1">
+                Total Deposited
+              </p>
+              <p className="text-xl font-mono font-semibold text-fg-primary">
                 {tvl.toLocaleString()}
-                <span className="text-sm text-white/50 ml-1">{selectedToken?.name}</span>
+                <span className="text-sm text-fg-tertiary ml-1">{selectedToken?.name}</span>
               </p>
             </div>
             <div className="p-4 text-center">
-              <p className="text-xs text-white/50 uppercase tracking-wide mb-1">FLP APR</p>
-              <p className="text-xl font-mono font-semibold text-success">12%</p>
+              <p className="text-xs text-fg-tertiary uppercase tracking-wide mb-1">FLP APR</p>
+              <p className="text-xl font-mono font-semibold text-positive-fg">12%</p>
             </div>
           </div>
 
           {/* Tab Switcher */}
-          <div className="grid grid-cols-2 border-b border-outline">
+          <div className="grid grid-cols-2 border-b border-line-subtle">
             <button
               onClick={() => setActiveTab('deposit')}
               className={`py-3 text-sm font-medium transition-colors ${
                 activeTab === 'deposit'
-                  ? 'bg-white/5 text-white border-b-2 border-white'
-                  : 'text-white/50 hover:text-white/80'
-              }`}
+                  ? 'bg-state-selected text-fg-primary border-b-2 border-fg-primary'
+                  : 'text-fg-tertiary hover:text-fg-secondary hover:bg-state-hover'
+              } ${FOCUS_RING} focus-visible:ring-inset`}
             >
               <ArrowDownIcon className="w-4 h-4 inline-block mr-2" />
               Deposit
@@ -386,9 +389,9 @@ function VaultPage() {
               onClick={() => setActiveTab('withdraw')}
               className={`py-3 text-sm font-medium transition-colors ${
                 activeTab === 'withdraw'
-                  ? 'bg-white/5 text-white border-b-2 border-white'
-                  : 'text-white/50 hover:text-white/80'
-              }`}
+                  ? 'bg-state-selected text-fg-primary border-b-2 border-fg-primary'
+                  : 'text-fg-tertiary hover:text-fg-secondary hover:bg-state-hover'
+              } ${FOCUS_RING} focus-visible:ring-inset`}
             >
               <ArrowUpIcon className="w-4 h-4 inline-block mr-2" />
               Withdraw
@@ -399,13 +402,13 @@ function VaultPage() {
           <div className="p-4 space-y-4">
             {/* Balance Display */}
             <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2 text-white/60">
+              <div className="flex items-center gap-2 text-fg-secondary">
                 <WalletIcon className="w-4 h-4" />
                 <span>{activeTab === 'deposit' ? 'Available' : 'Deposited'}</span>
               </div>
               <button
                 onClick={() => setInputAmount(maxAmount)}
-                className="font-mono hover:text-white transition-colors"
+                className={`font-mono text-fg-primary hover:text-fg-secondary transition-colors ${FOCUS_RING}`}
               >
                 {maxAmount.toLocaleString(undefined, {
                   minimumFractionDigits: 2,
@@ -433,7 +436,7 @@ function VaultPage() {
                 <button
                   key={percent}
                   onClick={() => setInputAmount((maxAmount * percent) / 100)}
-                  className="py-2 text-xs font-medium bg-white/5 hover:bg-white/10 border border-outline transition-colors"
+                  className={`py-2 text-xs font-medium text-fg-primary bg-surface-raised hover:bg-state-hover border border-line transition-colors ${FOCUS_RING}`}
                 >
                   {percent}%
                 </button>
@@ -442,7 +445,7 @@ function VaultPage() {
 
             {/* Action Button */}
             {!publicKey ? (
-              <div className="py-3 text-center text-white/50 border border-outline bg-white/5">
+              <div className="py-3 text-center text-fg-secondary border border-line bg-surface-raised">
                 Connect wallet to continue
               </div>
             ) : (
@@ -468,10 +471,10 @@ function VaultPage() {
 
           {/* Your Position */}
           {publicKey && amountDeposited > 0 && (
-            <div className="p-4 border-t border-outline bg-white/5">
+            <div className="p-4 border-t border-line-subtle bg-surface-raised">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-white/60">Your Position</span>
-                <span className="font-mono font-semibold">
+                <span className="text-sm text-fg-secondary">Your Position</span>
+                <span className="font-mono font-semibold text-fg-primary">
                   {amountDeposited.toLocaleString()} {selectedToken?.name}
                 </span>
               </div>
@@ -483,7 +486,7 @@ function VaultPage() {
         {publicKey && selectedToken && (
           <button
             onClick={handleAirdrop}
-            className="w-full py-3 text-sm text-white/60 hover:text-white border border-dashed border-outline hover:border-white/40 transition-colors"
+            className={`w-full py-3 text-sm text-fg-secondary hover:text-fg-primary border border-dashed border-line hover:border-line-strong transition-colors ${FOCUS_RING}`}
           >
             Request {selectedToken.name} Airdrop (Devnet)
           </button>

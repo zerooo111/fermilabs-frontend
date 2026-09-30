@@ -29,23 +29,13 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { CHART_CONFIG } from '@/features/chart/lib/chart-constants';
 import { useResizeObserver } from '@/shared/hooks/useResizeObserver';
 import { cn } from '@/lib/utils';
+import { readChartColors, withAlpha } from '@/shared/lib/color-tokens';
 
 export type PerpsChartType = 'candlestick' | 'line' | 'area' | 'bar';
 
 // Offset UTC timestamps so lightweight-charts (which assumes UTC) displays local time
 const tzOffsetSeconds = new Date().getTimezoneOffset() * -60;
 const toLocalTimestamp = (utcSeconds: number): number => utcSeconds + tzOffsetSeconds;
-
-// Custom hook to get CSS custom properties
-const useChartColors = () => {
-  return useMemo(() => {
-    const root = getComputedStyle(document.documentElement);
-    return {
-      buyColor: root.getPropertyValue('--color-buy-chart')?.trim() || '#10b981',
-      sellColor: root.getPropertyValue('--color-sell-chart')?.trim() || '#ef4444',
-    };
-  }, []);
-};
 
 // Visible bars on first mount, per timeframe. Chosen so the initial window
 // covers a useful slice of history regardless of timeframe.
@@ -92,6 +82,8 @@ interface PerpsChartComponentProps {
   isLoadingOlder?: boolean;
   reachedBeginningOfHistory?: boolean;
   error?: Error | null;
+  /** Shown when loading has finished but there are no candles to draw. */
+  emptyMessage?: string;
   selectedMarketName?: string;
   stopLoss?: number | null;
   takeProfit?: number | null;
@@ -198,6 +190,7 @@ function PerpsChartComponent({
   isLoadingOlder,
   reachedBeginningOfHistory,
   error,
+  emptyMessage = 'No data yet',
   selectedMarketName,
   stopLoss,
   takeProfit,
@@ -206,16 +199,17 @@ function PerpsChartComponent({
   onLoadMoreData,
 }: PerpsChartComponentProps) {
   const [hoveredCandle, setHoveredCandle] = useState<HoveredCandle | null>(null);
-  const chartColors = useChartColors();
+  // Tokens are static at runtime, so read them once per mount
+  const chartColors = useMemo(() => readChartColors(), []);
 
   const {
     backgroundColor = 'transparent',
-    upColor = chartColors.buyColor,
-    downColor = chartColors.sellColor,
-    textColor = '#94a3b8', // Subtle text color
-    wickUpColor = chartColors.buyColor,
-    wickDownColor = chartColors.sellColor,
-    gridColor = 'rgba(148, 163, 184, 0.1)', // Very subtle grid
+    upColor = chartColors.up,
+    downColor = chartColors.down,
+    textColor = chartColors.text,
+    wickUpColor = chartColors.up,
+    wickDownColor = chartColors.down,
+    gridColor = chartColors.grid,
   } = colors || {};
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -319,7 +313,7 @@ function PerpsChartComponent({
           volumeData.push({
             time,
             value: item.volume,
-            color: item.close! >= item.open! ? `${upColor}80` : `${downColor}80`,
+            color: withAlpha(item.close! >= item.open! ? upColor : downColor, 0.5),
           });
         }
 
@@ -373,7 +367,7 @@ function PerpsChartComponent({
           horzLines: { color: gridColor },
         },
         timeScale: {
-          borderColor: gridColor,
+          borderColor: chartColors.border,
           timeVisible: true,
           secondsVisible: false,
           rightOffset: 0, // Ensure we start at the right edge
@@ -390,13 +384,15 @@ function PerpsChartComponent({
           mode: 1,
           vertLine: {
             width: 1,
-            color: 'rgba(148, 163, 184, 0.4)',
+            color: chartColors.crosshair,
             style: 3,
+            labelBackgroundColor: chartColors.labelBackground,
           },
           horzLine: {
             width: 1,
-            color: 'rgba(148, 163, 184, 0.4)',
+            color: chartColors.crosshair,
             style: 3,
+            labelBackgroundColor: chartColors.labelBackground,
           },
         },
         width: clientWidth,
@@ -411,7 +407,7 @@ function PerpsChartComponent({
       switch (chartType) {
         case 'line':
           series = chart.addSeries(LineSeries, {
-            color: upColor,
+            color: chartColors.neutral,
             lineWidth: 2,
             crosshairMarkerVisible: true,
             lastValueVisible: true,
@@ -420,9 +416,9 @@ function PerpsChartComponent({
           break;
         case 'area':
           series = chart.addSeries(AreaSeries, {
-            lineColor: upColor,
-            topColor: `${upColor}40`,
-            bottomColor: `${upColor}05`,
+            lineColor: chartColors.neutral,
+            topColor: withAlpha(chartColors.neutral, 0.18),
+            bottomColor: withAlpha(chartColors.neutral, 0),
             lineWidth: 2,
             crosshairMarkerVisible: true,
             lastValueVisible: true,
@@ -455,7 +451,7 @@ function PerpsChartComponent({
       }
 
       const volumeSeries = chart.addSeries(HistogramSeries, {
-        color: 'rgba(148, 163, 184, 0.5)',
+        color: withAlpha(chartColors.crosshair, 0.5),
         priceFormat: {
           type: 'volume',
         },
@@ -584,6 +580,7 @@ function PerpsChartComponent({
     wickUpColor,
     wickDownColor,
     gridColor,
+    chartColors,
   ]);
 
   // Update data separately
@@ -907,7 +904,7 @@ function PerpsChartComponent({
         try {
           stopLossLineRef.current = seriesRef.current.createPriceLine({
             price: stopLoss,
-            color: chartColors.sellColor,
+            color: chartColors.down,
             lineWidth: 1,
             lineStyle: 2,
             axisLabelVisible: true,
@@ -927,7 +924,7 @@ function PerpsChartComponent({
         try {
           takeProfitLineRef.current = seriesRef.current.createPriceLine({
             price: takeProfit,
-            color: chartColors.buyColor,
+            color: chartColors.up,
             lineWidth: 1,
             lineStyle: 2,
             axisLabelVisible: true,
@@ -952,7 +949,7 @@ function PerpsChartComponent({
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}`;
-          const entryColor = isProfit ? chartColors.buyColor : chartColors.sellColor;
+          const entryColor = isProfit ? chartColors.up : chartColors.down;
           entryPriceLineRef.current = seriesRef.current.createPriceLine({
             price: entryPrice,
             color: entryColor,
@@ -971,8 +968,9 @@ function PerpsChartComponent({
   }, [stopLoss, takeProfit, entryPrice, unrealizedPnl, data, chartColors]);
 
   const hasNoData = !data || data.length === 0;
-  const showLoading = (Boolean(isLoading) || hasNoData) && !error;
+  const showLoading = Boolean(isLoading) && !error;
   const showErrorOverlay = Boolean(error) && hasNoData;
+  const showEmptyOverlay = hasNoData && !showLoading && !showErrorOverlay;
 
   // The candle displayed in the OHLC legend: hovered candle, or the latest
   // when the crosshair is outside the chart.
@@ -1019,33 +1017,35 @@ function PerpsChartComponent({
     >
       {/* OHLC legend */}
       {legendCandle && (
-        <div className="pointer-events-none absolute top-2 left-2 z-20 flex flex-col gap-0.5 font-mono text-[11px] text-white/80">
+        <div className="pointer-events-none absolute top-2 left-2 z-20 flex flex-col gap-0.5 font-mono text-[11px] text-fg-secondary">
           <div className="flex items-center gap-2">
-            {selectedMarketName && <span className="text-white">{selectedMarketName}</span>}
-            <span className="uppercase text-white/50">{interval}</span>
-            <span className="text-white/40">{formatLegendTime(legendCandle.time, interval)}</span>
+            {selectedMarketName && <span className="text-fg-primary">{selectedMarketName}</span>}
+            <span className="uppercase text-fg-tertiary">{interval}</span>
+            <span className="text-fg-tertiary">
+              {formatLegendTime(legendCandle.time, interval)}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span>
-              <span className="text-white/40">O</span> {formatLegendPrice(legendCandle.open)}
+              <span className="text-fg-tertiary">O</span> {formatLegendPrice(legendCandle.open)}
             </span>
             <span>
-              <span className="text-white/40">H</span> {formatLegendPrice(legendCandle.high)}
+              <span className="text-fg-tertiary">H</span> {formatLegendPrice(legendCandle.high)}
             </span>
             <span>
-              <span className="text-white/40">L</span> {formatLegendPrice(legendCandle.low)}
+              <span className="text-fg-tertiary">L</span> {formatLegendPrice(legendCandle.low)}
             </span>
             <span>
-              <span className="text-white/40">C</span> {formatLegendPrice(legendCandle.close)}
+              <span className="text-fg-tertiary">C</span> {formatLegendPrice(legendCandle.close)}
             </span>
             {legendChangePct && (
               <span
                 className={cn(
                   legendChangePct.pct === 0
-                    ? 'text-white/60'
+                    ? 'text-fg-secondary'
                     : legendChangePct.isPositive
-                      ? 'text-success'
-                      : 'text-danger'
+                      ? 'text-positive-fg'
+                      : 'text-negative-fg'
                 )}
               >
                 {legendChangePct.pct === 0 ? '' : legendChangePct.isPositive ? '+' : ''}
@@ -1059,7 +1059,7 @@ function PerpsChartComponent({
       {/* Load-older indicator (left edge) */}
       {isLoadingOlder && (
         <div
-          className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-1 text-[10px] text-white/80 backdrop-blur-sm"
+          className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-md bg-surface-overlay border border-line px-2 py-1 text-[10px] text-fg-secondary"
           aria-live="polite"
         >
           <Loader2 className="size-3 animate-spin" />
@@ -1067,31 +1067,36 @@ function PerpsChartComponent({
         </div>
       )}
       {reachedBeginningOfHistory && !isLoadingOlder && !hasNoData && (
-        <div className="pointer-events-none absolute bottom-8 left-2 z-20 rounded-md bg-black/50 px-2 py-1 text-[10px] text-white/50 backdrop-blur-sm">
+        <div className="pointer-events-none absolute bottom-8 left-2 z-20 rounded-md bg-surface-overlay border border-line px-2 py-1 text-[10px] text-fg-tertiary">
           Beginning of history
         </div>
       )}
 
       {isRefreshing && (
         <div className="absolute top-2 right-2 z-20">
-          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          <Loader2 className="size-4 animate-spin text-fg-tertiary" />
         </div>
       )}
       {showErrorOverlay && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
+        <div className="absolute inset-0 flex items-center justify-center bg-scrim z-10">
           <div className="flex flex-col items-center gap-3">
-            <AlertCircle className="size-6 text-destructive" />
-            <span className="text-sm text-muted-foreground">
+            <AlertCircle className="size-6 text-negative-fg" />
+            <span className="text-sm text-fg-secondary">
               {error?.message || 'Failed to load chart'}
             </span>
           </div>
         </div>
       )}
+      {showEmptyOverlay && (
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <span className="text-sm text-fg-secondary">{emptyMessage}</span>
+        </div>
+      )}
       {showLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
+        <div className="absolute inset-0 flex items-center justify-center bg-scrim z-10">
           <div className="flex flex-col items-center gap-3">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Loading chart data...</span>
+            <Loader2 className="size-6 animate-spin text-fg-tertiary" />
+            <span className="text-sm text-fg-secondary">Loading chart data...</span>
           </div>
         </div>
       )}

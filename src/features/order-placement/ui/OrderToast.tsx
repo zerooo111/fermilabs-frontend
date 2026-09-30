@@ -19,7 +19,7 @@ function LatencyBadge({ ms }: { ms: number }) {
       <span
         className={cn(
           'font-mono tabular-nums text-xs',
-          isGood ? 'text-green-400' : isOk ? 'text-amber-400' : 'text-red-400'
+          isGood ? 'text-positive-fg' : isOk ? 'text-warning-fg' : 'text-negative-fg'
         )}
       >
         {ms.toFixed(1)} ms
@@ -35,11 +35,11 @@ function LatencyBadge({ ms }: { ms: number }) {
                 'w-[2px] rounded-full',
                 filled
                   ? isGood
-                    ? 'bg-green-400'
+                    ? 'bg-positive-solid'
                     : isOk
-                      ? 'bg-amber-400'
-                      : 'bg-red-400'
-                  : 'bg-white/15'
+                      ? 'bg-warning-solid'
+                      : 'bg-negative-solid'
+                  : 'bg-line'
               )}
             />
           );
@@ -63,19 +63,19 @@ function TxRow({ signature }: { signature: string }) {
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className="font-mono text-xs text-white/40 tabular-nums">{short}</span>
+      <span className="font-mono text-xs text-fg-tertiary tabular-nums">{short}</span>
       <button
         onClick={copy}
-        className="text-white/30 hover:text-white/70 transition-colors"
+        className="text-fg-tertiary hover:text-fg-primary transition-colors outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
         title="Copy full signature"
       >
-        <Copy className={cn('size-3', copied && 'text-green-400')} />
+        <Copy className={cn('size-3', copied && 'text-positive-fg')} />
       </button>
       <a
         href={explorer}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-white/30 hover:text-white/70 transition-colors"
+        className="text-fg-tertiary hover:text-fg-primary transition-colors outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
         title="View on Solana Explorer"
       >
         <ExternalLink className="size-3" />
@@ -87,23 +87,18 @@ function TxRow({ signature }: { signature: string }) {
 export function OrderToast({ toastId, title, txSignature, acceptedLatencyMs }: OrderToastProps) {
   return (
     <div
-      className="flex flex-col gap-1.5 px-4 py-3 w-full backdrop-blur-2xl"
-      style={{
-        fontFamily: 'Geist Mono, monospace',
-        background: 'rgba(255, 255, 255, 0.05)',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        color: '#ffffff',
-      }}
+      className="flex flex-col gap-1.5 px-4 py-3 w-full bg-surface-overlay border border-line text-fg-primary"
+      style={{ fontFamily: 'Geist Mono, monospace' }}
     >
       {/* Title row */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <CheckCircle2 className="size-4 text-green-400 shrink-0" />
-          <span className="text-sm font-medium text-white">{title}</span>
+          <CheckCircle2 className="size-4 text-positive-fg shrink-0" />
+          <span className="text-sm font-medium text-fg-primary">{title}</span>
         </div>
         <button
           onClick={() => toast.dismiss(toastId)}
-          className="text-white/25 hover:text-white/60 transition-colors shrink-0"
+          className="text-fg-tertiary hover:text-fg-primary transition-colors shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
         >
           <X className="size-3.5" />
         </button>
@@ -114,7 +109,7 @@ export function OrderToast({ toastId, title, txSignature, acceptedLatencyMs }: O
         <div className="flex items-center gap-3 pl-6">
           {acceptedLatencyMs !== undefined && <LatencyBadge ms={acceptedLatencyMs} />}
           {acceptedLatencyMs !== undefined && txSignature && (
-            <span className="text-white/20 text-xs">·</span>
+            <span className="text-fg-disabled text-xs">·</span>
           )}
           {txSignature && <TxRow signature={txSignature} />}
         </div>

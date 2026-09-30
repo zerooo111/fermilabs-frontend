@@ -105,15 +105,15 @@ export function Orderbook() {
           <div className="grid grid-cols-3 gap-4 items-center font-mono text-xs leading-none tracking-tight w-full">
             {/* Price skeleton */}
             <div className="text-left">
-              <div className="h-3 w-16 bg-white/10 rounded animate-pulse" />
+              <div className="h-3 w-16 skeleton-bone" />
             </div>
             {/* Size skeleton */}
             <div className="text-right">
-              <div className="h-3 w-12 bg-white/10 rounded animate-pulse ml-auto" />
+              <div className="h-3 w-12 skeleton-bone ml-auto" />
             </div>
             {/* Total skeleton */}
             <div className="text-right">
-              <div className="h-3 w-14 bg-white/10 rounded animate-pulse ml-auto" />
+              <div className="h-3 w-14 skeleton-bone ml-auto" />
             </div>
           </div>
         </div>
@@ -126,7 +126,7 @@ export function Orderbook() {
   const orderbookContent = (
     <>
       {/* Column Headers */}
-      <div className="grid grid-cols-3 px-4 py-2 text-xs bg-card border-b border-outline shrink-0">
+      <div className="grid grid-cols-3 px-4 py-2 text-xs bg-surface-raised border-b border-line-subtle text-fg-tertiary shrink-0">
         <div className="text-left font-mono flex items-center gap-1.5">
           Price <ConnectionIndicator />
         </div>
@@ -146,9 +146,9 @@ export function Orderbook() {
             </div>
 
             {/* Spread skeleton */}
-            <div className="px-4 py-2 text-xs flex justify-between items-center shrink-0 bg-card border-y border-outline">
-              <span>Spread</span>
-              <div className="h-3 w-16 bg-white/10 rounded animate-pulse" />
+            <div className="px-4 py-2 text-xs flex justify-between items-center shrink-0 bg-surface-raised border-y border-line-subtle">
+              <span className="text-fg-tertiary">Spread</span>
+              <div className="h-3 w-16 skeleton-bone" />
             </div>
 
             {/* Skeleton Buys (bids) */}
@@ -180,9 +180,9 @@ export function Orderbook() {
             </div>
 
             {/* Spread */}
-            <div className="px-4 py-2 text-xs flex justify-between items-center shrink-0 bg-card border-y border-outline">
-              <span>Spread</span>
-              <span className="font-mono">
+            <div className="px-4 py-2 text-xs flex justify-between items-center shrink-0 bg-surface-raised border-y border-line-subtle">
+              <span className="text-fg-tertiary">Spread</span>
+              <span className="font-mono text-fg-primary">
                 {formatPrice(processedOrderbook.spread, selectedMarket.quoteDecimals)}
               </span>
             </div>
@@ -215,7 +215,7 @@ export function Orderbook() {
     <div className="w-full lg:w-[360px] h-full flex flex-col">
       {/* Tabs Header */}
       <Tabs defaultValue="orderbook" className="flex flex-col flex-1 min-h-0">
-        <TabsList className="border-b border-outline w-full">
+        <TabsList className="border-b border-line w-full">
           <TabsTrigger value="orderbook" className="flex-1">
             Orderbook
           </TabsTrigger>
@@ -235,7 +235,7 @@ export function Orderbook() {
           {showTradesTab && (
             <TabsContent value="trades">
               {/* Column Headers (same as orderbook for consistent layout) */}
-              <div className="grid grid-cols-3 px-4 py-2 text-xs bg-card border-b border-outline shrink-0">
+              <div className="grid grid-cols-3 px-4 py-2 text-xs bg-surface-raised border-b border-line-subtle text-fg-tertiary shrink-0">
                 <div className="text-left font-mono">Price</div>
                 <div className="text-right font-mono">Size</div>
                 <div className="text-right font-mono">Total</div>

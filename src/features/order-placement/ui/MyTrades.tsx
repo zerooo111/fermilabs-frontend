@@ -30,7 +30,7 @@ function StatusRow({ children, tone }: { children: ReactNode; tone?: 'danger' })
     <TableRow>
       <TableCell
         colSpan={7}
-        className={`h-24 text-center text-sm ${tone === 'danger' ? 'text-danger' : 'text-muted-foreground'}`}
+        className={`h-24 text-center text-sm ${tone === 'danger' ? 'text-negative-fg' : 'text-fg-secondary'}`}
       >
         {children}
       </TableCell>
@@ -165,7 +165,7 @@ export function MyTrades() {
         <TableRow key={trade.id}>
           <TableCell>{new Date(trade.timestamp * 1000).toLocaleString()}</TableCell>
           <TableCell>
-            <Badge variant={side === 'Buy' ? 'success' : 'danger'}>{side}</Badge>
+            <Badge variant={side === 'Buy' ? 'positive' : 'negative'}>{side}</Badge>
           </TableCell>
           <TableCell className="font-mono">
             {formatPrice(trade.price, selectedMarket!.quoteDecimals)}{' '}
@@ -176,12 +176,12 @@ export function MyTrades() {
             {selectedMarket!.baseTokenName}
           </TableCell>
           <TableCell className="font-mono">
-            <span className={isBuyer ? 'text-success' : ''}>
+            <span className={isBuyer ? 'text-positive-fg' : ''}>
               {shortenAddress(trade.buyer_owner)}
             </span>
           </TableCell>
           <TableCell className="font-mono">
-            <span className={!isBuyer ? 'text-danger' : ''}>
+            <span className={!isBuyer ? 'text-negative-fg' : ''}>
               {shortenAddress(trade.seller_owner)}
             </span>
           </TableCell>
@@ -217,8 +217,8 @@ export function MyTrades() {
       </Table>
 
       {mergedTrades.length > 0 && (hasMore || error) && (
-        <div className="flex items-center justify-center gap-3 p-3 border-t border-outline">
-          {error && <span className="text-xs text-danger">{error}</span>}
+        <div className="flex items-center justify-center gap-3 p-3 border-t border-line-subtle">
+          {error && <span className="text-xs text-negative-fg">{error}</span>}
           {hasMore && (
             <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
               {loadingMore ? 'Loading…' : 'Load more'}

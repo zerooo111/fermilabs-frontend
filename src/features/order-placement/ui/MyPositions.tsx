@@ -153,7 +153,7 @@ export function MyPositions() {
         <TableBody>
           <TableRow>
             <TableCell colSpan={9} className="h-24 text-center">
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center justify-center gap-2 text-sm text-fg-secondary">
                 <Loader2 className="size-4 animate-spin" />
                 Loading positions...
               </div>
@@ -168,7 +168,7 @@ export function MyPositions() {
     if (!positions || positions.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={9} className="h-24 text-center text-sm text-muted-foreground">
+          <TableCell colSpan={9} className="h-24 text-center text-sm text-fg-secondary">
             No open positions
           </TableCell>
         </TableRow>
@@ -216,9 +216,9 @@ export function MyPositions() {
         isClosing;
 
       return (
-        <TableRow key={positionKey} className="text-white/90">
+        <TableRow key={positionKey} className="text-fg-primary">
           <TableCell className="text-center">
-            <Badge variant={basePosition >= 0 ? 'success' : 'danger'}>{sideLabel}</Badge>
+            <Badge variant={basePosition >= 0 ? 'positive' : 'negative'}>{sideLabel}</Badge>
           </TableCell>
           <TableCell className="font-medium">{position.market_name}</TableCell>
           <TableCell className="text-center font-mono tabular-nums">
@@ -231,7 +231,13 @@ export function MyPositions() {
             {formatPrice(markPrice, quoteDecimals)}
           </TableCell>
           <TableCell
-            className={`text-center font-mono tabular-nums ${unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}
+            className={`text-center font-mono tabular-nums ${
+              unrealizedPnl > 0
+                ? 'text-positive-fg'
+                : unrealizedPnl < 0
+                  ? 'text-negative-fg'
+                  : 'text-fg-secondary'
+            }`}
           >
             {formatPrice(unrealizedPnl, quoteDecimals)}
           </TableCell>
@@ -267,7 +273,7 @@ export function MyPositions() {
                   <>
                     <div className="space-y-1">
                       <div className="text-sm font-medium">Close {activeCloseDraft.marketName}</div>
-                      <div className="text-xs text-zinc-400">
+                      <div className="text-xs text-fg-secondary">
                         {activeCloseDraft.side === 'Buy'
                           ? 'Buy to close short'
                           : 'Sell to close long'}
@@ -287,7 +293,7 @@ export function MyPositions() {
                         )
                       }
                     >
-                      <TabsList className="w-full border-b border-outline">
+                      <TabsList className="w-full border-b border-line">
                         <TabsTrigger value="market" className="flex-1">
                           Market
                         </TabsTrigger>
@@ -299,7 +305,7 @@ export function MyPositions() {
 
                     {activeCloseDraft.mode === 'market' ? (
                       <div className="space-y-2">
-                        <div className="text-xs font-medium text-zinc-300">Max Slippage</div>
+                        <div className="text-xs font-medium text-fg-secondary">Max Slippage</div>
                         <div className="flex gap-1.5">
                           {[25, 50, 100, 200].map(bps => (
                             <Button
@@ -307,10 +313,13 @@ export function MyPositions() {
                               type="button"
                               variant="outline"
                               size="sm"
+                              aria-pressed={
+                                activeCloseDraft.slippagePercent === (bps / 100).toString()
+                              }
                               className={`h-8 flex-1 text-xs ${
                                 activeCloseDraft.slippagePercent === (bps / 100).toString()
-                                  ? 'bg-white text-black font-bold hover:bg-white/90'
-                                  : 'hover:bg-accent/50'
+                                  ? 'bg-surface-inverse text-fg-inverse font-bold hover:bg-surface-inverse-hover'
+                                  : 'hover:bg-state-hover'
                               }`}
                               onClick={() =>
                                 setCloseDraft(current =>
@@ -343,9 +352,9 @@ export function MyPositions() {
                           allowNegative={false}
                           unit="%"
                         />
-                        <div className="text-xs text-zinc-400">
+                        <div className="text-xs text-fg-secondary">
                           Submits a reduce-only IOC close with a price cap of{' '}
-                          <span className="font-mono tabular-nums text-zinc-100">
+                          <span className="font-mono tabular-nums text-fg-primary">
                             {formatPrice(closePreviewPrice, activeCloseDraft.quoteDecimals)}
                           </span>{' '}
                           {activeCloseDraft.quoteUnit}.
@@ -367,15 +376,15 @@ export function MyPositions() {
                           allowNegative={false}
                           unit={activeCloseDraft.quoteUnit}
                         />
-                        <div className="text-xs text-zinc-400">
+                        <div className="text-xs text-fg-secondary">
                           Submits a resting reduce-only limit close that can remain on the book.
                         </div>
                       </div>
                     )}
 
-                    <div className="rounded-md border border-outline bg-background/40 px-3 py-2 text-xs">
+                    <div className="rounded-md border border-line-subtle bg-surface-sunken px-3 py-2 text-xs">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-zinc-400">Size</span>
+                        <span className="text-fg-tertiary">Size</span>
                         <span className="font-mono tabular-nums">
                           {formatQuantity(
                             Math.abs(safeParseFloat(activeCloseDraft.size)),
@@ -385,7 +394,7 @@ export function MyPositions() {
                         </span>
                       </div>
                       <div className="mt-1 flex items-center justify-between gap-3">
-                        <span className="text-zinc-400">Mark</span>
+                        <span className="text-fg-tertiary">Mark</span>
                         <span className="font-mono tabular-nums">
                           {formatPrice(
                             safeParseFloat(activeCloseDraft.markPrice),
@@ -395,7 +404,7 @@ export function MyPositions() {
                         </span>
                       </div>
                       <div className="mt-1 flex items-center justify-between gap-3">
-                        <span className="text-zinc-400">
+                        <span className="text-fg-tertiary">
                           {activeCloseDraft.mode === 'market' ? 'IOC Cap' : 'Limit'}
                         </span>
                         <span className="font-mono tabular-nums">

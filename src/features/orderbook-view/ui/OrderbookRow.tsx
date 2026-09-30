@@ -23,12 +23,12 @@ export function OrderbookRow({
   baseDecimals,
 }: OrderbookRowProps) {
   return (
-    <div className={cn('relative font-medium w-full h-[26px]')}>
+    <div className={cn('relative font-medium w-full h-[26px] hover:bg-state-hover')}>
       {/* Depth indicator */}
       <div
         className={cn(
-          'absolute inset-0 opacity-25 mix-blend-lighten',
-          side === 'Buy' ? 'bg-emerald-500' : 'bg-red-500'
+          'absolute inset-0',
+          side === 'Buy' ? 'bg-positive-solid/25' : 'bg-negative-solid/25'
         )}
         style={{
           width: `${depth}%`,
@@ -41,12 +41,13 @@ export function OrderbookRow({
         <div
           className={cn(
             'grid grid-cols-3 gap-4 items-center',
-            'font-mono text-xs leading-none tracking-tight w-full',
-            side === 'Buy' ? 'text-success' : 'text-danger'
+            'font-mono text-xs leading-none tracking-tight w-full text-fg-secondary'
           )}
         >
           {/* Price */}
-          <div className="text-left">
+          <div
+            className={cn('text-left', side === 'Buy' ? 'text-positive-fg' : 'text-negative-fg')}
+          >
             <span className="tabular-nums">{formatPrice(price, quoteDecimals)}</span>
           </div>
 

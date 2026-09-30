@@ -47,18 +47,19 @@ function ChartToolbarComponent({
   onPriceSourceChange,
 }: ChartToolbarProps) {
   return (
-    <div className="flex items-center h-8 px-2 gap-1 border-b border-outline bg-card">
+    <div className="flex items-center h-8 px-2 gap-1 border-b border-line-subtle bg-surface-raised">
       {/* Time intervals */}
       <div className="flex items-center gap-0.5">
         {INTERVALS.map(({ label, value }) => (
           <button
             key={value}
             onClick={() => onIntervalChange(value)}
+            aria-pressed={timeInterval === value}
             className={cn(
-              'px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40',
+              'px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-line-focus',
               timeInterval === value
-                ? 'text-white bg-white/15 font-medium'
-                : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                ? 'text-fg-primary bg-state-selected font-medium'
+                : 'text-fg-tertiary hover:text-fg-secondary hover:bg-state-hover'
             )}
           >
             {label}
@@ -68,7 +69,7 @@ function ChartToolbarComponent({
 
       {showChartType && onChartTypeChange && (
         <>
-          <div className="w-px h-4 bg-outline mx-1" />
+          <div className="w-px h-4 bg-line-subtle mx-1" />
 
           {/* Chart type icons */}
           <div className="flex items-center gap-0.5">
@@ -76,11 +77,12 @@ function ChartToolbarComponent({
               <button
                 key={value}
                 onClick={() => onChartTypeChange(value)}
+                aria-pressed={chartType === value}
                 className={cn(
-                  'p-1.5 rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40',
+                  'p-1.5 rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-line-focus',
                   chartType === value
-                    ? 'text-white bg-white/15'
-                    : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                    ? 'text-fg-primary bg-state-selected'
+                    : 'text-fg-tertiary hover:text-fg-secondary hover:bg-state-hover'
                 )}
                 title={label}
                 aria-label={label}
@@ -94,7 +96,7 @@ function ChartToolbarComponent({
 
       {priceSource && onPriceSourceChange && (
         <>
-          <div className="w-px h-4 bg-outline mx-1" />
+          <div className="w-px h-4 bg-line-subtle mx-1" />
 
           {/* Price source: LTP vs Mark */}
           <div className="flex items-center gap-0.5">
@@ -102,13 +104,14 @@ function ChartToolbarComponent({
               <button
                 key={value}
                 onClick={() => onPriceSourceChange(value)}
+                aria-pressed={priceSource === value}
                 title={title}
                 aria-label={title}
                 className={cn(
-                  'px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40',
+                  'px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-line-focus',
                   priceSource === value
-                    ? 'text-white bg-white/15 font-medium'
-                    : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                    ? 'text-fg-primary bg-state-selected font-medium'
+                    : 'text-fg-tertiary hover:text-fg-secondary hover:bg-state-hover'
                 )}
               >
                 {label}
@@ -120,7 +123,7 @@ function ChartToolbarComponent({
 
       {isRefreshing && (
         <div
-          className="ml-auto flex items-center gap-1.5 text-[10px] text-white/40"
+          className="ml-auto flex items-center gap-1.5 text-[10px] text-fg-tertiary"
           aria-live="polite"
         >
           <Loader2 className="size-3 animate-spin" />
