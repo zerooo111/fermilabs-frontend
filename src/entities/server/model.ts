@@ -12,6 +12,13 @@ export interface ServerConfigMarket {
     address: string;
     capacity?: number;
   };
+  // On-chain perp market weights, as decimal strings (e.g. "0.975")
+  risk?: {
+    init_base_asset_weight: string;
+    init_base_liab_weight: string;
+    maint_base_asset_weight: string;
+    maint_base_liab_weight: string;
+  };
 }
 
 export interface ServerConfig {

@@ -7,7 +7,7 @@ import { useLayoutEffect, useEffect, useRef, memo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Orderbook } from '../../features/orderbook-view';
 import { PerpsChartContainer } from '../../features/chart/ui/PerpsChartContainer';
-import { PerpsTradePanel, PortfolioTabs } from '../../features/order-placement';
+import { TradeTicket, PortfolioTabs } from '../../features/order-placement';
 import { TradingSkeleton } from '@/shared/ui/TradingSkeleton';
 import {
   useSelectedMarket,
@@ -22,7 +22,7 @@ import { useOrderbookStream } from '@/shared/hooks/useOrderbookStream';
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
 const MemoizedPerpsChartContainer = memo(PerpsChartContainer);
-const MemoizedPerpsTradePanel = memo(PerpsTradePanel);
+const MemoizedTradeTicket = memo(TradeTicket);
 const MemoizedPortfolioTabs = memo(PortfolioTabs);
 
 function PerpsPage() {
@@ -104,7 +104,7 @@ function PerpsPage() {
 
         {/* Trade Panel - stacks below orderbook on mobile, side panel on desktop */}
         <div className="overflow-hidden">
-          <MemoizedPerpsTradePanel />
+          <MemoizedTradeTicket />
         </div>
       </div>
 
