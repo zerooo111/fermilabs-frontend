@@ -71,7 +71,7 @@ export function FairQueueDrawing() {
 
 export function FinalityDrawing() {
   return (
-    <Blueprint label="A Fermi trade confirms the moment it matches; a block-based trade waits for its slot">
+    <Blueprint label="A Fermi trade confirms the moment it lands; a block-based trade waits for its slot">
       <line x1="40" y1="140" x2="296" y2="140" className="soft" />
       <text x="296" y="154" textAnchor="end">
         time

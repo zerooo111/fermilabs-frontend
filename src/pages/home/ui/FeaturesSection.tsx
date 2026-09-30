@@ -16,7 +16,7 @@ const FEATURES = [
   },
   {
     title: 'Instant finality',
-    body: 'Block-based DEXes give no guarantee of when, or how, your trade is included. On Fermi it confirms the moment it matches.',
+    body: 'Block-based DEXes give no guarantee of when, or how, your trade is included. On Fermi it confirms the moment it lands.',
     Drawing: FinalityDrawing,
   },
   {
