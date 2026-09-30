@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAccount, useAccountMangoAccount } from '@/shared/hooks/useAccount';
 import { Check, Copy, Loader2 } from 'lucide-react';
+import { HealthBar } from '@/shared/ui/health-bar';
+import { accountHealthPct, healthTone } from '@/shared/lib/account-health';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 
 export function AccountCard() {
   const { publicKey } = useWallet();
@@ -50,6 +53,8 @@ export function AccountCard() {
   }
 
   const marginUsage = Math.max(accountData.margin_usage_fraction ?? 0, 0) * 100;
+  const equity = accountData.equity_snapshot;
+  const health = accountHealthPct(equity - accountData.maintenance_margin_snapshot, equity);
 
   return (
     <>
@@ -71,6 +76,31 @@ export function AccountCard() {
       )}
 
       <div className="flex flex-col gap-2 p-3 md:p-4">
+        {/* Account health */}
+        <div className="flex flex-col gap-2 pb-1">
+          <div className="flex items-center justify-between">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help text-sm font-medium underline decoration-white/30 decoration-dotted underline-offset-4">
+                  Account Health
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs">
+                How far the account is from liquidation. 100% means no open risk; at 0% positions
+                can be liquidated.
+              </TooltipContent>
+            </Tooltip>
+            <span
+              className={`text-sm font-mono ${health === null ? 'text-white/60' : healthTone(health).text}`}
+            >
+              {health === null ? '—' : `${health.toFixed(0)}%`}
+            </span>
+          </div>
+          <HealthBar value={health} />
+        </div>
+
+        <div className="border-t border-outline my-1" />
+
         {/* USDC Collateral */}
         <div className="flex justify-between items-center">
           <span className="text-sm text-white/60">USDC Collateral</span>

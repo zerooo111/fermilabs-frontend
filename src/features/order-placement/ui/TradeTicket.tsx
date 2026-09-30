@@ -13,6 +13,8 @@ import { CaretDown, Check, CircleNotch, Warning, XCircle } from '@phosphor-icons
 import { cn } from '@/lib/utils';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
+import { HealthBar } from '@/shared/ui/health-bar';
+import { accountHealthPct, healthTone } from '@/shared/lib/account-health';
 import type { OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 import {
   marketBaseDecimals,
@@ -294,7 +296,17 @@ export function TradeTicket() {
   const sim = isBuy ? f.buySimulate.data : f.sellSimulate.data;
   const rejects = describeSimReasons(sim?.reject_reasons ?? []);
   const warnings = describeSimReasons(sim?.warnings ?? []);
-  const healthAfter = sim?.after.init_health_ratio;
+  // Same measure as the account card: maintenance health over equity
+  const healthNow = f.accountMetrics
+    ? accountHealthPct(
+        f.accountMetrics.equity_snapshot - f.accountMetrics.maintenance_margin_snapshot,
+        f.accountMetrics.equity_snapshot
+      )
+    : null;
+  const healthAfter = sim
+    ? accountHealthPct(sim.after.maint_health_ui_quote, sim.after.equity_ui_quote)
+    : null;
+  const healthShown = healthAfter ?? healthNow;
   const wouldReject = isBuy ? f.buyWouldReject : f.sellWouldReject;
 
   const canSubmit =
@@ -640,28 +652,31 @@ export function TradeTicket() {
 
       {/* Summary */}
       <div className="flex flex-col gap-1.5 border-t border-outline/60 pt-3">
+        {/* Current health, or where this order would leave it once simulated */}
+        {f.publicKey && (
+          <div className="flex flex-col gap-2 pb-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1.5 text-rock/50">
+                {healthAfter !== null ? 'Health after trade' : 'Account health'}
+                {f.simLoading && <CircleNotch size={11} className="animate-spin" />}
+              </span>
+              <span className="font-mono tabular-nums">
+                {healthAfter !== null && healthNow !== null && (
+                  <span className="text-rock/50">{healthNow.toFixed(0)}% → </span>
+                )}
+                {healthShown === null ? (
+                  <span className="text-rock/50">—</span>
+                ) : (
+                  <span className={healthTone(healthShown).text}>{healthShown.toFixed(0)}%</span>
+                )}
+              </span>
+            </div>
+            <HealthBar value={healthShown} />
+          </div>
+        )}
         <Row label="Order value">{orderValue > 0 ? `${fmt(orderValue)} ${quote}` : '—'}</Row>
         <Row label="Margin required">{margin !== null ? `${fmt(margin)} ${quote}` : '—'}</Row>
         <Row label="Est. liq. price">{liqPrice !== null ? fmt(liqPrice, quoteDecimals) : '—'}</Row>
-        <Row
-          label={
-            <span className="flex items-center gap-1.5">
-              Health after
-              {f.simLoading && <CircleNotch size={11} className="animate-spin" />}
-            </span>
-          }
-          className={
-            healthAfter === undefined
-              ? undefined
-              : healthAfter < 10
-                ? 'text-danger'
-                : healthAfter < 30
-                  ? 'text-amber-400'
-                  : 'text-success'
-          }
-        >
-          {healthAfter !== undefined ? `${healthAfter.toFixed(1)}%` : '—'}
-        </Row>
         <Row label="Fee">{FEE_RATE}</Row>
       </div>
     </div>
