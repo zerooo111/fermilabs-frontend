@@ -337,9 +337,10 @@ export function TradeTicket() {
       </div>
 
       {/* Order type, margin mode */}
-      {/* Tab labels sit 8px above the underline with no space above them; the
-          badge centres on the labels (8px clear + 12px half-height = 20px) */}
-      <div className="flex items-end justify-between border-b border-outline/60">
+      {/* Sits 8px under the side toggle (-mt-2 off the 16px section gap), as one
+          group with it. Tab labels sit 8px above the underline; the badge
+          centres on the labels (8px clear + 12px half-height = 20px) */}
+      <div className="-mt-2 flex items-end justify-between border-b border-outline/60">
         <div role="tablist" aria-label="Order type" className="flex">
           {(['market', 'limit'] as const).map(t => {
             const active = f.formState.orderType === t;
