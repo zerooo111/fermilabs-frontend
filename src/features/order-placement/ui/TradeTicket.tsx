@@ -24,6 +24,7 @@ import {
 const FEE_RATE = '0.01%';
 const SLIPPAGE_PRESETS = ['0.1', '0.25', '0.5', '1'];
 const MARGIN_TICKS = [0, 25, 50, 75, 100];
+const MARGIN_PRESETS = [25, 50, 75, 100];
 
 const fmt = (n: number, digits = 2) =>
   n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -124,7 +125,6 @@ function TickSlider({
   min,
   max,
   ticks,
-  tickLabel,
   onChange,
   disabled = false,
   ariaLabel,
@@ -136,7 +136,6 @@ function TickSlider({
   min: number;
   max: number;
   ticks: number[];
-  tickLabel: (tick: number) => string;
   onChange: (value: number) => void;
   disabled?: boolean;
   ariaLabel: string;
@@ -186,23 +185,6 @@ function TickSlider({
           className="block size-3.5 border-2 border-rock bg-background outline-none focus-visible:ring-2 focus-visible:ring-rock/40"
         />
       </SliderPrimitive.Root>
-      <div className="relative h-3">
-        {ticks.map(t => (
-          <button
-            key={t}
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange(t)}
-            style={{ left: `${at(t)}%` }}
-            className={cn(
-              'absolute whitespace-nowrap font-mono text-[10px] leading-3 text-rock/50 transition-colors hover:text-rock disabled:pointer-events-none',
-              align(t)
-            )}
-          >
-            {tickLabel(t)}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
@@ -429,7 +411,6 @@ export function TradeTicket() {
           min={0}
           max={stops.length - 1}
           ticks={stops.map((_, i) => i)}
-          tickLabel={i => `${stops[i]}×`}
           onChange={i => changeLeverage(stops[i])}
           ariaLabel="Leverage"
           ariaValueText={`${leverage}×`}
@@ -451,11 +432,26 @@ export function TradeTicket() {
           min={0}
           max={100}
           ticks={MARGIN_TICKS}
-          tickLabel={t => `${t}%`}
           onChange={setPercent}
           disabled={maxSize <= 0}
           ariaLabel="Margin as a share of available collateral"
         />
+        <div className="grid grid-cols-4 gap-1">
+          {MARGIN_PRESETS.map(p => (
+            <button
+              key={p}
+              type="button"
+              disabled={maxSize <= 0}
+              onClick={() => setPercent(p)}
+              className={cn(
+                'h-6 font-mono text-[11px] transition-colors hover:bg-white/10 hover:text-rock disabled:pointer-events-none disabled:opacity-40',
+                Math.round(percent) === p ? 'bg-white/10 text-rock' : 'text-rock/50'
+              )}
+            >
+              {p === 100 ? 'Max' : `${p}%`}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Options */}
