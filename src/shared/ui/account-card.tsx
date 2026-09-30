@@ -5,7 +5,46 @@ import { Check, Copy, Loader2 } from 'lucide-react';
 import { HealthBar } from '@/shared/ui/health-bar';
 import { accountHealthPct, healthTone } from '@/shared/lib/account-health';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/shared/ui/dialog';
 
+const formatCurrency = (value: number | undefined | null) => {
+  if (value == null) return '0.00';
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
+};
+
+const pnlClass = (value: number | undefined | null) =>
+  (value ?? 0) >= 0 ? 'text-success' : 'text-danger';
+
+function Row({
+  label,
+  children,
+  className = 'text-rock',
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-xs">
+      <span className="text-rock/50">{label}</span>
+      <span className={`font-mono tabular-nums ${className}`}>{children}</span>
+    </div>
+  );
+}
+
+/**
+ * Account summary under the trade ticket: health plus the few numbers worth
+ * watching while trading. Everything else lives in the Details modal.
+ */
 export function AccountCard() {
   const { publicKey } = useWallet();
   const { data: accountData, isLoading, error } = useAccount(publicKey?.toBase58() || '');
@@ -19,28 +58,22 @@ export function AccountCard() {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const formatCurrency = (value: number | undefined | null) => {
-    if (value == null) return '0.00';
-    return value.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 4,
-    });
-  };
-
   // Sits under the trade ticket, whose Connect wallet button covers this case
   if (!publicKey) return null;
 
   if (isLoading) {
     return (
-      <div className="flex h-12 px-4 items-center justify-center gap-2">
+      <div className="flex h-12 px-3 items-center justify-center gap-2">
         <Loader2 className="size-4 animate-spin" />
-        <span className="text-sm text-white/60">Loading account data...</span>
+        <span className="text-xs text-rock/60">Loading account data...</span>
       </div>
     );
   }
 
   if (error) {
-    return <div className="text-center h-12 px-4 text-white/60">Failed to load account data</div>;
+    return (
+      <div className="text-center h-12 px-3 text-xs text-rock/60">Failed to load account data</div>
+    );
   }
 
   if (!accountData) {
@@ -52,152 +85,95 @@ export function AccountCard() {
   const health = accountHealthPct(equity - accountData.maintenance_margin_snapshot, equity);
 
   return (
-    <>
-      <h3 className="text-base md:text-lg px-3 md:px-4 h-12 leading-12 bg-card border-b border-outline font-medium">
-        Account
-      </h3>
-
-      {mangoAccount && (
-        <div className="flex items-center justify-between px-3 md:px-4 py-2 border-b border-outline bg-card/50">
-          <span className="text-xs text-white/40">Fermi Account</span>
-          <button
-            onClick={handleCopyMango}
-            className="flex items-center gap-1.5 text-xs font-mono text-white/60 hover:text-white transition-colors"
-          >
-            {`${mangoAccount.slice(0, 4)}...${mangoAccount.slice(-4)}`}
-            {copied ? <Check className="size-3 text-green-400" /> : <Copy className="size-3" />}
-          </button>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-2 p-3 md:p-4">
-        {/* Account health */}
-        <div className="flex flex-col gap-2 pb-1">
-          <div className="flex items-center justify-between">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="cursor-help text-sm font-medium underline decoration-white/30 decoration-dotted underline-offset-4">
-                  Account Health
-                </span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs text-xs">
-                How far the account is from liquidation. 100% means no open risk; at 0% positions
-                can be liquidated.
-              </TooltipContent>
-            </Tooltip>
-            <span
-              className={`text-sm font-mono ${health === null ? 'text-white/60' : healthTone(health).text}`}
-            >
-              {health === null ? '—' : `${health.toFixed(0)}%`}
+    <div className="flex flex-col gap-3 p-3">
+      <div className="flex items-center justify-between">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="cursor-help text-sm font-medium underline decoration-rock/30 decoration-dotted underline-offset-4">
+              Account Health
             </span>
-          </div>
-          <HealthBar value={health} />
-        </div>
-
-        <div className="border-t border-outline my-1" />
-
-        {/* USDC Collateral */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">USDC Collateral</span>
-          <span className="text-sm font-mono">{formatCurrency(accountData.usdc_collateral)}</span>
-        </div>
-
-        {/* Account Equity */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">Equity</span>
-          <span className="text-sm font-mono">{formatCurrency(accountData.equity_snapshot)}</span>
-        </div>
-
-        {/* Free Collateral */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">Free Collateral</span>
-          <span className="text-sm font-mono">
-            {formatCurrency(accountData.free_collateral_snapshot)}
-          </span>
-        </div>
-
-        {/* Available for Withdrawal */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">Available Withdrawal</span>
-          <span className="text-sm font-mono">
-            {formatCurrency(accountData.available_withdrawal_snapshot)}
-          </span>
-        </div>
-
-        <div className="border-t border-outline my-1" />
-
-        {/* Initial Margin */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">Initial Margin</span>
-          <span className="text-sm font-mono">
-            {formatCurrency(accountData.initial_margin_snapshot)}
-          </span>
-        </div>
-
-        {/* Maintenance Margin */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">Maintenance Margin</span>
-          <span className="text-sm font-mono">
-            {formatCurrency(accountData.maintenance_margin_snapshot)}
-          </span>
-        </div>
-
-        {/* Margin Usage */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">Margin Usage</span>
-          <span className="text-sm font-mono">{marginUsage.toFixed(2)}%</span>
-        </div>
-
-        {/* Portfolio Leverage Limit */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">Max Leverage</span>
-          <span className="text-sm font-mono">
-            {accountData.portfolio_leverage_limit_snapshot}x
-          </span>
-        </div>
-
-        <div className="border-t border-outline my-1" />
-
-        {/* Unrealized PnL */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">Unrealized PNL</span>
-          <span
-            className={`text-sm font-mono ${(accountData.unrealized_pnl ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}
-          >
-            {formatCurrency(accountData.unrealized_pnl)}
-          </span>
-        </div>
-
-        {/* Realized PnL */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">Realized PNL</span>
-          <span
-            className={`text-sm font-mono ${(accountData.realized_pnl_snapshot ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}
-          >
-            {formatCurrency(accountData.realized_pnl_snapshot)}
-          </span>
-        </div>
-
-        {/* Realized PnL Total */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">Total Realized PNL</span>
-          <span
-            className={`text-sm font-mono ${(accountData.realized_pnl_total ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}
-          >
-            {formatCurrency(accountData.realized_pnl_total)}
-          </span>
-        </div>
-
-        {/* Funding Accrued */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-white/60">Funding Accrued</span>
-          <span
-            className={`text-sm font-mono ${(accountData.funding_accrued_snapshot ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}
-          >
-            {formatCurrency(accountData.funding_accrued_snapshot)}
-          </span>
-        </div>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs text-xs">
+            How far the account is from liquidation. 100% means no open risk; at 0% positions can be
+            liquidated.
+          </TooltipContent>
+        </Tooltip>
+        <span
+          className={`text-sm font-mono ${health === null ? 'text-rock/60' : healthTone(health).text}`}
+        >
+          {health === null ? '—' : `${health.toFixed(0)}%`}
+        </span>
       </div>
-    </>
+      <HealthBar value={health} />
+
+      <div className="flex flex-col gap-1.5">
+        <Row label="Account value">{formatCurrency(equity)}</Row>
+        <Row label="Maintenance margin">
+          {formatCurrency(accountData.maintenance_margin_snapshot)}
+        </Row>
+        <Row label="Unrealized PnL" className={pnlClass(accountData.unrealized_pnl)}>
+          {formatCurrency(accountData.unrealized_pnl)}
+        </Row>
+      </div>
+
+      <Dialog>
+        <DialogTrigger className="h-7 border border-outline text-xs text-rock/70 transition-colors hover:border-rock/40 hover:text-rock">
+          View all details
+        </DialogTrigger>
+        <DialogContent className="max-w-sm gap-4">
+          <DialogHeader>
+            <DialogTitle>Account</DialogTitle>
+          </DialogHeader>
+
+          {mangoAccount && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-rock/50">Fermi Account</span>
+              <button
+                onClick={handleCopyMango}
+                className="flex items-center gap-1.5 text-xs font-mono text-rock/70 hover:text-rock transition-colors"
+              >
+                {`${mangoAccount.slice(0, 4)}...${mangoAccount.slice(-4)}`}
+                {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <Row label="USDC collateral">{formatCurrency(accountData.usdc_collateral)}</Row>
+            <Row label="Equity">{formatCurrency(equity)}</Row>
+            <Row label="Free collateral">
+              {formatCurrency(accountData.free_collateral_snapshot)}
+            </Row>
+            <Row label="Available withdrawal">
+              {formatCurrency(accountData.available_withdrawal_snapshot)}
+            </Row>
+          </div>
+
+          <div className="flex flex-col gap-1.5 border-t border-outline pt-4">
+            <Row label="Initial margin">{formatCurrency(accountData.initial_margin_snapshot)}</Row>
+            <Row label="Maintenance margin">
+              {formatCurrency(accountData.maintenance_margin_snapshot)}
+            </Row>
+            <Row label="Margin usage">{marginUsage.toFixed(2)}%</Row>
+            <Row label="Max leverage">{accountData.portfolio_leverage_limit_snapshot}x</Row>
+          </div>
+
+          <div className="flex flex-col gap-1.5 border-t border-outline pt-4">
+            <Row label="Unrealized PnL" className={pnlClass(accountData.unrealized_pnl)}>
+              {formatCurrency(accountData.unrealized_pnl)}
+            </Row>
+            <Row label="Realized PnL" className={pnlClass(accountData.realized_pnl_snapshot)}>
+              {formatCurrency(accountData.realized_pnl_snapshot)}
+            </Row>
+            <Row label="Total realized PnL" className={pnlClass(accountData.realized_pnl_total)}>
+              {formatCurrency(accountData.realized_pnl_total)}
+            </Row>
+            <Row label="Funding accrued" className={pnlClass(accountData.funding_accrued_snapshot)}>
+              {formatCurrency(accountData.funding_accrued_snapshot)}
+            </Row>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
