@@ -53,7 +53,11 @@ const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 
 
 export function initOrderbookField(
   canvas: HTMLCanvasElement,
-  { svg, reducedMotion = false }: { svg: SVGSVGElement; reducedMotion?: boolean }
+  {
+    svg,
+    reducedMotion = false,
+    lowPower = false,
+  }: { svg: SVGSVGElement; reducedMotion?: boolean; lowPower?: boolean }
 ): () => void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return () => {};
@@ -417,10 +421,16 @@ export function initOrderbookField(
     render();
   }
 
+  // Phones draw every other step: the simulation keeps full speed, only the
+  // drawing (and its SVG writes) halves to 30fps
+  const minSteps = lowPower ? 2 : 1;
+  let pending = 0;
+
   function loop(now: number) {
-    const steps = clock.steps(now);
-    if (steps) {
-      for (let i = 0; i < steps; i++) step();
+    pending += clock.steps(now);
+    if (pending >= minSteps) {
+      for (let i = 0; i < pending; i++) step();
+      pending = 0;
       draw();
       render();
     }
@@ -431,6 +441,7 @@ export function initOrderbookField(
     if (running || reducedMotion) return;
     running = true;
     clock.reset();
+    pending = 0;
     frameId = requestAnimationFrame(loop);
   }
 
@@ -456,6 +467,8 @@ export function initOrderbookField(
   // Layout is read in the handler rather than in rAF
   const area = canvas.parentElement!;
   function onPointerMove(e: PointerEvent) {
+    // A finger on the field is a scroll, not a pointer to dodge
+    if (e.pointerType === 'touch') return;
     const rect = canvas.getBoundingClientRect();
     pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }

@@ -28,9 +28,11 @@
     text-decoration-color 150ms;
 }
 
-.landing .link:hover {
-  color: var(--color-amber-100);
-  text-decoration-color: var(--color-amber-200);
+@media (hover: hover) {
+  .landing .link:hover {
+    color: var(--color-amber-100);
+    text-decoration-color: var(--color-amber-200);
+  }
 }
 
 .pixelated {
@@ -59,6 +61,16 @@
   mask-image: linear-gradient(to bottom, #000, rgb(0 0 0 / 0.25));
   image-rendering: pixelated;
   pointer-events: none;
+}
+
+/* Phones re-blur the page under the header on every scrolled frame, so there
+   it's near-solid instead */
+@media (max-width: 767px) {
+  .glass-nav {
+    background: rgb(24 80 56 / 0.95);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 /* Page frame: vertical rules down both sides, like a drawing sheet */
@@ -136,9 +148,15 @@
   transition: opacity 200ms ease-out;
 }
 
-.dither-corner:hover::after,
 .dither-corner:focus-visible::after {
   opacity: 1;
+}
+
+/* Touch browsers keep :hover stuck after a tap, so only real hovers count */
+@media (hover: hover) {
+  .dither-corner:hover::after {
+    opacity: 1;
+  }
 }
 
 /* With JS, hover gets a live pulsating dither canvas instead of the corner */
@@ -167,14 +185,20 @@
     transform 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.group:hover .card-arrow,
 .group:focus-visible .card-arrow {
   opacity: 1;
   transform: none;
 }
 
-.group:hover .card-arrow path {
-  animation: arrow-nudge 1.4s ease-in-out 450ms infinite;
+@media (hover: hover) {
+  .group:hover .card-arrow {
+    opacity: 1;
+    transform: none;
+  }
+
+  .group:hover .card-arrow path {
+    animation: arrow-nudge 1.4s ease-in-out 450ms infinite;
+  }
 }
 
 @keyframes arrow-nudge {

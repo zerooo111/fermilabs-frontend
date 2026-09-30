@@ -171,6 +171,8 @@ export function initLogoField(
   // synchronous layout after another animation's DOM writes.
   const area = canvas.closest('section') ?? canvas.parentElement!;
   function onPointerMove(e: PointerEvent) {
+    // A finger on the hero is a scroll, not a pointer to dodge
+    if (e.pointerType === 'touch') return;
     const rect = canvas.getBoundingClientRect();
     const cell = rect.width / GW;
     pointer = { x: (e.clientX - rect.left) / cell, y: (e.clientY - rect.top) / cell };

@@ -17,7 +17,11 @@ export default function OrderbookField() {
       import('../lib/orderbook-field')
         .then(({ initOrderbookField }) => {
           if (!cancelled)
-            cleanup = initOrderbookField(canvas, { svg, reducedMotion: prefersReducedMotion() });
+            cleanup = initOrderbookField(canvas, {
+              svg,
+              reducedMotion: prefersReducedMotion(),
+              lowPower: window.matchMedia('(pointer: coarse)').matches,
+            });
         })
         .catch(error => console.error('Failed to load order book field:', error));
     });

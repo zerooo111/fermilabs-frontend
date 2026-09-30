@@ -4,6 +4,10 @@ interface NoiseOverlayProps {
   className?: string;
 }
 
+// Film grain over the page; soft-light also deepens the greens. /noise.png is
+// the old live feTurbulence filter (fractalNoise 0.9, 4 octaves, stitched)
+// rendered once at 2x, so it looks the same without phones re-rasterising the
+// filter while they scroll. `scale` shrinks the grain like baseFrequency did.
 export default function NoiseOverlay({
   opacity = 1,
   scale = 1,
@@ -11,30 +15,9 @@ export default function NoiseOverlay({
 }: NoiseOverlayProps) {
   return (
     <div
-      className={`fixed inset-0 w-full h-full pointer-events-none z-[10] mix-blend-soft-light ${className}`}
-    >
-      <svg
-        className="w-full h-full"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-label="Noise overlay texture"
-        role="img"
-      >
-        <defs>
-          <filter id="noise">
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency={0.9 * scale}
-              numOctaves={4}
-              stitchTiles="stitch"
-            />
-            <feComponentTransfer>
-              <feFuncA type="discrete" tableValues="0 .5 .5 .7 .8 .9 1" />
-            </feComponentTransfer>
-            <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" />
-          </filter>
-        </defs>
-        <rect width="100%" height="100%" filter="url(#noise)" opacity={opacity} />
-      </svg>
-    </div>
+      aria-hidden="true"
+      className={`fixed inset-0 pointer-events-none z-[10] mix-blend-soft-light bg-[url(/noise.png)] bg-repeat ${className}`}
+      style={{ opacity, backgroundSize: `${256 / scale}px` }}
+    />
   );
 }
