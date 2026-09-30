@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, type ReactNode } from 'react';
 import { MarketSelector } from '@/features/market-selector';
 import { cn } from '@/lib/utils';
 import { useSelectedMarket } from '@/entities/market';
@@ -28,9 +28,16 @@ interface ChartHeaderProps {
   selectedMarketId?: string | null;
   onMarketSelect: (marketId: string) => void;
   latestPrice?: LatestPrice | null;
+  /** Replaces the default market dropdown (e.g. with a command-palette trigger) */
+  selector?: ReactNode;
 }
 
-function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }: ChartHeaderProps) {
+function ChartHeaderComponent({
+  selectedMarketId,
+  onMarketSelect,
+  latestPrice,
+  selector,
+}: ChartHeaderProps) {
   const { selectedMarket } = useSelectedMarket();
   const { data: volumeData } = useVolume24h(selectedMarketId ?? undefined);
 
@@ -53,13 +60,15 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
 
   return (
     <div className="flex h-12  items-center divide-x divide-outline justify-between border-b border-outline">
-      <div>
-        <MarketSelector
-          isLoading={false}
-          selectedMarketId={selectedMarketId ?? null}
-          onMarketSelect={onMarketSelect}
-          marketKind="perp"
-        />
+      <div className="h-full">
+        {selector ?? (
+          <MarketSelector
+            isLoading={false}
+            selectedMarketId={selectedMarketId ?? null}
+            onMarketSelect={onMarketSelect}
+            marketKind="perp"
+          />
+        )}
       </div>
       <div className="flex items-center overflow-x-auto flex-1 h-full divide-x divide-outline">
         {/* Mark Price */}

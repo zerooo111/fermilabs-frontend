@@ -1,0 +1,304 @@
+/*
+ * Perps v2 chrome: dockview, toolbar and pane fitting.
+ *
+ * Colours come only from semantic tokens (surface-*, line-*, fg-*, state-*),
+ * which themes.css defines per theme in OKLCH. Nothing here names a colour,
+ * so Day, Night and Fermi share this file unchanged.
+ *
+ * Rules are unlayered on purpose so they win over Tailwind's utility layer.
+ */
+
+.pv2 {
+  font-variant-numeric: tabular-nums;
+  background: var(--color-surface-canvas);
+  color: var(--color-fg-primary);
+}
+
+.dockview-theme-fermi {
+  --dv-group-view-background-color: var(--color-surface-canvas);
+  --dv-tabs-and-actions-container-background-color: var(--color-surface-base);
+  --dv-tabs-and-actions-container-height: 34px;
+  --dv-tabs-and-actions-container-font-size: 12px;
+  --dv-tab-font-size: 12px;
+  --dv-tab-margin: 0;
+  --dv-tab-divider-color: var(--color-line-subtle);
+  --dv-tabs-container-scrollbar-color: var(--color-state-strong);
+
+  --dv-activegroup-visiblepanel-tab-background-color: var(--color-surface-canvas);
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--color-surface-canvas);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: var(--color-fg-primary);
+  --dv-activegroup-hiddenpanel-tab-color: var(--color-fg-tertiary);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--color-fg-secondary);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-fg-tertiary);
+
+  --dv-separator-border: var(--color-line);
+  --dv-paneview-header-border-color: var(--color-line);
+  --dv-paneview-active-outline-color: var(--color-line-focus);
+
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: var(--color-line-focus);
+  --dv-active-sash-transition-duration: 0.1s;
+  --dv-active-sash-transition-delay: 0.15s;
+
+  --dv-drag-over-background-color: var(--color-state-pressed);
+  --dv-drag-over-border-color: var(--color-line-focus);
+  --dv-drag-over-border: 1px dashed var(--color-line-focus);
+  --dv-edge-dock-indicator-color: var(--color-line-focus);
+
+  --dv-icon-hover-background-color: var(--color-state-hover);
+  --dv-context-menu-background-color: var(--color-surface-overlay);
+  --dv-context-menu-color: var(--color-fg-primary);
+
+  --dv-floating-border: 1px solid var(--color-line-strong);
+  --dv-floating-group-border: 1px solid var(--color-line-strong);
+  --dv-floating-box-shadow: var(--pv2-shadow);
+  --dv-floating-titlebar-background-color: var(--color-surface-overlay);
+  --dv-floating-titlebar-border-bottom: 1px solid var(--color-line);
+  --dv-floating-group-dragging-opacity: 0.9;
+  --dv-overlay-z-index: 999;
+
+  --dv-border-radius: 0px;
+  --dv-tab-border-radius: 0px;
+  --dv-sash-border-radius: 0px;
+  --dv-dropdown-border-radius: 0px;
+  --dv-spacing-padding: 0px;
+  --dv-tab-close-icon-size: 12px;
+  --dv-transition-duration: 0.18s;
+}
+
+/* ------------------------------------------------------------------ */
+/* Market bar: the selector and stats row, pinned above the dock       */
+/* ------------------------------------------------------------------ */
+
+.pv2-marketbar {
+  flex-shrink: 0;
+  background: var(--color-surface-base);
+}
+
+/* Text fields show focus on their own frame (focus-within), not a second box */
+.pv2 :focus-visible:not(input, textarea) {
+  outline: 2px solid var(--color-line-focus);
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Dockview chrome                                                     */
+/* ------------------------------------------------------------------ */
+
+.dockview-theme-fermi .dv-tabs-and-actions-container {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.dockview-theme-fermi .dv-tab {
+  position: relative;
+  padding: 0 14px;
+  border-right: 1px solid var(--color-line-subtle);
+  font-weight: 500;
+}
+.dockview-theme-fermi .dv-tab .dv-default-tab {
+  gap: 8px;
+}
+
+/* The visible tab sits on the canvas and cuts through the strip rule */
+.dockview-theme-fermi .dv-tab.dv-active-tab {
+  margin-bottom: -1px;
+}
+.dockview-theme-fermi .dv-tab.dv-active-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--color-line-strong);
+}
+.dockview-theme-fermi .dv-active-group .dv-tab.dv-active-tab::before {
+  background: var(--color-fg-primary);
+}
+
+.dockview-theme-fermi .dv-inactive-tab:hover {
+  color: var(--color-fg-primary);
+  background: var(--color-state-hover);
+}
+
+.dockview-theme-fermi .dv-default-tab-action {
+  color: var(--color-fg-tertiary);
+}
+/* Close only when pointing at the tab: fewer marks on a quiet screen */
+.dockview-theme-fermi .dv-tab:not(:hover):not(:focus-within) .dv-default-tab-action {
+  opacity: 0;
+}
+.dockview-theme-fermi .dv-default-tab-action:hover {
+  color: var(--color-fg-primary);
+  background: var(--color-state-pressed);
+}
+
+/* Group actions (collapse, float, maximize) */
+.pv2-actions {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+.pv2-action {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  border-left: 1px solid var(--color-line-subtle);
+  color: var(--color-fg-tertiary);
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+}
+.pv2-action:hover {
+  color: var(--color-fg-primary);
+  background: var(--color-state-hover);
+}
+/* Float and maximize appear with the pointer; the drawer's collapse stays */
+.dockview-theme-fermi
+  .dv-groupview:not(:hover):not(:focus-within):not(.dv-groupview-edge)
+  .pv2-action {
+  opacity: 0;
+}
+
+.dockview-theme-fermi .dv-sash {
+  z-index: 5;
+}
+
+/* Drop target: an ordered checker over a light wash, never a glow */
+.dockview-theme-fermi .dv-drop-target-selection,
+.dockview-theme-fermi .dv-drop-target-anchor {
+  background-color: var(--color-state-hover) !important;
+  background-image: conic-gradient(
+    var(--color-state-selected) 25%,
+    transparent 0 50%,
+    var(--color-state-selected) 0 75%,
+    transparent 0
+  ) !important;
+  background-size: 4px 4px !important;
+  outline: 1px dashed var(--color-line-focus);
+  outline-offset: -1px;
+}
+
+/* Floating windows: raised frame; drag the empty tab strip to move them */
+.dockview-theme-fermi .dv-resize-container {
+  border: 1px solid var(--color-line-strong);
+}
+.dockview-theme-fermi .dv-resize-container .dv-tabs-and-actions-container {
+  background: var(--color-surface-overlay);
+}
+.dockview-theme-fermi .dv-resize-container .dv-void-container {
+  cursor: grab;
+}
+.dockview-theme-fermi .dv-resize-container .dv-void-container:active {
+  cursor: grabbing;
+}
+
+.dockview-theme-fermi .dv-groupview-edge {
+  border-top: 1px solid var(--color-line);
+}
+
+/* Empty group */
+.pv2-watermark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-fg-tertiary);
+}
+.pv2-watermark > span:first-child {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-fg-secondary);
+}
+
+/* ------------------------------------------------------------------ */
+/* Panes: fit the /perps components to a resizable box                 */
+/* ------------------------------------------------------------------ */
+
+.pv2-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+  background: var(--color-surface-canvas);
+}
+.pv2-pane > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Book and order entry have fixed widths on /perps; here the pane decides */
+.pv2-book > div,
+.pv2-trade > div {
+  width: 100%;
+}
+
+/* The chart asks for 400px; let it shrink with its pane */
+.pv2-chart {
+  overflow: hidden;
+}
+.pv2-chart [class*='min-h-['] {
+  min-height: 0;
+}
+
+.pv2-tape {
+  overflow: auto hidden;
+}
+/* Six columns need room; scroll sideways in a narrow pane instead of overlapping */
+.pv2-tape > * {
+  min-width: 560px;
+}
+.pv2-tape > .pv2-colhead {
+  flex: 0 0 auto;
+}
+.pv2-tape-body {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.pv2-tape-body > div {
+  /* Natural height; the pane body scrolls instead of squeezing the rows */
+  flex: none;
+  height: auto;
+  min-height: auto;
+  overflow: visible;
+  padding-top: 0;
+}
+.pv2-tape-body > div > * {
+  flex-shrink: 0;
+}
+
+.pv2-colhead {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-line-subtle);
+  background: var(--color-surface-raised);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-fg-tertiary);
+}
+
+/* Inner Radix tabs: dock tabs already label the pane, so keep these compact */
+.pv2 [data-slot='tabs-list'] {
+  height: 38px;
+}
+
+/* The pane tab already says "Order book", and market trades have their own
+   pane, so the book's inner Orderbook / Trades tabs go */
+.pv2-book [data-slot='tabs-list'] {
+  display: none;
+}
+
+/* "Please connect your wallet" empty states: one quiet line, centred */
+.pv2-pane > div > h2.text-lg:only-child {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-fg-tertiary);
+}

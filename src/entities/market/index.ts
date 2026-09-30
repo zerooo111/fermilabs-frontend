@@ -13,4 +13,4 @@ export {
   marketNameToSlug,
   findMarketBySlug,
 } from './model';
-export type { Market, MarketKind, SLTPValues, PortfolioTab } from './model';
+export type { Market, MarketKind, SLTPValues, PortfolioTab, EnhancedMarket } from './model';

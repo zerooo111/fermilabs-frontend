@@ -29,6 +29,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { CHART_CONFIG } from '@/features/chart/lib/chart-constants';
 import { useResizeObserver } from '@/shared/hooks/useResizeObserver';
 import { cn } from '@/lib/utils';
+import { CHART_THEME_EVENT } from '@/shared/lib/chart-theme';
 
 export type PerpsChartType = 'candlestick' | 'line' | 'area' | 'bar';
 
@@ -45,6 +46,54 @@ const useChartColors = () => {
       sellColor: root.getPropertyValue('--color-sell-chart')?.trim() || '#ef4444',
     };
   }, []);
+};
+
+// Themed pages (/perps-v2) set --chart-* colours on <html>. Resolved through
+// a canvas pixel so any CSS colour (oklch included) reaches lightweight-charts
+// as plain rgb.
+const resolveCssColor = (() => {
+  let ctx: CanvasRenderingContext2D | null = null;
+  return (value: string): string | undefined => {
+    if (!value) return undefined;
+    ctx ??= document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    if (!ctx) return undefined;
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = value;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+})();
+
+const applyThemeColors = (
+  chart: IChartApi,
+  series: ISeriesApi<any> | null,
+  chartType: PerpsChartType
+) => {
+  const style = getComputedStyle(document.documentElement);
+  const read = (name: string) => resolveCssColor(style.getPropertyValue(name).trim());
+  const text = read('--chart-text');
+  if (!text) return; // not a themed page: keep the defaults
+  const grid = read('--chart-grid');
+  const crosshair = read('--chart-crosshair');
+  chart.applyOptions({
+    layout: { textColor: text },
+    grid: { vertLines: { color: grid }, horzLines: { color: grid } },
+    timeScale: { borderColor: grid },
+    crosshair: { vertLine: { color: crosshair }, horzLine: { color: crosshair } },
+  });
+  const up = read('--chart-up');
+  const down = read('--chart-down');
+  if (series && up && down && (chartType === 'candlestick' || chartType === 'bar')) {
+    series.applyOptions({
+      upColor: up,
+      downColor: down,
+      wickUpColor: up,
+      wickDownColor: down,
+      borderUpColor: up,
+      borderDownColor: down,
+    });
+  }
 };
 
 // Visible bars on first mount, per timeframe. Chosen so the initial window
@@ -242,6 +291,13 @@ function PerpsChartComponent({
   useEffect(() => {
     reachedBeginningRef.current = Boolean(reachedBeginningOfHistory);
   }, [reachedBeginningOfHistory]);
+  useEffect(() => {
+    const onTheme = () => {
+      if (chartRef.current) applyThemeColors(chartRef.current, seriesRef.current, chartType);
+    };
+    window.addEventListener(CHART_THEME_EVENT, onTheme);
+    return () => window.removeEventListener(CHART_THEME_EVENT, onTheme);
+  }, [chartType]);
   const stopLossLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
   const takeProfitLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
   const entryPriceLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
@@ -477,6 +533,7 @@ function PerpsChartComponent({
 
       seriesRef.current = series;
       volumeSeriesRef.current = volumeSeries;
+      applyThemeColors(chart, series, chartType);
       isInitialMountRef.current = true;
       previousDataRef.current = [];
       previousVolumeDataRef.current = [];

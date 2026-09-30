@@ -9,6 +9,7 @@ import { MarginPanel } from '@/features/margin-panel/ui/MarginPanel';
 import { accessSessionAtom } from '@/features/access-gate';
 import FermiLogo3d from './FermiLogo';
 import { config } from '@/shared/config/constants';
+import { NAVBAR_SLOT_ID } from './navbar-slot';
 
 function getNetwork(rpcUrl: string): { label: string; className: string } {
   if (rpcUrl.includes('mainnet'))
@@ -73,6 +74,8 @@ export function Header() {
           </span>
         </div>
         <div className="flex items-center gap-1.5">
+          {/* Page-specific controls, e.g. the /perps-v2 layout menu */}
+          <div id={NAVBAR_SLOT_ID} className="flex items-center empty:hidden" />
           {hasSession && (
             <>
               <MarginPanel />

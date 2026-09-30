@@ -25,7 +25,8 @@ import {
 import { useSelectedMarket } from '@/entities/market';
 import { usePositions } from '@/shared/hooks/usePositions';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useAtomValue } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { chartLatestPriceAtom } from '@/features/chart/lib/latest-price';
 import { recentMarketTradesAtom, marketMetricsAtom } from '@/shared/api/sse-atoms';
 import { nativeToUiNumber } from '@/shared/lib/harness-market';
 import { QUOTE_DECIMALS } from '@/shared/config/constants';
@@ -92,7 +93,12 @@ function loadStoredPriceSource(): PerpsPriceSource {
   return 'mark';
 }
 
-function PerpsChartContainerComponent() {
+interface PerpsChartContainerProps {
+  /** Leave out the market selector and stats row (a page renders its own) */
+  hideMarketHeader?: boolean;
+}
+
+function PerpsChartContainerComponent({ hideMarketHeader = false }: PerpsChartContainerProps) {
   const [timeInterval, setTimeInterval] = useState<PerpsTimeframe>(loadStoredTimeframe);
   const [chartType, setChartType] = useState<PerpsChartType>(loadStoredChartType);
   const [priceSource, setPriceSource] = useState<PerpsPriceSource>(loadStoredPriceSource);
@@ -381,6 +387,11 @@ function PerpsChartContainerComponent() {
     return calculatePerpsPriceChange(candles);
   }, [candles]);
 
+  const setChartLatestPrice = useSetAtom(chartLatestPriceAtom);
+  useEffect(() => {
+    setChartLatestPrice(latestPrice);
+  }, [latestPrice, setChartLatestPrice]);
+
   // Handle loading more historical data (scroll-back pagination).
   // Fetches candles older than the current earliest and prepends them.
   const handleLoadMoreData = useCallback(
@@ -477,11 +488,13 @@ function PerpsChartContainerComponent() {
   if (error && hasNoCandles) {
     return (
       <div className="w-full h-full flex flex-col overflow-hidden">
-        <ChartHeader
-          selectedMarketId={selectedMarket?.uuid}
-          onMarketSelect={selectMarket}
-          latestPrice={latestPrice}
-        />
+        {!hideMarketHeader && (
+          <ChartHeader
+            selectedMarketId={selectedMarket?.uuid}
+            onMarketSelect={selectMarket}
+            latestPrice={latestPrice}
+          />
+        )}
         <ChartToolbar
           timeInterval={timeInterval}
           onIntervalChange={handleIntervalChange}
@@ -515,11 +528,13 @@ function PerpsChartContainerComponent() {
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
-      <ChartHeader
-        selectedMarketId={selectedMarket?.uuid}
-        onMarketSelect={selectMarket}
-        latestPrice={latestPrice}
-      />
+      {!hideMarketHeader && (
+        <ChartHeader
+          selectedMarketId={selectedMarket?.uuid}
+          onMarketSelect={selectMarket}
+          latestPrice={latestPrice}
+        />
+      )}
       <ChartToolbar
         timeInterval={timeInterval}
         onIntervalChange={handleIntervalChange}

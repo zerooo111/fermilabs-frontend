@@ -1,0 +1,210 @@
+/*
+ * Perps v2 themes: Fermi, Night and Day.
+ *
+ * Every colour is authored in OKLCH. Within a theme, surfaces and lines sit
+ * on one hue with low chroma and step in even lightness increments, so each
+ * layer is one clear notch from the last. Status hues keep the same chroma
+ * across themes and move only in lightness to hold contrast.
+ *
+ * Checked against WCAG 2.2: primary text >= 7:1 and every other text token
+ * >= 4.5:1 on all four surfaces; line-strong, line-focus and the status
+ * fills >= 3:1 on the canvas; all values inside the sRGB gamut.
+ *
+ * Scoped to <html data-pv2-theme> while /perps-v2 is mounted, so portals
+ * (selects, popovers, toasts) and the header follow the theme, and /perps
+ * is untouched.
+ */
+
+/* Forest night: the flp-vault ramp, canvas green at hue 165. */
+html[data-pv2-theme='fermi'] {
+  color-scheme: dark;
+  --color-surface-sunken: oklch(0.154 0.03 165);
+  --color-surface-canvas: oklch(0.187 0.032 165);
+  --color-surface-base: oklch(0.226 0.033 165);
+  --color-surface-raised: oklch(0.262 0.033 165);
+  --color-surface-overlay: oklch(0.299 0.033 165);
+  --color-line-faint: oklch(0.262 0.033 165);
+  --color-line-subtle: oklch(0.338 0.03 165);
+  --color-line: oklch(0.385 0.03 165);
+  --color-line-strong: oklch(0.545 0.028 160);
+  --color-line-focus: oklch(0.79 0.025 140);
+  --color-fg-primary: oklch(0.973 0.028 105);
+  --color-fg-secondary: oklch(0.82 0.024 130);
+  --color-fg-tertiary: oklch(0.7 0.024 150);
+  --color-fg-disabled: oklch(0.47 0.025 160);
+  --color-positive-fg: oklch(0.78 0.15 163);
+  --color-positive-solid: oklch(0.696 0.149 163);
+  --color-positive-muted: oklch(0.275 0.05 163);
+  --color-negative-fg: oklch(0.72 0.165 22);
+  --color-negative-solid: oklch(0.637 0.208 25);
+  --color-negative-muted: oklch(0.275 0.05 25);
+  --color-warning-fg: oklch(0.84 0.16 84);
+  --color-info-fg: oklch(0.73 0.14 255);
+  --color-fg-on-positive: oklch(0.187 0.032 165);
+  --color-fg-on-negative: oklch(0.187 0.032 165);
+  --color-warning-solid: oklch(0.84 0.16 84);
+  --color-info-solid: oklch(0.73 0.14 255);
+  --color-state-hover: oklch(0.973 0.028 105 / 0.05);
+  --color-state-pressed: oklch(0.973 0.028 105 / 0.09);
+  --color-state-selected: oklch(0.973 0.028 105 / 0.12);
+  --color-state-strong: oklch(0.973 0.028 105 / 0.25);
+  --color-surface-inverse: oklch(0.973 0.028 105);
+  --color-fg-inverse: oklch(0.187 0.032 165);
+  --color-scrim: oklch(0.154 0.03 165 / 0.72);
+  --pv2-shadow:
+    0 1px 2px oklch(0.154 0.03 165 / 0.5), 0 8px 20px -4px oklch(0.154 0.03 165 / 0.55),
+    0 28px 72px -8px oklch(0.154 0.03 165 / 0.7);
+}
+
+/* Ink: a cool, nearly neutral ramp at hue 260 for low-light sessions. */
+html[data-pv2-theme='night'] {
+  color-scheme: dark;
+  --color-surface-sunken: oklch(0.135 0.01 260);
+  --color-surface-canvas: oklch(0.17 0.012 260);
+  --color-surface-base: oklch(0.205 0.014 260);
+  --color-surface-raised: oklch(0.24 0.015 260);
+  --color-surface-overlay: oklch(0.275 0.016 260);
+  --color-line-faint: oklch(0.24 0.015 260);
+  --color-line-subtle: oklch(0.31 0.016 260);
+  --color-line: oklch(0.365 0.017 260);
+  --color-line-strong: oklch(0.54 0.018 260);
+  --color-line-focus: oklch(0.8 0.02 260);
+  --color-fg-primary: oklch(0.965 0.004 260);
+  --color-fg-secondary: oklch(0.815 0.012 260);
+  --color-fg-tertiary: oklch(0.7 0.016 260);
+  --color-fg-disabled: oklch(0.47 0.016 260);
+  --color-positive-fg: oklch(0.78 0.15 163);
+  --color-positive-solid: oklch(0.696 0.149 163);
+  --color-positive-muted: oklch(0.27 0.05 163);
+  --color-negative-fg: oklch(0.72 0.165 22);
+  --color-negative-solid: oklch(0.637 0.208 25);
+  --color-negative-muted: oklch(0.27 0.05 25);
+  --color-warning-fg: oklch(0.84 0.16 84);
+  --color-info-fg: oklch(0.74 0.125 255);
+  --color-fg-on-positive: oklch(0.17 0.012 260);
+  --color-fg-on-negative: oklch(0.17 0.012 260);
+  --color-warning-solid: oklch(0.84 0.16 84);
+  --color-info-solid: oklch(0.74 0.125 255);
+  --color-state-hover: oklch(0.965 0.004 260 / 0.05);
+  --color-state-pressed: oklch(0.965 0.004 260 / 0.09);
+  --color-state-selected: oklch(0.965 0.004 260 / 0.12);
+  --color-state-strong: oklch(0.965 0.004 260 / 0.25);
+  --color-surface-inverse: oklch(0.965 0.004 260);
+  --color-fg-inverse: oklch(0.17 0.012 260);
+  --color-scrim: oklch(0.135 0.01 260 / 0.72);
+  --pv2-shadow:
+    0 1px 2px oklch(0.135 0.01 260 / 0.5), 0 8px 20px -4px oklch(0.135 0.01 260 / 0.55),
+    0 28px 72px -8px oklch(0.135 0.01 260 / 0.7);
+}
+
+/* Paper: warm rock-tinted surfaces at hue 95, forest ink for text. */
+html[data-pv2-theme='day'] {
+  color-scheme: light;
+  --glass-shadow:
+    0 1px 2px oklch(0.235 0.032 163 / 0.1), 0 8px 20px -4px oklch(0.235 0.032 163 / 0.12),
+    0 28px 64px -8px oklch(0.235 0.032 163 / 0.2);
+  --glass-tint: color-mix(in oklab, var(--color-surface-canvas) 90%, transparent);
+  --glass-backdrop: blur(24px) saturate(140%) brightness(1.1);
+  --glass-ring: oklch(0.235 0.032 163 / 0.06);
+  --color-surface-sunken: oklch(0.94 0.012 95);
+  --color-surface-canvas: oklch(0.985 0.006 95);
+  --color-surface-base: oklch(0.965 0.01 95);
+  --color-surface-raised: oklch(0.95 0.012 95);
+  --color-surface-overlay: oklch(0.995 0.004 95);
+  --color-line-faint: oklch(0.935 0.012 95);
+  --color-line-subtle: oklch(0.89 0.014 110);
+  --color-line: oklch(0.83 0.016 120);
+  --color-line-strong: oklch(0.62 0.02 150);
+  --color-line-focus: oklch(0.45 0.04 163);
+  --color-fg-primary: oklch(0.235 0.032 163);
+  --color-fg-secondary: oklch(0.4 0.03 163);
+  --color-fg-tertiary: oklch(0.495 0.025 163);
+  --color-fg-disabled: oklch(0.72 0.015 150);
+  --color-positive-fg: oklch(0.49 0.105 160);
+  --color-positive-solid: oklch(0.54 0.12 160);
+  --color-positive-muted: oklch(0.95 0.035 160);
+  --color-negative-fg: oklch(0.52 0.19 27);
+  --color-negative-solid: oklch(0.58 0.21 27);
+  --color-negative-muted: oklch(0.955 0.02 25);
+  --color-warning-fg: oklch(0.52 0.105 70);
+  --color-info-fg: oklch(0.5 0.16 255);
+  --color-fg-on-positive: oklch(0.995 0.004 95);
+  --color-fg-on-negative: oklch(0.995 0.004 95);
+  --color-warning-solid: oklch(0.52 0.105 70);
+  --color-info-solid: oklch(0.5 0.16 255);
+  --color-state-hover: oklch(0.235 0.032 163 / 0.045);
+  --color-state-pressed: oklch(0.235 0.032 163 / 0.08);
+  --color-state-selected: oklch(0.235 0.032 163 / 0.11);
+  --color-state-strong: oklch(0.235 0.032 163 / 0.22);
+  --color-surface-inverse: oklch(0.235 0.032 163);
+  --color-fg-inverse: oklch(0.985 0.006 95);
+  --color-scrim: oklch(0.94 0.012 95 / 0.5);
+  --pv2-shadow:
+    0 1px 2px oklch(0.235 0.032 163 / 0.1), 0 8px 20px -4px oklch(0.235 0.032 163 / 0.12),
+    0 28px 64px -8px oklch(0.235 0.032 163 / 0.2);
+}
+
+/* Shared by all three: point the legacy palette the /perps components use
+ * (white, zinc, emerald, card, outline...) at the semantic tokens above. */
+html[data-pv2-theme] {
+  --color-background: var(--color-surface-canvas);
+  --color-dark-forest: var(--color-surface-canvas);
+  --color-card: var(--color-surface-raised);
+  --color-outline: var(--color-line);
+  --color-rock: var(--color-fg-primary);
+
+  --color-white: var(--color-fg-primary);
+  --color-black: var(--color-surface-canvas);
+  --color-zinc-100: var(--color-fg-primary);
+  --color-zinc-200: var(--color-fg-primary);
+  --color-zinc-300: var(--color-fg-secondary);
+  --color-zinc-400: var(--color-fg-tertiary);
+  --color-zinc-500: var(--color-fg-tertiary);
+  --color-zinc-800: var(--color-surface-overlay);
+  --color-neutral-500: var(--color-fg-tertiary);
+
+  --color-success: var(--color-positive-solid);
+  --color-danger: var(--color-negative-solid);
+  --color-green-400: var(--color-positive-fg);
+  --color-emerald-400: var(--color-positive-fg);
+  --color-emerald-500: var(--color-positive-solid);
+  --color-red-200: var(--color-negative-fg);
+  --color-red-400: var(--color-negative-fg);
+  --color-red-500: var(--color-negative-solid);
+  --color-red-800: var(--color-negative-fg);
+  --color-red-900: var(--color-negative-muted);
+  --color-amber-300: var(--color-warning-fg);
+  --color-amber-400: var(--color-warning-fg);
+  --color-yellow-500: var(--color-warning-solid);
+  --color-blue-500: var(--color-info-fg);
+  --color-blue-600: var(--color-info-fg);
+
+  /* Read by PerpsChart (lightweight-charts paints in JS, not CSS) */
+  --chart-text: var(--color-fg-tertiary);
+  --chart-grid: var(--color-line-faint);
+  --chart-crosshair: var(--color-fg-disabled);
+  --chart-up: var(--color-positive-solid);
+  --chart-down: var(--color-negative-solid);
+
+  accent-color: var(--color-fg-primary);
+  background: var(--color-surface-canvas) !important;
+  color: var(--color-fg-primary);
+}
+
+/* The header mark is a white SVG; on paper, print it in ink */
+html[data-pv2-theme='day'] img[src='/logo.svg'] {
+  filter: brightness(0) opacity(0.85);
+}
+
+/* index.css pins these two to fixed hexes; text needs the fg step */
+html[data-pv2-theme] .text-success {
+  color: var(--color-positive-fg);
+}
+html[data-pv2-theme] .text-danger {
+  color: var(--color-negative-fg);
+}
+
+/* Depth bars lighten on dark; on paper they must darken to show at all */
+html[data-pv2-theme='day'] .mix-blend-lighten {
+  mix-blend-mode: multiply;
+}

@@ -3,6 +3,7 @@
  * Provides functionality for placing and managing orders
  */
 export { PerpsTradePanel } from './ui/PerpsTradePanel';
+export { TradeTicket } from './ui/TradeTicket';
 export { MyOrders } from './ui/MyOrders';
 export { MyTrades } from './ui/MyTrades';
 export { OrderIntent } from './lib/OrderIntent';

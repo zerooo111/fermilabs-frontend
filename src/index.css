@@ -28,6 +28,132 @@
   --color-danger: #ef4444;
 }
 
+/*
+ * Fermi color system. Ported from feature/flp-vault.
+ *
+ * Two layers. Primitives are raw ramps with no meaning attached. Semantic
+ * tokens name a job (a surface, a divider, secondary text) and point at a
+ * primitive. Components use semantic tokens only.
+ *
+ * The forest ramp runs from the canvas green to rock (#f8f7e7), set in
+ * OKLCH. Lightness (L in the comments) rises in even steps through the
+ * surfaces, so each layer is one clear notch above the last. Chroma holds at
+ * about 0.033 through the dark half to keep the green, and the hue turns
+ * toward rock's warm yellow only in the light half.
+ *
+ * Every step is opaque. Stacking a panel on a panel no longer compounds
+ * alpha the way bg-white/5 inside bg-white/5 does. Translucency is kept for
+ * one job: interaction states, which must read on any surface.
+ *
+ * `static` emits every variable, so the /design-system page and inline
+ * styles can read tokens that no utility class references yet.
+ */
+@theme static {
+  /* Primitives: forest neutral ramp, OKLCH lightness in comments */
+  --color-forest-50: #f8f7e7; /* L 0.973, rock */
+  --color-forest-100: #e9e9d9; /* L 0.930 */
+  --color-forest-200: #d3d6c7; /* L 0.870 */
+  --color-forest-300: #b5beb0; /* L 0.790 */
+  --color-forest-400: #91a094; /* L 0.690 */
+  --color-forest-500: #6f8176; /* L 0.585 */
+  --color-forest-600: #586d63; /* L 0.515 */
+  --color-forest-650: #475c53; /* L 0.455 */
+  --color-forest-700: #334940; /* L 0.385 */
+  --color-forest-750: #263d34; /* L 0.338 */
+  --color-forest-800: #1b332b; /* L 0.299 */
+  --color-forest-850: #112a22; /* L 0.262 */
+  --color-forest-900: #08211a; /* L 0.226 */
+  --color-forest-950: #011812; /* L 0.187, canvas */
+  --color-forest-1000: #00100b; /* L 0.154 */
+
+  /* Primitives: brand */
+  --color-brand-500: #185038;
+  --color-brand-400: #21654a;
+  --color-brand-300: #2f7d5d;
+
+  /* Surfaces, back to front */
+  --color-surface-sunken: var(--color-forest-1000);
+  --color-surface-canvas: var(--color-forest-950);
+  --color-surface-base: var(--color-forest-900);
+  --color-surface-raised: var(--color-forest-850);
+  --color-surface-overlay: var(--color-forest-800);
+  --color-surface-inverse: var(--color-forest-50);
+  --color-surface-brand: var(--color-brand-500);
+  --color-surface-inverse-hover: var(--color-forest-100);
+
+  /* Dims the page behind a dialog */
+  --color-scrim: rgb(0 16 11 / 0.72);
+
+  /* Interaction states, translucent so they work on every surface */
+  --color-state-hover: rgb(248 247 231 / 0.05);
+  --color-state-pressed: rgb(248 247 231 / 0.09);
+  --color-state-selected: rgb(248 247 231 / 0.12);
+  --color-state-strong: rgb(248 247 231 / 0.25);
+
+  /* Lines: borders, dividers, focus */
+  --color-line-faint: var(--color-forest-850);
+  --color-line-subtle: var(--color-forest-750);
+  --color-line: var(--color-forest-700);
+  --color-line-strong: var(--color-forest-600);
+  --color-line-focus: var(--color-forest-300);
+
+  /* Foreground: text and icons */
+  --color-fg-primary: var(--color-forest-50);
+  --color-fg-secondary: var(--color-forest-300);
+  --color-fg-tertiary: var(--color-forest-400);
+  --color-fg-disabled: var(--color-forest-650);
+  --color-fg-inverse: var(--color-forest-950);
+
+  /*
+   * Status. fg for text, solid for fills, muted for tinted backgrounds, line
+   * for borders. Every muted sits at L 0.275 and every line at L 0.43, so the
+   * four hues carry equal weight.
+   */
+  --color-positive-fg: #34d399;
+  --color-positive-solid: #10b981;
+  --color-positive-muted: #053020;
+  --color-positive-line: #135e42;
+
+  --color-negative-fg: #f87171;
+  --color-negative-solid: #ef4444;
+  --color-negative-muted: #3f1c1b;
+  --color-negative-line: #783b3a;
+
+  --color-warning-fg: #fbbf24;
+  --color-warning-solid: #f59e0b;
+  --color-warning-muted: #2b2907;
+  --color-warning-line: #57520d;
+
+  --color-info-fg: #60a5fa;
+  --color-info-solid: #3b82f6;
+  --color-info-muted: #0c2a41;
+  --color-info-line: #21547b;
+
+  /* Hover step for solid status fills: the lighter fg tone of the same hue */
+  --color-positive-solid-hover: var(--color-positive-fg);
+  --color-negative-solid-hover: var(--color-negative-fg);
+  --color-warning-solid-hover: var(--color-warning-fg);
+  --color-info-solid-hover: var(--color-info-fg);
+
+  /*
+   * Brand context. Only on surface-brand (landing, splash, marketing). The
+   * neutral line tokens sit at the same lightness as brand green and vanish
+   * there, so brand lines stay translucent rock. On brand, fg-secondary is
+   * the dimmest text allowed: fg-tertiary drops to 3.4:1.
+   */
+  --color-line-on-brand: rgb(248 247 231 / 0.2);
+  --color-line-on-brand-strong: rgb(248 247 231 / 0.3);
+
+  /*
+   * Accent. The amber cream of the landing CTAs and nav hovers. Brand context
+   * only: inside the terminal a yellow fill reads as a warning.
+   */
+  --color-accent-solid: #fde68a;
+  --color-accent-solid-hover: #fef3c7;
+  --color-accent-fg: #fef3c7;
+  --color-fg-on-accent: var(--color-brand-500);
+}
+
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -83,6 +209,62 @@ html {
 @layer components {
   .glass-card {
     @apply backdrop-brightness-80 backdrop-blur-md;
+  }
+
+  /*
+   * Floating surfaces (popover, select, dropdown, menu): tinted frosted glass.
+   * The backdrop is blurred and darkened first (brightness < 1), then a mostly
+   * opaque tint goes over it, so text contrast holds whatever sits behind:
+   * worst case over pure white is still >= 4.8:1 for tertiary text. Light
+   * themes brighten instead (--glass-backdrop, --glass-tint, --glass-ring).
+   *
+   * Shadow is three layers: contact (edge), lift (mid), ambient (depth).
+   * Dark canvases swallow soft shadows, so these run dark and wide;
+   * --glass-shadow swaps the whole stack for light themes.
+   *
+   * Lines on glass are neutral fg mixes, not the panel line tokens, which
+   * turn muddy over a tint: --glass-divider for separators, --glass-control
+   * for control outlines, a brighter hairline for the edge.
+   */
+  .glass-surface {
+    --glass-divider: color-mix(in oklab, var(--color-fg-primary) 10%, transparent);
+    --glass-control: color-mix(in oklab, var(--color-fg-primary) 20%, transparent);
+    color: var(--color-fg-primary);
+    background-color: var(
+      --glass-tint,
+      color-mix(in oklab, var(--color-surface-base) 80%, transparent)
+    );
+    -webkit-backdrop-filter: var(--glass-backdrop, blur(24px) saturate(140%) brightness(0.55));
+    backdrop-filter: var(--glass-backdrop, blur(24px) saturate(140%) brightness(0.55));
+    border: 1px solid color-mix(in oklab, var(--color-fg-primary) 16%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, var(--color-fg-primary) 8%, transparent),
+      0 0 0 1px var(--glass-ring, rgb(0 8 5 / 0.45)),
+      var(
+        --glass-shadow,
+        0 1px 2px rgb(0 8 5 / 0.5),
+        0 8px 20px -4px rgb(0 8 5 / 0.55),
+        0 28px 72px -8px rgb(0 8 5 / 0.7)
+      );
+  }
+
+  /* Rows inside a glass surface: pointer, a soft hover, a firmer keyboard/selected state */
+  .glass-item {
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      color 120ms ease;
+  }
+  .glass-item:hover {
+    background-color: var(--color-state-hover);
+  }
+  .glass-item[data-highlighted],
+  .glass-item:focus-visible {
+    background-color: var(--color-state-selected);
+    color: var(--color-fg-primary);
+  }
+  .glass-item[data-disabled] {
+    cursor: not-allowed;
   }
 }
 

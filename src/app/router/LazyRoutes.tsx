@@ -18,6 +18,7 @@ const LoadingPage = () => (
 
 export const HomePage = lazy(() => import('@/pages/home'));
 export const PerpsPage = lazy(() => import('@/pages/perps'));
+export const PerpsV2Page = lazy(() => import('@/pages/perps-v2'));
 export const VaultPage = lazy(() => import('@/pages/vault'));
 export const ReferralsPage = lazy(() => import('@/pages/referrals'));
 
@@ -34,6 +35,14 @@ export const LazyPerpsPage = () => (
   <ErrorBoundary>
     <Suspense fallback={<TradingSkeleton />}>
       <PerpsPage />
+    </Suspense>
+  </ErrorBoundary>
+);
+
+export const LazyPerpsV2Page = () => (
+  <ErrorBoundary>
+    <Suspense fallback={<TradingSkeleton />}>
+      <PerpsV2Page />
     </Suspense>
   </ErrorBoundary>
 );
