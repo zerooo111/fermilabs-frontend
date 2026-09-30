@@ -27,13 +27,8 @@ export function AccountCard() {
     });
   };
 
-  if (!publicKey) {
-    return (
-      <div className="text-center p-4 h-12 text-white/60">
-        Please connect your wallet to view account details
-      </div>
-    );
-  }
+  // Sits under the trade ticket, whose Connect wallet button covers this case
+  if (!publicKey) return null;
 
   if (isLoading) {
     return (

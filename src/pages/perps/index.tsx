@@ -9,6 +9,7 @@ import { Orderbook } from '../../features/orderbook-view';
 import { PerpsChartContainer } from '../../features/chart/ui/PerpsChartContainer';
 import { TradeTicket, PortfolioTabs } from '../../features/order-placement';
 import { TradingSkeleton } from '@/shared/ui/TradingSkeleton';
+import { AccountCard } from '@/shared/ui/account-card';
 import {
   useSelectedMarket,
   marketNameToSlug,
@@ -103,9 +104,12 @@ function PerpsPage() {
         </div>
       </div>
 
-      {/* Trade ticket - spans both rows on desktop */}
-      <div className="border-t border-outline lg:border-t-0 lg:border-l overflow-hidden lg:col-start-2 lg:row-start-1 lg:row-span-2">
+      {/* Trade ticket and account details - spans both rows on desktop */}
+      <div className="flex flex-col divide-y divide-outline border-t border-outline lg:border-t-0 lg:border-l overflow-hidden lg:col-start-2 lg:row-start-1 lg:row-span-2">
         <MemoizedTradeTicket />
+        <div className="empty:hidden lg:w-xs">
+          <AccountCard />
+        </div>
       </div>
 
       {/* Portfolio */}

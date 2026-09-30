@@ -4,7 +4,6 @@ import { MyOrders } from './MyOrders';
 import { MyTrades } from './MyTrades';
 import { MyAssets } from './MyAssets';
 import { MyPositions } from './MyPositions';
-import { AccountCard } from '@/shared/ui/account-card';
 import { Trades } from '@/features/orderbook-view/ui/Trades';
 import { useAtom } from 'jotai';
 import { portfolioActiveTabAtom, type PortfolioTab } from '@/entities/market';
@@ -14,8 +13,7 @@ export function PortfolioTabs() {
   const [activeTab, setActiveTab] = useAtom(portfolioActiveTabAtom);
 
   return (
-    <div className="flex flex-col md:flex-row flex-1 h-full divide-y md:divide-y-0 md:divide-x divide-outline overflow-hidden">
-      {/* Left side - Portfolio Tabs or Trades */}
+    <div className="flex flex-col flex-1 h-full overflow-hidden">
       <div className="flex-1 min-w-0 overflow-hidden">
         {publicKey ? (
           <Tabs
@@ -62,11 +60,6 @@ export function PortfolioTabs() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Right side - Account Card */}
-      <div className="w-full md:w-80 flex-shrink-0 overflow-hidden">
-        <AccountCard />
       </div>
     </div>
   );
