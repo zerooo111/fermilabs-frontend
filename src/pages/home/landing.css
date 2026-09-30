@@ -8,6 +8,22 @@
   font-optical-sizing: auto;
 }
 
+/* The hero mark, order book items and registration marks overhang the frame,
+   which on phones is the screen edge. iOS still lets the page be dragged
+   sideways unless the root clips too. clip, unlike hidden, doesn't make a
+   scroll container, so the sticky header still works. overscroll-behavior
+   stops the iOS rubber-band bounce. */
+html:has(.landing) {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+html:has(.landing),
+html:has(.landing) body {
+  overflow-x: clip;
+  overscroll-behavior: none;
+}
+
 .landing ::selection {
   background: var(--color-amber-200);
   color: var(--color-dark-forest);
