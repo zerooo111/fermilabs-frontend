@@ -2,5 +2,5 @@
  * Orderbook entity
  * Exports orderbook-related functionality
  */
-export { orderbookAtom, useOrderbook } from './model';
-export type { Orderbook, OrderbookItem } from './model';
+export { orderbookAtom, orderbookDepthModeAtom, useOrderbook } from './model';
+export type { Orderbook, OrderbookItem, OrderbookDepthMode } from './model';

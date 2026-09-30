@@ -97,7 +97,13 @@ export function mapOrderbook(
     quantity: uiToNative(a.qty_ui, baseScale),
   }));
 
-  return { bids, asks, lastUpdateId: Date.now(), lastUpdated: new Date() };
+  return {
+    bids,
+    asks,
+    lastUpdateId: Date.now(),
+    lastUpdated: new Date(),
+    depthMode: sseData.depth_mode ?? 'level',
+  };
 }
 
 // --- Open Orders ---

@@ -23,8 +23,16 @@ export interface SSEOrderbookLevel {
   qty_ui: number;
 }
 
+/**
+ * `level`: qty per price level. `cumulative`: qty resting from the top of the
+ * book down to and including each level. Selected via `depth_mode` query param.
+ */
+export type OrderbookDepthMode = 'level' | 'cumulative';
+
 export interface SSEOrderbookSummary {
   depth: number;
+  /** Echo of the `depth_mode` the server applied. */
+  depth_mode?: OrderbookDepthMode;
   bids: SSEOrderbookLevel[];
   asks: SSEOrderbookLevel[];
 }

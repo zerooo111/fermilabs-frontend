@@ -9,7 +9,6 @@
 import { useEffect, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { selectedMarketIdAtom, marketsAtom } from '@/entities/market';
-import { orderbookAtom } from '@/entities/orderbook/model';
 import {
   sseConnectionStateAtom,
   marketMetricsAtom,
@@ -22,10 +21,9 @@ import {
 } from '@/shared/api/sse-atoms';
 import { getSSEClient, getTradesSSEClient } from '@/shared/api/sse-client';
 import { getV2CompositeClient } from '@/shared/api/v2-composite-sse-client';
-import { fetchV2Orderbook, fetchV2Trades } from '@/shared/api/v2-api';
+import { fetchV2Trades } from '@/shared/api/v2-api';
 import type { V2OrderbookSnapshot } from '@/shared/api/v2-api';
 import {
-  mapV2Orderbook,
   mapV2MetaToMetrics,
   mapV2MetaToMarket,
   mapV2MetaToMetadata,
@@ -41,7 +39,6 @@ import { fetchV2Account } from '@/shared/api/v2-api';
 import {
   buildContextFromMarket,
   buildMarketContext,
-  mapOrderbook,
   mapOpenOrders,
   mapUserTrades,
   mapPositions,
@@ -101,7 +98,6 @@ export function useSSEStream() {
   const markets = useAtomValue(marketsAtom);
 
   const setConnectionState = useSetAtom(sseConnectionStateAtom);
-  const setOrderbook = useSetAtom(orderbookAtom);
   const setMarketMetrics = useSetAtom(marketMetricsAtom);
   const setTradeSummary = useSetAtom(marketTradeSummaryAtom);
   const setUserOrders = useSetAtom(userOpenOrdersAtom);
@@ -130,10 +126,6 @@ export function useSSEStream() {
     const ctx = buildMarketContext(data);
     ctxMapRef.current.set(data.market, ctx);
     markPriceRef.current.set(data.market, data.metrics.mark_price_ui);
-
-    if (data.orderbook_summary) {
-      setOrderbook(mapOrderbook(data.orderbook_summary, ctx.baseDecimals, ctx.quoteDecimals));
-    }
 
     setMarketMetrics(data.metrics);
     setTradeSummary(data.trade_summary);
@@ -227,12 +219,11 @@ export function useSSEStream() {
     const controller = new AbortController();
     coldLoadAbortRef.current = controller;
     try {
-      const [book, trades] = await Promise.all([
-        fetchV2Orderbook(mid, { signal: controller.signal }),
-        fetchV2Trades(mid, { limit: RECENT_TRADES_MAX, signal: controller.signal }),
-      ]);
+      const trades = await fetchV2Trades(mid, {
+        limit: RECENT_TRADES_MAX,
+        signal: controller.signal,
+      });
       if (controller.signal.aborted) return;
-      setOrderbook(mapV2Orderbook(book, ctx));
       const mapped = trades.trades.map(t => mapV2TradeToRecent(t, ctx));
       setRecentTrades(prev => mergeRecentTrades(mapped, prev));
     } catch {
@@ -280,17 +271,15 @@ export function useSSEStream() {
     bestAskUi: null,
   });
 
-  // Book event carries the full enriched orderbook (price + order_id + size
-  // per level). Consume it directly — no REST refetch on the hot path.
+  // Book event: only used for top-of-book metrics. The orderbook panel is fed
+  // by useOrderbookStream (legacy summary stream with depth_mode).
   v2Composite.callbacks.onBook = data => {
     const mid = currentMarketRef.current;
     if (!mid) return;
     const market = markets.find(m => m.uuid === mid);
     const ctx = market ? buildContextFromMarket(market) : ctxMapRef.current.get(mid);
     if (!ctx) return;
-    const snap = data as V2OrderbookSnapshot;
-    setOrderbook(mapV2Orderbook(snap, ctx));
-    topOfBookRef.current = bestBidAskFromBook(snap, ctx);
+    topOfBookRef.current = bestBidAskFromBook(data as V2OrderbookSnapshot, ctx);
   };
 
   // Trade event carries the full trade fields. Map + prepend — no REST.
@@ -412,7 +401,7 @@ export function useSSEStream() {
     // Initial burst complete — streaming account events can now be trusted
     // even when they carry an empty positions array (user has no positions).
     burstCompleteRef.current = true;
-    // Seed orderbook + recent trades via REST on every market switch.
+    // Seed recent trades via REST on every market switch.
     const mid = currentMarketRef.current;
     if (mid) void coldLoadV2(mid);
     // Seed positions from REST once per wallet session. Market switches must
@@ -502,9 +491,8 @@ export function useSSEStream() {
       prefetchRecentTrades(marketId);
       if (v2Enabled) {
         v2Composite.connect(marketId, accessOwner);
-        // Seed orderbook immediately via REST so the UI renders before the
-        // first composite event arrives (typically within one RTT but can
-        // be slower on cold connect).
+        // Seed recent trades immediately via REST so the UI renders before
+        // the first composite event arrives.
         void coldLoadV2(marketId);
       } else {
         client.connect(marketId, accessOwner);

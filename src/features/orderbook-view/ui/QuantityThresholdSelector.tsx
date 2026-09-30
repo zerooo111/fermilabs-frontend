@@ -10,12 +10,16 @@ export function QuantityThresholdSelector() {
       value={threshold.toString()}
       onValueChange={value => setThreshold(Number(value) as typeof threshold)}
     >
-      <SelectTrigger className="!h-full w-32 border-none">
+      <SelectTrigger
+        size="sm"
+        aria-label="Minimum size"
+        className="!h-7 border-none bg-transparent px-2 text-xs shadow-none"
+      >
         <SelectValue placeholder="Min Size" />
       </SelectTrigger>
       <SelectContent>
         {QUANTITY_THRESHOLD_OPTIONS.map(option => (
-          <SelectItem key={option.value} value={option.value.toString()}>
+          <SelectItem key={option.value} value={option.value.toString()} className="text-xs">
             {option.label}
           </SelectItem>
         ))}

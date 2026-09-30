@@ -6,20 +6,27 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { isEqual } from 'lodash';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
-import { sseConnectionStateAtom } from '@/shared/api/sse-atoms';
+import { orderbookConnectionStateAtom } from '@/shared/api/sse-atoms';
 
 import { useSelectedMarket } from '@/entities/market';
 import { useOrderbook } from '@/entities/orderbook';
 import { processOrderbook, formatPrice } from '../lib/processOrderbook';
+import { quantityThresholdAtom } from '../model/orderbook';
 
 import { OrderbookRow } from './OrderbookRow';
+import { DepthModeSelector } from './DepthModeSelector';
+import { QuantityThresholdSelector } from './QuantityThresholdSelector';
 import { Trades } from './Trades';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { ConnectionIndicator } from '@/shared/ui/ConnectionIndicator';
 
 // Pixel sizes used to size rows / chrome. Keep in sync with the row/header
 // classNames below — these drive the dynamic row-count math.
+// Softer active-tab underline than the shared TabsTrigger's solid white bar.
+const TAB_TRIGGER_CLASS = 'flex-1 border-b data-[state=active]:border-white/25';
+
 const ROW_HEIGHT_PX = 26;
+const TOOLBAR_PX = 33; // depth-mode / size-filter bar (h-8 + border)
 const HEADER_PX = 36; // column headers row (px-4 py-2 + text-xs)
 const SPREAD_PX = 36; // spread bar between asks and bids
 const MIN_ROWS_PER_SIDE = 5;
@@ -29,7 +36,8 @@ export function Orderbook() {
   const { selectedMarket } = useSelectedMarket();
   const { orderbook } = useOrderbook();
   const { publicKey } = useWallet();
-  const connectionState = useAtomValue(sseConnectionStateAtom);
+  const connectionState = useAtomValue(orderbookConnectionStateAtom);
+  const quantityThreshold = useAtomValue(quantityThresholdAtom);
   const lastProcessedRef = useRef<ReturnType<typeof processOrderbook> | null>(null);
   const showTradesTab = !!publicKey;
   const isLoading =
@@ -53,7 +61,7 @@ export function Orderbook() {
 
   const orderbookRows = useMemo(() => {
     if (contentHeight <= 0) return 10;
-    const usable = contentHeight - HEADER_PX - SPREAD_PX;
+    const usable = contentHeight - TOOLBAR_PX - HEADER_PX - SPREAD_PX;
     const perSide = Math.floor(usable / 2 / ROW_HEIGHT_PX);
     return Math.max(MIN_ROWS_PER_SIDE, Math.min(MAX_ROWS_PER_SIDE, perSide));
   }, [contentHeight]);
@@ -69,11 +77,7 @@ export function Orderbook() {
     const processed = processOrderbook(
       orderbook,
       orderbookRows,
-      undefined, // lastTradedPrice - not available in orderbook model
-      undefined,
-      selectedMarket?.quoteTokenName,
-      selectedMarket?.baseTokenName,
-      selectedMarket?.quoteDecimals,
+      quantityThreshold,
       selectedMarket?.baseDecimals
     );
 
@@ -83,14 +87,7 @@ export function Orderbook() {
     }
 
     return lastProcessedRef.current;
-  }, [
-    orderbook,
-    orderbookRows,
-    selectedMarket?.quoteTokenName,
-    selectedMarket?.baseTokenName,
-    selectedMarket?.baseDecimals,
-    selectedMarket?.quoteDecimals,
-  ]);
+  }, [orderbook, orderbookRows, quantityThreshold, selectedMarket?.baseDecimals]);
 
   const ROW_HEIGHT_CLASS = 'h-[26px]';
   // Side height = orderbookRows × ROW_HEIGHT_PX, recomputed whenever the
@@ -123,15 +120,23 @@ export function Orderbook() {
 
   if (!selectedMarket) return null;
 
+  const isCumulative = orderbook.depthMode === 'cumulative';
+
   const orderbookContent = (
     <>
+      {/* Depth mode + min size */}
+      <div className="flex items-center justify-between h-8 px-2 border-b border-outline shrink-0">
+        <DepthModeSelector />
+        <QuantityThresholdSelector />
+      </div>
+
       {/* Column Headers */}
       <div className="grid grid-cols-3 px-4 py-2 text-xs bg-card border-b border-outline shrink-0">
         <div className="text-left font-mono flex items-center gap-1.5">
           Price <ConnectionIndicator />
         </div>
-        <div className="text-right font-mono">Size</div>
-        <div className="text-right font-mono">Total</div>
+        <div className="text-right font-mono">{isCumulative ? 'Cum. Size' : 'Size'}</div>
+        <div className="text-right font-mono">{isCumulative ? 'Cum. Total' : 'Total'}</div>
       </div>
 
       {/* Orderbook Content */}
@@ -168,6 +173,7 @@ export function Orderbook() {
                     key={`${order.price}-${i}`}
                     price={order.price}
                     size={order.quantity}
+                    total={order.total}
                     depth={order.depth}
                     side="Sell"
                     quoteDecimals={selectedMarket.quoteDecimals}
@@ -195,6 +201,7 @@ export function Orderbook() {
                     key={`${order.price}-${i}`}
                     price={order.price}
                     size={order.quantity}
+                    total={order.total}
                     depth={order.depth}
                     side="Buy"
                     quoteDecimals={selectedMarket.quoteDecimals}
@@ -216,11 +223,11 @@ export function Orderbook() {
       {/* Tabs Header */}
       <Tabs defaultValue="orderbook" className="flex flex-col flex-1 min-h-0">
         <TabsList className="border-b border-outline w-full">
-          <TabsTrigger value="orderbook" className="flex-1">
+          <TabsTrigger value="orderbook" className={TAB_TRIGGER_CLASS}>
             Orderbook
           </TabsTrigger>
           {showTradesTab && (
-            <TabsTrigger value="trades" className="flex-1">
+            <TabsTrigger value="trades" className={TAB_TRIGGER_CLASS}>
               Trades
             </TabsTrigger>
           )}

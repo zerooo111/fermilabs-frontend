@@ -10,6 +10,9 @@ import type { MarginAccount } from '@/shared/hooks/useAccount';
 
 export const sseConnectionStateAtom = atom<SSEConnectionState>('disconnected');
 
+// State of the dedicated orderbook stream (see useOrderbookStream).
+export const orderbookConnectionStateAtom = atom<SSEConnectionState>('disconnected');
+
 export const marketMetricsAtom = atom<SSEMarketMetrics | null>(null);
 
 export const marketTradeSummaryAtom = atom<SSETradeSummary | null>(null);

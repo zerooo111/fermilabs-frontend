@@ -2,12 +2,15 @@
  * Orderbook row component
  * Displays a single row in the orderbook
  */
+import type BN from 'bn.js';
 import { cn } from '@/lib/utils';
-import { formatPrice, formatQuantity, formatTotal } from '../lib/processOrderbook';
+import { formatPrice, formatQuantity, formatNotional } from '../lib/processOrderbook';
 
 type OrderbookRowProps = {
   price: number;
   size: number;
+  /** Notional (price_raw * qty_raw) for this row — per level or cumulative. */
+  total: BN;
   depth: number;
   side: 'Buy' | 'Sell';
   baseDecimals: number;
@@ -17,6 +20,7 @@ type OrderbookRowProps = {
 export function OrderbookRow({
   price,
   size,
+  total,
   depth,
   side,
   quoteDecimals,
@@ -58,7 +62,7 @@ export function OrderbookRow({
           {/* Total */}
           <div className="text-right">
             <span className="tabular-nums">
-              {formatTotal(price, size, quoteDecimals, baseDecimals)}
+              {formatNotional(total, quoteDecimals, baseDecimals)}
             </span>
           </div>
         </div>

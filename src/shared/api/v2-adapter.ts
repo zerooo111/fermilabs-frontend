@@ -86,6 +86,7 @@ export function mapV2Orderbook(snap: V2OrderbookSnapshot, ctx: MarketContext): O
     asks: aggregateSide(snap.asks, ctx, 'asks'),
     lastUpdateId: Date.now(),
     lastUpdated: new Date(),
+    depthMode: 'level',
   };
 }
 

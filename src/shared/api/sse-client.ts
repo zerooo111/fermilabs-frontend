@@ -14,6 +14,7 @@ import type {
   SSESnapshotEvent,
   SSEAccountUpdateEvent,
   SSEMarketUpdateEvent,
+  OrderbookDepthMode,
 } from './sse-types';
 
 const INITIAL_BACKOFF_MS = 1000;
@@ -25,6 +26,8 @@ export class SSEClient {
   private eventSource: EventSource | null = null;
   private market: string | null = null;
   private owner: string | null = null;
+  private depthMode: OrderbookDepthMode | null = null;
+  private depth: number | null = null;
   private state: SSEConnectionState = 'disconnected';
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -76,6 +79,12 @@ export class SSEClient {
     this.reopenConnection();
   }
 
+  /** Sets the orderbook `depth_mode`/`depth` query params. Applied on the next connect. */
+  setOrderbookParams(depthMode: OrderbookDepthMode, depth: number) {
+    this.depthMode = depthMode;
+    this.depth = depth;
+  }
+
   getState(): SSEConnectionState {
     return this.state;
   }
@@ -95,6 +104,8 @@ export class SSEClient {
     const params = new URLSearchParams();
     if (this.market) params.set('market', this.market);
     if (this.owner) params.set('owner', this.owner);
+    if (this.depthMode) params.set('depth_mode', this.depthMode);
+    if (this.depth) params.set('depth', String(this.depth));
     return `${base}?${params.toString()}`;
   }
 
@@ -397,6 +408,20 @@ export function resetSSEClient(): void {
     instance.destroy();
     instance = null;
   }
+}
+
+/**
+ * Market-only /state/stream/frontend connection that feeds the orderbook
+ * panel. Kept separate from the main client so the orderbook can use
+ * `depth_mode` regardless of which read layer serves account data.
+ */
+let orderbookInstance: SSEClient | null = null;
+
+export function getOrderbookSSEClient(): SSEClient {
+  if (!orderbookInstance) {
+    orderbookInstance = new SSEClient();
+  }
+  return orderbookInstance;
 }
 
 let tradesInstance: TradesSSEClient | null = null;

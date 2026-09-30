@@ -4,14 +4,12 @@
  *
  * Order book data typically arrives from exchanges as arrays of price/quantity pairs.
  * Prices and quantities are often represented as scaled integers to avoid floating-point issues.
- * This module aggregates orders at the same price level, calculates cumulative totals (depth)
- * using BN.js for precision, normalizes values for display, and formats them into a structure
- * suitable for UI rendering.
+ * This module turns per-level or cumulative book sides into display rows (size, notional,
+ * depth bar) using BN.js for notional precision, and formats values for UI rendering.
  * The approach aligns with standard practices seen on major crypto exchanges (e.g., Binance, Kraken).
  */
-import { Orderbook, OrderbookItem } from '@/entities/orderbook';
+import { Orderbook, OrderbookItem, OrderbookDepthMode } from '@/entities/orderbook';
 import BN from 'bn.js';
-import { getTokenDecimals } from '@/shared/lib/token-decimals';
 
 /**
  * Number of decimal places used for internal price representation (e.g., 1_000_000_000 means 9 decimals).
@@ -25,9 +23,6 @@ const DEFAULT_ORDERBOOK_ROWS = 12;
 
 /** Minimum normalized quantity to display prominently. Quantities below this are de-emphasized. */
 export const MIN_DISPLAY_QUANTITY = 0.0001;
-
-/** Threshold for highlighting price levels close to last traded price (as percentage) */
-export const PRICE_PROXIMITY_THRESHOLD = 0.001; // 0.1%
 
 /**
  * Create BN scale for decimal conversion
@@ -132,6 +127,24 @@ export const formatQuantity = (quantity: number, baseDecimals: number): string =
 };
 
 /**
+ * Formats a notional value (sum of price_raw * quantity_raw) in quote units.
+ * The raw value is scaled by (quoteDecimals + baseDecimals).
+ */
+export const formatNotional = (
+  notional: BN,
+  quoteDecimals: number,
+  baseDecimals: number
+): string => {
+  try {
+    const totalScale = createDecimalScale(baseDecimals).mul(createDecimalScale(quoteDecimals));
+    return formatWithPrecision(normalizeBN(notional, totalScale));
+  } catch {
+    // Silent error handling
+    return '0.00';
+  }
+};
+
+/**
  * Calculates and formats the total value (price * quantity) using BN.js for precision
  * @param price Scaled integer price (in quote token units with quoteDecimals scaling)
  * @param quantity Scaled integer quantity (in base token units with baseDecimals scaling)
@@ -152,190 +165,91 @@ export const formatTotal = (
   const priceBN = toBN(price);
   const quantityBN = toBN(quantity);
   if (!priceBN || !quantityBN) return '0.00';
-
-  try {
-    // Calculate total: price (scaled by quoteDecimals) * quantity (scaled by baseDecimals)
-    // Result is scaled by (quoteDecimals + baseDecimals)
-    const totalBN = priceBN.mul(quantityBN);
-
-    // We want the result in quote currency, so divide by both scales
-    // This gives us: (price/10^quoteDecimals) * (quantity/10^baseDecimals) in actual units
-    const quoteScale = createDecimalScale(quoteDecimals);
-    const baseScale = createDecimalScale(baseDecimals);
-    const totalScale = baseScale.mul(quoteScale);
-    const normalizedTotal = normalizeBN(totalBN, totalScale);
-
-    return formatWithPrecision(normalizedTotal);
-  } catch {
-    // Silent error handling
-    return '0.00';
-  }
+  return formatNotional(priceBN.mul(quantityBN), quoteDecimals, baseDecimals);
 };
 
-/** Represents a single aggregated price level in the processed order book. */
+/** Represents a single price level in the processed order book. */
 export type AggregatedOrder = {
-  /** The price level (represented as a scaled integer internally, normalized for display). */
+  /** The price level (scaled integer). */
   price: number;
-  /** The total quantity of orders at this price level (scaled integer). */
+  /**
+   * Displayed quantity (scaled integer): the level's own size in `level` mode,
+   * or the size resting from the best price down to this level in `cumulative` mode.
+   */
   quantity: number;
-  /** The cumulative quantity from the best price up to this level (uses BN.js to prevent overflow). */
+  /** Notional (price_raw * quantity_raw) matching `quantity` — per level or cumulative. */
   total: BN;
-  /** The cumulative volume (sum of price * quantity) from the best price up to this level (uses BN.js to prevent overflow). */
-  volumeTotal: BN;
-  /** The visual depth percentage (0-100) based on cumulative quantity relative to max depth. */
+  /** The visual depth percentage (0-100) of `quantity` relative to the largest visible one. */
   depth: number;
-  /** Percentage deviation from the last traded price */
-  priceDeviation?: number;
-  /** Whether this price level is close to the last traded price */
-  isNearLastPrice?: boolean;
 };
 
 /** Represents the fully processed order book data ready for UI consumption. */
 export type ProcessedOrderbook = {
-  /** Array of aggregated buy orders (bids), sorted descending by price. Null entries used for padding. */
+  /** Array of buy levels (bids), sorted descending by price. Null entries used for padding. */
   buys: (AggregatedOrder | null)[];
-  /** Array of aggregated sell orders (asks), sorted ascending by price. Null entries used for padding. */
+  /** Array of sell levels (asks), sorted ascending by price. Null entries used for padding. */
   sells: (AggregatedOrder | null)[];
   /** The difference between the best ask and best bid price. */
   spread: number;
   /** Timestamp of the last update received from the source. */
   lastUpdated: Date;
-  /** The maximum cumulative quantity across both bids and asks, used for depth calculation (uses BN.js). */
-  maxDepth: BN;
-  /** The price level closest to the last traded price */
-  nearestPriceLevel?: number;
 };
 
 /**
- * Aggregates raw orders by price level, calculates running totals using BN.js, sorts, and truncates.
- *
- * @param orders Raw array of orders (OrderbookItem) from the source.
- * @param sortFn Sorting function for price levels (descending for bids, ascending for asks).
- * @param maxRows Maximum number of aggregated levels to return.
- * @param lastTradedPrice Optional last traded price for additional processing
- * @param quoteTokenName The quote token name (for fallback decimal lookup)
- * @param quoteDecimals Optional quote token decimals (preferred over token name lookup)
- * @returns An array of aggregated order book levels.
+ * Converts one side of the book (best price first) into display levels.
+ * Per-level sizes drive the min-size filter in both modes; in cumulative mode
+ * they are recovered by differencing the server's running totals, and the
+ * displayed quantity stays the server's cumulative value.
  */
-const aggregateOrders = (
+const buildSide = (
   orders: OrderbookItem[],
   sortFn: (a: number, b: number) => number,
-  maxRows: number = DEFAULT_ORDERBOOK_ROWS,
-  lastTradedPrice?: number,
-  quoteTokenName?: string,
-  quoteDecimals?: number
+  depthMode: OrderbookDepthMode,
+  maxRows: number,
+  minLevelQuantity: number
 ): AggregatedOrder[] => {
-  // Use a Map to efficiently aggregate quantities for the same price level.
-  const aggregated = new Map<string, BN>();
+  const sorted = [...orders].sort((a, b) => sortFn(a.price, b.price));
 
-  orders.forEach(order => {
-    const priceBN = toBN(order.price);
-    const quantityBN = toBN(order.quantity);
+  let prevCumulative = 0;
+  let runningNotional = new BN(0);
+  const levels: AggregatedOrder[] = [];
 
-    if (!priceBN || !quantityBN) {
-      // Silent error handling
-      return;
-    }
+  for (const order of sorted) {
+    const levelQuantity =
+      depthMode === 'cumulative' ? Math.max(0, order.quantity - prevCumulative) : order.quantity;
+    prevCumulative = order.quantity;
 
-    const priceKey = priceBN.toString();
-    const existingQuantity = aggregated.get(priceKey) || new BN(0);
-    aggregated.set(priceKey, existingQuantity.add(quantityBN));
-  });
+    const levelNotional = new BN(order.price).mul(new BN(levelQuantity));
+    runningNotional = runningNotional.add(levelNotional);
 
-  // Calculate running totals using BN.js
-  let runningQuantity = new BN(0);
-  let runningVolume = new BN(0);
+    if (levelQuantity === 0 || levelQuantity < minLevelQuantity) continue;
 
-  return Array.from(aggregated.entries())
-    .map(([priceStr, quantity]) => ({
-      priceBN: new BN(priceStr),
-      price: Number(priceStr),
-      quantityBN: quantity,
-      quantity: Number(quantity.toString()),
-    }))
-    .sort((a, b) => sortFn(a.price, b.price))
-    .slice(0, maxRows)
-    .map(({ priceBN, price, quantityBN, quantity }) => {
-      runningQuantity = runningQuantity.add(quantityBN);
-      runningVolume = runningVolume.add(quantityBN.mul(priceBN));
-
-      const aggregatedOrder: AggregatedOrder = {
-        price,
-        quantity,
-        total: runningQuantity,
-        volumeTotal: runningVolume,
-        depth: 0,
-      };
-
-      if (lastTradedPrice) {
-        const lastTradedPriceBN = toBN(lastTradedPrice);
-        if (lastTradedPriceBN) {
-          const deviation = calculatePriceDeviation(
-            priceBN,
-            lastTradedPriceBN,
-            quoteTokenName,
-            quoteDecimals
-          );
-          aggregatedOrder.priceDeviation = deviation;
-          aggregatedOrder.isNearLastPrice = Math.abs(deviation) <= PRICE_PROXIMITY_THRESHOLD * 100;
-        }
-      }
-
-      return aggregatedOrder;
+    const cumulative = depthMode === 'cumulative';
+    levels.push({
+      price: order.price,
+      quantity: cumulative ? order.quantity : levelQuantity,
+      total: cumulative ? runningNotional : levelNotional,
+      depth: 0,
     });
-};
-
-/**
- * Calculates the percentage deviation between two prices using BN
- * @param price The price to compare
- * @param referencePrice The reference price
- * @param quoteTokenName The quote token name (for fallback decimal lookup)
- * @param quoteDecimals Optional quote token decimals (preferred over token name lookup)
- */
-const calculatePriceDeviation = (
-  price: BN,
-  referencePrice: BN,
-  quoteTokenName?: string,
-  quoteDecimals?: number
-): number => {
-  if (referencePrice.isZero()) return 0;
-
-  try {
-    // Use provided decimals or fallback to token name lookup
-    const decimals = quoteDecimals ?? getTokenDecimals(quoteTokenName);
-    const scale = createDecimalScale(decimals);
-    const p1 = normalizeBN(price, scale);
-    const p2 = normalizeBN(referencePrice, scale);
-    return ((p1 - p2) / p2) * 100;
-  } catch {
-    // Silent error handling
-    return 0;
+    if (levels.length >= maxRows) break;
   }
+
+  return levels;
 };
 
 /**
  * Processes the raw order book data into a display-ready format.
- * Handles aggregation, sorting, depth calculation, padding, and spread calculation.
  *
- * @param orderbook The raw order book data from the source, or null if not yet loaded.
+ * @param orderbook The order book; `orderbook.depthMode` says how its quantities are expressed.
  * @param maxRows The maximum number of rows to display per side (bids/asks).
- * @param lastTradedPrice Optional last traded price for additional processing.
- * @param quantityThreshold Optional minimum quantity threshold (normalized value). Use 0 to show all orders.
- * @param quoteTokenName The quote token name (for fallback decimal lookup).
- * @param baseTokenName The base token name (for fallback decimal lookup).
- * @param quoteDecimals Optional quote token decimals (preferred over token name lookup).
- * @param baseDecimals Optional base token decimals (preferred over token name lookup).
- * @returns A ProcessedOrderbook object ready for the UI.
+ * @param quantityThreshold Minimum per-level size (normalized). Use 0 to show all levels.
+ * @param baseDecimals Base token decimals, used to normalize the threshold.
  */
 export const processOrderbook = (
   orderbook: Orderbook | null,
   maxRows: number = DEFAULT_ORDERBOOK_ROWS,
-  lastTradedPrice?: number,
   quantityThreshold: number = 0,
-  quoteTokenName?: string,
-  baseTokenName?: string,
-  quoteDecimals?: number,
-  baseDecimals?: number
+  baseDecimals: number = 0
 ): ProcessedOrderbook => {
   if (!orderbook || !orderbook.asks || !orderbook.bids) {
     return {
@@ -343,93 +257,38 @@ export const processOrderbook = (
       sells: Array(maxRows).fill(null),
       spread: 0,
       lastUpdated: new Date(0),
-      maxDepth: new BN(0),
     };
   }
 
-  // Use provided decimals or fallback to token name lookup
-  const actualBaseDecimals = baseDecimals ?? getTokenDecimals(baseTokenName);
-  const actualQuoteDecimals = quoteDecimals ?? getTokenDecimals(quoteTokenName);
-
-  // Filter out orders below the quantity threshold
-  const filteredBids = orderbook.bids.filter(order => {
-    const normalizedQuantity = Number(order.quantity) / Math.pow(10, actualBaseDecimals);
-    return normalizedQuantity >= quantityThreshold;
-  });
-
-  const filteredAsks = orderbook.asks.filter(order => {
-    const normalizedQuantity = Number(order.quantity) / Math.pow(10, actualBaseDecimals);
-    return normalizedQuantity >= quantityThreshold;
-  });
-
-  const bids = aggregateOrders(
-    filteredBids,
+  const minLevelQuantity = quantityThreshold * Math.pow(10, baseDecimals);
+  const bids = buildSide(
+    orderbook.bids,
     (a, b) => b - a,
+    orderbook.depthMode,
     maxRows,
-    lastTradedPrice,
-    quoteTokenName,
-    actualQuoteDecimals
+    minLevelQuantity
   );
-  const asks = aggregateOrders(
-    filteredAsks,
+  const asks = buildSide(
+    orderbook.asks,
     (a, b) => a - b,
+    orderbook.depthMode,
     maxRows,
-    lastTradedPrice,
-    quoteTokenName,
-    actualQuoteDecimals
+    minLevelQuantity
   );
 
-  const lastBidTotal = bids.length > 0 ? bids[bids.length - 1].total : new BN(0);
-  const lastAskTotal = asks.length > 0 ? asks[asks.length - 1].total : new BN(0);
-  const maxDepth = lastBidTotal.gt(lastAskTotal) ? lastBidTotal : lastAskTotal;
-
-  const calculateDepth = (orders: AggregatedOrder[]) => {
-    orders.forEach(order => {
-      if (maxDepth.isZero()) {
-        order.depth = 0;
-      } else {
-        try {
-          const depthBN = order.total.mul(new BN(10000)).div(maxDepth);
-          order.depth = depthBN.toNumber() / 100;
-        } catch {
-          // Silent error handling
-          order.depth = 0;
-        }
-      }
-    });
-  };
-
-  calculateDepth(bids);
-  calculateDepth(asks);
-
-  const filledBids = [...bids, ...Array(Math.max(0, maxRows - bids.length)).fill(null)];
-  const filledAsks = [...asks, ...Array(Math.max(0, maxRows - asks.length)).fill(null)];
-
-  const bestAsk = filledAsks[0]?.price;
-  const bestBid = filledBids[0]?.price;
-  const spread = bestAsk !== undefined && bestBid !== undefined ? bestAsk - bestBid : 0;
-
-  let nearestPriceLevel: number | undefined;
-  if (lastTradedPrice) {
-    const allPriceLevels = [...bids, ...asks]
-      .filter((order): order is AggregatedOrder => order !== null)
-      .map(order => order.price);
-
-    if (allPriceLevels.length > 0) {
-      nearestPriceLevel = allPriceLevels.reduce((nearest, current) => {
-        const currentDiff = Math.abs(current - lastTradedPrice);
-        const nearestDiff = Math.abs(nearest - lastTradedPrice);
-        return currentDiff < nearestDiff ? current : nearest;
-      });
-    }
+  const maxQuantity = Math.max(0, ...bids.map(o => o.quantity), ...asks.map(o => o.quantity));
+  for (const order of [...bids, ...asks]) {
+    order.depth = maxQuantity > 0 ? (order.quantity / maxQuantity) * 100 : 0;
   }
 
+  const bestAsk = asks[0]?.price;
+  const bestBid = bids[0]?.price;
+  const spread = bestAsk !== undefined && bestBid !== undefined ? bestAsk - bestBid : 0;
+
   return {
-    buys: filledBids,
-    sells: filledAsks,
+    buys: [...bids, ...Array(Math.max(0, maxRows - bids.length)).fill(null)],
+    sells: [...asks, ...Array(Math.max(0, maxRows - asks.length)).fill(null)],
     spread,
     lastUpdated: orderbook.lastUpdated,
-    maxDepth,
-    nearestPriceLevel,
   };
 };
