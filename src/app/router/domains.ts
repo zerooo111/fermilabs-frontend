@@ -1,9 +1,9 @@
 /**
  * domains.ts
  * One build serves both domains: fermi.trade shows only the landing page and
- * app.fermi.trade only the trading app. vercel.json does the same redirects
- * at the edge; this is the fallback for any host that doesn't run them.
- * Other hosts (localhost, previews) serve everything.
+ * app.fermi.trade only the trading app. Cloudflare serves index.html for
+ * every route, so the split happens here on load. Other hosts (localhost,
+ * previews) serve everything.
  */
 
 export const APP_ORIGIN = 'https://app.fermi.trade';
