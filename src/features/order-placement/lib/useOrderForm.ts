@@ -23,7 +23,6 @@ import { serverConfigAtom, type ServerConfigMarket } from '@/entities/server';
 
 // Used when /config has no risk weights for the market
 export const DEFAULT_MAX_LEVERAGE = 5;
-const DEFAULT_LEVERAGE = 5;
 
 // Safe parsing functions to prevent NaN errors
 export const safeParseFloat = (value: string, defaultValue: number = 0): number => {
@@ -71,7 +70,6 @@ export function marketRiskLimits(risk: ServerConfigMarket['risk'] | undefined) {
 
 export function useOrderForm() {
   const [submittingSide, setSubmittingSide] = useState<OrderSide | null>(null);
-  const [leverage, setLeverage] = useState(DEFAULT_LEVERAGE);
   const isSubmitting = submittingSide !== null;
   const [enableSLTP, setEnableSLTP] = useState(false);
   const [customSlippage, setCustomSlippage] = useState(false);
@@ -117,12 +115,9 @@ export function useOrderForm() {
       ),
     [serverConfig, marketIndexForRisk]
   );
+  // The backend always sizes margin at the market max, so there is no leverage
+  // to choose: effective leverage is just position size over margin
   const { maxLeverage } = riskLimits;
-
-  // Keep the chosen leverage inside the current market's limit
-  useEffect(() => {
-    setLeverage(prev => Math.min(Math.max(1, prev), maxLeverage));
-  }, [maxLeverage]);
 
   // Warm the simulation cache as soon as the wallet connects, before the user fills the form
   useEffect(() => {
@@ -264,7 +259,7 @@ export function useOrderForm() {
         result = await openMarketPosition({
           side,
           size: formState.size,
-          leverage: String(leverage),
+          leverage: String(maxLeverage),
           marginMode: formState.marginMode,
           maxSlippageBps: Math.round(safeParseFloat(formState.slippage, 1) * 100),
           markPrice: markPrice!,
@@ -276,7 +271,7 @@ export function useOrderForm() {
         if (result.success && takeProfit) {
           const tpResult = await openPosition({
             side: side === 'Buy' ? 'Sell' : 'Buy',
-            leverage: String(leverage),
+            leverage: String(maxLeverage),
             marginMode: formState.marginMode,
             price: takeProfit,
             size: formState.size,
@@ -289,7 +284,7 @@ export function useOrderForm() {
       } else {
         result = await openPosition({
           side,
-          leverage: String(leverage),
+          leverage: String(maxLeverage),
           marginMode: formState.marginMode,
           price: formState.price,
           size: formState.size,
@@ -316,8 +311,6 @@ export function useOrderForm() {
   };
 
   return {
-    leverage,
-    setLeverage,
     maxLeverage,
     maintAssetWeight: riskLimits.maintAssetWeight,
     maintLiabWeight: riskLimits.maintLiabWeight,

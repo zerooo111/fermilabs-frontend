@@ -213,11 +213,6 @@ function TickSlider({
   );
 }
 
-// The usual leverage choices up to the market max, e.g. [1, 2, 3, 5, 10, 20, 40]
-function leverageStops(max: number) {
-  return [...[1, 2, 3, 5, 10, 20, 50, 100].filter(s => s < max), max];
-}
-
 export function TradeTicket() {
   const f = useOrderForm();
   const [side, setSide] = useState<OrderSide>('Buy');
@@ -229,33 +224,19 @@ export function TradeTicket() {
   const base = market?.baseTokenName ?? '';
   const quote = market?.quoteTokenName ?? '';
 
-  // Market orders price at mark; limit orders at the typed price. The margin
-  // slider is the share of free collateral committed; at the chosen leverage
-  // that buys available × leverage / price of size, so 100% is the largest order.
-  const leverage = f.leverage;
+  // Market orders price at mark; limit orders at the typed price. The backend
+  // charges margin at the market max leverage, so the margin slider is the
+  // share of free collateral committed at that leverage (100% is the largest
+  // order), and the leverage shown is what results: order value / available.
+  const maxLeverage = f.maxLeverage;
   const refPrice = f.isMarketOrder ? (f.markPrice ?? 0) : f.priceValue;
   const available = f.accountMetrics?.free_collateral_snapshot ?? 0;
-  const maxSize = refPrice > 0 ? (available * leverage) / refPrice : 0;
+  const maxSize = refPrice > 0 ? (available * maxLeverage) / refPrice : 0;
   const percent = maxSize > 0 ? Math.min(100, (f.sizeValue / maxSize) * 100) : 0;
   const marginUsed = (available * percent) / 100;
   const orderValue = refPrice * f.sizeValue;
-
-  const stops = leverageStops(f.maxLeverage);
-  // Highest stop at or below the current leverage
-  const leverageIndex = Math.max(
-    0,
-    stops.findLastIndex(s => s <= leverage)
-  );
-
-  // Changing leverage keeps the committed margin and rescales the size
-  const changeLeverage = (next: number) => {
-    if (next === leverage) return;
-    if (f.sizeValue > 0) {
-      const size = (f.sizeValue * next) / leverage;
-      f.setFormState(prev => ({ ...prev, size: size.toFixed(baseDecimals) }));
-    }
-    f.setLeverage(next);
-  };
+  const leverage = available > 0 && orderValue > 0 ? orderValue / available : null;
+  const fmtLeverage = (l: number) => `${l < 10 ? l.toFixed(1) : Math.round(l)}×`;
 
   const setPercent = (p: number) => {
     const size = (maxSize * p) / 100;
@@ -268,7 +249,7 @@ export function TradeTicket() {
       const result = calculatePerpMargin({
         price: Math.floor(refPrice * 10 ** quoteDecimals),
         quantity: Math.floor(f.sizeValue * 10 ** baseDecimals),
-        leverage,
+        leverage: maxLeverage,
         marketInitialMarginBps: market?.perp_config?.initial_margin || 0,
       });
       return Number(result.requiredMargin) / 10 ** (baseDecimals + quoteDecimals);
@@ -278,20 +259,22 @@ export function TradeTicket() {
   }, [
     refPrice,
     f.sizeValue,
-    leverage,
+    maxLeverage,
     quoteDecimals,
     baseDecimals,
     market?.perp_config?.initial_margin,
   ]);
 
-  // Where this position alone would hit zero maintenance health. Ignores the
-  // rest of the cross-margin account, so it is only an estimate.
-  const liqPrice =
-    refPrice > 0 && f.sizeValue > 0
+  // Where this position alone would hit zero maintenance health, backed by
+  // the available margin. Ignores the rest of the cross-margin account, so it
+  // is only an estimate; a long at 1× or less has no liquidation price.
+  const liqRaw =
+    refPrice > 0 && leverage !== null
       ? isBuy
         ? (refPrice * (1 - 1 / leverage)) / f.maintAssetWeight
         : (refPrice * (1 + 1 / leverage)) / f.maintLiabWeight
       : null;
+  const liqPrice = liqRaw !== null && liqRaw > 0 ? liqRaw : null;
 
   const sim = isBuy ? f.buySimulate.data : f.sellSimulate.data;
   const rejects = describeSimReasons(sim?.reject_reasons ?? []);
@@ -380,10 +363,11 @@ export function TradeTicket() {
             );
           })}
         </div>
-        {/* Margin mode and leverage are set-and-forget, so they live behind the badge */}
+        {/* Margin mode is set-and-forget, so it lives behind the badge. Leverage
+            is shown, not chosen: it follows from the margin committed */}
         <Popover>
           <PopoverTrigger className="flex items-center gap-1 border border-outline px-2 py-0.5 text-[11px] text-rock/70 transition-colors hover:border-rock/40 hover:text-rock">
-            Cross · {leverage}×
+            Cross · {leverage !== null ? fmtLeverage(leverage) : `${maxLeverage}× max`}
             <CaretDown size={10} />
           </PopoverTrigger>
           <PopoverContent align="end" className="flex w-64 flex-col gap-3 p-3">
@@ -414,20 +398,10 @@ export function TradeTicket() {
                 </button>
               </div>
             </div>
-            {/* Leverage snaps to evenly spaced stops, so the slider works in stop
-                indexes rather than raw multiples */}
-            <TickSlider
-              label="Leverage"
-              valueText={`${leverage}×`}
-              value={leverageIndex}
-              min={0}
-              max={stops.length - 1}
-              ticks={stops.map((_, i) => i)}
-              onChange={i => changeLeverage(stops[i])}
-              ariaLabel="Leverage"
-              ariaValueText={`${leverage}×`}
-            />
-            <p className="text-[11px] text-rock/50">Up to {f.maxLeverage}× on this market.</p>
+            <p className="text-[11px] text-rock/50">
+              Leverage follows the margin you commit: using all of it is {maxLeverage}×, the most
+              this market allows.
+            </p>
           </PopoverContent>
         </Popover>
       </div>
