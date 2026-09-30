@@ -337,7 +337,9 @@ export function TradeTicket() {
       </div>
 
       {/* Order type, margin mode */}
-      <div className="flex items-center justify-between border-b border-outline/60">
+      {/* Tab labels sit 8px above the underline with no space above them; the
+          badge centres on the labels (8px clear + 12px half-height = 20px) */}
+      <div className="flex items-end justify-between border-b border-outline/60">
         <div role="tablist" aria-label="Order type" className="flex">
           {(['market', 'limit'] as const).map(t => {
             const active = f.formState.orderType === t;
@@ -352,7 +354,7 @@ export function TradeTicket() {
                   if (t === 'limit') toggleSLTP(false);
                 }}
                 className={cn(
-                  '-mb-px h-8 border-b-2 px-3 text-sm capitalize transition-colors first:pl-0',
+                  '-mb-px border-b-2 px-3 pb-2 text-sm leading-5 capitalize transition-colors first:pl-0',
                   active
                     ? 'border-rock text-rock'
                     : 'border-transparent text-rock/50 hover:text-rock'
@@ -366,7 +368,7 @@ export function TradeTicket() {
         {/* Margin mode is set-and-forget, so it lives behind the badge. Leverage
             is shown, not chosen: it follows from the margin committed */}
         <Popover>
-          <PopoverTrigger className="flex items-center gap-1 border border-outline px-2 py-0.5 text-[11px] text-rock/70 transition-colors hover:border-rock/40 hover:text-rock">
+          <PopoverTrigger className="mb-2 flex h-6 items-center gap-1 border border-outline px-2 text-[11px] text-rock/70 transition-colors hover:border-rock/40 hover:text-rock">
             Cross · {leverage !== null ? fmtLeverage(leverage) : `${maxLeverage}× max`}
             <CaretDown size={10} />
           </PopoverTrigger>
