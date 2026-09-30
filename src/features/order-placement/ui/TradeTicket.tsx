@@ -8,12 +8,11 @@
 import { useMemo, useState } from 'react';
 import { NumericFormat } from 'react-number-format';
 import * as SliderPrimitive from '@radix-ui/react-slider';
-import { Check, CircleNotch, Warning, XCircle } from '@phosphor-icons/react';
+import { CaretDown, Check, CircleNotch, Warning, XCircle } from '@phosphor-icons/react';
 
 import { cn } from '@/lib/utils';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import type { OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 import {
   marketBaseDecimals,
@@ -347,23 +346,60 @@ export function TradeTicket() {
             );
           })}
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="cursor-help border border-outline px-2 py-0.5 text-[11px] text-rock/70">
-              Cross · {leverage}×
-            </span>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-xs text-xs">
-            Cross margin, up to {f.maxLeverage}× leverage on this market. Isolated margin is coming.
-          </TooltipContent>
-        </Tooltip>
+        {/* Margin mode and leverage are set-and-forget, so they live behind the badge */}
+        <Popover>
+          <PopoverTrigger className="flex items-center gap-1 border border-outline px-2 py-0.5 text-[11px] text-rock/70 transition-colors hover:border-rock/40 hover:text-rock">
+            Cross · {leverage}×
+            <CaretDown size={10} />
+          </PopoverTrigger>
+          <PopoverContent align="end" className="flex w-64 flex-col gap-3 p-3">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs text-rock/50">Margin mode</span>
+              <div
+                role="radiogroup"
+                aria-label="Margin mode"
+                className="grid grid-cols-2 bg-card p-0.5"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked
+                  className="h-7 bg-white/10 text-xs text-rock"
+                >
+                  Cross
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={false}
+                  disabled
+                  className="flex h-7 items-center justify-center gap-1.5 text-xs text-rock/40"
+                >
+                  Isolated
+                  <span className="border border-outline px-1 text-[10px] leading-4">Soon</span>
+                </button>
+              </div>
+            </div>
+            {/* Leverage snaps to evenly spaced stops, so the slider works in stop
+                indexes rather than raw multiples */}
+            <TickSlider
+              label="Leverage"
+              valueText={`${leverage}×`}
+              value={leverageIndex}
+              min={0}
+              max={stops.length - 1}
+              ticks={stops.map((_, i) => i)}
+              onChange={i => changeLeverage(stops[i])}
+              ariaLabel="Leverage"
+              ariaValueText={`${leverage}×`}
+            />
+            <p className="text-[11px] text-rock/50">Up to {f.maxLeverage}× on this market.</p>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Row label="Available">{f.publicKey ? `${fmt(available)} ${quote}` : '—'}</Row>
-        {f.computedLeverage !== null && (
-          <Row label="Leverage">{f.computedLeverage.toFixed(2)}×</Row>
-        )}
+        <Row label="Available margin">{f.publicKey ? `${fmt(available)} ${quote}` : '—'}</Row>
       </div>
 
       {/* Inputs */}
@@ -401,19 +437,6 @@ export function TradeTicket() {
           onChange={size => f.setFormState(prev => ({ ...prev, size }))}
           unit={base}
           decimals={baseDecimals}
-        />
-        {/* Leverage snaps to evenly spaced stops, so the slider works in stop
-            indexes rather than raw multiples */}
-        <TickSlider
-          label="Leverage"
-          valueText={`${leverage}×`}
-          value={leverageIndex}
-          min={0}
-          max={stops.length - 1}
-          ticks={stops.map((_, i) => i)}
-          onChange={i => changeLeverage(stops[i])}
-          ariaLabel="Leverage"
-          ariaValueText={`${leverage}×`}
         />
         <TickSlider
           label="Margin"
