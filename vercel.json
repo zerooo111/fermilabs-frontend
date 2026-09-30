@@ -1,4 +1,61 @@
 {
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.fermi.trade"
+        }
+      ],
+      "destination": "/perps",
+      "permanent": false
+    },
+    {
+      "source": "/:path(perps|vault|referrals)",
+      "has": [
+        {
+          "type": "host",
+          "value": "fermi.trade"
+        }
+      ],
+      "destination": "https://app.fermi.trade/:path",
+      "permanent": false
+    },
+    {
+      "source": "/:path(perps|vault|referrals)/:rest*",
+      "has": [
+        {
+          "type": "host",
+          "value": "fermi.trade"
+        }
+      ],
+      "destination": "https://app.fermi.trade/:path/:rest*",
+      "permanent": false
+    },
+    {
+      "source": "/:path(perps|vault|referrals)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.fermi.trade"
+        }
+      ],
+      "destination": "https://app.fermi.trade/:path",
+      "permanent": false
+    },
+    {
+      "source": "/:path(perps|vault|referrals)/:rest*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.fermi.trade"
+        }
+      ],
+      "destination": "https://app.fermi.trade/:path/:rest*",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
