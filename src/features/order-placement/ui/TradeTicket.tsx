@@ -161,10 +161,16 @@ function TickSlider({
   ariaLabel: string;
   ariaValueText?: string;
 }) {
-  const at = (v: number) => (max > min ? ((v - min) / (max - min)) * 100 : 0);
-  // End ticks sit flush with the track ends; the rest centre on their value
-  const align = (v: number) =>
-    v <= min ? 'translate-x-0' : v >= max ? '-translate-x-full' : '-translate-x-1/2';
+  const at = (v: number) => (max > min ? (v - min) / (max - min) : 0);
+  // Radix keeps the 14px thumb inside the track, so its centre runs from 7px
+  // to width - 7px. Middle ticks sit on that path, end ticks flush with the
+  // track ends (inside the thumb when it rests there).
+  const tickStyle = (v: number): React.CSSProperties =>
+    v <= min
+      ? { left: 0 }
+      : v >= max
+        ? { right: 0 }
+        : { left: `calc(7px + (100% - 14px) * ${at(v)})`, transform: 'translateX(-50%)' };
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between text-xs">
@@ -179,24 +185,20 @@ function TickSlider({
         step={1}
         disabled={disabled}
         aria-label={ariaLabel}
-        className="relative -mx-[7px] flex h-5 touch-none select-none items-center data-[disabled]:opacity-40"
+        className="relative flex h-5 touch-none select-none items-center data-[disabled]:opacity-40"
       >
-        <SliderPrimitive.Track className="relative mx-[7px] h-0.5 grow bg-outline">
+        <SliderPrimitive.Track className="relative h-0.5 grow bg-outline">
           <SliderPrimitive.Range className="absolute h-full bg-rock" />
         </SliderPrimitive.Track>
-        {/* Radix keeps the 14px thumb inside the root, so its centre runs from
-            7px to width - 7px. The root bleeds 7px past each side so that range
-            is exactly the visible track, and the ticks use the same inset */}
-        <span aria-hidden className="pointer-events-none absolute inset-x-[7px] inset-y-0">
+        <span aria-hidden className="pointer-events-none absolute inset-0">
           {ticks.map(t => (
             <span
               key={t}
               className={cn(
-                'absolute top-1/2 size-1.5 -translate-y-1/2 border',
-                align(t),
+                'absolute top-1/2 -mt-[3px] size-1.5 border',
                 value >= t ? 'border-rock bg-rock' : 'border-rock/40 bg-background'
               )}
-              style={{ left: `${at(t)}%` }}
+              style={tickStyle(t)}
             />
           ))}
         </span>
@@ -209,7 +211,6 @@ function TickSlider({
   );
 }
 
-// 1×, the quarter points and the max, e.g. [1, 10, 20, 30, 40]
 // The usual leverage choices up to the market max, e.g. [1, 2, 3, 5, 10, 20, 40]
 function leverageStops(max: number) {
   return [...[1, 2, 3, 5, 10, 20, 50, 100].filter(s => s < max), max];
@@ -313,7 +314,7 @@ export function TradeTicket() {
   };
 
   return (
-    <div className="flex w-full flex-col gap-3 overflow-y-auto p-3 text-rock lg:w-xs [&>*]:shrink-0">
+    <div className="flex w-full flex-col gap-4 overflow-y-auto p-3 text-rock lg:w-xs [&>*]:shrink-0">
       {/* Side */}
       <div role="radiogroup" aria-label="Side" className="grid grid-cols-2 bg-card p-0.5">
         {(['Buy', 'Sell'] as const).map(s => {
@@ -424,83 +425,89 @@ export function TradeTicket() {
       </div>
 
       {/* Inputs */}
-      <div className="flex flex-col gap-2">
-        {!f.isMarketOrder && (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
+          {!f.isMarketOrder && (
+            <Field
+              id="ticket-price"
+              label="Price"
+              value={f.formState.price}
+              onChange={price => f.setFormState(prev => ({ ...prev, price }))}
+              unit={quote}
+              decimals={quoteDecimals}
+              action={
+                f.markPrice !== null && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      f.setFormState(prev => ({
+                        ...prev,
+                        price: f.markPrice!.toFixed(quoteDecimals),
+                      }))
+                    }
+                    className="-mr-1 shrink-0 bg-white/10 px-1.5 py-0.5 text-[11px] text-rock/70 hover:bg-white/15 hover:text-rock"
+                  >
+                    Mark
+                  </button>
+                )
+              }
+            />
+          )}
           <Field
-            id="ticket-price"
-            label="Price"
-            value={f.formState.price}
-            onChange={price => f.setFormState(prev => ({ ...prev, price }))}
-            unit={quote}
-            decimals={quoteDecimals}
-            action={
-              f.markPrice !== null && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    f.setFormState(prev => ({
-                      ...prev,
-                      price: f.markPrice!.toFixed(quoteDecimals),
-                    }))
-                  }
-                  className="-mr-1 shrink-0 bg-white/10 px-1.5 py-0.5 text-[11px] text-rock/70 hover:bg-white/15 hover:text-rock"
-                >
-                  Mark
-                </button>
-              )
-            }
+            id="ticket-size"
+            label="Size"
+            value={f.formState.size}
+            onChange={size => f.setFormState(prev => ({ ...prev, size }))}
+            unit={base}
+            decimals={baseDecimals}
+            invalid={rejects.length > 0}
           />
-        )}
-        <Field
-          id="ticket-size"
-          label="Size"
-          value={f.formState.size}
-          onChange={size => f.setFormState(prev => ({ ...prev, size }))}
-          unit={base}
-          decimals={baseDecimals}
-          invalid={rejects.length > 0}
-        />
-        <TickSlider
-          label="Margin"
-          valueText={
-            <>
-              {Math.round(percent)}%
-              {marginUsed > 0 && (
-                <span className="text-rock/50">
-                  {' '}
-                  · {fmt(marginUsed)} {quote}
-                </span>
-              )}
-            </>
-          }
-          value={percent}
-          min={0}
-          max={100}
-          ticks={MARGIN_TICKS}
-          onChange={setPercent}
-          disabled={maxSize <= 0}
-          ariaLabel="Margin as a share of available collateral"
-        />
-        <div className="grid grid-cols-4 gap-1">
-          {MARGIN_PRESETS.map(p => (
-            <button
-              key={p}
-              type="button"
-              disabled={maxSize <= 0}
-              onClick={() => setPercent(p)}
-              className={cn(
-                'h-6 border font-mono text-[11px] transition-colors hover:border-rock/40 hover:text-rock disabled:pointer-events-none disabled:opacity-40',
-                Math.round(percent) === p ? 'border-rock text-rock' : 'border-outline text-rock/50'
-              )}
-            >
-              {p === 100 ? 'Max' : `${p}%`}
-            </button>
-          ))}
+        </div>
+        <div className="flex flex-col gap-2">
+          <TickSlider
+            label="Margin"
+            valueText={
+              <>
+                {Math.round(percent)}%
+                {marginUsed > 0 && (
+                  <span className="text-rock/50">
+                    {' '}
+                    · {fmt(marginUsed)} {quote}
+                  </span>
+                )}
+              </>
+            }
+            value={percent}
+            min={0}
+            max={100}
+            ticks={MARGIN_TICKS}
+            onChange={setPercent}
+            disabled={maxSize <= 0}
+            ariaLabel="Margin as a share of available collateral"
+          />
+          <div className="grid grid-cols-4 gap-1">
+            {MARGIN_PRESETS.map(p => (
+              <button
+                key={p}
+                type="button"
+                disabled={maxSize <= 0}
+                onClick={() => setPercent(p)}
+                className={cn(
+                  'h-6 border font-mono text-[11px] transition-colors hover:border-rock/40 hover:text-rock disabled:pointer-events-none disabled:opacity-40',
+                  Math.round(percent) === p
+                    ? 'border-rock text-rock'
+                    : 'border-outline text-rock/50'
+                )}
+              >
+                {p === 100 ? 'Max' : `${p}%`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Options */}
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <Checkbox
             checked={f.formState.reduceOnly}
