@@ -28,6 +28,19 @@ const MARGIN_PRESETS = [25, 50, 75, 100];
 const fmt = (n: number, digits = 2) =>
   n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
+// Simulator reason codes → what the trader should do about them. Both margin
+// codes mean the same thing to a trader, so they share a message.
+const SIM_REASON_MESSAGES: Record<string, string> = {
+  insufficient_init_margin: 'Not enough margin for this size. Lower the size or add funds.',
+  insufficient_maint_margin: 'Not enough margin for this size. Lower the size or add funds.',
+};
+
+// Unknown codes still read as a sentence: "some_code" → "Some code"
+const describeSimReason = (code: string) =>
+  SIM_REASON_MESSAGES[code] ?? code.charAt(0).toUpperCase() + code.slice(1).replace(/_/g, ' ');
+
+const describeSimReasons = (codes: string[]) => [...new Set(codes.map(describeSimReason))];
+
 function Field({
   label,
   value,
@@ -36,6 +49,7 @@ function Field({
   decimals,
   action,
   id,
+  invalid = false,
 }: {
   label: string;
   value: string;
@@ -44,11 +58,17 @@ function Field({
   decimals: number;
   action?: React.ReactNode;
   id: string;
+  invalid?: boolean;
 }) {
   return (
     <label
       htmlFor={id}
-      className="flex h-9 items-center gap-2 border border-outline bg-card px-3 transition-colors focus-within:border-rock/60 hover:border-rock/40"
+      className={cn(
+        'flex h-9 items-center gap-2 border bg-card px-3 transition-colors',
+        invalid
+          ? 'border-danger/70 focus-within:border-danger hover:border-danger'
+          : 'border-outline focus-within:border-rock/60 hover:border-rock/40'
+      )}
     >
       <span className="shrink-0 text-xs text-rock/50">{label}</span>
       <NumericFormat
@@ -62,6 +82,7 @@ function Field({
         placeholder="0.00"
         inputMode="decimal"
         autoComplete="off"
+        aria-invalid={invalid || undefined}
         className="min-w-0 flex-1 bg-transparent text-right font-mono text-sm tabular-nums text-rock outline-none placeholder:text-rock/30"
       />
       {unit && <span className="shrink-0 text-xs text-rock/70">{unit}</span>}
@@ -270,8 +291,8 @@ export function TradeTicket() {
       : null;
 
   const sim = isBuy ? f.buySimulate.data : f.sellSimulate.data;
-  const rejects = sim?.reject_reasons ?? [];
-  const warnings = sim?.warnings ?? [];
+  const rejects = describeSimReasons(sim?.reject_reasons ?? []);
+  const warnings = describeSimReasons(sim?.warnings ?? []);
   const healthAfter = sim?.after.init_health_ratio;
   const wouldReject = isBuy ? f.buyWouldReject : f.sellWouldReject;
 
@@ -437,6 +458,7 @@ export function TradeTicket() {
           onChange={size => f.setFormState(prev => ({ ...prev, size }))}
           unit={base}
           decimals={baseDecimals}
+          invalid={rejects.length > 0}
         />
         <TickSlider
           label="Margin"
@@ -467,8 +489,8 @@ export function TradeTicket() {
               disabled={maxSize <= 0}
               onClick={() => setPercent(p)}
               className={cn(
-                'h-6 font-mono text-[11px] transition-colors hover:bg-white/10 hover:text-rock disabled:pointer-events-none disabled:opacity-40',
-                Math.round(percent) === p ? 'bg-white/10 text-rock' : 'text-rock/50'
+                'h-6 border font-mono text-[11px] transition-colors hover:border-rock/40 hover:text-rock disabled:pointer-events-none disabled:opacity-40',
+                Math.round(percent) === p ? 'border-rock text-rock' : 'border-outline text-rock/50'
               )}
             >
               {p === 100 ? 'Max' : `${p}%`}
