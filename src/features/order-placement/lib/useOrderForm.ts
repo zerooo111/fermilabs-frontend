@@ -230,36 +230,23 @@ export function useOrderForm() {
   };
 
   const handleOpenPosition = async (side: OrderSide) => {
-    // Validate SL/TP before submitting. Market orders have no limit price, so
-    // they validate against the live mark price as the entry reference.
-    if (enableSLTP) {
-      const referencePrice = isMarketOrder ? (markPrice ?? 0) : priceValue;
-      const stopLossValue = safeParseFloat(formState.stopLoss);
-      const takeProfitValue = safeParseFloat(formState.takeProfit);
+    // The protocol has no trigger orders, so take profit is a reduce-only limit
+    // order placed right after a market entry (see below). Stop loss would need
+    // a price watcher and is not offered. A resting limit entry may not fill,
+    // so TP only applies to market orders.
+    const takeProfit = enableSLTP && isMarketOrder ? formState.takeProfit : '';
 
-      // Buy: SL below entry, TP above. Sell: SL above entry, TP below.
-      const isBuy = side === 'Buy';
-
-      if (formState.stopLoss && referencePrice > 0) {
-        if (isBuy && stopLossValue >= referencePrice) {
-          toast.error('Stop Loss must be below entry price for a buy');
-          return;
-        }
-        if (!isBuy && stopLossValue <= referencePrice) {
-          toast.error('Stop Loss must be above entry price for a sell');
-          return;
-        }
+    // Market orders have no limit price, so validate against the live mark.
+    // Buy: TP above entry. Sell: TP below entry.
+    if (takeProfit && markPrice && markPrice > 0) {
+      const takeProfitValue = safeParseFloat(takeProfit);
+      if (side === 'Buy' && takeProfitValue <= markPrice) {
+        toast.error('Take Profit must be above entry price for a buy');
+        return;
       }
-
-      if (formState.takeProfit && referencePrice > 0) {
-        if (isBuy && takeProfitValue <= referencePrice) {
-          toast.error('Take Profit must be above entry price for a buy');
-          return;
-        }
-        if (!isBuy && takeProfitValue >= referencePrice) {
-          toast.error('Take Profit must be below entry price for a sell');
-          return;
-        }
+      if (side === 'Sell' && takeProfitValue >= markPrice) {
+        toast.error('Take Profit must be below entry price for a sell');
+        return;
       }
     }
 
@@ -283,6 +270,22 @@ export function useOrderForm() {
           markPrice: markPrice!,
           reduceOnly: formState.reduceOnly,
         });
+
+        // Orders on a market run in queue order, so this lands after the
+        // entry. Reduce-only caps it at whatever position the entry opened.
+        if (result.success && takeProfit) {
+          const tpResult = await openPosition({
+            side: side === 'Buy' ? 'Sell' : 'Buy',
+            leverage: String(leverage),
+            marginMode: formState.marginMode,
+            price: takeProfit,
+            size: formState.size,
+            reduceOnly: true,
+          });
+          if (!tpResult.success) {
+            toast.warning('Position opened without take profit. Place a limit order to close it.');
+          }
+        }
       } else {
         result = await openPosition({
           side,
@@ -290,8 +293,6 @@ export function useOrderForm() {
           marginMode: formState.marginMode,
           price: formState.price,
           size: formState.size,
-          stopLoss: enableSLTP && formState.stopLoss ? formState.stopLoss : undefined,
-          takeProfit: enableSLTP && formState.takeProfit ? formState.takeProfit : undefined,
           reduceOnly: formState.reduceOnly,
         });
       }

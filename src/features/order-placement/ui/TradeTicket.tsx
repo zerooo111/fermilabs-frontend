@@ -48,7 +48,7 @@ function Field({
   return (
     <label
       htmlFor={id}
-      className="flex h-11 items-center gap-2 border border-outline bg-card px-3 transition-colors focus-within:border-rock/60 hover:border-rock/40"
+      className="flex h-9 items-center gap-2 border border-outline bg-card px-3 transition-colors focus-within:border-rock/60 hover:border-rock/40"
     >
       <span className="shrink-0 text-xs text-rock/50">{label}</span>
       <NumericFormat
@@ -349,7 +349,10 @@ export function TradeTicket() {
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => f.handleInputChange('orderType', t)}
+                onClick={() => {
+                  f.handleInputChange('orderType', t);
+                  if (t === 'limit') toggleSLTP(false);
+                }}
                 className={cn(
                   '-mb-px h-8 border-b-2 px-3 text-sm capitalize transition-colors first:pl-0',
                   active
@@ -497,25 +500,26 @@ export function TradeTicket() {
             </Popover>
           ) : null}
         </div>
-        <Checkbox checked={f.enableSLTP} onChange={toggleSLTP}>
-          Take profit / Stop loss
-        </Checkbox>
-        {f.enableSLTP && (
-          <div className="grid grid-cols-2 gap-2">
+        {/* TP rides on a market entry only; a resting limit entry may never fill */}
+        {f.isMarketOrder && (
+          <Checkbox checked={f.enableSLTP} onChange={toggleSLTP}>
+            Take profit
+          </Checkbox>
+        )}
+        {f.isMarketOrder && f.enableSLTP && (
+          <div className="flex flex-col gap-1.5">
             <Field
               id="ticket-tp"
               label="TP"
               value={f.formState.takeProfit}
               onChange={v => f.handleInputChange('takeProfit', v)}
+              unit={quote}
               decimals={quoteDecimals}
             />
-            <Field
-              id="ticket-sl"
-              label="SL"
-              value={f.formState.stopLoss}
-              onChange={v => f.handleInputChange('stopLoss', v)}
-              decimals={quoteDecimals}
-            />
+            <p className="text-[11px] text-rock/50">
+              Placed as a reduce-only limit order once your entry goes through. Your wallet asks for
+              a second signature.
+            </p>
           </div>
         )}
       </div>
