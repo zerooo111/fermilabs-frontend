@@ -1,66 +1,133 @@
-import { ArrowRight } from '@phosphor-icons/react';
+import { LINKS } from '../constants';
+import {
+  ContinuumDrawing,
+  FifoPerpsDrawing,
+  MarketShareDrawing,
+  ProofOfSequenceDrawing,
+  RoadmapDrawing,
+} from './illustrations';
 
+// Newest first; the first post is featured across the full width
 const BLOG_POSTS = [
   {
-    title: 'The Blockchain Capital Markets Roadmap',
+    title: 'Fermi v1: Designing a FIFO perps exchange on Solana',
     description:
-      'How blockchains will achieve NASDAQ like market microstructure without trusted intermediaries.',
-    image:
-      'https://substackcdn.com/image/fetch/w_1200,h_600,c_fill,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F5539981c-cc7f-4d3c-80e2-4aafa216b8f3_1360x768.jpeg',
-    url: 'https://seldonfromfermi.substack.com/p/the-blockchain-capital-markets-roadmap',
+      'How Fermi matches perpetuals first in, first out, and settles only executed trades onchain.',
+    date: 'Apr 14, 2026',
+    url: 'https://seldonfromfermi.substack.com/p/fermi-v1-designing-a-fifo-perps-exchange',
+    Drawing: FifoPerpsDrawing,
+  },
+  {
+    title: 'Verifiable ordering on Blockchains: Proof of Sequence (PoSq)',
+    description:
+      "The core internal timekeeping mechanism behind Continuum Chain's FIFO guarantees.",
+    date: 'Mar 8, 2026',
+    url: 'https://seldonfromfermi.substack.com/p/verifiable-ordering-on-blockchains',
+    Drawing: ProofOfSequenceDrawing,
+  },
+  {
+    title: 'Continuum: The Blockchain for Trading',
+    description: 'TradFi meets DeFi.',
+    date: 'Mar 8, 2026',
+    url: 'https://seldonfromfermi.substack.com/p/continuum-the-blockchain-for-trading',
+    Drawing: ContinuumDrawing,
   },
   {
     title: 'The Market Structure Wars',
     description: "What's the ideal way to match orders and execute trades?",
-    image:
-      'https://substackcdn.com/image/fetch/w_1200,h_600,c_fill,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0709ef5c-4257-44ab-a832-159968e1ec95_1200x700.png',
+    date: 'Feb 19, 2026',
     url: 'https://seldonfromfermi.substack.com/p/the-market-structure-wars',
+    Drawing: MarketShareDrawing,
+  },
+  {
+    title: 'The Blockchain Capital Markets Roadmap',
+    description:
+      'How blockchains will achieve NASDAQ-like market microstructure without trusted intermediaries.',
+    date: 'Feb 3, 2026',
+    url: 'https://seldonfromfermi.substack.com/p/the-blockchain-capital-markets-roadmap',
+    Drawing: RoadmapDrawing,
   },
 ];
 
-export default function BlogSection() {
+function Arrow() {
   return (
-    <section className="flex flex-col py-12 md:py-20 px-4 md:px-8 border-t border-rock/20">
-      <h2 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-7xl mb-4 md:mb-6 leading-tight text-rock">
-        From the blog
-      </h2>
-      <p className="text-lg sm:text-xl md:text-2xl text-rock/80 max-w-2xl mb-10 md:mb-16">
-        Deep dives into market structure, protocol design, and the future of onchain trading.
-      </p>
+    <svg
+      className="card-arrow size-12 shrink-0 md:size-16"
+      viewBox="0 0 48 48"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="square"
+      aria-hidden="true"
+    >
+      <path d="M13 35 35 13M17 13h18v18" />
+    </svg>
+  );
+}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-        {BLOG_POSTS.map(post => (
+export default function BlogSection() {
+  const [featured, ...rest] = BLOG_POSTS;
+
+  return (
+    <>
+      <section className="w-full border-b border-rock/15">
+        <div className="frame reg flex flex-col gap-4 px-5 py-8 sm:flex-row sm:items-end sm:justify-between md:px-10 md:py-10">
+          <h2 className="font-serif text-4xl leading-none font-light tracking-[-0.02em] md:text-5xl">
+            From the blog
+          </h2>
           <a
-            key={post.url}
-            href={post.url}
+            href={LINKS.BLOG}
             target="_blank"
             rel="noreferrer"
-            className="group border border-rock/20 bg-dark-forest/50 hover:border-rock/40 transition-all duration-200 flex flex-col overflow-hidden"
+            className="link self-start sm:self-auto"
           >
-            <div className="aspect-[2/1] overflow-hidden">
-              <img
-                src={post.image}
-                alt={post.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
-            </div>
-            <div className="p-5 md:p-6 flex flex-col flex-1">
-              <h3 className="font-display text-xl sm:text-2xl md:text-3xl text-rock mb-2 md:mb-3 leading-tight">
-                {post.title}
-              </h3>
-              <p className="text-rock/70 text-base sm:text-lg flex-1">{post.description}</p>
-              <div className="mt-4 flex items-center gap-2 text-rock/60 group-hover:text-rock transition-colors duration-200 text-sm sm:text-base font-medium">
-                Read more
-                <ArrowRight
-                  weight="bold"
-                  size={16}
-                  className="group-hover:-rotate-45 transition-transform duration-200"
-                />
+            Browse all articles
+          </a>
+        </div>
+      </section>
+      <section className="w-full border-b border-rock/15">
+        <div className="frame grid gap-px bg-rock/15 sm:grid-cols-2">
+          <a
+            href={featured.url}
+            target="_blank"
+            rel="noreferrer"
+            className="dither-corner group grid gap-6 bg-dark-forest px-5 py-8 sm:col-span-2 md:grid-cols-2 md:gap-10 md:px-10 md:py-10"
+          >
+            <featured.Drawing />
+            <div className="flex flex-col justify-between gap-6">
+              <div className="flex flex-col gap-3">
+                <span className="text-sm text-rock/55">Latest · {featured.date}</span>
+                <h3 className="font-serif text-3xl tracking-[-0.015em] group-hover:text-amber-100 md:text-4xl">
+                  {featured.title}
+                </h3>
+                <p className="max-w-md text-rock/60">{featured.description}</p>
               </div>
+              <Arrow />
             </div>
           </a>
-        ))}
-      </div>
-    </section>
+          {rest.map(({ title, description, date, url, Drawing }) => (
+            <a
+              key={url}
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="dither-corner group flex flex-col gap-6 bg-dark-forest px-5 py-8 md:px-10 md:py-10"
+            >
+              <Drawing />
+              <div className="flex items-center justify-between gap-6">
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-sm text-rock/55">{date}</span>
+                  <h3 className="font-serif text-2xl tracking-[-0.01em] group-hover:text-amber-100 md:text-3xl">
+                    {title}
+                  </h3>
+                  <p className="text-rock/60">{description}</p>
+                </div>
+                <Arrow />
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }

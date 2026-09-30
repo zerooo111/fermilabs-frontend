@@ -9,9 +9,9 @@ import NoiseOverlay from '@/pages/home/ui/NoiseOverlay';
 
 // Landing page loading — branded splash
 const LoadingPage = () => (
-  <div className="flex flex-col items-center justify-center min-h-screen bg-dark-forest text-rock font-[Arimo]">
+  <div className="flex flex-col items-center justify-center min-h-screen bg-dark-forest text-rock">
     <img src="/logo.svg" alt="Fermi" className="w-12 h-12 mb-4 animate-pulse" />
-    <span className="text-3xl font-display tracking-wide">Fermi Trade</span>
+    <span className="text-3xl font-serif font-light tracking-tight">Fermi Trade</span>
     <NoiseOverlay />
   </div>
 );

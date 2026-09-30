@@ -4,4 +4,6 @@ export const LINKS = {
   WHITEPAPER: '/research.pdf',
   TWITTER: 'https://x.com/FermiLabs',
   DISCORD: 'https://discord.gg/kNcktKSk7u',
+  BLOG: 'https://seldonfromfermi.substack.com',
+  LABS: 'https://fermilabs.xyz',
 };

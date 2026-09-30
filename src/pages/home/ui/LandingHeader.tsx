@@ -1,91 +1,37 @@
 import { LINKS } from '../constants';
-import { useState } from 'react';
-import Logo from './Logo';
 import { WaitlistButton } from '@/features/waitlist';
 
+const CELL =
+  'flex h-full items-center border-l border-rock/15 px-4 transition-colors duration-150 hover:bg-white/5 hover:text-amber-100 sm:px-6';
+
 export default function LandingHeader() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   return (
-    <header className="sticky top-0 w-full left-0 bg-dark-forest/60 backdrop-blur-lg border-b border-rock/30 z-10 gap-2 h-14 flex items-center">
-      <nav className="flex flex-1 h-full justify-between items-center gap-1 text-xl md:border-x border-rock/20 font-medium container-2xl px-4">
-        <div className="flex cursor-pointer items-center md:border-x h-full border-rock/20 md:pl-3 md:pr-4 group hover:text-amber-200 gap-2.5">
-          <Logo className="w-4 h-4 group-hover:scale-125 duration-500" />
-          <a className="text-xl md:text-2xl font-semibold" href="/">
-            Fermi Trade
-          </a>
-        </div>
-
-        <div className="hidden md:flex text-rock/80 items-center h-full border-x border-rock/20 divide-x divide-rock/20">
-          <a
-            href={LINKS.DOCS}
-            target="_blank"
-            rel="noreferrer"
-            className="px-8 h-full flex items-center hover:text-amber-100 hover:bg-white/5 justify-center duration-150 ease-out"
-          >
+    <header className="glass-nav sticky top-0 z-[5] w-full border-b border-rock/15">
+      <nav className="frame flex h-14 items-stretch justify-between">
+        <a href="/" className="flex items-center gap-2.5 pl-5 hover:text-amber-200 md:pl-10">
+          <img src="/logo.svg" alt="" width="21" height="12" className="h-3 w-auto" />
+          <span className="font-serif text-xl tracking-tight">Fermi Trade</span>
+        </a>
+        <div className="flex items-stretch text-sm text-rock/75">
+          <a href={LINKS.DOCS} target="_blank" rel="noreferrer" className={CELL}>
             Docs
           </a>
           <a
             href={LINKS.WHITEPAPER}
             target="_blank"
             rel="noreferrer"
-            className="px-8 h-full flex items-center hover:text-amber-100 hover:bg-white/5 justify-center duration-150 ease-out"
+            className={`${CELL} max-sm:hidden`}
           >
             Research
           </a>
           <WaitlistButton
             source="header"
-            label="Join Waitlist"
+            label="Join waitlist"
             withArrow={false}
-            className="px-8 h-full flex items-center justify-center hover:text-amber-100 hover:bg-white/5 duration-150 ease-out cursor-pointer"
+            className={`${CELL} cursor-pointer text-amber-200`}
           />
         </div>
-
-        <button
-          type="button"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="md:hidden flex flex-col justify-center items-center gap-1 w-8 h-8 group"
-          aria-label="Toggle menu"
-        >
-          <span
-            className={`block w-6 h-0.5 bg-rock/80 transition-all duration-300 ${isMobileMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`}
-          />
-          <span
-            className={`block w-6 h-0.5 bg-rock/80 transition-all duration-300 ${isMobileMenuOpen ? 'opacity-0' : ''}`}
-          />
-          <span
-            className={`block w-6 h-0.5 bg-rock/80 transition-all duration-300 ${isMobileMenuOpen ? '-rotate-45 -translate-y-1.5' : ''}`}
-          />
-        </button>
       </nav>
-
-      {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-14 left-0 w-full bg-dark-forest/95 backdrop-blur-lg border-b border-rock/30">
-          <div className="flex flex-col text-rock/80 divide-y divide-rock/20">
-            <a
-              href={LINKS.DOCS}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="px-6 py-4 hover:text-amber-100 hover:bg-white/5 duration-150 ease-out"
-            >
-              Docs
-            </a>
-            <a
-              href={LINKS.WHITEPAPER}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="px-6 py-4 hover:text-amber-100 hover:bg-white/5 duration-150 ease-out"
-            >
-              Research
-            </a>
-            <WaitlistButton
-              source="header-mobile"
-              label="Join Waitlist"
-              withArrow={false}
-              className="px-6 py-4 text-left hover:text-amber-100 hover:bg-white/5 duration-150 ease-out cursor-pointer"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
-          </div>
-        </div>
-      )}
     </header>
   );
 }

@@ -1,30 +1,29 @@
 import { lazy, Suspense } from 'react';
+import './landing.css';
 import LandingHeader from './ui/LandingHeader';
 import HeroSection from './ui/HeroSection';
+import OrderbookField from './ui/OrderbookField';
 import { LandingFooter } from './ui/LandingFooter';
 import NoiseOverlay from './ui/NoiseOverlay';
-import CTASection from './ui/CTASection';
-import BlogSection from './ui/BlogSection';
 
 const FeaturesSection = lazy(() => import('./ui/FeaturesSection'));
+const ExchangeSection = lazy(() => import('./ui/ExchangeSection'));
+const BlogSection = lazy(() => import('./ui/BlogSection'));
+const CTASection = lazy(() => import('./ui/CTASection'));
 
 export default function HomePage() {
   return (
-    <div className="w-screen flex flex-col items-center bg-dark-forest text-rock font-[Arimo]">
+    <div className="landing flex min-h-screen w-full flex-col bg-dark-forest text-rock">
       <LandingHeader />
-      <main className="md:border-x border-rock/20 flex-col gap-20 md:gap-40 container-2xl justify-center items-center">
+      <main>
         <HeroSection />
-        <Suspense
-          fallback={
-            <div className="h-96 flex items-center justify-center text-rock/60">
-              Loading features...
-            </div>
-          }
-        >
+        <OrderbookField />
+        <Suspense fallback={<div className="frame h-96" />}>
           <FeaturesSection />
+          <ExchangeSection />
+          <BlogSection />
+          <CTASection />
         </Suspense>
-        <BlogSection />
-        <CTASection />
       </main>
       <LandingFooter />
       <NoiseOverlay />

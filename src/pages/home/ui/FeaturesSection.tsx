@@ -1,99 +1,86 @@
-import { FediverseLogo, HandArrowUp, Vault } from '@phosphor-icons/react';
-import GlassCard, { GlassCardContent, GlassCardTitle } from './GlassCard';
-import UnicornScene from './UnicornScene';
+import { useEffect, useRef } from 'react';
+
+import { prefersReducedMotion } from '../lib/dither';
+import {
+  FairQueueDrawing,
+  FinalityDrawing,
+  LiquidityDrawing,
+  SequencingDrawing,
+} from './illustrations';
+
+const FEATURES = [
+  {
+    title: "Crypto's fairest orderbook",
+    body: 'No mempool, no MEV games, no one cutting the line. Orders fill in strict price-time priority, and only executed trades settle on Solana.',
+    Drawing: FairQueueDrawing,
+  },
+  {
+    title: 'Instant finality',
+    body: 'Block-based DEXes give no guarantee of when, or how, your trade is included. On Fermi it confirms the moment it matches.',
+    Drawing: FinalityDrawing,
+  },
+  {
+    title: 'Modular sequencing',
+    body: 'Our Continuum layer gives any rollup or DeFi app predictable first-come, first-serve ordering, then handles batch execution and onchain settlement.',
+    Drawing: SequencingDrawing,
+    link: { href: 'https://continuum.wtf', label: 'Visit Continuum' },
+  },
+  {
+    title: "Fermi's liquidity layer",
+    body: 'Apps built on Fermi share one liquidity layer for composability and capital efficiency. Integrated so far: a lending protocol, a market-making vault and the exchange.',
+    Drawing: LiquidityDrawing,
+  },
+];
 
 export default function FeaturesSection() {
-  return (
-    <section
-      id="features"
-      className="flex flex-col lg:divide-y divide-rock/20 mt-20 md:mt-40 border-y border-rock/20"
-    >
-      <div className="flex flex-wrap lg:divide-x divide-rock/20">
-        <GlassCard className="w-full lg:w-1/2">
-          <GlassCardTitle>Crypto's fairest orderbook</GlassCardTitle>
-          <GlassCardContent>
-            <p>
-              For years, DEXes were limited by block-level constraints—no guarantees on when or how
-              your trade would be included. That led to front-running, sandwich attacks, and MEV
-              chaos.
-            </p>
-            <p>
-              Fermi changes that. With a high-speed, fair-orderbook design, there's no mempool, no
-              MEV games, and no one cutting the line. Only executed trades settle on Solana,
-              delivering top-tier exchange performance with full on-chain trust.
-            </p>
-          </GlassCardContent>
-        </GlassCard>
-        <div className="w-full border-y border-rock/20 lg:border-y-0 lg:w-1/2 flex items-center justify-center py-12 lg:py-0">
-          <div className="size-80 md:size-120 lg:size-full">
-            <UnicornScene
-              projectId="rU2x4bWOA1sTDCVnhmet?production=true"
-              className="size-full"
-              lazyLoad={true}
-            />
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-wrap lg:divide-x divide-rock/20">
-        <div className="w-full border-y border-rock/20 lg:border-y-0 lg:w-1/2 flex items-center justify-center py-12 lg:py-0 order-2 lg:order-1">
-          <div className="size-80 md:size-120 lg:size-full">
-            <UnicornScene projectId="hYf4ksJ9xrUOFcE3EDql" className="size-full" lazyLoad={true} />
-          </div>
-        </div>
-        <GlassCard className="w-full lg:w-1/2 shrink-0 order-1 lg:order-2">
-          <GlassCardTitle>Modular sequencing</GlassCardTitle>
-          <GlassCardContent>
-            <p>
-              Fermi brings order to the chaos of DeFi by reinventing how transactions are sequenced.
-            </p>
-            <p>
-              Our Continuum layer offers predictable, first-come-first-serve ordering—no mempool, no
-              MEV, no front-running. Just instant confirmation and clean execution.
-            </p>
-            <p>
-              It is easy for any rollup or DeFi app to integrate Continuum with minimal changes,
-              using it to sequence user actions fairly and execute custom logic, while Continuum
-              handles batch execution and onchain settlement.
-            </p>
-          </GlassCardContent>
-        </GlassCard>
-      </div>
+  const gridRef = useRef<HTMLDivElement>(null);
 
-      <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-rock/20">
-        <GlassCard className="w-full lg:w-1/2">
-          <GlassCardTitle>Fermi's liquidity layer</GlassCardTitle>
-          <GlassCardContent>
-            <p>
-              Apps built on Fermi tap into a unified liquidity layer that boosts composability and
-              capital efficiency.
-            </p>
-            <p>So far, three protocols are integrated:</p>
-            <div className="flex flex-col gap-4 mt-6 font-display text-2xl sm:text-3xl md:text-4xl">
-              <div className="glass-card p-3 sm:p-4 shadow-xl border border-rock/30 bg-dark-forest/50 flex items-center gap-3 sm:gap-4">
-                <HandArrowUp weight="duotone" size={28} className="sm:w-8 sm:h-8" />
-                Lending protocol
-              </div>
-              <div className="glass-card p-3 sm:p-4 shadow-xl border border-rock/30   bg-dark-forest/50 flex items-center gap-3 sm:gap-4">
-                <Vault size={28} className="sm:w-8 sm:h-8" />
-                Market-making vault
-              </div>
-              <div className="glass-card p-3 sm:p-4 shadow-xl  border border-rock/30 bg-dark-forest/50 flex items-center gap-3 sm:gap-4">
-                <FediverseLogo size={28} className="sm:w-8 sm:h-8" />
-                Decentralized exchange
-              </div>
-            </div>
-          </GlassCardContent>
-        </GlassCard>
-        <div className="w-full lg:w-1/2 border-y border-rock/20 lg:border-y-0 flex items-center justify-center py-12 lg:py-0">
-          <div className="size-80 md:size-120 lg:size-full">
-            <UnicornScene
-              projectId="63ON74BtloYSYdehHwTw?production=true"
-              className="size-full"
-              lazyLoad={true}
-            />
-          </div>
+  // Live dithered glow behind a card on hover; the static dithered corner
+  // in CSS covers touch screens and reduced motion
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid || prefersReducedMotion() || !window.matchMedia('(hover: hover)').matches) return;
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+    import('../lib/dither-hover')
+      .then(({ initDitherHover }) => {
+        if (!cancelled) cleanup = initDitherHover(grid, '.dither-corner');
+      })
+      .catch(error => console.error('Failed to load dither hover:', error));
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, []);
+
+  return (
+    <>
+      <section className="w-full border-b border-rock/15">
+        <div className="frame reg flex flex-col gap-4 px-5 py-8 sm:flex-row sm:items-end sm:justify-between md:px-10 md:py-10">
+          <h2 className="font-serif text-4xl leading-none font-light tracking-[-0.02em] md:text-5xl">
+            Why trade on Fermi
+          </h2>
         </div>
-      </div>
-    </section>
+      </section>
+      <section className="w-full border-b border-rock/15">
+        <div ref={gridRef} className="frame grid gap-px bg-rock/15 sm:grid-cols-2">
+          {FEATURES.map(({ title, body, Drawing, link }) => (
+            <article
+              key={title}
+              className="dither-corner flex flex-col gap-6 bg-dark-forest px-5 py-8 md:px-10 md:py-10"
+            >
+              <Drawing />
+              <h3 className="font-serif text-2xl tracking-[-0.01em] md:text-3xl">{title}</h3>
+              <p className="-mt-3 max-w-md text-rock/65">{body}</p>
+              {link && (
+                <a href={link.href} target="_blank" rel="noreferrer" className="link self-start">
+                  {link.label}
+                </a>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }

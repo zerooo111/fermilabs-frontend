@@ -1,61 +1,73 @@
-import { ArrowRight } from '@phosphor-icons/react';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { WaitlistButton } from '@/features/waitlist';
+import { prefersReducedMotion } from '../lib/dither';
+
+// Load the dithered mark once the browser is idle so it never competes with
+// first paint
+const whenIdle = (fn: () => void) =>
+  'requestIdleCallback' in window
+    ? window.requestIdleCallback(fn, { timeout: 2000 })
+    : window.setTimeout(fn, 200);
 
 export default function HeroSection() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+    whenIdle(() => {
+      import('../lib/logo-field')
+        .then(({ initLogoField }) => {
+          if (!cancelled)
+            cleanup = initLogoField(canvas, { reducedMotion: prefersReducedMotion() });
+        })
+        .catch(error => console.error('Failed to load logo field:', error));
+    });
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, []);
 
   return (
-    <section
-      ref={containerRef}
-      className="relative w-full px-4 border-b border-b-rock/20 overflow-hidden"
-    >
-      <div className="flex flex-col items-center  relative pt-12 md:pt-24">
-        <h1 className="text-5xl lg:text-7xl leading-tight md:leading-relaxed font-display text-center md:text-left">
-          Instant Finality. <br className="block md:hidden" /> Capital Efficient
+    <section className="w-full border-b border-rock/15">
+      <div className="frame relative isolate overflow-hidden px-5 pt-16 pb-12 md:px-10 md:pt-24 md:pb-16">
+        <canvas
+          ref={canvasRef}
+          width="158"
+          height="104"
+          aria-hidden="true"
+          className="pixelated pointer-events-none absolute -right-24 -bottom-20 -z-10 aspect-[158/104] w-[26rem] opacity-25 md:-right-4 md:-bottom-14 md:w-[42rem] md:opacity-50"
+        />
+        <p data-intro className="mb-6 text-xs tracking-[0.2em] text-rock/60 uppercase md:mb-8">
+          Perpetuals on Solana
+        </p>
+        <h1
+          data-intro
+          className="max-w-5xl font-serif text-[clamp(2.75rem,7vw,6.25rem)] leading-[1.1] font-light tracking-[-0.03em]"
+        >
+          Instant finality.
+          <br />
+          Capital efficient.
         </h1>
-
-        <h6 className="text-lg sm:text-xl md:text-2xl lg:text-3xl italic text-center md:text-left mt-4">
-          Trade with NASDAQ speed with onchain security
-        </h6>
-
-        <div className="mt-8 md:mt-16 flex flex-col sm:flex-row gap-4 sm:gap-6 w-full sm:w-auto">
-          <WaitlistButton source="hero" />
-
-          <a
-            href={'#features'}
-            className="hover:brightness-120 bg-amber-200 group text-dark-forest px-6 sm:px-8 py-3 sm:py-4 text-lg sm:text-xl md:text-2xl font-medium flex items-center justify-center gap-3 sm:gap-4 relative overflow-hidden duration-150 ease-out"
-          >
-            Explore
-            <ArrowRight
-              weight="bold"
-              size={20}
-              className="group-hover:scale-110 origin-center group-hover:rotate-45 transition-all relative duration-150 ease-out sm:w-6 sm:h-6"
-            />
+        <p data-intro className="mt-6 max-w-xl text-lg text-rock/70 md:mt-8 md:text-xl">
+          Trade with NASDAQ speed and onchain security, on an orderbook where no one cuts the line.
+        </p>
+        <div data-intro className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 md:mt-12">
+          <WaitlistButton
+            source="hero"
+            label="Join the waitlist"
+            withArrow={false}
+            className="cursor-pointer bg-amber-200 px-5 py-3 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100"
+          />
+          <a href="#how" className="link text-rock/85">
+            See how it works
           </a>
         </div>
       </div>
-
-      <div className="flex md:translate-y-10 lg:translate-y-20 mt-8 overflow-hidden">
-        <img
-          src="https://ik.imagekit.io/xl6qa7mr1/product-screenshot.svg?tr=w-1200,f-auto,q-75"
-          srcSet="https://ik.imagekit.io/xl6qa7mr1/product-screenshot.svg?tr=w-800,f-auto,q-75 800w, https://ik.imagekit.io/xl6qa7mr1/product-screenshot.svg?tr=w-1200,f-auto,q-75 1200w, https://ik.imagekit.io/xl6qa7mr1/product-screenshot.svg?tr=w-1600,f-auto,q-75 1600w"
-          sizes="(max-width: 768px) 100vw, (max-width: 1536px) 90vw, 1600px"
-          alt="Product Screenshot"
-          loading="eager"
-          fetchPriority="high"
-          decoding="async"
-          width="1200"
-          height="800"
-          className="w-full h-auto object-contain"
-        />
-      </div>
-
-      {/* Gradients */}
-
-      <div className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/3 mix-blend-multiply h-200 blur-3xl opacity-40 w-120  bg-black/20 blur-5xl -skew-x-24 pointer-events-none" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 mix-blend-soft-light opacity-40 blur-3xl h-80 w-2/3 bg-radial from-amber-100 to-rock/25 to-70% blur-5xl " />
     </section>
   );
 }
