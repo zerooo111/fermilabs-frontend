@@ -14,7 +14,7 @@ export function PortfolioTabs() {
   const [activeTab, setActiveTab] = useAtom(portfolioActiveTabAtom);
 
   return (
-    <div className="flex flex-col md:flex-row flex-1 h-full mx-2 md:mx-4 border-x border-outline divide-y md:divide-y-0 md:divide-x divide-outline overflow-hidden">
+    <div className="flex flex-col md:flex-row flex-1 h-full divide-y md:divide-y-0 md:divide-x divide-outline overflow-hidden">
       {/* Left side - Portfolio Tabs or Trades */}
       <div className="flex-1 min-w-0 overflow-hidden">
         {publicKey ? (

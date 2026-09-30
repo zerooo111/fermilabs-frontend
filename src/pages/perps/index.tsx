@@ -88,28 +88,28 @@ function PerpsPage() {
     return <TradingSkeleton />;
   }
 
+  // Mobile stacks chart, orderbook, ticket, portfolio. On desktop the ticket is
+  // its own full-height column, so the chart row keeps a fixed height instead
+  // of stretching to the ticket (which left the orderbook with empty rows).
   return (
-    <div className="flex flex-col min-h-[calc(100vh-60px)] overflow-hidden">
-      {/* Main trading area - responsive layout */}
-      <div className="flex flex-col lg:flex-row mx-2 md:mx-4 border-x border-outline divide-y lg:divide-y-0 lg:divide-x divide-outline">
-        {/* Chart section - full width on mobile, flex-1 on desktop */}
+    <div className="mx-2 md:mx-4 flex flex-col min-h-[calc(100vh-60px)] border-x border-outline overflow-hidden lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:grid-rows-[520px_1fr]">
+      {/* Chart + orderbook */}
+      <div className="flex flex-col lg:flex-row min-w-0 divide-y lg:divide-y-0 lg:divide-x divide-outline lg:col-start-1 lg:row-start-1">
         <div className="flex-1 min-w-0 overflow-hidden">
           <MemoizedPerpsChartContainer />
         </div>
-
-        {/* Orderbook - stacks below chart on mobile, side panel on desktop */}
         <div className="overflow-hidden">
           <MemoizedOrderbook />
         </div>
-
-        {/* Trade Panel - stacks below orderbook on mobile, side panel on desktop */}
-        <div className="overflow-hidden">
-          <MemoizedTradeTicket />
-        </div>
       </div>
 
-      {/* Portfolio section - always full width at bottom */}
-      <div className="flex-1 flex flex-col border-t border-outline overflow-hidden">
+      {/* Trade ticket - spans both rows on desktop */}
+      <div className="border-t border-outline lg:border-t-0 lg:border-l overflow-hidden lg:col-start-2 lg:row-start-1 lg:row-span-2">
+        <MemoizedTradeTicket />
+      </div>
+
+      {/* Portfolio */}
+      <div className="flex-1 flex flex-col border-t border-outline overflow-hidden lg:col-start-1 lg:row-start-2">
         <MemoizedPortfolioTabs />
       </div>
     </div>
