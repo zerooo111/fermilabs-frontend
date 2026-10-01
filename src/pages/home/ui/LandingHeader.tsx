@@ -1,5 +1,4 @@
 import { LINKS } from '../constants';
-import { WaitlistButton } from '@/features/waitlist';
 
 const CELL =
   'flex h-full items-center border-l border-rock/15 px-4 transition-colors duration-150 hover:bg-white/5 hover:text-amber-100 sm:px-6';
@@ -24,12 +23,9 @@ export default function LandingHeader() {
           >
             Research
           </a>
-          <WaitlistButton
-            source="header"
-            label="Try the Beta"
-            withArrow={false}
-            className={`${CELL} cursor-pointer text-amber-200`}
-          />
+          <a href={LINKS.APP} className={`${CELL} text-amber-200`}>
+            Try the Beta
+          </a>
         </div>
       </nav>
     </header>

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { WaitlistButton } from '@/features/waitlist';
+import { LINKS } from '../constants';
 import { prefersReducedMotion } from '../lib/dither';
 
 // Load the dithered mark once the browser is idle so it never competes with
@@ -57,12 +57,12 @@ export default function HeroSection() {
           Trade with NASDAQ speed and onchain security, on an orderbook where no one cuts the line.
         </p>
         <div data-intro className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 md:mt-12">
-          <WaitlistButton
-            source="hero"
-            label="Try the Beta"
-            withArrow={false}
+          <a
+            href={LINKS.APP}
             className="cursor-pointer bg-amber-200 px-5 py-3 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100"
-          />
+          >
+            Try the Beta
+          </a>
           <a href="#how" className="link text-rock/85">
             See how it works
           </a>

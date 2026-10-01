@@ -1,5 +1,4 @@
 import { LINKS } from '../constants';
-import { WaitlistButton } from '@/features/waitlist';
 
 export default function CTASection() {
   return (
@@ -16,12 +15,12 @@ export default function CTASection() {
             Deploy liquidity, fire off your first trade, or dive into our SDK in minutes.
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
-            <WaitlistButton
-              source="cta"
-              label="Try the Beta"
-              withArrow={false}
+            <a
+              href={LINKS.APP}
               className="cursor-pointer bg-amber-200 px-5 py-3 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100"
-            />
+            >
+              Try the Beta
+            </a>
             <a href={LINKS.DISCORD} target="_blank" rel="noreferrer" className="link text-rock/85">
               Join the Discord
             </a>

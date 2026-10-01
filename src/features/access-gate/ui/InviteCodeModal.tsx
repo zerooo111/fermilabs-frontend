@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletError, type WalletName } from '@solana/wallet-adapter-base';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { Loader2, Wallet } from 'lucide-react';
 import { Atom, Key, ArrowRight } from '@phosphor-icons/react';
 import { toast } from 'sonner';
@@ -21,9 +21,10 @@ import { Input } from '@/shared/ui/input';
 import { AccessGateError, redeemInvite, requestChallenge } from '../api/accessClient';
 import { gateOpenAtom, gateLoadingAtom, accessSessionAtom } from '../model/accessAtoms';
 import { writeSession } from '../lib/cache';
-import { waitlistOpenAtom, waitlistSourceAtom } from '@/features/waitlist';
 
 const BETA_ACK_KEY = 'fermi.betaAck';
+// Invites are handed out on Discord (kept in sync with LINKS.DISCORD).
+const DISCORD_URL = 'https://discord.gg/kNcktKSk7u';
 
 /**
  * Read an optional `?ref=` referral code from the current URL. Referral codes
@@ -104,19 +105,11 @@ export function InviteCodeModal() {
   const [code, setCode] = useState(() => readRefFromUrl());
   const [submitting, setSubmitting] = useState(false);
   const [acknowledged, setAcknowledged] = useState(() => readBetaAck());
-  const setWaitlistOpen = useSetAtom(waitlistOpenAtom);
-  const setWaitlistSource = useSetAtom(waitlistSourceAtom);
 
   const handleAcknowledge = () => {
     writeBetaAck();
     setAcknowledged(true);
     posthog.capture('invite_beta_acknowledged');
-  };
-
-  const openWaitlist = () => {
-    setWaitlistSource('invite-modal');
-    setWaitlistOpen(true);
-    posthog.capture('invite_waitlist_clicked');
   };
 
   // Dismissing the gate returns the user to view-only by disconnecting the
@@ -353,9 +346,16 @@ export function InviteCodeModal() {
 
             <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
               <span className="text-sm text-muted-foreground">No invite code?</span>
-              <Button variant="outline" size="sm" onClick={openWaitlist}>
-                Join the waitlist
-                <ArrowRight weight="bold" className="size-3.5" />
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={DISCORD_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => posthog.capture('invite_request_clicked')}
+                >
+                  Request an invite
+                  <ArrowRight weight="bold" className="size-3.5" />
+                </a>
               </Button>
             </div>
           </>
@@ -444,9 +444,16 @@ export function InviteCodeModal() {
 
             <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
               <span className="text-sm text-muted-foreground">No invite code?</span>
-              <Button variant="outline" size="sm" onClick={openWaitlist}>
-                Join the waitlist
-                <ArrowRight weight="bold" className="size-3.5" />
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={DISCORD_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => posthog.capture('invite_request_clicked')}
+                >
+                  Request an invite
+                  <ArrowRight weight="bold" className="size-3.5" />
+                </a>
               </Button>
             </div>
           </>

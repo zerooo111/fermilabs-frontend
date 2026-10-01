@@ -4,7 +4,6 @@
  */
 import { WalletContextProvider } from '@/entities/wallet';
 import { AccessGateProvider } from '@/features/access-gate';
-import { WaitlistDialog } from '@/features/waitlist';
 import { QueryProvider } from './QueryProvider';
 import { ToastProvider } from './ToastProvider';
 import { PostHogProvider } from './PostHogProvider';
@@ -20,7 +19,6 @@ export const AppProviders = ({ children }: AppProvidersProps) => {
         <WalletContextProvider>
           <AccessGateProvider>
             {children}
-            <WaitlistDialog />
             <ToastProvider />
           </AccessGateProvider>
         </WalletContextProvider>
