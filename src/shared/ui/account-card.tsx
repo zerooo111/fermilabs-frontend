@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAccount, useAccountMangoAccount } from '@/shared/hooks/useAccount';
-import { Check, Copy, Loader2 } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { HealthBar } from '@/shared/ui/health-bar';
 import { accountHealthPct, healthTone } from '@/shared/lib/account-health';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
@@ -41,6 +41,28 @@ function Row({
   );
 }
 
+// Same layout as the loaded card so nothing jumps when data arrives
+function AccountCardSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading account" className="flex flex-col gap-3 p-3">
+      <div className="flex h-5 items-center justify-between">
+        <div className="skeleton-bone h-3.5 w-28" />
+        <div className="skeleton-bone h-3.5 w-10" />
+      </div>
+      <div className="skeleton-bone h-1.5 w-full" />
+      <div className="flex flex-col gap-1.5">
+        {[24, 32, 28].map(w => (
+          <div key={w} className="flex h-4 items-center justify-between">
+            <div className="skeleton-bone h-3" style={{ width: `${w * 4}px` }} />
+            <div className="skeleton-bone h-3 w-16" />
+          </div>
+        ))}
+      </div>
+      <div className="skeleton-bone h-7 w-full" />
+    </div>
+  );
+}
+
 /**
  * Account summary under the trade ticket: health plus the few numbers worth
  * watching while trading. Everything else lives in the Details modal.
@@ -61,24 +83,14 @@ export function AccountCard() {
   // Sits under the trade ticket, whose Connect wallet button covers this case
   if (!publicKey) return null;
 
-  if (isLoading) {
-    return (
-      <div className="flex h-12 px-3 items-center justify-center gap-2">
-        <Loader2 className="size-4 animate-spin" />
-        <span className="text-xs text-rock/60">Loading account data...</span>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="text-center h-12 px-3 text-xs text-rock/60">Failed to load account data</div>
     );
   }
 
-  if (!accountData) {
-    return null;
-  }
+  // The account stream fills in after connect; hold the card's shape meanwhile
+  if (isLoading || !accountData) return <AccountCardSkeleton />;
 
   const marginUsage = Math.max(accountData.margin_usage_fraction ?? 0, 0) * 100;
   const equity = accountData.equity_snapshot;
