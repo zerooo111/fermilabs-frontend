@@ -116,6 +116,13 @@ export class PrivyWalletAdapter extends BaseMessageSignerWalletAdapter {
 
     this._connecting = true;
     try {
+      // PrivyBridge calls connect() in the same commit as select(), before
+      // wallet-adapter-react has subscribed to this adapter's events. Emitting
+      // synchronously would drop 'connect' and leave the adapter connected
+      // while the app still sees it disconnected. Yield first, as a real
+      // wallet's popup would.
+      await new Promise(resolve => setTimeout(resolve, 0));
+      if (!this.canConnect || !this._signer) throw new WalletNotReadyError();
       this._publicKey = new PublicKey(this._signer.address);
       this.emit('connect', this._publicKey);
     } finally {
