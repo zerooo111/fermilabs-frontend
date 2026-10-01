@@ -26,7 +26,7 @@ export default function LandingHeader() {
           </a>
           <WaitlistButton
             source="header"
-            label="Join waitlist"
+            label="Try the Beta"
             withArrow={false}
             className={`${CELL} cursor-pointer text-amber-200`}
           />
