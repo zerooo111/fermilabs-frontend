@@ -372,8 +372,7 @@ export function initOrderbookField(
       line(0, rail, W, rail, 'ob-rail'),
       text(mid, base + 20, 'mid'),
       text(levelX('bid', levels - 1), base + 20, 'bids'),
-      text(levelX('ask', levels - 1), base + 20, 'asks'),
-      text(Math.max(20, W * 0.1), rail - 10, 'fills settle on Solana', 'start')
+      text(levelX('ask', levels - 1), base + 20, 'asks')
     );
     for (let i = 0; i < levels; i++) {
       for (const side of ['bid', 'ask'] as Side[]) {
