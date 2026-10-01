@@ -7,7 +7,6 @@ import { useState } from 'react';
 import { CircleNotch, Lightning } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
-import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { useOneClick } from '../model/useOneClick';
 
@@ -16,12 +15,10 @@ const isRejection = (err: unknown) =>
 
 export function OneClickToggle() {
   const { status, enable, disable } = useOneClick();
-  const [pending, setPending] = useState<'enable' | 'disable' | null>(null);
+  const [pending, setPending] = useState<Pending>(null);
 
   // Nothing to offer before a Fermi account exists or without WebCrypto Ed25519.
   if (status === 'unsupported' || status === 'no-account' || status === 'loading') return null;
-
-  const on = status === 'on';
 
   const run = async (action: 'enable' | 'disable') => {
     setPending(action);
@@ -48,51 +45,108 @@ export function OneClickToggle() {
   };
 
   return (
-    <div
-      className={cn(
-        'flex items-center justify-between gap-3 border px-2.5 py-2 text-xs',
-        on ? 'border-lichen/30 bg-lichen/5' : 'border-outline/60'
-      )}
-    >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="flex min-w-0 cursor-help items-center gap-2">
-            <Lightning
-              size={14}
-              weight={on ? 'fill' : 'regular'}
-              className={on ? 'text-lichen' : 'text-rock/50'}
-            />
-            <span className={on ? 'text-rock' : 'text-rock/70'}>
-              {on ? 'One-click trading on' : 'One-click trading'}
-            </span>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-64 text-xs leading-relaxed">
-          Approve once in your wallet and this browser gets its own trading key, so orders and
-          cancels sign instantly. The key can only trade on your account; it can&apos;t move funds
-          anywhere but back to your wallet. Turn it off anytime.
-        </TooltipContent>
-      </Tooltip>
+    <OneClickCard
+      on={status === 'on'}
+      pending={pending}
+      onEnable={() => run('enable')}
+      onDisable={() => run('disable')}
+    />
+  );
+}
 
+type Pending = 'enable' | 'disable' | null;
+
+/** Stateless view: the off-state call to action and the on-state confirmation row. */
+export function OneClickCard({
+  on,
+  pending,
+  onEnable,
+  onDisable,
+}: {
+  on: boolean;
+  pending: Pending;
+  onEnable: () => void;
+  onDisable: () => void;
+}) {
+  const explainer = (
+    <TooltipContent side="top" className="max-w-64 text-xs leading-relaxed">
+      Approve once in your wallet and this browser gets its own trading key, so orders and cancels
+      sign instantly. The key can only trade on your account; it can&apos;t move funds anywhere but
+      back to your wallet. Turn it off anytime.
+    </TooltipContent>
+  );
+
+  // On: a slim confirmation row that stays out of the order button's way.
+  if (on) {
+    return (
+      <div className="flex items-center justify-between gap-3 border border-lichen/30 bg-lichen/[0.06] px-3 py-2 text-xs">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="flex cursor-help items-center gap-2 text-lichen">
+              <span className="relative flex size-1.5" aria-hidden>
+                <span className="absolute inset-0 animate-ping bg-lichen/70" />
+                <span className="relative size-1.5 bg-lichen" />
+              </span>
+              <Lightning size={13} weight="fill" />
+              <span className="font-medium">One-click on</span>
+            </span>
+          </TooltipTrigger>
+          {explainer}
+        </Tooltip>
+        <button
+          type="button"
+          disabled={pending !== null}
+          onClick={onDisable}
+          className="flex items-center gap-1.5 text-rock/55 underline-offset-4 transition-colors hover:text-rock hover:underline disabled:cursor-wait disabled:opacity-60"
+        >
+          {pending === 'disable' && <CircleNotch size={12} className="animate-spin" />}
+          {pending === 'disable' ? 'Turning off…' : 'Turn off'}
+        </button>
+      </div>
+    );
+  }
+
+  // Off: a call to action in the landing page's palette (lichen ground, amber CTA).
+  return (
+    <div className="flex items-center gap-3 border border-lichen/40 bg-lichen/[0.07] p-3">
+      <span
+        className="flex size-9 shrink-0 items-center justify-center border border-lichen/40 bg-lichen/10 text-lichen"
+        aria-hidden
+      >
+        <Lightning size={18} weight="fill" />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-rock">
+          One-click trading
+          {!pending && (
+            <span className="border border-lichen/50 px-1 font-mono text-[9px] uppercase leading-4 tracking-[0.14em] text-lichen">
+              New
+            </span>
+          )}
+        </span>
+        {pending === 'enable' ? (
+          <span className="text-xs leading-snug text-amber-200">
+            Confirm the transaction in your wallet.
+          </span>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help text-xs leading-snug text-rock/60 underline decoration-rock/25 decoration-dotted underline-offset-2">
+                Approve once, then trade without wallet pop-ups.
+              </span>
+            </TooltipTrigger>
+            {explainer}
+          </Tooltip>
+        )}
+      </div>
       <button
         type="button"
         disabled={pending !== null}
-        onClick={() => run(on ? 'disable' : 'enable')}
-        className={cn(
-          'flex shrink-0 items-center gap-1.5 font-medium transition-colors disabled:cursor-wait disabled:opacity-60',
-          on
-            ? 'text-rock/60 underline-offset-4 hover:text-rock hover:underline'
-            : 'border border-rock/25 px-2 py-1 text-rock hover:border-lichen/50 hover:text-lichen'
-        )}
+        onClick={onEnable}
+        className="flex h-8 shrink-0 items-center gap-1.5 bg-amber-200 px-3 text-xs font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-70"
       >
-        {pending && <CircleNotch size={12} className="animate-spin" />}
-        {pending === 'enable'
-          ? 'Approve in wallet…'
-          : pending === 'disable'
-            ? 'Turning off…'
-            : on
-              ? 'Turn off'
-              : 'Enable'}
+        {pending === 'enable' && <CircleNotch size={12} className="animate-spin" />}
+        {pending === 'enable' ? 'Approving' : 'Enable'}
       </button>
     </div>
   );
