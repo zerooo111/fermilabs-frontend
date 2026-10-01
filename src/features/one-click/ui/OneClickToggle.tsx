@@ -72,7 +72,8 @@ export function OneClickCard({
     <TooltipContent side="top" className="max-w-64 text-xs leading-relaxed">
       Approve once in your wallet and this browser gets its own trading key, so orders and cancels
       sign instantly. The key can only trade on your account; it can&apos;t move funds anywhere but
-      back to your wallet. Turn it off anytime.
+      back to your wallet. Enabling also moves about 0.0007 SOL onto the key so the network
+      recognizes it; turning one-click off returns it.
     </TooltipContent>
   );
 

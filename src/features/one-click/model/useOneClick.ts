@@ -10,7 +10,12 @@
  * key, so a key from another device or a revoked delegation never signs.
  */
 import { useCallback } from 'react';
-import { PublicKey, Transaction } from '@solana/web3.js';
+import {
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  type TransactionInstruction,
+} from '@solana/web3.js';
 import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAtomValue } from 'jotai';
@@ -44,6 +49,15 @@ export interface IntentSigner {
 
 const keyQuery = (owner: string | undefined) => ['one-click', 'session-key', owner] as const;
 const delegateQuery = (account: string | null) => ['one-click', 'delegate', account] as const;
+const balanceQuery = (key: string | undefined) => ['one-click', 'session-balance', key] as const;
+
+// The relayer's margin precheck fetches every remaining account, including the
+// signer slot, and rejects the order if one doesn't exist on-chain. A fresh
+// session key has no lamports, so it doesn't exist. Funding it with the
+// rent-exempt minimum for an empty account makes it exist; turning one-click
+// off sweeps the lamports back to the owner.
+const fundingLamports = (connection: import('@solana/web3.js').Connection) =>
+  connection.getMinimumBalanceForRentExemption(0);
 
 export function useOneClick() {
   const { publicKey } = useWallet();
@@ -81,20 +95,39 @@ export function useOneClick() {
   });
 
   const key = sessionKey.data ?? null;
+
+  // Lamports held by this browser's session key (0 = doesn't exist on-chain).
+  const keyBalance = useQuery({
+    queryKey: balanceQuery(key?.publicKey.toBase58()),
+    queryFn: () => connection.getBalance(key!.publicKey, config.devnet.commitment),
+    enabled: !!key,
+    staleTime: 60_000,
+  });
+
   const active =
-    !!key && !!delegate.data?.gateOpen && delegate.data.delegate === key.publicKey.toBase58();
+    !!key &&
+    !!delegate.data?.gateOpen &&
+    delegate.data.delegate === key.publicKey.toBase58() &&
+    (keyBalance.data ?? 0) > 0;
 
   let status: OneClickStatus;
   if (supported.data === false) status = 'unsupported';
   else if (!owner || supported.isLoading || sessionKey.isLoading) status = 'loading';
   else if (!mangoAccountPk) status = 'no-account';
-  else if (delegate.isLoading) status = 'loading';
+  else if (delegate.isLoading || (!!key && keyBalance.isLoading)) status = 'loading';
   else if (delegate.data && !delegate.data.gateOpen) status = 'unsupported';
   else status = active ? 'on' : 'off';
 
-  /** Owner-signed `account_edit` setting the account delegate. */
+  /**
+   * Owner-signed `account_edit` setting the account delegate, plus any
+   * lamport moves for session keys (which co-sign when they send).
+   */
   const setDelegate = useCallback(
-    async (newDelegate: PublicKey) => {
+    async (
+      newDelegate: PublicKey,
+      extra: { before?: TransactionInstruction[]; after?: TransactionInstruction[] } = {},
+      sessionSigners: SessionKey[] = []
+    ) => {
       if (!anchorWallet || !mangoAccountPk) throw new Error('Wallet or Fermi account missing');
       const { client, group } = await getMangoClientAndGroup(connection, serverConfig);
       const ix = await buildSetDelegateInstruction({
@@ -112,7 +145,15 @@ export function useOneClick() {
       const tx = new Transaction({
         feePayer: anchorWallet.publicKey,
         recentBlockhash: blockhash,
-      }).add(ix);
+      }).add(...(extra.before ?? []), ix, ...(extra.after ?? []));
+      // Session keys sign first; the wallet keeps existing signatures.
+      if (sessionSigners.length) {
+        const message = tx.serializeMessage();
+        for (const signer of sessionSigners) {
+          const signature = await signWithSessionKey(signer, message);
+          tx.addSignature(signer.publicKey, Buffer.from(signature));
+        }
+      }
       const signed = await anchorWallet.signTransaction(tx);
 
       let signature: string;
@@ -144,22 +185,49 @@ export function useOneClick() {
     [anchorWallet, mangoAccountPk, connection, serverConfig, queryClient]
   );
 
-  /** One wallet approval: delegate the account to this browser's session key. */
+  /** Sweep a session key's lamports back to the owner (empty if it holds none). */
+  const sweepInstructions = useCallback(
+    async (from: SessionKey | null): Promise<TransactionInstruction[]> => {
+      if (!from || !publicKey) return [];
+      const lamports = await connection.getBalance(from.publicKey, config.devnet.commitment);
+      if (lamports <= 0) return [];
+      return [
+        SystemProgram.transfer({ fromPubkey: from.publicKey, toPubkey: publicKey, lamports }),
+      ];
+    },
+    [connection, publicKey]
+  );
+
+  /** One wallet approval: fund this browser's session key and make it the delegate. */
   const enable = useCallback(async () => {
-    if (!owner) throw new Error('Wallet not connected');
+    if (!owner || !publicKey) throw new Error('Wallet not connected');
+    const previous = key;
     // A fresh key every time, so an old key (e.g. from a shared machine) is never reused.
     const fresh = await createSessionKey(owner);
     queryClient.setQueryData(keyQuery(owner), fresh);
-    await setDelegate(fresh.publicKey);
-  }, [owner, setDelegate, queryClient]);
+    const lamports = await fundingLamports(connection);
+    const sweep = await sweepInstructions(previous);
+    await setDelegate(
+      fresh.publicKey,
+      {
+        before: [
+          SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: fresh.publicKey, lamports }),
+          ...sweep,
+        ],
+      },
+      sweep.length && previous ? [previous] : []
+    );
+    queryClient.setQueryData(balanceQuery(fresh.publicKey.toBase58()), lamports);
+  }, [owner, publicKey, key, connection, sweepInstructions, setDelegate, queryClient]);
 
-  /** Revoke on-chain (delegate = default pubkey) and forget the local key. */
+  /** Revoke on-chain, return the session key's lamports, and forget the local key. */
   const disable = useCallback(async () => {
     if (!owner) return;
-    await setDelegate(PublicKey.default);
+    const sweep = await sweepInstructions(key);
+    await setDelegate(PublicKey.default, { after: sweep }, sweep.length && key ? [key] : []);
     await deleteSessionKey(owner);
     queryClient.setQueryData(keyQuery(owner), null);
-  }, [owner, setDelegate, queryClient]);
+  }, [owner, key, sweepInstructions, setDelegate, queryClient]);
 
   const intentSigner: IntentSigner | null =
     active && key ? { publicKey: key.publicKey, sign: msg => signWithSessionKey(key, msg) } : null;
