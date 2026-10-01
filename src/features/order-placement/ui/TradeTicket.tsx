@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { HealthBar } from '@/shared/ui/health-bar';
+import { OneClickToggle } from '@/features/one-click';
 import { accountHealthPct, healthTone } from '@/shared/lib/account-health';
 import type { OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 import {
@@ -609,22 +610,25 @@ export function TradeTicket() {
           Connect wallet
         </button>
       ) : (
-        <button
-          type="button"
-          disabled={!canSubmit}
-          onClick={() => f.handleOpenPosition(side)}
-          className={cn(
-            'flex h-10 items-center justify-center gap-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-            isBuy
-              ? 'bg-success text-white hover:brightness-125'
-              : 'bg-danger text-white hover:brightness-125'
-          )}
-        >
-          {f.submittingSide === side && <CircleNotch size={16} className="animate-spin" />}
-          {f.submittingSide === side
-            ? 'Placing order…'
-            : `${isBuy ? 'Buy / Long' : 'Sell / Short'}${f.sizeValue > 0 ? ` ${f.formState.size} ${base}` : ''}`}
-        </button>
+        <>
+          <OneClickToggle />
+          <button
+            type="button"
+            disabled={!canSubmit}
+            onClick={() => f.handleOpenPosition(side)}
+            className={cn(
+              'flex h-10 items-center justify-center gap-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+              isBuy
+                ? 'bg-success text-white hover:brightness-125'
+                : 'bg-danger text-white hover:brightness-125'
+            )}
+          >
+            {f.submittingSide === side && <CircleNotch size={16} className="animate-spin" />}
+            {f.submittingSide === side
+              ? 'Placing order…'
+              : `${isBuy ? 'Buy / Long' : 'Sell / Short'}${f.sizeValue > 0 ? ` ${f.formState.size} ${base}` : ''}`}
+          </button>
+        </>
       )}
 
       {/* Summary */}

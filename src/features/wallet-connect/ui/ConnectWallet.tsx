@@ -5,12 +5,14 @@
  */
 
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSetAtom } from 'jotai';
 import { useCallback, useEffect } from 'react';
 import posthog from 'posthog-js';
 import { useServerConfig } from '@/entities/server';
 import { useAccountIdentity, useActiveWalletInfo } from '@/entities/wallet';
 import { gateOpenAtom, accessSessionAtom, clearSession } from '@/features/access-gate';
+import { forgetOneClickKey } from '@/features/one-click';
 import { DropdownMenu, DropdownMenuTrigger } from '@/shared/ui/dropdown-menu';
 import { Button } from '@/shared/ui/button';
 import { AccountAvatar } from './AccountAvatar';
@@ -32,6 +34,7 @@ export function ConnectWallet() {
   const loginMethod = identity?.method ?? null;
   const setGateOpen = useSetAtom(gateOpenAtom);
   const setSession = useSetAtom(accessSessionAtom);
+  const queryClient = useQueryClient();
   useServerConfig();
 
   // Identify user and capture wallet_connected when wallet connects
@@ -74,6 +77,10 @@ export function ConnectWallet() {
     posthog.reset();
     if (walletAddress) {
       clearSession(walletAddress);
+      // Don't leave a usable trading key behind in this browser after log out.
+      // The on-chain delegate then points at a key nobody holds.
+      void forgetOneClickKey(walletAddress);
+      queryClient.removeQueries({ queryKey: ['one-click', 'session-key', walletAddress] });
       setSession(prev => {
         const { [walletAddress]: _, ...rest } = prev;
         return rest;
@@ -84,7 +91,7 @@ export function ConnectWallet() {
     } catch (err) {
       console.error('Wallet disconnect failed:', err);
     }
-  }, [publicKey, walletName, isEmbedded, disconnect, setSession]);
+  }, [publicKey, walletName, isEmbedded, disconnect, setSession, queryClient]);
 
   // Logging out ends the Privy session, so switching wallets is logout → gate.
   const handleChangeWallet = useCallback(async () => {
