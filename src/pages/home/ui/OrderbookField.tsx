@@ -45,14 +45,6 @@ export default function OrderbookField() {
           className="edge-fade pointer-events-none absolute inset-0 h-full w-full overflow-visible"
           aria-hidden="true"
         />
-        <figcaption className="pointer-events-none absolute inset-0 text-xs text-rock/70">
-          <span className="absolute top-4 left-5 border border-rock/25 bg-dark-forest px-2.5 py-1 md:left-10">
-            Orders queue by price, then time
-          </span>
-          <span className="absolute right-5 bottom-4 border border-rock/25 bg-dark-forest px-2.5 py-1 md:right-10">
-            and fill the moment they match
-          </span>
-        </figcaption>
       </figure>
     </section>
   );
