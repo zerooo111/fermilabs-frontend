@@ -34,7 +34,7 @@ export default function OrderbookField() {
 
   return (
     <section id="how" className="w-full scroll-mt-14 border-b border-rock/15">
-      <figure className="frame reg relative h-[52vh] min-h-80 max-h-[480px]">
+      <figure className="frame reg relative h-[68vh] min-h-96 max-h-[640px]">
         <canvas
           ref={canvasRef}
           className="pixelated edge-fade absolute inset-0 h-full w-full"
