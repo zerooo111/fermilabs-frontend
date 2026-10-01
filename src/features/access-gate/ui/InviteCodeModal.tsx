@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
-import { useWalletLogin } from '@/entities/wallet';
+import { embeddedWalletsEnabled, useAccountIdentity, useWalletLogin } from '@/entities/wallet';
 
 import { AccessGateError, redeemInvite, requestChallenge } from '../api/accessClient';
 import { gateOpenAtom, gateLoadingAtom, accessSessionAtom } from '../model/accessAtoms';
@@ -87,6 +87,7 @@ function HeaderIcon({ children }: { children: React.ReactNode }) {
 export function InviteCodeModal() {
   const { publicKey, signMessage, disconnect } = useWallet();
   const { openLogin, ready: loginReady } = useWalletLogin();
+  const identity = useAccountIdentity();
   const [open, setOpen] = useAtom(gateOpenAtom);
   const gateLoading = useAtomValue(gateLoadingAtom);
   const [, setSession] = useAtom(accessSessionAtom);
@@ -240,18 +241,24 @@ export function InviteCodeModal() {
               </HeaderIcon>
               <div className="flex flex-col gap-2">
                 <DialogTitle className="text-lg font-semibold tracking-tight">
-                  Log in to Fermilabs
+                  {embeddedWalletsEnabled ? 'Log in to Fermilabs' : 'Connect your wallet'}
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  Continue with email, Google, X, or a Solana wallet. We'll then ask you for your
-                  invite or referral code.
+                  {embeddedWalletsEnabled
+                    ? 'Continue with email, Google, X, or a Solana wallet.'
+                    : 'Connect a Solana wallet such as Phantom or Solflare.'}{' '}
+                  We'll then ask you for your invite or referral code.
                 </DialogDescription>
               </div>
             </DialogHeader>
 
             <Button onClick={handleLogin} disabled={!loginReady} size="lg" className="w-full">
               {loginReady ? (
-                'Log in or connect wallet'
+                embeddedWalletsEnabled ? (
+                  'Log in or connect wallet'
+                ) : (
+                  'Connect wallet'
+                )
               ) : (
                 <Loader2 className="size-4 animate-spin" />
               )}
@@ -306,7 +313,15 @@ export function InviteCodeModal() {
                   Enter your code
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  You're logged in. Paste an invite code or a referral code to unlock trading.
+                  {identity ? (
+                    <>
+                      {identity.method === 'wallet' ? 'Connected with ' : 'Logged in as '}
+                      <span className="text-rock">{identity.label}</span>.{' '}
+                    </>
+                  ) : (
+                    "You're logged in. "
+                  )}
+                  Paste an invite code or a referral code to unlock trading.
                 </DialogDescription>
               </div>
             </DialogHeader>

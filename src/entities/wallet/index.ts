@@ -8,5 +8,9 @@ export {
   useWalletWithErrorHandling,
   useWalletLogin,
   useActiveWalletInfo,
+  useAccountIdentity,
   WalletModel,
+  type AccountIdentity,
+  type LoginMethod,
 } from './model';
+export { embeddedWalletsEnabled, solscanAccountUrl } from './privyConfig';

@@ -6,26 +6,17 @@
 
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useSetAtom } from 'jotai';
-import { useCallback, useMemo, useState, useEffect } from 'react';
-import { Copy, KeyRound, LogOut, Wallet } from 'lucide-react';
+import { useCallback, useEffect } from 'react';
 import posthog from 'posthog-js';
 import { useServerConfig } from '@/entities/server';
-import { useActiveWalletInfo } from '@/entities/wallet';
+import { useAccountIdentity, useActiveWalletInfo } from '@/entities/wallet';
 import { gateOpenAtom, accessSessionAtom, clearSession } from '@/features/access-gate';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../../../shared/ui/dropdown-menu';
-import { Button } from '../../../shared/ui/button';
+import { DropdownMenu, DropdownMenuTrigger } from '@/shared/ui/dropdown-menu';
+import { Button } from '@/shared/ui/button';
+import { AccountAvatar } from './AccountAvatar';
+import { AccountMenuContent } from './AccountMenu';
 
 const LABELS = {
-  'copy-address': 'Copy address',
-  copied: 'Copied',
-  'change-wallet': 'Change wallet',
-  'export-wallet': 'Export private key',
-  disconnect: 'Disconnect',
   connecting: 'Connecting...',
   connect: 'Connect Wallet',
 } as const;
@@ -37,45 +28,31 @@ const LABELS = {
 export function ConnectWallet() {
   const { disconnect, connected, connecting, publicKey } = useWallet();
   const { walletName, isEmbedded, exportWallet } = useActiveWalletInfo();
+  const identity = useAccountIdentity();
+  const loginMethod = identity?.method ?? null;
   const setGateOpen = useSetAtom(gateOpenAtom);
   const setSession = useSetAtom(accessSessionAtom);
-  const [copied, setCopied] = useState(false);
   useServerConfig();
 
   // Identify user and capture wallet_connected when wallet connects
   useEffect(() => {
     if (connected && publicKey) {
       const walletAddress = publicKey.toBase58();
+      // Only the login method, never the email/handle, goes to analytics.
       posthog.identify(walletAddress, {
         wallet_address: walletAddress,
         wallet_name: walletName,
         wallet_embedded: isEmbedded,
+        login_method: loginMethod,
       });
       posthog.capture('wallet_connected', {
         wallet_address: walletAddress,
         wallet_name: walletName,
         wallet_embedded: isEmbedded,
+        login_method: loginMethod,
       });
     }
-  }, [connected, publicKey, walletName, isEmbedded]);
-
-  // Handle copy address
-  const handleCopyAddress = useCallback(async () => {
-    if (publicKey) {
-      await navigator.clipboard.writeText(publicKey.toBase58());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 400);
-    }
-  }, [publicKey]);
-
-  // Button content based on connection state
-  const buttonContent = useMemo(() => {
-    if (publicKey) {
-      return `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`;
-    }
-    if (connecting) return LABELS['connecting'];
-    return LABELS['connect'];
-  }, [connecting, publicKey]);
+  }, [connected, publicKey, walletName, isEmbedded, loginMethod]);
 
   // Unconnected click defers to the access gate so wallet selection and
   // invite-code redemption happen in a single unified modal flow.
@@ -119,40 +96,45 @@ export function ConnectWallet() {
     exportWallet().catch(err => console.error('Wallet export failed:', err));
   }, [exportWallet]);
 
-  const baseButton = (
-    <Button variant="default" size="sm" onClick={handleConnectClick}>
-      {connected && <div className="w-2 h-2 bg-green-400 animate-pulse" />}
-      {buttonContent}
-    </Button>
-  );
-
-  if (!connected) {
-    return baseButton;
+  if (!connected || !publicKey) {
+    return (
+      <Button variant="default" size="sm" onClick={handleConnectClick}>
+        {connecting ? LABELS['connecting'] : LABELS['connect']}
+      </Button>
+    );
   }
+
+  const address = publicKey.toBase58();
+  const showIdentity = identity && identity.method !== 'wallet';
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>{baseButton}</DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem onClick={handleCopyAddress}>
-          <Copy className="size-4" />
-          {copied ? LABELS['copied'] : LABELS['copy-address']}
-        </DropdownMenuItem>
-        {isEmbedded && (
-          <DropdownMenuItem onClick={handleExportWallet}>
-            <KeyRound className="size-4" />
-            {LABELS['export-wallet']}
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem onClick={handleChangeWallet}>
-          <Wallet className="size-4" />
-          {LABELS['change-wallet']}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleDisconnect} className="text-red-600">
-          <LogOut className="size-4" />
-          {LABELS['disconnect']}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="default"
+          size="sm"
+          className="gap-2 pl-1"
+          aria-label={`Account menu${showIdentity ? `, ${identity.label}` : ''}`}
+        >
+          <AccountAvatar address={address} avatarUrl={identity?.avatarUrl} className="size-6" />
+          {showIdentity && (
+            <>
+              <span className="hidden max-w-36 truncate lg:inline">{identity.label}</span>
+              <span className="hidden h-3 w-px bg-background/25 lg:block" aria-hidden />
+            </>
+          )}
+          <span className="font-mono text-[11px] tracking-tight text-background/80">
+            {address.slice(0, 4)}…{address.slice(-4)}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <AccountMenuContent
+        address={address}
+        identity={identity}
+        onExportWallet={handleExportWallet}
+        onSwitchAccount={handleChangeWallet}
+        onLogOut={handleDisconnect}
+      />
     </DropdownMenu>
   );
 }

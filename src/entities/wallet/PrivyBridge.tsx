@@ -14,7 +14,7 @@ import {
   type PrivySigner,
   type PrivyWalletAdapter,
 } from './PrivyWalletAdapter';
-import { privyChain } from './privyConfig';
+import { embeddedWalletsEnabled, privyChain } from './privyConfig';
 
 export function PrivyBridge({ adapter }: { adapter: PrivyWalletAdapter }) {
   const { ready, authenticated, user, logout } = usePrivy();
@@ -31,14 +31,14 @@ export function PrivyBridge({ adapter }: { adapter: PrivyWalletAdapter }) {
   signTransactionRef.current = signTransaction;
 
   // Prefer the wallet the user logged in with, then their embedded wallet.
+  // With embedded wallets disabled, sessions from an earlier email/social
+  // login stay disconnected until the user connects a regular wallet.
   const active = useMemo(() => {
     if (!ready || !authenticated) return null;
+    const usable = embeddedWalletsEnabled ? wallets : wallets.filter(w => !isEmbeddedWallet(w));
     const primary = user?.wallet?.address;
     return (
-      wallets.find(w => w.address === primary) ??
-      wallets.find(isEmbeddedWallet) ??
-      wallets[0] ??
-      null
+      usable.find(w => w.address === primary) ?? usable.find(isEmbeddedWallet) ?? usable[0] ?? null
     );
   }, [ready, authenticated, user?.wallet?.address, wallets]);
 
@@ -47,6 +47,7 @@ export function PrivyBridge({ adapter }: { adapter: PrivyWalletAdapter }) {
     return {
       address: active.address,
       walletName: active.standardWallet.name,
+      walletIcon: active.standardWallet.icon ?? null,
       isEmbedded: isEmbeddedWallet(active),
       // Message signing backs the access-gate challenge and every order intent,
       // so skip Privy's confirmation modal (external wallets still prompt natively).

@@ -34,6 +34,8 @@ export interface PrivySigner {
   address: string;
   /** Underlying wallet name, e.g. "Privy" for embedded, "Phantom" for external. */
   walletName: string;
+  /** Wallet-standard icon (data URI), e.g. Phantom's logo. */
+  walletIcon: string | null;
   isEmbedded: boolean;
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   /** Takes and returns a serialized transaction (Privy's hooks are byte-only). */
@@ -76,7 +78,7 @@ export class PrivyWalletAdapter extends BaseMessageSignerWalletAdapter {
   }
 
   /** Underlying wallet info for analytics / UI ("Privy" adapter name is not useful there). */
-  get signer(): Readonly<Pick<PrivySigner, 'walletName' | 'isEmbedded'>> | null {
+  get signer(): Readonly<Pick<PrivySigner, 'walletName' | 'walletIcon' | 'isEmbedded'>> | null {
     return this._signer;
   }
 

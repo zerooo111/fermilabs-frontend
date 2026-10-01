@@ -1,7 +1,8 @@
 /**
  * privyConfig.ts
- * PrivyProvider configuration: email/social login with embedded Solana wallets,
- * plus external Solana wallets (Phantom, Solflare, …) through Privy's modal.
+ * PrivyProvider configuration: external Solana wallets (Phantom, Solflare, …)
+ * through Privy's modal, plus email/social login with embedded Solana wallets
+ * when `embeddedWalletsEnabled` is on.
  */
 import type { PrivyClientConfig } from '@privy-io/react-auth';
 import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
@@ -9,6 +10,12 @@ import { createSolanaRpc, createSolanaRpcSubscriptions } from '@solana/kit';
 import { config } from '@/shared/config/constants';
 
 type SolanaChain = 'solana:mainnet' | 'solana:devnet' | 'solana:testnet';
+
+/**
+ * Email/Google/X login with Privy embedded wallets. Off until embedded wallets
+ * have deposit/withdraw flows; until then only regular wallets can trade.
+ */
+export const embeddedWalletsEnabled = false;
 
 export const privyAppId: string = import.meta.env.VITE_PRIVY_APP_ID || '';
 const privyClientId: string | undefined = import.meta.env.VITE_PRIVY_CLIENT_ID || undefined;
@@ -21,11 +28,17 @@ export const privyChain: SolanaChain =
   (import.meta.env.VITE_SOLANA_CHAIN as SolanaChain | undefined) ||
   (/devnet/i.test(rpcUrl) ? 'solana:devnet' : 'solana:mainnet');
 
+/** Solscan account page for the configured cluster. */
+export function solscanAccountUrl(address: string): string {
+  const cluster = privyChain === 'solana:mainnet' ? '' : `?cluster=${privyChain.slice(7)}`;
+  return `https://solscan.io/account/${address}${cluster}`;
+}
+
 export const privyProviderProps = {
   appId: privyAppId,
   clientId: privyClientId,
   config: {
-    loginMethods: ['email', 'google', 'twitter', 'wallet'],
+    loginMethods: embeddedWalletsEnabled ? ['email', 'google', 'twitter', 'wallet'] : ['wallet'],
     appearance: {
       theme: '#021a14',
       accentColor: '#b4dc78',
@@ -34,7 +47,7 @@ export const privyProviderProps = {
       showWalletLoginFirst: false,
     },
     embeddedWallets: {
-      solana: { createOnLogin: 'users-without-wallets' },
+      solana: { createOnLogin: embeddedWalletsEnabled ? 'users-without-wallets' : 'off' },
     },
     externalWallets: {
       solana: { connectors: toSolanaWalletConnectors() },
