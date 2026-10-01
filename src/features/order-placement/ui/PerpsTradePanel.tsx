@@ -9,7 +9,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 import { Loader2, Wallet, Info, AlertTriangle, XCircle } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { NumberInput } from '@/shared/ui/number-input';
 import { useSelectedMarket, sltpValuesAtom, portfolioActiveTabAtom } from '@/entities/market';
@@ -27,7 +26,7 @@ import { toast } from 'sonner';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/shared/ui/tooltip';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { accountMetricsAtom } from '@/shared/api/sse-atoms';
-import { useAccessOwner } from '@/features/access-gate';
+import { gateOpenAtom, useAccessOwner } from '@/features/access-gate';
 
 type FeeBannerTone = 'ok' | 'warn' | 'danger';
 
@@ -152,7 +151,7 @@ export function PerpsTradePanel() {
 
   const { publicKey } = useWallet();
   const accessOwner = useAccessOwner();
-  const { setVisible } = useWalletModal();
+  const setGateOpen = useSetAtom(gateOpenAtom);
   const { selectedMarket } = useSelectedMarket();
   const { openPosition, openMarketPosition } = usePerps();
   const setSLTPValues = useSetAtom(sltpValuesAtom);
@@ -765,7 +764,7 @@ export function PerpsTradePanel() {
           <Button
             variant="outline"
             className="w-full flex items-center justify-center gap-2"
-            onClick={() => setVisible(true)}
+            onClick={() => setGateOpen(true)}
           >
             <Wallet className="size-4" />
             Connect Wallet to Trade

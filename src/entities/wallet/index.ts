@@ -3,4 +3,10 @@
  * Exports wallet-related functionality
  */
 export { WalletContextProvider } from './WalletProvider';
-export { useWallet, useWalletWithErrorHandling, WalletModel } from './model';
+export {
+  useWallet,
+  useWalletWithErrorHandling,
+  useWalletLogin,
+  useActiveWalletInfo,
+  WalletModel,
+} from './model';

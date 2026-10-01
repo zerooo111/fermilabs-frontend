@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletError, type WalletName } from '@solana/wallet-adapter-base';
+import { WalletError } from '@solana/wallet-adapter-base';
 import { useAtom, useAtomValue } from 'jotai';
 import { Loader2, Wallet } from 'lucide-react';
 import { Atom, Key, ArrowRight } from '@phosphor-icons/react';
@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
+import { useWalletLogin } from '@/entities/wallet';
 
 import { AccessGateError, redeemInvite, requestChallenge } from '../api/accessClient';
 import { gateOpenAtom, gateLoadingAtom, accessSessionAtom } from '../model/accessAtoms';
@@ -84,20 +85,10 @@ function HeaderIcon({ children }: { children: React.ReactNode }) {
 }
 
 export function InviteCodeModal() {
-  const {
-    publicKey,
-    signMessage,
-    wallet,
-    wallets,
-    select,
-    connect,
-    connecting,
-    connected,
-    disconnect,
-  } = useWallet();
+  const { publicKey, signMessage, disconnect } = useWallet();
+  const { openLogin, ready: loginReady } = useWalletLogin();
   const [open, setOpen] = useAtom(gateOpenAtom);
   const gateLoading = useAtomValue(gateLoadingAtom);
-  const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null);
   const [, setSession] = useAtom(accessSessionAtom);
   // Pre-fill the invite field from a `?ref=` share link: a referral code is a
   // valid invite code, so redeeming it grants access and the backend attributes
@@ -118,7 +109,6 @@ export function InviteCodeModal() {
   const handleDismiss = () => {
     setOpen(false);
     setCode('');
-    setPendingWalletName(null);
     if (publicKey) {
       disconnect().catch(err => {
         console.error('Wallet disconnect failed:', err);
@@ -126,65 +116,13 @@ export function InviteCodeModal() {
     }
   };
 
-  // Dedupe wallets by adapter name (wallet-standard auto-discovery sometimes
-  // registers the same wallet twice — e.g. MetaMask via both injected and Snap).
-  // Keep installed wallets first, then loadable, hide unsupported.
-  const visibleWallets = useMemo(() => {
-    const seen = new Set<string>();
-    const out: typeof wallets = [];
-    const sorted = [...wallets].sort((a, b) => {
-      const score = (w: typeof a) =>
-        w.readyState === 'Installed' ? 0 : w.readyState === 'Loadable' ? 1 : 2;
-      return score(a) - score(b);
-    });
-    for (const w of sorted) {
-      if (w.readyState === 'Unsupported' || w.readyState === 'NotDetected') continue;
-      if (seen.has(w.adapter.name)) continue;
-      seen.add(w.adapter.name);
-      out.push(w);
-    }
-    return out;
-  }, [wallets]);
-
-  // After select(), once the wallet adapter has switched, fire connect() once.
-  // pendingWalletName is cleared as soon as connect is invoked so the effect
-  // can't loop if the user dismisses the wallet popup.
-  useEffect(() => {
-    if (!pendingWalletName) return;
-    if (!wallet || wallet.adapter.name !== pendingWalletName) return;
-    if (connecting || connected) return;
-    const walletName = wallet.adapter.name;
-    setPendingWalletName(null);
-    connect().catch(err => {
-      console.error('Wallet connect failed:', err);
-      toast.error('Wallet connection failed. Please try again.');
-      posthog.capture('invite_wallet_connect_failed', {
-        wallet_name: walletName,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    });
-  }, [pendingWalletName, wallet, connecting, connected, connect]);
-
-  const handleSelectWallet = async (name: WalletName) => {
-    if (connecting) return;
-    posthog.capture('invite_wallet_selected', { wallet_name: name });
-    // Already-selected wallet (restored from localStorage after refresh):
-    // calling select() is a no-op, so connect() directly.
-    if (wallet?.adapter.name === name) {
-      try {
-        await connect();
-      } catch (err) {
-        console.error('Wallet connect failed:', err);
-        toast.error('Wallet connection failed. Please try again.');
-        posthog.capture('invite_wallet_connect_failed', {
-          wallet_name: name,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      return;
-    }
-    setPendingWalletName(name);
-    select(name);
+  // Hand off to Privy's modal. Close ours first (without the dismiss/disconnect
+  // path) so the Radix focus trap doesn't block it; useAccessGate reopens the
+  // gate on connect if the wallet still needs a code.
+  const handleLogin = () => {
+    posthog.capture('invite_login_opened');
+    setOpen(false);
+    openLogin();
   };
 
   const handleRedeem = async () => {
@@ -302,47 +240,22 @@ export function InviteCodeModal() {
               </HeaderIcon>
               <div className="flex flex-col gap-2">
                 <DialogTitle className="text-lg font-semibold tracking-tight">
-                  Connect your wallet
+                  Log in to Fermilabs
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  Connect a Solana wallet first. We'll then ask you for your invite or referral
-                  code.
+                  Continue with email, Google, X, or a Solana wallet. We'll then ask you for your
+                  invite or referral code.
                 </DialogDescription>
               </div>
             </DialogHeader>
 
-            <div className="flex flex-col gap-1.5">
-              {visibleWallets.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-3 text-center border border-outline">
-                  No Solana wallet detected. Install Phantom, Solflare, or Backpack.
-                </p>
+            <Button onClick={handleLogin} disabled={!loginReady} size="lg" className="w-full">
+              {loginReady ? (
+                'Log in or connect wallet'
               ) : (
-                visibleWallets.map(w => {
-                  const isPending = pendingWalletName === w.adapter.name;
-                  const isActive = wallet?.adapter.name === w.adapter.name && connecting;
-                  const busy = isPending || isActive;
-                  return (
-                    <button
-                      key={w.adapter.name}
-                      type="button"
-                      disabled={busy}
-                      onClick={() => handleSelectWallet(w.adapter.name)}
-                      className="flex items-center gap-3 px-3 py-2.5 border border-outline bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-left outline-none focus:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
-                    >
-                      <img src={w.adapter.icon} alt="" className="size-7 shrink-0" aria-hidden />
-                      <span className="flex-1 text-sm font-medium">{w.adapter.name}</span>
-                      {busy ? (
-                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                      ) : (
-                        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                          {w.readyState === 'Installed' ? 'Detected' : 'Install'}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })
+                <Loader2 className="size-4 animate-spin" />
               )}
-            </div>
+            </Button>
 
             <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
               <span className="text-sm text-muted-foreground">No invite code?</span>
@@ -393,7 +306,7 @@ export function InviteCodeModal() {
                   Enter your code
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  Wallet connected. Paste an invite code or a referral code to unlock trading.
+                  You're logged in. Paste an invite code or a referral code to unlock trading.
                 </DialogDescription>
               </div>
             </DialogHeader>
@@ -420,7 +333,7 @@ export function InviteCodeModal() {
                 />
                 <p className="text-xs text-muted-foreground/70 leading-relaxed">
                   Have a friend's referral code? It works here too — you'll get access and they'll
-                  be credited. You'll sign a one-time message to prove wallet ownership. No
+                  be credited. Your wallet signs a one-time message to prove ownership. No
                   transaction or gas fee.
                 </p>
               </div>

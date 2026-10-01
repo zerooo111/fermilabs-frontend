@@ -1,16 +1,16 @@
 /**
  * ConnectWallet.tsx
  * A custom button component that handles wallet connection and displays wallet status
- * Uses Solana wallet adapter hooks for wallet interaction
+ * Wallet state comes from wallet-adapter, backed by the active Privy wallet
  */
 
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useSetAtom } from 'jotai';
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { Copy, LogOut, Wallet } from 'lucide-react';
+import { Copy, KeyRound, LogOut, Wallet } from 'lucide-react';
 import posthog from 'posthog-js';
 import { useServerConfig } from '@/entities/server';
+import { useActiveWalletInfo } from '@/entities/wallet';
 import { gateOpenAtom, accessSessionAtom, clearSession } from '@/features/access-gate';
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ const LABELS = {
   'copy-address': 'Copy address',
   copied: 'Copied',
   'change-wallet': 'Change wallet',
+  'export-wallet': 'Export private key',
   disconnect: 'Disconnect',
   connecting: 'Connecting...',
   connect: 'Connect Wallet',
@@ -34,8 +35,8 @@ const LABELS = {
  * Handles wallet selection and connection state
  */
 export function ConnectWallet() {
-  const { wallet, disconnect, connected, connecting, publicKey } = useWallet();
-  const { setVisible } = useWalletModal();
+  const { disconnect, connected, connecting, publicKey } = useWallet();
+  const { walletName, isEmbedded, exportWallet } = useActiveWalletInfo();
   const setGateOpen = useSetAtom(gateOpenAtom);
   const setSession = useSetAtom(accessSessionAtom);
   const [copied, setCopied] = useState(false);
@@ -47,14 +48,16 @@ export function ConnectWallet() {
       const walletAddress = publicKey.toBase58();
       posthog.identify(walletAddress, {
         wallet_address: walletAddress,
-        wallet_name: wallet?.adapter?.name,
+        wallet_name: walletName,
+        wallet_embedded: isEmbedded,
       });
       posthog.capture('wallet_connected', {
         wallet_address: walletAddress,
-        wallet_name: wallet?.adapter?.name,
+        wallet_name: walletName,
+        wallet_embedded: isEmbedded,
       });
     }
-  }, [connected, publicKey, wallet]);
+  }, [connected, publicKey, walletName, isEmbedded]);
 
   // Handle copy address
   const handleCopyAddress = useCallback(async () => {
@@ -88,7 +91,8 @@ export function ConnectWallet() {
     const walletAddress = publicKey?.toBase58();
     posthog.capture('wallet_disconnected', {
       wallet_address: walletAddress,
-      wallet_name: wallet?.adapter?.name,
+      wallet_name: walletName,
+      wallet_embedded: isEmbedded,
     });
     posthog.reset();
     if (walletAddress) {
@@ -103,7 +107,17 @@ export function ConnectWallet() {
     } catch (err) {
       console.error('Wallet disconnect failed:', err);
     }
-  }, [publicKey, wallet, disconnect, setSession]);
+  }, [publicKey, walletName, isEmbedded, disconnect, setSession]);
+
+  // Logging out ends the Privy session, so switching wallets is logout → gate.
+  const handleChangeWallet = useCallback(async () => {
+    await handleDisconnect();
+    setGateOpen(true);
+  }, [handleDisconnect, setGateOpen]);
+
+  const handleExportWallet = useCallback(() => {
+    exportWallet().catch(err => console.error('Wallet export failed:', err));
+  }, [exportWallet]);
 
   const baseButton = (
     <Button variant="default" size="sm" onClick={handleConnectClick}>
@@ -124,7 +138,13 @@ export function ConnectWallet() {
           <Copy className="size-4" />
           {copied ? LABELS['copied'] : LABELS['copy-address']}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setVisible(true)}>
+        {isEmbedded && (
+          <DropdownMenuItem onClick={handleExportWallet}>
+            <KeyRound className="size-4" />
+            {LABELS['export-wallet']}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onClick={handleChangeWallet}>
           <Wallet className="size-4" />
           {LABELS['change-wallet']}
         </DropdownMenuItem>

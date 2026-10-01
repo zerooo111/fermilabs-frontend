@@ -603,7 +603,7 @@ export function TradeTicket() {
       {!f.publicKey ? (
         <button
           type="button"
-          onClick={() => f.setVisible(true)}
+          onClick={f.openConnect}
           className="h-10 bg-rock text-sm font-medium text-background transition-colors hover:bg-rock/90"
         >
           Connect wallet
