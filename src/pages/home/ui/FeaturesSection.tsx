@@ -21,7 +21,7 @@ const FEATURES = [
   },
   {
     title: 'Modular sequencing',
-    body: 'Our Continuum layer gives any rollup or DeFi app predictable first-come, first-serve ordering, then handles batch execution and onchain settlement.',
+    body: 'Our Continuum layer gives any rollup or DeFi app predictable first-come, first-serve ordering.',
     Drawing: SequencingDrawing,
     link: { href: 'https://continuum.wtf', label: 'Visit Continuum' },
   },

@@ -122,7 +122,7 @@ export function SequencingDrawing() {
     { y: 114, label: 'dex' },
   ];
   return (
-    <Blueprint label="Rollups and apps feed one sequencer that emits an ordered log and settles in batches">
+    <Blueprint label="Rollups and apps feed one sequencer that emits an ordered log">
       <defs>
         <clipPath id="seq-log-clip">
           <rect x="207" y="69" width="98" height="22" />
@@ -154,11 +154,6 @@ export function SequencingDrawing() {
           ))}
         </g>
       </g>
-      <line x1="256" y1="92" x2="256" y2="128" className="a-flow" />
-      <polyline points="252,123 256,128 260,123" />
-      <text x="256" y="146" textAnchor="middle">
-        batch settle on solana
-      </text>
     </Blueprint>
   );
 }

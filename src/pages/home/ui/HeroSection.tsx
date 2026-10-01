@@ -59,7 +59,7 @@ export default function HeroSection() {
         <div data-intro className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 md:mt-12">
           <WaitlistButton
             source="hero"
-            label="Join the waitlist"
+            label="Try the Beta"
             withArrow={false}
             className="cursor-pointer bg-amber-200 px-5 py-3 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100"
           />
