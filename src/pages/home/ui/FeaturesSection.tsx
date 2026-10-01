@@ -11,7 +11,7 @@ import {
 const FEATURES = [
   {
     title: "Crypto's fairest orderbook",
-    body: 'No mempool, no MEV games, no one cutting the line. Orders fill in strict price-time priority, and only executed trades settle on Solana.',
+    body: 'No mempool, no MEV games, no one cutting the line. Orders fill in strict price-time priority.',
     Drawing: FairQueueDrawing,
   },
   {
