@@ -5,7 +5,6 @@
  */
 import { useState, useEffect, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { toast } from 'sonner';
 
@@ -18,7 +17,7 @@ import { useSimulate } from '@/features/order-placement/lib/useSimulate';
 import { warmSimulate } from '@/features/order-placement/lib/simulateApi';
 import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { accountMetricsAtom } from '@/shared/api/sse-atoms';
-import { useAccessOwner } from '@/features/access-gate';
+import { gateOpenAtom, useAccessOwner } from '@/features/access-gate';
 import { serverConfigAtom, type ServerConfigMarket } from '@/entities/server';
 
 // Used when /config has no risk weights for the market
@@ -95,7 +94,7 @@ export function useOrderForm() {
 
   const { publicKey } = useWallet();
   const accessOwner = useAccessOwner();
-  const { setVisible } = useWalletModal();
+  const setGateOpen = useSetAtom(gateOpenAtom);
   const { selectedMarket } = useSelectedMarket();
   const { openPosition, openMarketPosition } = usePerps();
   const setSLTPValues = useSetAtom(sltpValuesAtom);
@@ -323,7 +322,7 @@ export function useOrderForm() {
     formState,
     setFormState,
     publicKey,
-    setVisible,
+    openConnect: () => setGateOpen(true),
     selectedMarket,
     setSLTPValues,
     setFeeCreditOpen,

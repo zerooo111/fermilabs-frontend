@@ -1,30 +1,24 @@
 /**
  * ConnectWallet.tsx
  * A custom button component that handles wallet connection and displays wallet status
- * Uses Solana wallet adapter hooks for wallet interaction
+ * Wallet state comes from wallet-adapter, backed by the active Privy wallet
  */
 
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSetAtom } from 'jotai';
-import { useCallback, useMemo, useState, useEffect } from 'react';
-import { Copy, LogOut, Wallet } from 'lucide-react';
+import { useCallback, useEffect } from 'react';
 import posthog from 'posthog-js';
 import { useServerConfig } from '@/entities/server';
+import { useAccountIdentity, useActiveWalletInfo } from '@/entities/wallet';
 import { gateOpenAtom, accessSessionAtom, clearSession } from '@/features/access-gate';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../../../shared/ui/dropdown-menu';
-import { Button } from '../../../shared/ui/button';
+import { forgetOneClickKey } from '@/features/one-click';
+import { DropdownMenu, DropdownMenuTrigger } from '@/shared/ui/dropdown-menu';
+import { Button } from '@/shared/ui/button';
+import { AccountAvatar } from './AccountAvatar';
+import { AccountMenuContent } from './AccountMenu';
 
 const LABELS = {
-  'copy-address': 'Copy address',
-  copied: 'Copied',
-  'change-wallet': 'Change wallet',
-  disconnect: 'Disconnect',
   connecting: 'Connecting...',
   connect: 'Connect Wallet',
 } as const;
@@ -34,45 +28,34 @@ const LABELS = {
  * Handles wallet selection and connection state
  */
 export function ConnectWallet() {
-  const { wallet, disconnect, connected, connecting, publicKey } = useWallet();
-  const { setVisible } = useWalletModal();
+  const { disconnect, connected, connecting, publicKey } = useWallet();
+  const { walletName, isEmbedded, exportWallet } = useActiveWalletInfo();
+  const identity = useAccountIdentity();
+  const loginMethod = identity?.method ?? null;
   const setGateOpen = useSetAtom(gateOpenAtom);
   const setSession = useSetAtom(accessSessionAtom);
-  const [copied, setCopied] = useState(false);
+  const queryClient = useQueryClient();
   useServerConfig();
 
   // Identify user and capture wallet_connected when wallet connects
   useEffect(() => {
     if (connected && publicKey) {
       const walletAddress = publicKey.toBase58();
+      // Only the login method, never the email/handle, goes to analytics.
       posthog.identify(walletAddress, {
         wallet_address: walletAddress,
-        wallet_name: wallet?.adapter?.name,
+        wallet_name: walletName,
+        wallet_embedded: isEmbedded,
+        login_method: loginMethod,
       });
       posthog.capture('wallet_connected', {
         wallet_address: walletAddress,
-        wallet_name: wallet?.adapter?.name,
+        wallet_name: walletName,
+        wallet_embedded: isEmbedded,
+        login_method: loginMethod,
       });
     }
-  }, [connected, publicKey, wallet]);
-
-  // Handle copy address
-  const handleCopyAddress = useCallback(async () => {
-    if (publicKey) {
-      await navigator.clipboard.writeText(publicKey.toBase58());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 400);
-    }
-  }, [publicKey]);
-
-  // Button content based on connection state
-  const buttonContent = useMemo(() => {
-    if (publicKey) {
-      return `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`;
-    }
-    if (connecting) return LABELS['connecting'];
-    return LABELS['connect'];
-  }, [connecting, publicKey]);
+  }, [connected, publicKey, walletName, isEmbedded, loginMethod]);
 
   // Unconnected click defers to the access gate so wallet selection and
   // invite-code redemption happen in a single unified modal flow.
@@ -88,11 +71,16 @@ export function ConnectWallet() {
     const walletAddress = publicKey?.toBase58();
     posthog.capture('wallet_disconnected', {
       wallet_address: walletAddress,
-      wallet_name: wallet?.adapter?.name,
+      wallet_name: walletName,
+      wallet_embedded: isEmbedded,
     });
     posthog.reset();
     if (walletAddress) {
       clearSession(walletAddress);
+      // Don't leave a usable trading key behind in this browser after log out.
+      // The on-chain delegate then points at a key nobody holds.
+      void forgetOneClickKey(walletAddress);
+      queryClient.removeQueries({ queryKey: ['one-click', 'session-key', walletAddress] });
       setSession(prev => {
         const { [walletAddress]: _, ...rest } = prev;
         return rest;
@@ -103,36 +91,57 @@ export function ConnectWallet() {
     } catch (err) {
       console.error('Wallet disconnect failed:', err);
     }
-  }, [publicKey, wallet, disconnect, setSession]);
+  }, [publicKey, walletName, isEmbedded, disconnect, setSession, queryClient]);
 
-  const baseButton = (
-    <Button variant="default" size="sm" onClick={handleConnectClick}>
-      {connected && <div className="w-2 h-2 bg-green-400 animate-pulse" />}
-      {buttonContent}
-    </Button>
-  );
+  // Logging out ends the Privy session, so switching wallets is logout → gate.
+  const handleChangeWallet = useCallback(async () => {
+    await handleDisconnect();
+    setGateOpen(true);
+  }, [handleDisconnect, setGateOpen]);
 
-  if (!connected) {
-    return baseButton;
+  const handleExportWallet = useCallback(() => {
+    exportWallet().catch(err => console.error('Wallet export failed:', err));
+  }, [exportWallet]);
+
+  if (!connected || !publicKey) {
+    return (
+      <Button variant="default" size="sm" onClick={handleConnectClick}>
+        {connecting ? LABELS['connecting'] : LABELS['connect']}
+      </Button>
+    );
   }
+
+  const address = publicKey.toBase58();
+  const showIdentity = identity && identity.method !== 'wallet';
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>{baseButton}</DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem onClick={handleCopyAddress}>
-          <Copy className="size-4" />
-          {copied ? LABELS['copied'] : LABELS['copy-address']}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setVisible(true)}>
-          <Wallet className="size-4" />
-          {LABELS['change-wallet']}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleDisconnect} className="text-red-600">
-          <LogOut className="size-4" />
-          {LABELS['disconnect']}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="default"
+          size="sm"
+          className="gap-2 pl-1"
+          aria-label={`Account menu${showIdentity ? `, ${identity.label}` : ''}`}
+        >
+          <AccountAvatar address={address} avatarUrl={identity?.avatarUrl} className="size-6" />
+          {showIdentity && (
+            <>
+              <span className="hidden max-w-36 truncate lg:inline">{identity.label}</span>
+              <span className="hidden h-3 w-px bg-background/25 lg:block" aria-hidden />
+            </>
+          )}
+          <span className="font-mono text-[11px] tracking-tight text-background/80">
+            {address.slice(0, 4)}…{address.slice(-4)}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <AccountMenuContent
+        address={address}
+        identity={identity}
+        onExportWallet={handleExportWallet}
+        onSwitchAccount={handleChangeWallet}
+        onLogOut={handleDisconnect}
+      />
     </DropdownMenu>
   );
 }

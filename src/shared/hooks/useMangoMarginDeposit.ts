@@ -101,7 +101,7 @@ function toAccountNumLeBytes(value: number): Uint8Array {
 // default message. Pull them out and stitch them into the thrown error so
 // the surfaced message in UI/PostHog is something the user (or we) can act
 // on, rather than the generic "Transaction simulation failed.".
-async function enrichSendError(err: unknown): Promise<Error> {
+export async function enrichSendError(err: unknown): Promise<Error> {
   if (!(err instanceof Error)) return new Error(String(err));
   // SendTransactionError exposes getLogs() (async) in @solana/web3.js >= 1.86.
   const maybeWithLogs = err as Error & { getLogs?: () => Promise<string[] | null> };
@@ -127,7 +127,7 @@ async function enrichSendError(err: unknown): Promise<Error> {
 // hangs silently on lossy RPCs (api.devnet.solana.com drops notifications
 // under load), which is the root cause of the "deposit gets stuck, comes
 // later" reports.
-async function pollForConfirmation(
+export async function pollForConfirmation(
   connection: import('@solana/web3.js').Connection,
   signature: string,
   lastValidBlockHeight: number,

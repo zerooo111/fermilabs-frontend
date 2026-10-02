@@ -9,6 +9,7 @@ import { useCallback, useRef } from 'react';
 import { useAtomValue } from 'jotai';
 import { useSelectedMarket } from '@/entities/market';
 import { serverConfigAtom } from '@/entities/server';
+import { useOneClick } from '@/features/one-click';
 import { config, API_ROUTES, API_ROUTES_V2 } from '@/shared/config/constants';
 import {
   buildExecutionQueueUserIntentV5,
@@ -151,6 +152,10 @@ function sideToQueueSide(side: OrderSide): QueueSide {
 
 export function usePerps() {
   const { publicKey, signMessage, wallet } = useWallet();
+  // One-click: a delegated session key signs intents in place of the wallet.
+  // The Fermi account, account lookup and funding stay with the owner.
+  const { intentSigner } = useOneClick();
+  const signerPublicKey = intentSigner?.publicKey ?? publicKey;
   const { connection } = useConnection();
   const { selectedMarket } = useSelectedMarket();
   const serverConfig = useAtomValue(serverConfigAtom);
@@ -166,6 +171,7 @@ export function usePerps() {
   const fallbackQuoteLotSize = Number(selectedMarket?.quote_lot_size ?? config.devnet.quoteLotSize);
   const canonicalAccountsCacheRef = useRef<{
     owner: string;
+    signer: string;
     mangoAccount: string;
     marketIndex: number;
     group: string;
@@ -494,13 +500,15 @@ export function usePerps() {
       mangoAccount: string;
       remainingAccounts: QueueAccountMeta[];
     }> => {
-      if (!publicKey) throw new Error('Wallet not connected');
+      if (!publicKey || !signerPublicKey) throw new Error('Wallet not connected');
       if (!mangoAccountPk) throw new Error('Mango account missing; deposit margin first');
+      const signer = signerPublicKey.toBase58();
 
       const cached = canonicalAccountsCacheRef.current;
       if (
         cached &&
         cached.owner === owner &&
+        cached.signer === signer &&
         cached.mangoAccount === mangoAccountPk &&
         cached.marketIndex === marketIndex &&
         Date.now() - cached.fetchedAtMs < MANGO_STATE_TTL_MS
@@ -523,7 +531,8 @@ export function usePerps() {
         client,
         group,
         mangoAccount,
-        userOwner: publicKey,
+        // The owner/delegate slot carries whoever signs the intent.
+        userOwner: signerPublicKey,
         marketIndex,
       });
       logPerf('canonical-accounts', {
@@ -539,6 +548,7 @@ export function usePerps() {
       };
       canonicalAccountsCacheRef.current = {
         owner,
+        signer,
         mangoAccount: mangoAccountPk,
         marketIndex,
         ...result,
@@ -546,7 +556,7 @@ export function usePerps() {
       };
       return result;
     },
-    [connection, logPerf, mangoAccountPk, owner, publicKey, serverConfig]
+    [connection, logPerf, mangoAccountPk, owner, publicKey, serverConfig, signerPublicKey]
   );
 
   const resolveExecutionMarketParams = useCallback(async (): Promise<ExecutionMarketParams> => {
@@ -657,9 +667,12 @@ export function usePerps() {
     acceptedLatencyMs?: number;
     error?: string;
   }> => {
-    if (!publicKey || !signMessage) {
+    if (!publicKey || !signMessage || !signerPublicKey) {
       throw new Error('Wallet not connected');
     }
+    // Owner wallet, or the one-click session key when delegation is active.
+    // It is bound into the intent hash, remaining_accounts[2] and user_owner.
+    const signerAddress = signerPublicKey.toBase58();
     const targetIndex = Number(params.market);
     if (!Number.isInteger(targetIndex) || targetIndex < 0) {
       throw new Error(`Invalid market index for relay intent: ${params.market}`);
@@ -696,7 +709,7 @@ export function usePerps() {
       group: params.group,
       executionQueue: v5ExecutionQueue,
       mangoAccount: params.mangoAccount,
-      userOwner: publicKey.toBase58(),
+      userOwner: signerAddress,
       payload: params.payloadBytes,
       remainingAccounts: params.remainingAccounts,
       targetKind: IntentTargetKind.PerpMarket,
@@ -715,7 +728,8 @@ export function usePerps() {
       group: params.group,
       executionQueue: v5ExecutionQueue,
       mangoAccount: params.mangoAccount,
-      userOwner: publicKey.toBase58(),
+      userOwner: signerAddress,
+      oneClick: !!intentSigner,
       kind: 0,
       targetKind: IntentTargetKind.PerpMarket,
       targetIndex,
@@ -734,7 +748,9 @@ export function usePerps() {
     // Phantom/Solflare/Backpack signMessage() always signs the raw bytes — no
     // prefix wrapping. The relayer verifies the 64-byte ed25519 signature against
     // the raw 32-byte digest, so passing `intent.digest` directly is correct.
-    const signatureBytes = await signIntentMessage(intent.digest);
+    const signatureBytes = intentSigner
+      ? await intentSigner.sign(intent.digest)
+      : await signIntentMessage(intent.digest);
 
     console.info('[submit-intent signature]', {
       digestSigned: toHex(intent.digest),
@@ -747,13 +763,14 @@ export function usePerps() {
     // from "wallet signs with a different key than user_owner".
     try {
       const { ed25519 } = await import('@noble/curves/ed25519');
-      const ownerBytes = publicKey.toBytes();
+      const ownerBytes = signerPublicKey.toBytes();
       const okRaw = ed25519.verify(signatureBytes, intent.digest, ownerBytes);
       const digestHexUtf8 = new TextEncoder().encode(toHex(intent.digest));
       const okHexUtf8 = ed25519.verify(signatureBytes, digestHexUtf8, ownerBytes);
 
       console.info('[submit-intent client-verify]', {
         connectedPubkey: publicKey.toBase58(),
+        signerPubkey: signerAddress,
         verifyRawDigest: okRaw,
         verifyHexUtf8: okHexUtf8,
         walletAdapter: wallet?.adapter?.name,
@@ -765,7 +782,7 @@ export function usePerps() {
             'Sending will be rejected by the relayer.'
         );
         throw new Error(
-          `Wallet signature does not match digest under ${publicKey.toBase58()}. ` +
+          `Wallet signature does not match digest under ${signerAddress}. ` +
             `Wallet=${wallet?.adapter?.name ?? 'unknown'}. ` +
             `Try a different wallet (Phantom/Solflare/Backpack), or if using a hardware wallet, ` +
             `enable blind-signing for off-chain messages.`
@@ -801,7 +818,7 @@ export function usePerps() {
       remaining_accounts: params.remainingAccounts,
       min_execute_slot: '0',
       expires_at_slot: '0',
-      user_owner: publicKey.toBase58(),
+      user_owner: signerAddress,
       mango_account: params.mangoAccount,
       user_signature_b64: bytesToBase64(signatureBytes),
       client_order_id: intentClientOrderId.toString(),
