@@ -133,6 +133,8 @@ export const API_ROUTES = {
   airdrop_deposit: '/airdrop-deposit',
   tx: '/relay/submit-intent',
   relay_config: '/relay/config',
+  trigger_orders: '/trigger-orders',
+  trigger_orders_cancel: '/trigger-orders/cancel',
   volume_24h: '/stats/volume/24h',
   // Relayer fee-credit endpoints
   fees_status: '/relayer/fees/status',

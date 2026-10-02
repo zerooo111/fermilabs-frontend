@@ -1,6 +1,7 @@
 import { showOrderToast } from '@/features/order-placement/lib/showOrderToast';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { useQueryClient } from '@tanstack/react-query';
 import posthog from 'posthog-js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
@@ -31,6 +32,17 @@ import { fetchFermiAccount, getMangoClientAndGroup } from '@/shared/lib/mango-cl
 import { buildCanonicalPerpRemainingAccounts } from '@/shared/lib/mango-canonical-accounts';
 import { useAccountMangoAccount } from '@/shared/hooks/useAccount';
 import { getWalletAuthToken } from '@/features/access-gate';
+import {
+  buildTriggerLeg,
+  newOcoGroup,
+  triggerCancelBody,
+  triggerCancelHash,
+  TriggerKind,
+  triggerOrderWire,
+  type TriggerCancelParams,
+  type TriggerOrderWire,
+} from '@/features/trigger-orders/lib/triggerLegs';
+import { TRIGGER_ORDERS_QUERY_KEY } from '@/features/trigger-orders/model/useTriggerOrders';
 import type { HarnessMarketMetadata } from '@/shared/lib/harness-market';
 import type { MarginMode, OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 
@@ -68,6 +80,24 @@ interface PerpsClosePositionParams {
   limitPrice?: string;
 }
 
+interface PerpsTriggerLegsParams {
+  marketIndex: number;
+  /** The position the legs protect. */
+  position: 'long' | 'short';
+  /** Base size in UI units (one entry's bracket), or 'all' for the whole position. */
+  size: string | 'all';
+  stopLoss?: string;
+  takeProfit?: string;
+  /** Worst fill vs the trigger (sets the IOC limit). */
+  slippageBps: number;
+  expiresInSecs: number;
+}
+
+type TriggerCancelRequest = Pick<
+  TriggerCancelParams,
+  'scope' | 'clientOrderIds' | 'ocoGroup' | 'marketIndex'
+>;
+
 type ExecutionMarketParams = {
   base_decimals: number;
   quote_decimals: number;
@@ -83,6 +113,9 @@ const MANGO_STATE_TTL_MS = 30 * 1000;
 const MARKET_META_CACHE_TTL_MS = 60 * 60 * 1000;
 const RELAY_DUPLICATE_SEQUENCE_RETRIES = 2;
 const RELAY_INTENT_VERSION = 2;
+// Routing marker for trigger legs, outside the signed hash. A relayer that
+// predates trigger orders rejects it instead of committing the leg at once.
+const RELAY_TRIGGER_INTENT_VERSION = 3;
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => {
@@ -146,6 +179,24 @@ function formatRelaySubmitError(error: unknown): string {
   return detail;
 }
 
+// Relayer and keeper refusals of a trigger leg, in the user's terms
+// (client-SL-TP.md, "Submitting").
+function describeTriggerLegError(error: unknown): string {
+  const message = error instanceof Error ? error.message : 'Unknown error';
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes('unsupported intent_version') ||
+    normalized.includes('not enabled') ||
+    normalized.includes('trigger keeper unreachable')
+  ) {
+    return 'Stop loss and take profit are unavailable right now. Try again later.';
+  }
+  if (normalized.includes('account-shape mismatch')) {
+    return 'Your account changed while signing. Try again.';
+  }
+  return message;
+}
+
 function sideToQueueSide(side: OrderSide): QueueSide {
   return side === 'Buy' ? QueueSide.Bid : QueueSide.Ask;
 }
@@ -159,6 +210,7 @@ export function usePerps() {
   const { connection } = useConnection();
   const { selectedMarket } = useSelectedMarket();
   const serverConfig = useAtomValue(serverConfigAtom);
+  const queryClient = useQueryClient();
   const owner = publicKey?.toBase58() || '';
   const { pk: mangoAccountPk } = useAccountMangoAccount(owner || undefined);
   const selectedMarketId = selectedMarket?.uuid || config.devnet.defaultHarnessMarketId;
@@ -492,6 +544,10 @@ export function usePerps() {
     );
   };
 
+  // The one-click session key signs silently; otherwise the wallet prompts.
+  const signDigest = (digest: Uint8Array): Promise<Uint8Array> =>
+    intentSigner ? intentSigner.sign(digest) : signIntentMessage(digest);
+
   const resolveCanonicalAccountsForMarket = useCallback(
     async (
       marketIndex: number
@@ -559,101 +615,107 @@ export function usePerps() {
     [connection, logPerf, mangoAccountPk, owner, publicKey, serverConfig, signerPublicKey]
   );
 
-  const resolveExecutionMarketParams = useCallback(async (): Promise<ExecutionMarketParams> => {
-    if (!hasSelectedMarket) {
-      throw new Error('Selected market not found');
-    }
+  const resolveExecutionMarketParams = useCallback(
+    async (marketId: string = selectedMarketId): Promise<ExecutionMarketParams> => {
+      const isSelected = hasSelectedMarket && marketId === selectedMarketId;
+      if (!isSelected && marketId === selectedMarketId) {
+        throw new Error('Selected market not found');
+      }
 
-    const marketId = selectedMarketId;
-    const cached = marketMetaCacheRef.current;
-    if (
-      cached &&
-      cached.market === marketId &&
-      Date.now() - cached.fetchedAtMs < MARKET_META_CACHE_TTL_MS
-    ) {
-      return cached.value;
-    }
+      const cached = marketMetaCacheRef.current;
+      if (
+        cached &&
+        cached.market === marketId &&
+        Date.now() - cached.fetchedAtMs < MARKET_META_CACHE_TTL_MS
+      ) {
+        return cached.value;
+      }
 
-    const inFlight = marketMetaRequestRef.current;
-    if (inFlight && inFlight.market === marketId) {
-      return inFlight.promise;
-    }
+      const inFlight = marketMetaRequestRef.current;
+      if (inFlight && inFlight.market === marketId) {
+        return inFlight.promise;
+      }
 
-    const request = (async (): Promise<ExecutionMarketParams> => {
-      try {
-        // v2 path: /v2/markets returns {markets: [{market, meta: {base_decimals, ...}}]}
-        // Every field we need is in the meta hash. Falls back to /state/full
-        // only when useV2ReadLayer is off.
-        if (config.devnet.useV2ReadLayer) {
-          const response = await axios.get<{
-            markets: Array<{ market: string; meta: Record<string, string> }>;
-          }>(`${config.devnet.gatewayUrl}${API_ROUTES_V2.markets}`);
-          const row = response.data?.markets?.find(m => m.market === marketId);
-          const meta = row?.meta;
-          if (meta) {
-            const resolved = {
-              base_decimals: Number(meta.base_decimals),
-              quote_decimals: Number(meta.quote_decimals),
-              base_lot_size: Number(meta.base_lot_size),
-              quote_lot_size: Number(meta.quote_lot_size),
-            };
-            marketMetaCacheRef.current = {
-              market: marketId,
-              value: resolved,
-              fetchedAtMs: Date.now(),
-            };
-            return resolved;
+      const request = (async (): Promise<ExecutionMarketParams> => {
+        try {
+          // v2 path: /v2/markets returns {markets: [{market, meta: {base_decimals, ...}}]}
+          // Every field we need is in the meta hash. Falls back to /state/full
+          // only when useV2ReadLayer is off.
+          if (config.devnet.useV2ReadLayer) {
+            const response = await axios.get<{
+              markets: Array<{ market: string; meta: Record<string, string> }>;
+            }>(`${config.devnet.gatewayUrl}${API_ROUTES_V2.markets}`);
+            const row = response.data?.markets?.find(m => m.market === marketId);
+            const meta = row?.meta;
+            if (meta) {
+              const resolved = {
+                base_decimals: Number(meta.base_decimals),
+                quote_decimals: Number(meta.quote_decimals),
+                base_lot_size: Number(meta.base_lot_size),
+                quote_lot_size: Number(meta.quote_lot_size),
+              };
+              marketMetaCacheRef.current = {
+                market: marketId,
+                value: resolved,
+                fetchedAtMs: Date.now(),
+              };
+              return resolved;
+            }
+          } else {
+            const response = await axios.get<HarnessFullMarketsResponse>(
+              `${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`
+            );
+            const marketMeta = response.data?.market_metadata?.[marketId];
+            if (marketMeta) {
+              const resolved = {
+                base_decimals: Number(marketMeta.base_decimals),
+                quote_decimals: Number(marketMeta.quote_decimals),
+                base_lot_size: Number(marketMeta.base_lot_size),
+                quote_lot_size: Number(marketMeta.quote_lot_size),
+              };
+              marketMetaCacheRef.current = {
+                market: marketId,
+                value: resolved,
+                fetchedAtMs: Date.now(),
+              };
+              return resolved;
+            }
           }
-        } else {
-          const response = await axios.get<HarnessFullMarketsResponse>(
-            `${config.devnet.gatewayUrl}${API_ROUTES.markets}?view=optimistic`
-          );
-          const marketMeta = response.data?.market_metadata?.[marketId];
-          if (marketMeta) {
-            const resolved = {
-              base_decimals: Number(marketMeta.base_decimals),
-              quote_decimals: Number(marketMeta.quote_decimals),
-              base_lot_size: Number(marketMeta.base_lot_size),
-              quote_lot_size: Number(marketMeta.quote_lot_size),
-            };
-            marketMetaCacheRef.current = {
-              market: marketId,
-              value: resolved,
-              fetchedAtMs: Date.now(),
-            };
-            return resolved;
-          }
+        } catch {
+          // Fall back to the selected market snapshot if the harness metadata request fails.
         }
-      } catch {
-        // Fall back to the selected market snapshot if the harness metadata request fails.
-      }
 
-      return {
-        base_decimals: fallbackBaseDecimals,
-        quote_decimals: fallbackQuoteDecimals,
-        base_lot_size: fallbackBaseLotSize,
-        quote_lot_size: fallbackQuoteLotSize,
+        if (!isSelected) {
+          throw new Error(`Market ${marketId} metadata unavailable`);
+        }
+        return {
+          base_decimals: fallbackBaseDecimals,
+          quote_decimals: fallbackQuoteDecimals,
+          base_lot_size: fallbackBaseLotSize,
+          quote_lot_size: fallbackQuoteLotSize,
+        };
+      })();
+      marketMetaRequestRef.current = {
+        market: marketId,
+        promise: request,
       };
-    })();
-    marketMetaRequestRef.current = {
-      market: marketId,
-      promise: request,
-    };
-    try {
-      return await request;
-    } finally {
-      if (marketMetaRequestRef.current?.promise === request) {
-        marketMetaRequestRef.current = null;
+      try {
+        return await request;
+      } finally {
+        if (marketMetaRequestRef.current?.promise === request) {
+          marketMetaRequestRef.current = null;
+        }
       }
-    }
-  }, [
-    fallbackBaseDecimals,
-    fallbackBaseLotSize,
-    fallbackQuoteDecimals,
-    fallbackQuoteLotSize,
-    hasSelectedMarket,
-    selectedMarketId,
-  ]);
+    },
+    [
+      fallbackBaseDecimals,
+      fallbackBaseLotSize,
+      fallbackQuoteDecimals,
+      fallbackQuoteLotSize,
+      hasSelectedMarket,
+      selectedMarketId,
+    ]
+  );
 
   const submitIntent = async (params: {
     payloadBytes: Uint8Array;
@@ -661,10 +723,15 @@ export function usePerps() {
     group: string;
     market: string;
     mangoAccount: string;
+    /** Pinned intent client_order_id (a trigger leg's terms commitment). */
+    clientOrderId?: bigint;
+    /** Withhold the intent as a trigger leg instead of committing it. */
+    triggerOrder?: TriggerOrderWire;
   }): Promise<{
     success: boolean;
     txSignature?: string;
     acceptedLatencyMs?: number;
+    triggerOrderId?: string;
     error?: string;
   }> => {
     if (!publicKey || !signMessage || !signerPublicKey) {
@@ -696,7 +763,7 @@ export function usePerps() {
       throw new Error('execution_queue not available; server config not loaded');
     }
 
-    const intentClientOrderId = randomU64();
+    const intentClientOrderId = params.clientOrderId ?? randomU64();
     const startedAt = performance.now();
     // V5 digest construction. The accountsHash inside this builder applies the
     // CTM-enqueue effective-flag merge: it OR-merges is_signer/is_writable for
@@ -748,9 +815,7 @@ export function usePerps() {
     // Phantom/Solflare/Backpack signMessage() always signs the raw bytes — no
     // prefix wrapping. The relayer verifies the 64-byte ed25519 signature against
     // the raw 32-byte digest, so passing `intent.digest` directly is correct.
-    const signatureBytes = intentSigner
-      ? await intentSigner.sign(intent.digest)
-      : await signIntentMessage(intent.digest);
+    const signatureBytes = await signDigest(intent.digest);
 
     console.info('[submit-intent signature]', {
       digestSigned: toHex(intent.digest),
@@ -807,7 +872,7 @@ export function usePerps() {
       // fields", so send the v5 address even though the digest excludes it.
       execution_queue: v5ExecutionQueue,
       market: params.market,
-      intent_version: RELAY_INTENT_VERSION,
+      intent_version: params.triggerOrder ? RELAY_TRIGGER_INTENT_VERSION : RELAY_INTENT_VERSION,
       target_kind: IntentTargetKind.PerpMarket,
       target_index: targetIndex,
       // Mirror cont-sdk-fresh/trading.ts: send both fields. The HTTP bridge / older
@@ -822,6 +887,7 @@ export function usePerps() {
       mango_account: params.mangoAccount,
       user_signature_b64: bytesToBase64(signatureBytes),
       client_order_id: intentClientOrderId.toString(),
+      ...(params.triggerOrder ? { trigger_order: params.triggerOrder } : {}),
     };
     // Invite-only gate: the proxy requires a wallet-bound bearer token on the
     // submit-intent route. Gate is established on wallet connect via
@@ -872,6 +938,7 @@ export function usePerps() {
       success: true,
       txSignature: relayResponse.data?.tx_signature ?? undefined,
       acceptedLatencyMs: relayResponse.data?.accepted_latency_ms ?? undefined,
+      triggerOrderId: relayResponse.data?.trigger_order_id ?? undefined,
     };
   };
 
@@ -1220,10 +1287,167 @@ export function usePerps() {
     }
   };
 
+  // Stop-loss / take-profit legs (fermi-v1 client-SL-TP.md). Each leg is a
+  // reduce-only IOC the keeper withholds until the oracle crosses its trigger.
+  // With both prices set they form a bracket: once one fires, the keeper
+  // cancels the other.
+  const placeTriggerLegs = async ({
+    marketIndex,
+    position,
+    size,
+    stopLoss,
+    takeProfit,
+    slippageBps,
+    expiresInSecs,
+  }: PerpsTriggerLegsParams): Promise<{ success: boolean; placed: number; error?: string }> => {
+    const market = String(marketIndex);
+    const wanted: Array<[TriggerKind, string]> = [];
+    if (stopLoss) wanted.push([TriggerKind.StopLoss, stopLoss]);
+    if (takeProfit) wanted.push([TriggerKind.TakeProfit, takeProfit]);
+    let placed = 0;
+    try {
+      if (!publicKey || !signMessage) {
+        throw new Error('Wallet not connected');
+      }
+      if (wanted.length === 0) {
+        throw new Error('Set a stop loss or take profit price');
+      }
+      const [marketMeta, canonical] = await Promise.all([
+        resolveExecutionMarketParams(market),
+        resolveCanonicalAccountsForMarket(marketIndex),
+      ]);
+      const lots = {
+        baseDecimals: marketMeta.base_decimals,
+        quoteDecimals: marketMeta.quote_decimals,
+        baseLotSize: marketMeta.base_lot_size,
+        quoteLotSize: marketMeta.quote_lot_size,
+      };
+      const sizeLots =
+        size === 'all'
+          ? ('all' as const)
+          : uiBaseToLots({
+              uiQuantity: size,
+              baseDecimals: lots.baseDecimals,
+              baseLotSize: lots.baseLotSize,
+            });
+      if (sizeLots !== 'all' && sizeLots <= 0n) {
+        throw new Error('Size is below one lot');
+      }
+      // An ask closes a long, a bid closes a short.
+      const side = position === 'long' ? QueueSide.Ask : QueueSide.Bid;
+      const ocoGroup = wanted.length > 1 ? newOcoGroup() : 0n;
+      const expiryTs = BigInt(Math.floor(Date.now() / 1000) + expiresInSecs);
+
+      for (const [kind, price] of wanted) {
+        const leg = await buildTriggerLeg({
+          group: canonical.group,
+          mangoAccount: canonical.mangoAccount,
+          marketIndex,
+          side,
+          kind,
+          triggerPriceLots: uiPriceToLots({ uiPrice: price, ...lots }),
+          size: sizeLots,
+          slippageBps,
+          ocoGroup,
+          expiryTs,
+        });
+        await submitIntent({
+          payloadBytes: leg.payload,
+          remainingAccounts: canonical.remainingAccounts,
+          group: canonical.group,
+          market,
+          mangoAccount: canonical.mangoAccount,
+          clientOrderId: leg.clientOrderId,
+          triggerOrder: triggerOrderWire(leg.terms),
+        });
+        placed += 1;
+      }
+      void queryClient.invalidateQueries({ queryKey: TRIGGER_ORDERS_QUERY_KEY });
+
+      toast.success(
+        wanted.length > 1
+          ? 'Stop loss and take profit set'
+          : `${wanted[0][0] === TriggerKind.StopLoss ? 'Stop loss' : 'Take profit'} set`
+      );
+      posthog.capture('perp_trigger_legs_placed', {
+        market_id: market,
+        position,
+        stop_loss: stopLoss,
+        take_profit: takeProfit,
+        size,
+        wallet: publicKey?.toBase58(),
+      });
+      return { success: true, placed };
+    } catch (error) {
+      const errorMessage = describeTriggerLegError(error);
+      if (placed > 0) void queryClient.invalidateQueries({ queryKey: TRIGGER_ORDERS_QUERY_KEY });
+      toast.error(
+        placed > 0
+          ? `Only ${placed} of ${wanted.length} legs placed: ${errorMessage}`
+          : `Stop loss / take profit not set: ${errorMessage}`
+      );
+      posthog.capture('perp_trigger_legs_failed', {
+        market_id: market,
+        position,
+        placed,
+        error_message: errorMessage,
+        wallet: publicKey?.toBase58(),
+      });
+      return { success: false, placed, error: errorMessage };
+    }
+  };
+
+  // Off-chain cancel: asks the keeper to drop legs. The signed legs stay valid
+  // until they expire; rotating the delegate is the only hard stop.
+  const cancelTriggerLegs = async (
+    request: TriggerCancelRequest,
+    { silent = false }: { silent?: boolean } = {}
+  ): Promise<{ success: boolean; cancelled: string[]; error?: string }> => {
+    try {
+      if (!publicKey || !signerPublicKey) throw new Error('Wallet not connected');
+      if (!mangoAccountPk) throw new Error('Mango account missing');
+      const group = serverConfig?.group;
+      if (!group) throw new Error('Server config not loaded');
+      const params: TriggerCancelParams = {
+        ...request,
+        group,
+        mangoAccount: mangoAccountPk,
+        signer: signerPublicKey.toBase58(),
+        issuedAtMs: BigInt(Date.now()),
+      };
+      const signature = await signDigest(await triggerCancelHash(params));
+      const walletAuthToken = getWalletAuthToken(publicKey.toBase58());
+      if (!walletAuthToken) throw new Error('Access not granted. Please complete wallet sign-in.');
+      const response = await axios.post<{ cancelled: string[] }>(
+        `${config.devnet.gatewayUrl}${API_ROUTES.trigger_orders_cancel}`,
+        triggerCancelBody(params, bytesToBase64(signature)),
+        { headers: { 'x-wallet-auth': walletAuthToken } }
+      );
+      const cancelled = response.data?.cancelled ?? [];
+      void queryClient.invalidateQueries({ queryKey: TRIGGER_ORDERS_QUERY_KEY });
+      if (!silent) {
+        toast.success(
+          cancelled.length === 1 ? 'Trigger cancelled' : `${cancelled.length} triggers cancelled`
+        );
+      }
+      return { success: true, cancelled };
+    } catch (error) {
+      const errorMessage = axios.isAxiosError(error)
+        ? formatRelaySubmitError(error)
+        : error instanceof Error
+          ? error.message
+          : 'Unknown error';
+      if (!silent) toast.error(`Cancel failed: ${errorMessage}`);
+      return { success: false, cancelled: [], error: errorMessage };
+    }
+  };
+
   return {
     openPosition,
     openMarketPosition,
     closePosition,
     cancelOrder,
+    placeTriggerLegs,
+    cancelTriggerLegs,
   };
 }

@@ -14,7 +14,9 @@ import { cn } from '@/lib/utils';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { HealthBar } from '@/shared/ui/health-bar';
-import { OneClickToggle } from '@/features/one-click';
+import { OneClickToggle, useOneClick } from '@/features/one-click';
+import { TRIGGER_LATENCY_NOTE } from '@/features/trigger-orders/lib/display';
+import { useTriggerOrdersEnabled } from '@/features/trigger-orders/model/useTriggerOrders';
 import { accountHealthPct, healthTone } from '@/shared/lib/account-health';
 import type { OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 import {
@@ -301,6 +303,12 @@ export function TradeTicket() {
     !f.feeInsufficient &&
     !wouldReject;
 
+  const oneClickOn = !!useOneClick().intentSigner;
+  const sltpAvailable = useTriggerOrdersEnabled();
+  // Inline, only a price on the wrong side of entry; "set a price" waits for submit
+  const sltpCheck = f.sltpError(side, f.isMarketOrder ? f.markPrice : f.priceValue);
+  const sltpProblem = sltpCheck?.field ? sltpCheck : null;
+
   const toggleSLTP = (on: boolean) => {
     f.setEnableSLTP(on);
     if (!on) {
@@ -353,7 +361,6 @@ export function TradeTicket() {
                 aria-selected={active}
                 onClick={() => {
                   f.handleInputChange('orderType', t);
-                  if (t === 'limit') toggleSLTP(false);
                 }}
                 className={cn(
                   '-mb-px border-b-2 px-3 pb-2 text-sm leading-5 capitalize transition-colors first:pl-0',
@@ -538,26 +545,40 @@ export function TradeTicket() {
             </Popover>
           ) : null}
         </div>
-        {/* TP rides on a market entry only; a resting limit entry may never fill */}
-        {f.isMarketOrder && (
+        {/* SL/TP are trigger legs; a reduce-only order has nothing to protect */}
+        {sltpAvailable && !f.formState.reduceOnly && (
           <Checkbox checked={f.enableSLTP} onChange={toggleSLTP}>
-            Take profit
+            Take profit / stop loss
           </Checkbox>
         )}
-        {f.isMarketOrder && f.enableSLTP && (
+        {sltpAvailable && !f.formState.reduceOnly && f.enableSLTP && (
           <div className="flex flex-col gap-1.5">
-            <Field
-              id="ticket-tp"
-              label="TP"
-              value={f.formState.takeProfit}
-              onChange={v => f.handleInputChange('takeProfit', v)}
-              unit={quote}
-              decimals={quoteDecimals}
-            />
-            <p className="text-[11px] text-rock/50">
-              Placed as a reduce-only limit order once your entry goes through. Your wallet asks for
-              a second signature.
-            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Field
+                id="ticket-tp"
+                label="TP"
+                value={f.formState.takeProfit}
+                onChange={v => f.handleInputChange('takeProfit', v)}
+                decimals={quoteDecimals}
+                invalid={sltpProblem?.field === 'takeProfit'}
+              />
+              <Field
+                id="ticket-sl"
+                label="SL"
+                value={f.formState.stopLoss}
+                onChange={v => f.handleInputChange('stopLoss', v)}
+                decimals={quoteDecimals}
+                invalid={sltpProblem?.field === 'stopLoss'}
+              />
+            </div>
+            {sltpProblem && f.sizeValue > 0 ? (
+              <p className="text-[11px] text-danger">{sltpProblem.message}</p>
+            ) : (
+              <p className="text-[11px] text-rock/50">
+                {TRIGGER_LATENCY_NOTE}
+                {!oneClickOn && ' Your wallet asks to sign each one after the order.'}
+              </p>
+            )}
           </div>
         )}
       </div>

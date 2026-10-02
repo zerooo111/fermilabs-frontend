@@ -163,7 +163,7 @@ export const sltpValuesAtom = atom<SLTPValues>({
   takeProfit: null,
 });
 
-export type PortfolioTab = 'orders' | 'positions' | 'trades' | 'assets';
+export type PortfolioTab = 'orders' | 'positions' | 'triggers' | 'trades' | 'assets';
 
 export const portfolioActiveTabAtom = atom<PortfolioTab>('orders');
 

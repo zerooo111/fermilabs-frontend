@@ -12,7 +12,8 @@
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
     "prepare": "husky install",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:trigger-legs": "pnpm dlx tsx --tsconfig tsconfig.app.json scripts/trigger-legs-selftest.ts"
   },
   "dependencies": {
     "@blockworks-foundation/mango-v4": "^0.33.9",

@@ -19,6 +19,8 @@ import { useMarketStats } from '@/shared/hooks/useMarketStats';
 import { accountMetricsAtom } from '@/shared/api/sse-atoms';
 import { gateOpenAtom, useAccessOwner } from '@/features/access-gate';
 import { serverConfigAtom, type ServerConfigMarket } from '@/entities/server';
+import { useTriggerOrdersEnabled } from '@/features/trigger-orders/model/useTriggerOrders';
+import { TRIGGER_EXPIRY_SECS, TRIGGER_SLIPPAGE_BPS } from '@/features/trigger-orders/lib/display';
 
 // Used when /config has no risk weights for the market
 export const DEFAULT_MAX_LEVERAGE = 5;
@@ -96,7 +98,8 @@ export function useOrderForm() {
   const accessOwner = useAccessOwner();
   const setGateOpen = useSetAtom(gateOpenAtom);
   const { selectedMarket } = useSelectedMarket();
-  const { openPosition, openMarketPosition } = usePerps();
+  const { openPosition, openMarketPosition, placeTriggerLegs } = usePerps();
+  const sltpAvailable = useTriggerOrdersEnabled();
   const setSLTPValues = useSetAtom(sltpValuesAtom);
   const setPortfolioActiveTab = useSetAtom(portfolioActiveTabAtom);
   const setFeeCreditOpen = useSetAtom(feeCreditDialogOpenAtom);
@@ -223,25 +226,46 @@ export function useOrderForm() {
     });
   };
 
-  const handleOpenPosition = async (side: OrderSide) => {
-    // The protocol has no trigger orders, so take profit is a reduce-only limit
-    // order placed right after a market entry (see below). Stop loss would need
-    // a price watcher and is not offered. A resting limit entry may not fill,
-    // so TP only applies to market orders.
-    const takeProfit = enableSLTP && isMarketOrder ? formState.takeProfit : '';
+  // SL/TP prices against the entry: below/above it for a long, the reverse
+  // for a short. Returns the problem and the field it is on (null when
+  // neither price is set), or null.
+  const sltpError = (
+    side: OrderSide,
+    entryPrice: number | null
+  ): { field: 'stopLoss' | 'takeProfit' | null; message: string } | null => {
+    if (!sltpAvailable || !enableSLTP || formState.reduceOnly) return null;
+    const stopLoss = safeParseFloat(formState.stopLoss);
+    const takeProfit = safeParseFloat(formState.takeProfit);
+    if (!stopLoss && !takeProfit) {
+      return { field: null, message: 'Set a stop loss or take profit price' };
+    }
+    if (!entryPrice || entryPrice <= 0) return null;
+    const long = side === 'Buy';
+    const order = long ? 'buy' : 'sell';
+    if (stopLoss && (long ? stopLoss >= entryPrice : stopLoss <= entryPrice)) {
+      return {
+        field: 'stopLoss',
+        message: `Stop loss must be ${long ? 'below' : 'above'} the entry price for a ${order}`,
+      };
+    }
+    if (takeProfit && (long ? takeProfit <= entryPrice : takeProfit >= entryPrice)) {
+      return {
+        field: 'takeProfit',
+        message: `Take profit must be ${long ? 'above' : 'below'} the entry price for a ${order}`,
+      };
+    }
+    return null;
+  };
 
-    // Market orders have no limit price, so validate against the live mark.
-    // Buy: TP above entry. Sell: TP below entry.
-    if (takeProfit && markPrice && markPrice > 0) {
-      const takeProfitValue = safeParseFloat(takeProfit);
-      if (side === 'Buy' && takeProfitValue <= markPrice) {
-        toast.error('Take Profit must be above entry price for a buy');
-        return;
-      }
-      if (side === 'Sell' && takeProfitValue >= markPrice) {
-        toast.error('Take Profit must be below entry price for a sell');
-        return;
-      }
+  const handleOpenPosition = async (side: OrderSide) => {
+    // SL/TP are trigger legs (reduce-only IOCs held by the trigger-orders
+    // keeper). They wait as "pending" until the entry fills, so they go out
+    // right after it, for market and limit entries alike.
+    const withSLTP = sltpAvailable && enableSLTP && !formState.reduceOnly;
+    const sltpProblem = sltpError(side, isMarketOrder ? markPrice : priceValue);
+    if (sltpProblem) {
+      toast.error(sltpProblem.message);
+      return;
     }
 
     if (isMarketOrder && (!markPrice || markPrice <= 0)) {
@@ -264,22 +288,6 @@ export function useOrderForm() {
           markPrice: markPrice!,
           reduceOnly: formState.reduceOnly,
         });
-
-        // Orders on a market run in queue order, so this lands after the
-        // entry. Reduce-only caps it at whatever position the entry opened.
-        if (result.success && takeProfit) {
-          const tpResult = await openPosition({
-            side: side === 'Buy' ? 'Sell' : 'Buy',
-            leverage: String(maxLeverage),
-            marginMode: formState.marginMode,
-            price: takeProfit,
-            size: formState.size,
-            reduceOnly: true,
-          });
-          if (!tpResult.success) {
-            toast.warning('Position opened without take profit. Place a limit order to close it.');
-          }
-        }
       } else {
         result = await openPosition({
           side,
@@ -288,6 +296,19 @@ export function useOrderForm() {
           price: formState.price,
           size: formState.size,
           reduceOnly: formState.reduceOnly,
+        });
+      }
+
+      // Sized to this entry, so the bracket protects exactly what it opened.
+      if (result.success && withSLTP && selectedMarket) {
+        await placeTriggerLegs({
+          marketIndex: parseInt(selectedMarket.uuid, 10),
+          position: side === 'Buy' ? 'long' : 'short',
+          size: formState.size,
+          stopLoss: formState.stopLoss || undefined,
+          takeProfit: formState.takeProfit || undefined,
+          slippageBps: TRIGGER_SLIPPAGE_BPS,
+          expiresInSecs: TRIGGER_EXPIRY_SECS,
         });
       }
 
@@ -343,5 +364,6 @@ export function useOrderForm() {
     computedLeverage,
     handleInputChange,
     handleOpenPosition,
+    sltpError,
   };
 }

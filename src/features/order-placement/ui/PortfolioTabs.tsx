@@ -4,6 +4,8 @@ import { MyOrders } from './MyOrders';
 import { MyTrades } from './MyTrades';
 import { MyAssets } from './MyAssets';
 import { MyPositions } from './MyPositions';
+import { MyTriggerOrders } from './MyTriggerOrders';
+import { useTriggerOrdersEnabled } from '@/features/trigger-orders/model/useTriggerOrders';
 import { Trades } from '@/features/orderbook-view/ui/Trades';
 import { useAtom } from 'jotai';
 import { portfolioActiveTabAtom, type PortfolioTab } from '@/entities/market';
@@ -11,6 +13,7 @@ import { portfolioActiveTabAtom, type PortfolioTab } from '@/entities/market';
 export function PortfolioTabs() {
   const { publicKey } = useWallet();
   const [activeTab, setActiveTab] = useAtom(portfolioActiveTabAtom);
+  const sltpAvailable = useTriggerOrdersEnabled();
 
   return (
     <div className="flex flex-col flex-1 h-full overflow-hidden">
@@ -24,6 +27,7 @@ export function PortfolioTabs() {
             <TabsList className="w-full justify-start border-b border-outline rounded-none bg-transparent overflow-x-auto flex-shrink-0">
               <TabsTrigger value="orders">My Orders</TabsTrigger>
               <TabsTrigger value="positions">My Positions</TabsTrigger>
+              {sltpAvailable && <TabsTrigger value="triggers">TP / SL</TabsTrigger>}
               <TabsTrigger value="trades">My Trades</TabsTrigger>
               <TabsTrigger value="assets">Assets</TabsTrigger>
             </TabsList>
@@ -33,6 +37,9 @@ export function PortfolioTabs() {
               </TabsContent>
               <TabsContent value="positions" className="mt-0 h-full overflow-auto">
                 <MyPositions />
+              </TabsContent>
+              <TabsContent value="triggers" className="mt-0 h-full overflow-auto">
+                <MyTriggerOrders />
               </TabsContent>
               <TabsContent value="trades" className="mt-0 h-full overflow-auto">
                 <MyTrades />

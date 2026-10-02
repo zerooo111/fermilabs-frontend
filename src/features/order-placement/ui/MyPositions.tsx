@@ -18,9 +18,17 @@ import { usePerps } from '@/features/order-placement/lib/usePerps';
 import { OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
 import { useAtomValue } from 'jotai';
 import { nativeToUiNumber } from '@/shared/lib/harness-market';
+import {
+  legsForPosition,
+  useTriggerOrders,
+  useTriggerOrdersEnabled,
+} from '@/features/trigger-orders/model/useTriggerOrders';
+import { legTriggerPrice, toNative } from '@/features/trigger-orders/lib/display';
+import { PositionTriggerEditor } from './PositionTriggerEditor';
 
 type CloseDraft = {
   positionKey: string;
+  marketIndex: number;
   marketName: string;
   side: OrderSide;
   size: string;
@@ -45,7 +53,9 @@ export function MyPositions() {
   const { selectedMarket } = useSelectedMarket();
   const markets = useAtomValue(marketsAtom);
   const { data: positions, isLoading } = usePositions({ owner: publicKey?.toBase58() || '' });
-  const { closePosition } = usePerps();
+  const { closePosition, cancelTriggerLegs } = usePerps();
+  const { data: triggerOrders } = useTriggerOrders();
+  const sltpAvailable = useTriggerOrdersEnabled();
   const [closingPositionKey, setClosingPositionKey] = useState<string | null>(null);
   const [closeDraft, setCloseDraft] = useState<CloseDraft | null>(null);
 
@@ -69,6 +79,7 @@ export function MyPositions() {
 
     return {
       positionKey: buildPositionKey(position, index),
+      marketIndex: parseInt(position.market_id, 10),
       marketName,
       side: basePositionUi > 0 ? 'Sell' : 'Buy',
       size: Math.abs(basePositionUi).toString(),
@@ -109,6 +120,16 @@ export function MyPositions() {
       });
 
       if (result.success) {
+        // A stop must not outlive its position. The keeper drops legs on a
+        // flat position too, but only on its next poll; an explicit cancel
+        // also covers closing and immediately re-opening. A limit close may
+        // rest on the book, so its legs stay until it fills.
+        if (closeDraft.mode === 'market') {
+          void cancelTriggerLegs(
+            { scope: 'all', marketIndex: closeDraft.marketIndex },
+            { silent: true }
+          );
+        }
         setCloseDraft(null);
       }
     } catch (error) {
@@ -182,13 +203,26 @@ export function MyPositions() {
       const averageEntryPrice = parseFloat(position.avg_entry_price);
       const markPrice = parseFloat(position.mark_price);
       const unrealizedPnl = parseFloat(position.unrealized_pnl);
-      const stopLossPrice = position.stop_loss_price ? parseFloat(position.stop_loss_price) : null;
-      const takeProfitPrice = position.take_profit_price
-        ? parseFloat(position.take_profit_price)
-        : null;
-
       // Get the market data for this position
       const positionMarket = marketsMap.get(position.market_id);
+      const marketIndex = parseInt(position.market_id, 10);
+      const positionSide = basePosition >= 0 ? 'long' : 'short';
+      const legs = legsForPosition(triggerOrders, marketIndex, positionSide);
+      const legMarket = positionMarket && {
+        baseDecimals: positionMarket.base_decimals,
+        quoteDecimals: positionMarket.quote_decimals,
+        baseLotSize: positionMarket.base_lot_size,
+        quoteLotSize: positionMarket.quote_lot_size,
+      };
+      // Native units, like the other price cells
+      const legPrice = (kind: 'stop_loss' | 'take_profit') => {
+        const leg = legs.find(l => l.kind === kind);
+        return leg && legMarket
+          ? toNative(legTriggerPrice(leg, legMarket), legMarket.quoteDecimals)
+          : null;
+      };
+      const stopLossPrice = legPrice('stop_loss');
+      const takeProfitPrice = legPrice('take_profit');
       const positionKey = buildPositionKey(position, index);
       const isClosePopoverOpen = closeDraft?.positionKey === positionKey;
       const isClosing = closingPositionKey === positionKey;
@@ -242,201 +276,216 @@ export function MyPositions() {
             {takeProfitPrice !== null ? formatPrice(takeProfitPrice, quoteDecimals) : '-'}
           </TableCell>
           <TableCell className="text-center">
-            <Popover
-              open={isClosePopoverOpen}
-              onOpenChange={open => handleClosePopoverOpenChange(position, index, open)}
-            >
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={Boolean(closingPositionKey && !isClosing)}
-                >
-                  {isClosing ? (
-                    <>
-                      <Loader2 className="size-3 animate-spin mr-1" />
-                      Closing...
-                    </>
-                  ) : (
-                    'Close'
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-80 space-y-3">
-                {activeCloseDraft && (
-                  <>
-                    <div className="space-y-1">
-                      <div className="text-sm font-medium">Close {activeCloseDraft.marketName}</div>
-                      <div className="text-xs text-zinc-400">
-                        {activeCloseDraft.side === 'Buy'
-                          ? 'Buy to close short'
-                          : 'Sell to close long'}
-                      </div>
-                    </div>
-
-                    <Tabs
-                      value={activeCloseDraft.mode}
-                      onValueChange={value =>
-                        setCloseDraft(current =>
-                          current
-                            ? {
-                                ...current,
-                                mode: value === 'limit' ? 'limit' : 'market',
-                              }
-                            : current
-                        )
-                      }
-                    >
-                      <TabsList className="w-full border-b border-outline">
-                        <TabsTrigger value="market" className="flex-1">
-                          Market
-                        </TabsTrigger>
-                        <TabsTrigger value="limit" className="flex-1">
-                          Limit
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-
-                    {activeCloseDraft.mode === 'market' ? (
-                      <div className="space-y-2">
-                        <div className="text-xs font-medium text-zinc-300">Max Slippage</div>
-                        <div className="flex gap-1.5">
-                          {[25, 50, 100, 200].map(bps => (
-                            <Button
-                              key={bps}
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className={`h-8 flex-1 text-xs ${
-                                activeCloseDraft.slippagePercent === (bps / 100).toString()
-                                  ? 'bg-white text-black font-bold hover:bg-white/90'
-                                  : 'hover:bg-accent/50'
-                              }`}
-                              onClick={() =>
-                                setCloseDraft(current =>
-                                  current
-                                    ? { ...current, slippagePercent: (bps / 100).toString() }
-                                    : current
-                                )
-                              }
-                            >
-                              {`${(bps / 100)
-                                .toFixed(bps % 100 === 0 ? 0 : 2)
-                                .replace(/(\.\d*[1-9])0+$|\.0+$/, '$1')}%`}
-                            </Button>
-                          ))}
-                        </div>
-                        <NumberInput
-                          name={`close-slippage-${positionKey}`}
-                          label="Custom Slippage"
-                          value={activeCloseDraft.slippagePercent}
-                          onValueChange={values =>
-                            setCloseDraft(current =>
-                              current
-                                ? { ...current, slippagePercent: values.value || '' }
-                                : current
-                            )
-                          }
-                          min={0}
-                          max={100}
-                          decimalScale={2}
-                          allowNegative={false}
-                          unit="%"
-                        />
-                        <div className="text-xs text-zinc-400">
-                          Submits a reduce-only IOC close with a price cap of{' '}
-                          <span className="font-mono tabular-nums text-zinc-100">
-                            {formatPrice(closePreviewPrice, activeCloseDraft.quoteDecimals)}
-                          </span>{' '}
-                          {activeCloseDraft.quoteUnit}.
-                        </div>
-                      </div>
+            <div className="flex justify-center gap-1.5">
+              {sltpAvailable && legMarket && (
+                <PositionTriggerEditor
+                  marketIndex={marketIndex}
+                  marketName={position.market_name}
+                  position={positionSide}
+                  markPrice={nativeToUiNumber(position.mark_price, quoteDecimals)}
+                  legs={legs}
+                  market={legMarket}
+                  quoteUnit={positionMarket?.quoteTokenName ?? 'USDC'}
+                />
+              )}
+              <Popover
+                open={isClosePopoverOpen}
+                onOpenChange={open => handleClosePopoverOpenChange(position, index, open)}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={Boolean(closingPositionKey && !isClosing)}
+                  >
+                    {isClosing ? (
+                      <>
+                        <Loader2 className="size-3 animate-spin mr-1" />
+                        Closing...
+                      </>
                     ) : (
-                      <div className="space-y-2">
-                        <NumberInput
-                          name={`close-limit-${positionKey}`}
-                          label="Limit Price"
-                          value={activeCloseDraft.limitPrice}
-                          onValueChange={values =>
-                            setCloseDraft(current =>
-                              current ? { ...current, limitPrice: values.value || '' } : current
-                            )
-                          }
-                          min={0}
-                          decimalScale={activeCloseDraft.quoteDecimals}
-                          allowNegative={false}
-                          unit={activeCloseDraft.quoteUnit}
-                        />
+                      'Close'
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-80 space-y-3">
+                  {activeCloseDraft && (
+                    <>
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium">
+                          Close {activeCloseDraft.marketName}
+                        </div>
                         <div className="text-xs text-zinc-400">
-                          Submits a resting reduce-only limit close that can remain on the book.
+                          {activeCloseDraft.side === 'Buy'
+                            ? 'Buy to close short'
+                            : 'Sell to close long'}
                         </div>
                       </div>
-                    )}
 
-                    <div className="rounded-md border border-outline bg-background/40 px-3 py-2 text-xs">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-zinc-400">Size</span>
-                        <span className="font-mono tabular-nums">
-                          {formatQuantity(
-                            Math.abs(safeParseFloat(activeCloseDraft.size)),
-                            activeCloseDraft.baseDecimals
-                          )}{' '}
-                          {activeCloseDraft.baseUnit}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-3">
-                        <span className="text-zinc-400">Mark</span>
-                        <span className="font-mono tabular-nums">
-                          {formatPrice(
-                            safeParseFloat(activeCloseDraft.markPrice),
-                            activeCloseDraft.quoteDecimals
-                          )}{' '}
-                          {activeCloseDraft.quoteUnit}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-3">
-                        <span className="text-zinc-400">
-                          {activeCloseDraft.mode === 'market' ? 'IOC Cap' : 'Limit'}
-                        </span>
-                        <span className="font-mono tabular-nums">
-                          {formatPrice(closePreviewPrice, activeCloseDraft.quoteDecimals)}{' '}
-                          {activeCloseDraft.quoteUnit}
-                        </span>
-                      </div>
-                    </div>
+                      <Tabs
+                        value={activeCloseDraft.mode}
+                        onValueChange={value =>
+                          setCloseDraft(current =>
+                            current
+                              ? {
+                                  ...current,
+                                  mode: value === 'limit' ? 'limit' : 'market',
+                                }
+                              : current
+                          )
+                        }
+                      >
+                        <TabsList className="w-full border-b border-outline">
+                          <TabsTrigger value="market" className="flex-1">
+                            Market
+                          </TabsTrigger>
+                          <TabsTrigger value="limit" className="flex-1">
+                            Limit
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
 
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={isClosing}
-                        onClick={() => setCloseDraft(null)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={closeSubmitDisabled}
-                        onClick={handleSubmitClose}
-                      >
-                        {isClosing ? (
-                          <>
-                            <Loader2 className="size-3 animate-spin mr-1" />
-                            Submitting...
-                          </>
-                        ) : activeCloseDraft.mode === 'market' ? (
-                          'Submit Market Close'
-                        ) : (
-                          'Submit Limit Close'
-                        )}
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </PopoverContent>
-            </Popover>
+                      {activeCloseDraft.mode === 'market' ? (
+                        <div className="space-y-2">
+                          <div className="text-xs font-medium text-zinc-300">Max Slippage</div>
+                          <div className="flex gap-1.5">
+                            {[25, 50, 100, 200].map(bps => (
+                              <Button
+                                key={bps}
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className={`h-8 flex-1 text-xs ${
+                                  activeCloseDraft.slippagePercent === (bps / 100).toString()
+                                    ? 'bg-white text-black font-bold hover:bg-white/90'
+                                    : 'hover:bg-accent/50'
+                                }`}
+                                onClick={() =>
+                                  setCloseDraft(current =>
+                                    current
+                                      ? { ...current, slippagePercent: (bps / 100).toString() }
+                                      : current
+                                  )
+                                }
+                              >
+                                {`${(bps / 100)
+                                  .toFixed(bps % 100 === 0 ? 0 : 2)
+                                  .replace(/(\.\d*[1-9])0+$|\.0+$/, '$1')}%`}
+                              </Button>
+                            ))}
+                          </div>
+                          <NumberInput
+                            name={`close-slippage-${positionKey}`}
+                            label="Custom Slippage"
+                            value={activeCloseDraft.slippagePercent}
+                            onValueChange={values =>
+                              setCloseDraft(current =>
+                                current
+                                  ? { ...current, slippagePercent: values.value || '' }
+                                  : current
+                              )
+                            }
+                            min={0}
+                            max={100}
+                            decimalScale={2}
+                            allowNegative={false}
+                            unit="%"
+                          />
+                          <div className="text-xs text-zinc-400">
+                            Submits a reduce-only IOC close with a price cap of{' '}
+                            <span className="font-mono tabular-nums text-zinc-100">
+                              {formatPrice(closePreviewPrice, activeCloseDraft.quoteDecimals)}
+                            </span>{' '}
+                            {activeCloseDraft.quoteUnit}.
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <NumberInput
+                            name={`close-limit-${positionKey}`}
+                            label="Limit Price"
+                            value={activeCloseDraft.limitPrice}
+                            onValueChange={values =>
+                              setCloseDraft(current =>
+                                current ? { ...current, limitPrice: values.value || '' } : current
+                              )
+                            }
+                            min={0}
+                            decimalScale={activeCloseDraft.quoteDecimals}
+                            allowNegative={false}
+                            unit={activeCloseDraft.quoteUnit}
+                          />
+                          <div className="text-xs text-zinc-400">
+                            Submits a resting reduce-only limit close that can remain on the book.
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="rounded-md border border-outline bg-background/40 px-3 py-2 text-xs">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-zinc-400">Size</span>
+                          <span className="font-mono tabular-nums">
+                            {formatQuantity(
+                              Math.abs(safeParseFloat(activeCloseDraft.size)),
+                              activeCloseDraft.baseDecimals
+                            )}{' '}
+                            {activeCloseDraft.baseUnit}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-3">
+                          <span className="text-zinc-400">Mark</span>
+                          <span className="font-mono tabular-nums">
+                            {formatPrice(
+                              safeParseFloat(activeCloseDraft.markPrice),
+                              activeCloseDraft.quoteDecimals
+                            )}{' '}
+                            {activeCloseDraft.quoteUnit}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-3">
+                          <span className="text-zinc-400">
+                            {activeCloseDraft.mode === 'market' ? 'IOC Cap' : 'Limit'}
+                          </span>
+                          <span className="font-mono tabular-nums">
+                            {formatPrice(closePreviewPrice, activeCloseDraft.quoteDecimals)}{' '}
+                            {activeCloseDraft.quoteUnit}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={isClosing}
+                          onClick={() => setCloseDraft(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={closeSubmitDisabled}
+                          onClick={handleSubmitClose}
+                        >
+                          {isClosing ? (
+                            <>
+                              <Loader2 className="size-3 animate-spin mr-1" />
+                              Submitting...
+                            </>
+                          ) : activeCloseDraft.mode === 'market' ? (
+                            'Submit Market Close'
+                          ) : (
+                            'Submit Limit Close'
+                          )}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
           </TableCell>
         </TableRow>
       );
