@@ -109,6 +109,7 @@ export function MyPositions() {
     setClosingPositionKey(closeDraft.positionKey);
     try {
       const result = await closePosition({
+        marketId: String(closeDraft.marketIndex),
         side: closeDraft.side,
         size: closeDraft.size,
         mode: closeDraft.mode,
@@ -394,7 +395,10 @@ export function MyPositions() {
                           <div className="text-xs text-zinc-400">
                             Submits a reduce-only IOC close with a price cap of{' '}
                             <span className="font-mono tabular-nums text-zinc-100">
-                              {formatPrice(closePreviewPrice, activeCloseDraft.quoteDecimals)}
+                              {formatPrice(
+                                toNative(closePreviewPrice, activeCloseDraft.quoteDecimals),
+                                activeCloseDraft.quoteDecimals
+                              )}
                             </span>{' '}
                             {activeCloseDraft.quoteUnit}.
                           </div>
@@ -426,7 +430,10 @@ export function MyPositions() {
                           <span className="text-zinc-400">Size</span>
                           <span className="font-mono tabular-nums">
                             {formatQuantity(
-                              Math.abs(safeParseFloat(activeCloseDraft.size)),
+                              toNative(
+                                Math.abs(safeParseFloat(activeCloseDraft.size)),
+                                activeCloseDraft.baseDecimals
+                              ),
                               activeCloseDraft.baseDecimals
                             )}{' '}
                             {activeCloseDraft.baseUnit}
@@ -436,7 +443,10 @@ export function MyPositions() {
                           <span className="text-zinc-400">Mark</span>
                           <span className="font-mono tabular-nums">
                             {formatPrice(
-                              safeParseFloat(activeCloseDraft.markPrice),
+                              toNative(
+                                safeParseFloat(activeCloseDraft.markPrice),
+                                activeCloseDraft.quoteDecimals
+                              ),
                               activeCloseDraft.quoteDecimals
                             )}{' '}
                             {activeCloseDraft.quoteUnit}
@@ -447,7 +457,10 @@ export function MyPositions() {
                             {activeCloseDraft.mode === 'market' ? 'IOC Cap' : 'Limit'}
                           </span>
                           <span className="font-mono tabular-nums">
-                            {formatPrice(closePreviewPrice, activeCloseDraft.quoteDecimals)}{' '}
+                            {formatPrice(
+                              toNative(closePreviewPrice, activeCloseDraft.quoteDecimals),
+                              activeCloseDraft.quoteDecimals
+                            )}{' '}
                             {activeCloseDraft.quoteUnit}
                           </span>
                         </div>

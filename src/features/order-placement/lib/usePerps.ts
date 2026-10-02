@@ -72,6 +72,8 @@ interface PerpsMarketOrderParams {
 }
 
 interface PerpsClosePositionParams {
+  /** The position's own market; the positions table lists every market. */
+  marketId: string;
   side: OrderSide;
   size: string;
   mode: 'market' | 'limit';
@@ -956,10 +958,6 @@ export function usePerps() {
       quote_lot_size: number;
     };
   }): Uint8Array => {
-    if (!selectedMarket) {
-      throw new Error('Selected market not found');
-    }
-
     const baseDecimals = params.marketMeta.base_decimals;
     const quoteDecimals = params.marketMeta.quote_decimals;
     const baseLotSize = params.marketMeta.base_lot_size;
@@ -1149,6 +1147,7 @@ export function usePerps() {
   };
 
   const closePosition = async ({
+    marketId,
     side,
     size,
     mode,
@@ -1161,9 +1160,6 @@ export function usePerps() {
     try {
       if (!publicKey || !signMessage) {
         throw new Error('Wallet not connected');
-      }
-      if (!selectedMarket) {
-        throw new Error('Selected market not found');
       }
       if (!Number.isFinite(sizeValue) || sizeValue <= 0) {
         throw new Error('Invalid close size');
@@ -1191,9 +1187,9 @@ export function usePerps() {
         orderType = QueuePlaceOrderType.Limit;
       }
 
-      const targetIndex = Number(selectedMarketId);
+      const targetIndex = Number(marketId);
       const [marketMeta, canonical] = await Promise.all([
-        resolveExecutionMarketParams(),
+        resolveExecutionMarketParams(marketId),
         resolveCanonicalAccountsForMarket(targetIndex),
       ]);
 
@@ -1211,7 +1207,7 @@ export function usePerps() {
         payloadBytes,
         remainingAccounts: canonical.remainingAccounts,
         group: canonical.group,
-        market: selectedMarketId,
+        market: marketId,
         mangoAccount: canonical.mangoAccount,
       });
 
@@ -1221,8 +1217,7 @@ export function usePerps() {
         result.acceptedLatencyMs
       );
       posthog.capture('perp_position_closed', {
-        market: selectedMarket?.name,
-        market_id: selectedMarket?.uuid,
+        market_id: marketId,
         side,
         size: sizeValue,
         close_mode: closeMode,
@@ -1233,8 +1228,7 @@ export function usePerps() {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast.error(error instanceof Error ? error.message : 'Failed to close position');
       posthog.capture('perp_position_close_failed', {
-        market: selectedMarket?.name,
-        market_id: selectedMarket?.uuid,
+        market_id: marketId,
         side,
         size: sizeValue,
         close_mode: closeMode,
@@ -1245,30 +1239,31 @@ export function usePerps() {
     }
   };
 
-  const cancelOrder = async (orderId: string): Promise<{ success: boolean; error?: string }> => {
+  const cancelOrder = async (
+    orderId: string,
+    marketId: string = selectedMarketId
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
       if (!publicKey || !signMessage) {
         throw new Error('Wallet not connected');
       }
-      if (!selectedMarket) {
-        throw new Error('Selected market not found');
+      const targetIndex = Number(marketId);
+      if (!Number.isInteger(targetIndex) || targetIndex < 0) {
+        throw new Error('Order market not found');
       }
-
-      const targetIndex = Number(selectedMarketId);
       const canonical = await resolveCanonicalAccountsForMarket(targetIndex);
       const payloadBytes = encodePerpCancelOrderQueuePayload(BigInt(orderId));
       const result = await submitIntent({
         payloadBytes,
         remainingAccounts: canonical.remainingAccounts,
         group: canonical.group,
-        market: selectedMarketId,
+        market: marketId,
         mangoAccount: canonical.mangoAccount,
       });
 
       showOrderToast('Order cancelled', result.txSignature, result.acceptedLatencyMs);
       posthog.capture('perp_order_cancelled', {
-        market: selectedMarket?.name,
-        market_id: selectedMarket?.uuid,
+        market_id: marketId,
         order_id: orderId,
         wallet: publicKey?.toBase58(),
       });
@@ -1277,8 +1272,7 @@ export function usePerps() {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast.error(error instanceof Error ? error.message : 'Failed to cancel order');
       posthog.capture('perp_order_cancel_failed', {
-        market: selectedMarket?.name,
-        market_id: selectedMarket?.uuid,
+        market_id: marketId,
         order_id: orderId,
         error_message: errorMessage,
         wallet: publicKey?.toBase58(),

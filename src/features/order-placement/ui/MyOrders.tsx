@@ -56,11 +56,11 @@ export function MyOrders() {
     );
   }
 
-  const handleCancelOrder = async (orderId: string) => {
+  const handleCancelOrder = async (orderId: string, marketId: string) => {
     try {
       // Optimistically update UI
       setCancellingOrders(prev => new Set(prev).add(orderId));
-      const result = await cancelOrder(orderId);
+      const result = await cancelOrder(orderId, marketId);
       if (!result.success) {
         throw new Error(result.error || 'Failed to cancel order');
       }
@@ -131,7 +131,7 @@ export function MyOrders() {
                 <OrderReceipt receipt={getReceiptForOrder(order.order_id)!} />
               )}
               <Button
-                onClick={() => handleCancelOrder(order.order_id)}
+                onClick={() => handleCancelOrder(order.order_id, order.market_id)}
                 variant="outline"
                 size="sm"
                 disabled={cancellingOrders.has(order.order_id)}
