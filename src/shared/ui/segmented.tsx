@@ -1,8 +1,8 @@
 /**
  * Segmented control
  * A single choice from a few options, drawn as ruled cells: a 1px rock/15
- * frame with 1px rules between cells. The chosen cell gets rock ink and an
- * amber bar along its foot, the one signal in the group.
+ * frame with 1px rules between cells. The chosen cell is lifted with a rock
+ * tint and full-strength ink; no accent colour, so it stays quiet.
  *
  * Keyboard: it is one tab stop (radiogroup); arrow keys move and select.
  */
@@ -73,11 +73,11 @@ export function Segmented<T extends string>({
             onClick={() => onChange(option.value)}
             onKeyDown={e => onKeyDown(e, i)}
             className={cn(
-              'relative flex h-6 min-w-7 items-center justify-center bg-background px-2 text-xs transition-colors',
+              'flex h-6 min-w-7 items-center justify-center bg-background px-2 text-xs transition-colors',
               'focus-visible:z-10 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-200',
               mono && 'font-mono',
               checked
-                ? 'bg-[color-mix(in_srgb,var(--color-rock)_7%,var(--color-background))] text-rock after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-amber-200'
+                ? 'bg-[color-mix(in_srgb,var(--color-rock)_14%,var(--color-background))] text-rock'
                 : 'text-rock/45 hover:text-rock/80'
             )}
           >
