@@ -24,6 +24,15 @@ import {
 } from '@/features/chart/lib/perps-chart';
 import { useSelectedMarket } from '@/entities/market';
 import { usePositions } from '@/shared/hooks/usePositions';
+import {
+  legsForPosition,
+  useTriggerOrders,
+  useTriggerOrdersEnabled,
+} from '@/features/trigger-orders/model/useTriggerOrders';
+import { legTriggerPrice } from '@/features/trigger-orders/lib/display';
+import { priceLotsToUi } from '@/features/trigger-orders/lib/triggerLegs';
+import { useReplaceTriggerLegs } from '@/features/order-placement/lib/useReplaceTriggerLegs';
+import type { ChartPosition, TriggerKind } from '@/features/chart/ui/PositionLines';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
 import { recentMarketTradesAtom, marketMetricsAtom } from '@/shared/api/sse-atoms';
@@ -108,37 +117,73 @@ function PerpsChartContainerComponent() {
     enabled: !!publicKey, // Only fetch if user is logged in
   });
 
-  // Extract SL/TP and entry price values from positions for the selected market
-  const positionData = useMemo(() => {
-    if (!positions || !selectedMarket || positions.length === 0) {
-      return { stopLoss: null, takeProfit: null, entryPrice: null, unrealizedPnl: null };
-    }
+  // Active SL/TP legs from the trigger-orders keeper
+  const { data: triggerOrders } = useTriggerOrders();
+  const sltpAvailable = useTriggerOrdersEnabled();
+  const replaceTriggerLegs = useReplaceTriggerLegs();
 
-    // Find position for the selected market
+  // The open position in the selected market, with its SL/TP legs, as the
+  // chart draws it (UI units).
+  const chartPosition = useMemo(() => {
+    if (!positions || !selectedMarket) return null;
     const position = positions.find(p => p.market_id === selectedMarket.uuid);
-    if (!position) {
-      return { stopLoss: null, takeProfit: null, entryPrice: null, unrealizedPnl: null };
-    }
+    if (!position) return null;
+    const basePosition = parseFloat(position.base_position);
+    if (!basePosition) return null;
 
-    // Normalize all values by dividing by 10^quoteDecimals
-    const quoteDecimals = selectedMarket.quote_decimals ?? 6;
-    const divisor = Math.pow(10, quoteDecimals);
+    const quoteDecimals = selectedMarket.quote_decimals ?? QUOTE_DECIMALS;
+    const baseDecimals = selectedMarket.base_decimals;
+    const toUi = (native: string | null | undefined, decimals: number) =>
+      native ? parseFloat(native) / 10 ** decimals : null;
 
-    const stopLoss = position.stop_loss_price
-      ? parseFloat(position.stop_loss_price) / divisor
-      : null;
-    const takeProfit = position.take_profit_price
-      ? parseFloat(position.take_profit_price) / divisor
-      : null;
-    const entryPrice = position.avg_entry_price
-      ? parseFloat(position.avg_entry_price) / divisor
-      : null;
-    const unrealizedPnl = position.unrealized_pnl
-      ? parseFloat(position.unrealized_pnl) / divisor
-      : null;
+    const side: 'long' | 'short' = basePosition >= 0 ? 'long' : 'short';
+    const marketIndex = parseInt(position.market_id, 10);
+    const legMarket = {
+      baseDecimals,
+      quoteDecimals,
+      baseLotSize: selectedMarket.base_lot_size,
+      quoteLotSize: selectedMarket.quote_lot_size,
+    };
+    // SL/TP are keeper-held trigger legs on the position's closing side
+    const legs = legsForPosition(triggerOrders, marketIndex, side);
+    const legPrice = (kind: TriggerKind) => {
+      const leg = legs.find(l => l.kind === kind);
+      return leg ? legTriggerPrice(leg, legMarket) : null;
+    };
 
-    return { stopLoss, takeProfit, entryPrice, unrealizedPnl };
-  }, [positions, selectedMarket]);
+    const view: ChartPosition = {
+      side,
+      size: Math.abs(basePosition) / 10 ** baseDecimals,
+      entryPrice: toUi(position.avg_entry_price, quoteDecimals) ?? 0,
+      unrealizedPnl: toUi(position.unrealized_pnl, quoteDecimals),
+      markPrice: toUi(position.mark_price, quoteDecimals),
+      stopLoss: legPrice('stop_loss'),
+      takeProfit: legPrice('take_profit'),
+      tick: priceLotsToUi(1, legMarket),
+      baseUnit: selectedMarket.baseTokenName,
+      quoteUnit: selectedMarket.quoteTokenName || 'USDC',
+    };
+    return { view, marketIndex, legs };
+  }, [positions, selectedMarket, triggerOrders]);
+
+  // Dragging a line re-places the position's legs with the moved price, keeping
+  // the other leg where it is (one OCO bracket, same as the TP/SL editor).
+  const handleTriggerChange = useCallback(
+    async (kind: TriggerKind, price: number | null) => {
+      if (!chartPosition) return false;
+      const { view, marketIndex, legs } = chartPosition;
+      const decimals = Math.max(0, Math.ceil(-Math.log10(view.tick) - 1e-9));
+      const asString = (p: number | null) => (p === null ? undefined : p.toFixed(decimals));
+      return replaceTriggerLegs({
+        marketIndex,
+        position: view.side,
+        legs,
+        stopLoss: asString(kind === 'stop_loss' ? price : view.stopLoss),
+        takeProfit: asString(kind === 'take_profit' ? price : view.takeProfit),
+      });
+    },
+    [chartPosition, replaceTriggerLegs]
+  );
 
   // State to hold candles with real-time updates
   const [candles, setCandles] = useState<ExtendedPerpsOHLCVData[]>([]);
@@ -546,10 +591,8 @@ function PerpsChartContainerComponent() {
             error={hasNoCandles ? (error as Error | null) : null}
             emptyMessage={priceSource === 'mark' ? 'No price data yet' : 'No trades yet'}
             selectedMarketName={selectedMarket?.name}
-            stopLoss={positionData.stopLoss}
-            takeProfit={positionData.takeProfit}
-            entryPrice={positionData.entryPrice}
-            unrealizedPnl={positionData.unrealizedPnl}
+            position={chartPosition?.view ?? null}
+            onTriggerChange={sltpAvailable ? handleTriggerChange : undefined}
           />
         </ErrorBoundary>
       </div>

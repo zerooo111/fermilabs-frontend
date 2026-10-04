@@ -9,13 +9,11 @@ import { Button } from '@/shared/ui/button';
 import { NumberInput } from '@/shared/ui/number-input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { formatPrice } from '@/features/orderbook-view/lib/processOrderbook';
-import { usePerps } from '@/features/order-placement/lib/usePerps';
+import { useReplaceTriggerLegs } from '@/features/order-placement/lib/useReplaceTriggerLegs';
 import type { TriggerOrder } from '@/features/trigger-orders/model/useTriggerOrders';
 import {
   legTriggerPrice,
-  TRIGGER_EXPIRY_SECS,
   TRIGGER_LATENCY_NOTE,
-  TRIGGER_SLIPPAGE_BPS,
   toNative,
   type LegMarket,
 } from '@/features/trigger-orders/lib/display';
@@ -43,7 +41,7 @@ export function PositionTriggerEditor({
   market: LegMarket;
   quoteUnit: string;
 }) {
-  const { placeTriggerLegs, cancelTriggerLegs } = usePerps();
+  const replaceTriggerLegs = useReplaceTriggerLegs();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [stopLoss, setStopLoss] = useState('');
@@ -77,27 +75,14 @@ export function PositionTriggerEditor({
   const handleSave = async () => {
     setSaving(true);
     try {
-      // New legs first, then drop the old ones by id: a failed placement
-      // leaves the old protection in place rather than none.
-      if (sl > 0 || tp > 0) {
-        const result = await placeTriggerLegs({
-          marketIndex,
-          position,
-          size: 'all',
-          stopLoss: sl > 0 ? stopLoss : undefined,
-          takeProfit: tp > 0 ? takeProfit : undefined,
-          slippageBps: TRIGGER_SLIPPAGE_BPS,
-          expiresInSecs: TRIGGER_EXPIRY_SECS,
-        });
-        if (!result.success) return;
-      }
-      if (legs.length > 0) {
-        const cancel = await cancelTriggerLegs(
-          { scope: 'ids', clientOrderIds: legs.map(l => BigInt(l.client_order_id)) },
-          { silent: sl > 0 || tp > 0 }
-        );
-        if (!cancel.success) return;
-      }
+      const saved = await replaceTriggerLegs({
+        marketIndex,
+        position,
+        legs,
+        stopLoss: sl > 0 ? stopLoss : undefined,
+        takeProfit: tp > 0 ? takeProfit : undefined,
+      });
+      if (!saved) return;
       setOpen(false);
     } finally {
       setSaving(false);

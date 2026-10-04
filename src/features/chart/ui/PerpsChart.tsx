@@ -29,6 +29,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { CHART_CONFIG } from '@/features/chart/lib/chart-constants';
 import { useResizeObserver } from '@/shared/hooks/useResizeObserver';
 import { cn } from '@/lib/utils';
+import { PositionLines, type ChartPosition, type TriggerKind } from './PositionLines';
 
 export type PerpsChartType = 'candlestick' | 'line' | 'area' | 'bar';
 
@@ -95,10 +96,10 @@ interface PerpsChartComponentProps {
   /** Shown when loading has finished but there are no candles to draw. */
   emptyMessage?: string;
   selectedMarketName?: string;
-  stopLoss?: number | null;
-  takeProfit?: number | null;
-  entryPrice?: number | null;
-  unrealizedPnl?: number | null;
+  /** The open position in this market, drawn as entry / SL / TP lines. */
+  position?: ChartPosition | null;
+  /** Sets or removes a TP/SL leg when its line is dragged; absent = read-only. */
+  onTriggerChange?: (kind: TriggerKind, price: number | null) => Promise<boolean>;
   colors?: {
     backgroundColor?: string;
     upColor?: string;
@@ -202,13 +203,16 @@ function PerpsChartComponent({
   error,
   emptyMessage = 'No data yet',
   selectedMarketName,
-  stopLoss,
-  takeProfit,
-  entryPrice,
-  unrealizedPnl,
+  position,
+  onTriggerChange,
   onLoadMoreData,
 }: PerpsChartComponentProps) {
   const [hoveredCandle, setHoveredCandle] = useState<HoveredCandle | null>(null);
+  // The live chart + price series, as state so the position overlay re-binds
+  // when the chart is rebuilt (interval / chart-type change).
+  const [chartApi, setChartApi] = useState<{ chart: IChartApi; series: ISeriesApi<any> } | null>(
+    null
+  );
   const chartColors = useChartColors();
 
   const {
@@ -242,21 +246,6 @@ function PerpsChartComponent({
   useEffect(() => {
     reachedBeginningRef.current = Boolean(reachedBeginningOfHistory);
   }, [reachedBeginningOfHistory]);
-  const stopLossLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
-  const takeProfitLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
-  const entryPriceLineRef = useRef<ReturnType<ISeriesApi<any>['createPriceLine']> | null>(null);
-  const previousValuesRef = useRef<{
-    stopLoss: number | null | undefined;
-    takeProfit: number | null | undefined;
-    entryPrice: number | null | undefined;
-    unrealizedPnl: number | null | undefined;
-  }>({
-    stopLoss: undefined,
-    takeProfit: undefined,
-    entryPrice: undefined,
-    unrealizedPnl: undefined,
-  });
-
   // Use ResizeObserver for container-specific resizing
   const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(
     null
@@ -480,10 +469,8 @@ function PerpsChartComponent({
       isInitialMountRef.current = true;
       previousDataRef.current = [];
       previousVolumeDataRef.current = [];
-      stopLossLineRef.current = null;
-      takeProfitLineRef.current = null;
-      entryPriceLineRef.current = null;
       lastLoadMoreEarliestRef.current = null;
+      setChartApi({ chart, series });
 
       // Subscribe to visible-range changes so we can request more history
       // when the user scrolls past the currently loaded left edge.
@@ -559,15 +546,7 @@ function PerpsChartComponent({
       isMountedRef.current = false;
       try {
         if (chartRef.current) {
-          // Clean up price lines
-          if (seriesRef.current && stopLossLineRef.current) {
-            seriesRef.current.removePriceLine(stopLossLineRef.current);
-            stopLossLineRef.current = null;
-          }
-          if (seriesRef.current && takeProfitLineRef.current) {
-            seriesRef.current.removePriceLine(takeProfitLineRef.current);
-            takeProfitLineRef.current = null;
-          }
+          setChartApi(null);
           chartRef.current.remove();
           chartRef.current = null;
           seriesRef.current = null;
@@ -798,181 +777,6 @@ function PerpsChartComponent({
     }
   }, [data, chartType, transformData, interval]);
 
-  // Update stop loss and take profit price lines
-  useEffect(() => {
-    if (!seriesRef.current) return;
-    // Only create price lines if we have data
-    if (!data || data.length === 0) return;
-
-    // Check which specific values have changed
-    const stopLossChanged = previousValuesRef.current.stopLoss !== stopLoss;
-    const takeProfitChanged = previousValuesRef.current.takeProfit !== takeProfit;
-    const entryPriceChanged = previousValuesRef.current.entryPrice !== entryPrice;
-    const pnlChanged = previousValuesRef.current.unrealizedPnl !== unrealizedPnl;
-
-    // Check if lines should exist based on current values
-    const shouldHaveStopLoss = stopLoss !== null && stopLoss !== undefined && stopLoss > 0;
-    const shouldHaveTakeProfit = takeProfit !== null && takeProfit !== undefined && takeProfit > 0;
-    const shouldHaveEntryPrice = entryPrice !== null && entryPrice !== undefined && entryPrice > 0;
-
-    // Check if we need to update anything - only recreate when price values change, not PnL
-    const needsStopLossUpdate =
-      stopLossChanged ||
-      (shouldHaveStopLoss && stopLossLineRef.current === null) ||
-      (!shouldHaveStopLoss && stopLossLineRef.current !== null);
-    const needsTakeProfitUpdate =
-      takeProfitChanged ||
-      (shouldHaveTakeProfit && takeProfitLineRef.current === null) ||
-      (!shouldHaveTakeProfit && takeProfitLineRef.current !== null);
-    const needsEntryPriceUpdate =
-      entryPriceChanged ||
-      pnlChanged || // Recreate when PnL changes for dynamic color/label
-      (shouldHaveEntryPrice && entryPriceLineRef.current === null) ||
-      (!shouldHaveEntryPrice && entryPriceLineRef.current !== null);
-
-    // If nothing needs updating, skip
-    if (!needsStopLossUpdate && !needsTakeProfitUpdate && !needsEntryPriceUpdate) {
-      return;
-    }
-
-    // Update previous values for change detection
-    previousValuesRef.current = {
-      stopLoss,
-      takeProfit,
-      entryPrice,
-      unrealizedPnl,
-    };
-
-    // Capture update flags in closure
-    const shouldUpdateStopLoss = needsStopLossUpdate;
-    const shouldUpdateTakeProfit = needsTakeProfitUpdate;
-    const shouldUpdateEntryPrice = needsEntryPriceUpdate;
-
-    // Wait a bit to ensure chart is fully initialized
-    const timeoutId = setTimeout(() => {
-      if (!seriesRef.current) return;
-
-      // Re-check if data exists before creating lines (data might have been cleared)
-      if (!data || data.length === 0) {
-        if (stopLossLineRef.current && seriesRef.current) {
-          try {
-            seriesRef.current.removePriceLine(stopLossLineRef.current);
-          } catch {
-            /* ignore */
-          }
-          stopLossLineRef.current = null;
-        }
-        if (takeProfitLineRef.current && seriesRef.current) {
-          try {
-            seriesRef.current.removePriceLine(takeProfitLineRef.current);
-          } catch {
-            /* ignore */
-          }
-          takeProfitLineRef.current = null;
-        }
-        if (entryPriceLineRef.current && seriesRef.current) {
-          try {
-            seriesRef.current.removePriceLine(entryPriceLineRef.current);
-          } catch {
-            /* ignore */
-          }
-          entryPriceLineRef.current = null;
-        }
-        return;
-      }
-
-      if (shouldUpdateStopLoss && stopLossLineRef.current) {
-        try {
-          seriesRef.current.removePriceLine(stopLossLineRef.current);
-        } catch {
-          /* ignore */
-        }
-        stopLossLineRef.current = null;
-      }
-      if (shouldUpdateTakeProfit && takeProfitLineRef.current) {
-        try {
-          seriesRef.current.removePriceLine(takeProfitLineRef.current);
-        } catch {
-          /* ignore */
-        }
-        takeProfitLineRef.current = null;
-      }
-      if (shouldUpdateEntryPrice && entryPriceLineRef.current) {
-        try {
-          seriesRef.current.removePriceLine(entryPriceLineRef.current);
-        } catch {
-          /* ignore */
-        }
-        entryPriceLineRef.current = null;
-      }
-
-      if (shouldUpdateStopLoss && stopLoss !== null && stopLoss !== undefined && stopLoss > 0) {
-        try {
-          stopLossLineRef.current = seriesRef.current.createPriceLine({
-            price: stopLoss,
-            color: chartColors.sellColor,
-            lineWidth: 1,
-            lineStyle: 2,
-            axisLabelVisible: true,
-            title: 'SL',
-          });
-        } catch {
-          /* ignore */
-        }
-      }
-
-      if (
-        shouldUpdateTakeProfit &&
-        takeProfit !== null &&
-        takeProfit !== undefined &&
-        takeProfit > 0
-      ) {
-        try {
-          takeProfitLineRef.current = seriesRef.current.createPriceLine({
-            price: takeProfit,
-            color: chartColors.buyColor,
-            lineWidth: 1,
-            lineStyle: 2,
-            axisLabelVisible: true,
-            title: 'TP',
-          });
-        } catch {
-          /* ignore */
-        }
-      }
-
-      if (
-        shouldUpdateEntryPrice &&
-        entryPrice !== null &&
-        entryPrice !== undefined &&
-        entryPrice > 0
-      ) {
-        try {
-          const pnlValue = unrealizedPnl ?? 0;
-          const isProfit = pnlValue >= 0;
-          const pnlPrefix = isProfit ? '+' : '';
-          const pnlFormatted = `${pnlPrefix}${pnlValue.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`;
-          const entryColor = isProfit ? chartColors.buyColor : chartColors.sellColor;
-          entryPriceLineRef.current = seriesRef.current.createPriceLine({
-            price: entryPrice,
-            color: entryColor,
-            lineWidth: 1,
-            lineStyle: 0,
-            axisLabelVisible: true,
-            title: pnlFormatted,
-          });
-        } catch {
-          /* ignore */
-        }
-      }
-    }, 100);
-
-    return () => clearTimeout(timeoutId);
-  }, [stopLoss, takeProfit, entryPrice, unrealizedPnl, data, chartColors]);
-
   const hasNoData = !data || data.length === 0;
   const showLoading = Boolean(isLoading) && !error;
   const showErrorOverlay = Boolean(error) && hasNoData;
@@ -1058,6 +862,17 @@ function PerpsChartComponent({
             )}
           </div>
         </div>
+      )}
+
+      {chartApi && position && !hasNoData && (
+        <PositionLines
+          chart={chartApi.chart}
+          series={chartApi.series}
+          position={position}
+          onTriggerChange={onTriggerChange}
+          buyColor={chartColors.buyColor}
+          sellColor={chartColors.sellColor}
+        />
       )}
 
       {/* Load-older indicator (left edge) */}
