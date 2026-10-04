@@ -5,11 +5,10 @@
  * ⌘S favourite, Esc close).
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useAtom, useAtomValue } from 'jotai';
 import { CaretDown, CaretUp, MagnifyingGlass, Star } from '@phosphor-icons/react';
 import { Loader2 } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { cn } from '@/lib/utils';
 import { marketsAtom, MarketKind } from '@/entities/market';
 import { useMarketSummaries, type MarketSummary } from '../model/useMarketSummaries';
@@ -176,18 +175,8 @@ function MarketSelectorBase({
   const triggerLabel = selected?.symbol ?? markets.find(m => m.uuid === selectedMarketId)?.name;
 
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      {/* Scrim like the modal's, lighter, so the table lifts off the page.
-          Below the popover (z-50); a click on it closes via outside-click. */}
-      {open &&
-        createPortal(
-          <div
-            aria-hidden
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-in fade-in-0"
-          />,
-          document.body
-        )}
-      <PopoverTrigger
+    <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
+      <DialogPrimitive.Trigger
         disabled={isLoading || markets.length === 0}
         aria-label="Select market"
         className="flex h-12 items-center gap-2 px-3 text-rock transition-colors hover:bg-white/5 disabled:opacity-50 data-[state=open]:bg-white/5"
@@ -214,135 +203,147 @@ function MarketSelectorBase({
             )}
           </>
         )}
-      </PopoverTrigger>
+      </DialogPrimitive.Trigger>
 
-      <PopoverContent
-        align="start"
-        sideOffset={0}
-        onOpenAutoFocus={e => e.preventDefault()}
-        className="flex w-[min(56rem,calc(100vw-2rem))] flex-col border-rock/25 bg-background p-0 text-rock shadow-2xl shadow-black/60 backdrop-blur-none"
-      >
-        {/* Search */}
-        <div className="flex items-center gap-2 border-b border-outline px-3">
-          <MagnifyingGlass size={14} className="shrink-0 text-rock/50" />
-          <input
-            autoFocus
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={onSearchKeyDown}
-            placeholder="Search markets"
-            aria-label="Search markets"
-            className="h-10 w-full bg-transparent text-sm text-rock outline-none placeholder:text-rock/40"
-          />
-        </div>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+        {/* Anchored near the top, not centred, so the box stays put while
+            search shortens the list */}
+        <DialogPrimitive.Content
+          onOpenAutoFocus={e => e.preventDefault()}
+          aria-describedby={undefined}
+          className="fixed top-[12vh] left-1/2 z-50 flex w-[min(56rem,calc(100vw-2rem))] -translate-x-1/2 flex-col border border-rock/25 bg-background text-rock shadow-2xl shadow-black/60 duration-150 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98] data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
+        >
+          <DialogPrimitive.Title className="sr-only">Select market</DialogPrimitive.Title>
 
-        {/* Tabs */}
-        <div role="tablist" className="flex items-end gap-1 border-b border-outline px-3 pt-2">
-          {(['all', 'favorites'] as const).map(t => (
-            <button
-              key={t}
-              type="button"
-              role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={cn(
-                '-mb-px flex items-center gap-1.5 border-b-2 px-3 pb-2 text-sm leading-5 capitalize transition-colors first:pl-0',
-                tab === t
-                  ? 'border-rock text-rock'
-                  : 'border-transparent text-rock/50 hover:text-rock'
-              )}
+          {/* Search */}
+          <div className="flex items-center gap-3 border-b border-outline px-4">
+            <MagnifyingGlass size={16} className="shrink-0 text-rock/50" />
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={onSearchKeyDown}
+              placeholder="Search markets"
+              aria-label="Search markets"
+              className="h-12 w-full bg-transparent text-base text-rock outline-none placeholder:text-rock/40"
+            />
+            <DialogPrimitive.Close
+              aria-label="Close"
+              className="border border-outline px-1.5 font-mono text-[10px] leading-4 text-rock/60 transition-colors hover:border-rock/40 hover:text-rock"
             >
-              {t}
-              {t === 'favorites' && favorites.length > 0 && (
-                <span className="font-mono text-[11px] text-rock/50">{favorites.length}</span>
-              )}
-            </button>
-          ))}
-        </div>
+              Esc
+            </DialogPrimitive.Close>
+          </div>
 
-        {/* Table */}
-        <div className="max-h-[min(28rem,60vh)] overflow-y-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-background">
-              <tr className="text-xs text-rock/50">
-                {COLUMNS.map((col, i) => (
-                  <th
-                    key={col.key}
-                    scope="col"
-                    aria-sort={
-                      sort.key === col.key ? (sort.desc ? 'descending' : 'ascending') : undefined
-                    }
-                    className={cn('h-8 px-2 font-normal whitespace-nowrap sm:px-3', col.className)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onSort(col.key)}
+          {/* Tabs */}
+          <div role="tablist" className="flex items-end gap-1 border-b border-outline px-3 pt-2">
+            {(['all', 'favorites'] as const).map(t => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={tab === t}
+                onClick={() => setTab(t)}
+                className={cn(
+                  '-mb-px flex items-center gap-1.5 border-b-2 px-3 pb-2 text-sm leading-5 capitalize transition-colors first:pl-0',
+                  tab === t
+                    ? 'border-rock text-rock'
+                    : 'border-transparent text-rock/50 hover:text-rock'
+                )}
+              >
+                {t}
+                {t === 'favorites' && favorites.length > 0 && (
+                  <span className="font-mono text-[11px] text-rock/50">{favorites.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Table */}
+          <div className="max-h-[min(30rem,60vh)] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-background">
+                <tr className="text-xs text-rock/50">
+                  {COLUMNS.map((col, i) => (
+                    <th
+                      key={col.key}
+                      scope="col"
+                      aria-sort={
+                        sort.key === col.key ? (sort.desc ? 'descending' : 'ascending') : undefined
+                      }
                       className={cn(
-                        'inline-flex items-center gap-1 transition-colors hover:text-rock',
-                        i === 0 && 'pl-6',
-                        sort.key === col.key && 'text-rock'
+                        'h-8 px-2 font-normal whitespace-nowrap sm:px-3',
+                        col.className
                       )}
                     >
-                      {col.label}
-                      {sort.key === col.key &&
-                        (sort.desc ? <CaretDown size={10} /> : <CaretUp size={10} />)}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => onSort(col.key)}
+                        className={cn(
+                          'inline-flex items-center gap-1 transition-colors hover:text-rock',
+                          i === 0 && 'pl-6',
+                          sort.key === col.key && 'text-rock'
+                        )}
+                      >
+                        {col.label}
+                        {sort.key === col.key &&
+                          (sort.desc ? <CaretDown size={10} /> : <CaretUp size={10} />)}
+                      </button>
+                    </th>
+                  ))}
+                  <th scope="col" className="hidden h-8 px-3 text-right font-normal lg:table-cell">
+                    24h trend
                   </th>
+                </tr>
+              </thead>
+              <tbody ref={listRef}>
+                {rows.map((row, index) => (
+                  <MarketRow
+                    key={row.id}
+                    row={row}
+                    index={index}
+                    active={index === activeIndex}
+                    current={row.id === selectedMarketId}
+                    favorite={favorites.includes(row.id)}
+                    onHover={setActiveIndex}
+                    onPick={pick}
+                    onToggleFavorite={toggleFavorite}
+                  />
                 ))}
-                <th scope="col" className="hidden h-8 px-3 text-right font-normal lg:table-cell">
-                  24h trend
-                </th>
-              </tr>
-            </thead>
-            <tbody ref={listRef}>
-              {rows.map((row, index) => (
-                <MarketRow
-                  key={row.id}
-                  row={row}
-                  index={index}
-                  active={index === activeIndex}
-                  current={row.id === selectedMarketId}
-                  favorite={favorites.includes(row.id)}
-                  onHover={setActiveIndex}
-                  onPick={pick}
-                  onToggleFavorite={toggleFavorite}
-                />
-              ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
 
-          {rows.length === 0 && (
-            <p className="px-3 py-10 text-center text-sm text-rock/50">
-              {tab === 'favorites' && !query
-                ? 'No favourites yet. Star a market to pin it here.'
-                : `No markets match “${query}”.`}
-            </p>
-          )}
-        </div>
+            {rows.length === 0 && (
+              <p className="px-3 py-10 text-center text-sm text-rock/50">
+                {tab === 'favorites' && !query
+                  ? 'No favourites yet. Star a market to pin it here.'
+                  : `No markets match “${query}”.`}
+              </p>
+            )}
+          </div>
 
-        {/* Shortcuts */}
-        <div className="hidden items-center gap-4 border-t border-outline px-3 py-2 text-[11px] text-rock/50 md:flex">
-          <span className="flex items-center gap-1.5">
-            <Kbd>⌘K</Kbd> Open
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Kbd>↑↓</Kbd> Navigate
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Kbd>Enter</Kbd> Select
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Kbd>⌘S</Kbd> Favourite
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Kbd>Esc</Kbd> Close
-          </span>
-          <span className="ml-auto font-mono">
-            {rows.length} of {summaries.length} markets
-          </span>
-        </div>
-      </PopoverContent>
-    </Popover>
+          {/* Shortcuts */}
+          <div className="hidden items-center gap-4 border-t border-outline px-3 py-2 text-[11px] text-rock/50 md:flex">
+            <span className="flex items-center gap-1.5">
+              <Kbd>⌘K</Kbd> Open
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Kbd>↑↓</Kbd> Navigate
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Kbd>Enter</Kbd> Select
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Kbd>⌘S</Kbd> Favourite
+            </span>
+            <span className="ml-auto font-mono">
+              {rows.length} of {summaries.length} markets
+            </span>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 
