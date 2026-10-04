@@ -379,7 +379,11 @@ export function TradeTicket() {
             is shown, not chosen: it follows from the margin committed */}
         <Popover>
           <PopoverTrigger className="mb-2 flex h-6 items-center gap-1 border border-outline px-2 text-[11px] text-rock/70 transition-colors hover:border-rock/40 hover:text-rock">
-            Cross · {leverage !== null ? fmtLeverage(leverage) : `${maxLeverage}× max`}
+            Cross ·{' '}
+            <span className="font-mono">
+              {leverage !== null ? fmtLeverage(leverage) : `${maxLeverage}×`}
+            </span>
+            {leverage === null && ' max'}
             <CaretDown size={10} />
           </PopoverTrigger>
           <PopoverContent align="end" className="flex w-64 flex-col gap-3 p-3">
@@ -411,8 +415,8 @@ export function TradeTicket() {
               </div>
             </div>
             <p className="text-[11px] text-rock/50">
-              Leverage follows the margin you commit: using all of it is {maxLeverage}×, the most
-              this market allows.
+              Leverage follows the margin you commit: using all of it is{' '}
+              <span className="font-mono">{maxLeverage}×</span>, the most this market allows.
             </p>
           </PopoverContent>
         </Popover>

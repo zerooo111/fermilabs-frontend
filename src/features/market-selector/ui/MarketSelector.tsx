@@ -5,6 +5,7 @@
  * ⌘S favourite, Esc close).
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAtom, useAtomValue } from 'jotai';
 import { CaretDown, CaretUp, MagnifyingGlass, Star } from '@phosphor-icons/react';
 import { Loader2 } from 'lucide-react';
@@ -176,6 +177,16 @@ function MarketSelectorBase({
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
+      {/* Scrim like the modal's, lighter, so the table lifts off the page.
+          Below the popover (z-50); a click on it closes via outside-click. */}
+      {open &&
+        createPortal(
+          <div
+            aria-hidden
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm animate-in fade-in-0"
+          />,
+          document.body
+        )}
       <PopoverTrigger
         disabled={isLoading || markets.length === 0}
         aria-label="Select market"
@@ -192,7 +203,7 @@ function MarketSelectorBase({
               {triggerLabel ?? 'Select market'}
             </span>
             {selected && (
-              <span className="border border-outline px-1 text-[11px] leading-4 text-rock/70">
+              <span className="border border-outline px-1 font-mono text-xs leading-4 text-rock/80">
                 {selected.maxLeverage}×
               </span>
             )}
@@ -209,7 +220,7 @@ function MarketSelectorBase({
         align="start"
         sideOffset={0}
         onOpenAutoFocus={e => e.preventDefault()}
-        className="flex w-[min(56rem,calc(100vw-2rem))] flex-col p-0 text-rock"
+        className="flex w-[min(56rem,calc(100vw-2rem))] flex-col border-rock/25 bg-background p-0 text-rock shadow-2xl shadow-black/60 backdrop-blur-none"
       >
         {/* Search */}
         <div className="flex items-center gap-2 border-b border-outline px-3">
@@ -395,7 +406,7 @@ const MarketRow = memo(function MarketRow({
           >
             {row.symbol}
           </span>
-          <span className="hidden border border-outline px-1 text-[10px] leading-4 text-rock/60 sm:inline">
+          <span className="hidden border border-outline px-1 font-mono text-[11px] leading-4 text-rock/70 sm:inline">
             {row.maxLeverage}×
           </span>
         </div>
@@ -406,10 +417,12 @@ const MarketRow = memo(function MarketRow({
           '—'
         ) : (
           <>
+            {/* "+24.40 (+0.91%)"; just the percent on narrow screens */}
             <span className="hidden lg:inline">
-              {fmtSigned(change, fmtPrice(Math.abs(change)))} /{' '}
+              {fmtSigned(change, fmtPrice(Math.abs(change)))} (
             </span>
             {fmtSigned(change, `${Math.abs(row.change24hPct).toFixed(2)}%`)}
+            <span className="hidden lg:inline">)</span>
           </>
         )}
       </td>
