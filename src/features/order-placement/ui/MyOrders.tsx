@@ -1,6 +1,7 @@
 /**
  * My orders component
- * Displays the user's active orders
+ * The selected market's open orders: resting book orders, then the stop loss
+ * and take profit legs the trigger keeper holds for it
  */
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
@@ -19,6 +20,27 @@ import {
 } from '@/features/orderbook-view/lib/processOrderbook';
 import { userOpenOrdersAtom } from '@/shared/api/sse-atoms';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
+import {
+  useTriggerOrders,
+  useTriggerOrdersEnabled,
+} from '@/features/trigger-orders/model/useTriggerOrders';
+import {
+  LEG_STATE_LABEL,
+  legSize,
+  legTriggerPrice,
+  toNative,
+  TRIGGER_LATENCY_NOTE,
+} from '@/features/trigger-orders/lib/display';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
+
+const fmtDate = (ms: number) =>
+  new Date(ms).toLocaleString(undefined, {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 
 export function MyOrders() {
   const { publicKey } = useWallet();
@@ -26,7 +48,16 @@ export function MyOrders() {
   const { selectedMarket } = useSelectedMarket();
   const orderReceipts = useAtomValue(orderReceiptsAtom);
   const userOrders = useAtomValue(userOpenOrdersAtom);
-  const { cancelOrder } = usePerps();
+  const { cancelOrder, cancelTriggerLegs } = usePerps();
+  const triggersEnabled = useTriggerOrdersEnabled();
+  const { data: triggerOrders } = useTriggerOrders();
+  const [cancellingLegs, setCancellingLegs] = useState<Set<string>>(new Set());
+
+  const myLegs = useMemo(() => {
+    if (!triggersEnabled || !selectedMarket) return [];
+    const marketIndex = parseInt(selectedMarket.uuid, 10);
+    return (triggerOrders ?? []).filter(o => o.market_index === marketIndex);
+  }, [triggersEnabled, triggerOrders, selectedMarket]);
 
   const myOrders = useMemo(() => {
     if (!userOrders || !publicKey) return [];
@@ -76,8 +107,89 @@ export function MyOrders() {
     }
   };
 
+  const handleCancelLeg = async (id: string, clientOrderId: string) => {
+    setCancellingLegs(prev => new Set(prev).add(id));
+    try {
+      await cancelTriggerLegs({ scope: 'ids', clientOrderIds: [BigInt(clientOrderId)] });
+    } finally {
+      setCancellingLegs(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
+  const renderLegRows = () => {
+    if (!selectedMarket) return null;
+    const lots = {
+      baseDecimals: selectedMarket.baseDecimals,
+      quoteDecimals: selectedMarket.quoteDecimals,
+      baseLotSize: selectedMarket.base_lot_size,
+      quoteLotSize: selectedMarket.quote_lot_size,
+    };
+
+    return myLegs.map(leg => {
+      const size = legSize(leg, lots);
+      const isCancelling = cancellingLegs.has(leg.id);
+      const stateLabel = LEG_STATE_LABEL[leg.state] ?? leg.state;
+      return (
+        <TableRow key={leg.id} className="text-xs text-white/75">
+          <TableCell>
+            <div className="flex flex-col">
+              <span>{leg.kind === 'stop_loss' ? 'Stop loss' : 'Take profit'}</span>
+              {leg.state !== 'armed' && (
+                <span className="text-[11px] text-rock/50">{stateLabel}</span>
+              )}
+            </div>
+          </TableCell>
+          <TableCell>
+            <Badge variant={leg.side === 'bid' ? 'success' : 'danger'}>
+              {leg.side === 'bid' ? 'Buy' : 'Sell'}
+            </Badge>
+          </TableCell>
+          <TableCell className="font-mono tabular-nums">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help underline decoration-rock/30 decoration-dotted underline-offset-2">
+                  {leg.direction === 'at_or_above' ? '≥ ' : '≤ '}
+                  {formatPrice(
+                    toNative(legTriggerPrice(leg, lots), lots.quoteDecimals),
+                    lots.quoteDecimals
+                  )}{' '}
+                  {selectedMarket.quoteTokenName}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-72 font-sans text-xs">
+                <span className="block font-medium">{stateLabel}</span>
+                {TRIGGER_LATENCY_NOTE}
+              </TooltipContent>
+            </Tooltip>
+          </TableCell>
+          <TableCell className="font-mono tabular-nums">
+            {size === null
+              ? 'Entire position'
+              : `${formatQuantity(toNative(size, lots.baseDecimals), lots.baseDecimals)} ${selectedMarket.baseTokenName}`}
+          </TableCell>
+          <TableCell className="font-mono">-</TableCell>
+          <TableCell className="font-mono">{fmtDate(leg.expiry_ts * 1000)}</TableCell>
+          <TableCell className="text-right">
+            <Button
+              onClick={() => handleCancelLeg(leg.id, leg.client_order_id)}
+              variant="outline"
+              size="sm"
+              disabled={isCancelling || leg.state === 'firing'}
+            >
+              {isCancelling ? 'Cancelling...' : 'Cancel'}
+            </Button>
+          </TableCell>
+        </TableRow>
+      );
+    });
+  };
+
   const renderTableContent = () => {
-    if (myOrders.length === 0) {
+    if (myOrders.length === 0 && myLegs.length === 0) {
       return (
         <TableRow>
           <TableCell colSpan={7} className="h-24 text-center text-sm text-neutral-500">
@@ -89,10 +201,10 @@ export function MyOrders() {
 
     if (!selectedMarket) return null;
 
-    return myOrders.map(order => {
+    const bookRows = myOrders.map(order => {
       return (
         <TableRow key={order.order_id} className="text-xs text-white/75">
-          <TableCell>{order.order_id}</TableCell>
+          <TableCell title={`Order ${order.order_id}`}>Limit</TableCell>
           <TableCell>
             <Badge variant={order.side === 'Buy' ? 'success' : 'danger'}>{order.side}</Badge>
           </TableCell>
@@ -143,13 +255,20 @@ export function MyOrders() {
         </TableRow>
       );
     });
+
+    return (
+      <>
+        {bookRows}
+        {renderLegRows()}
+      </>
+    );
   };
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Order ID</TableHead>
+          <TableHead>Type</TableHead>
           <TableHead>Side</TableHead>
           <TableHead>Price ({selectedMarket?.quoteTokenName})</TableHead>
           <TableHead>Size ({selectedMarket?.baseTokenName})</TableHead>
