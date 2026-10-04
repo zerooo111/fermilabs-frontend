@@ -15,8 +15,13 @@ import { gateOpenAtom, accessSessionAtom, clearSession } from '@/features/access
 import { forgetOneClickKey } from '@/features/one-click';
 import { DropdownMenu, DropdownMenuTrigger } from '@/shared/ui/dropdown-menu';
 import { Button } from '@/shared/ui/button';
+import { cn } from '@/lib/utils';
 import { AccountAvatar } from './AccountAvatar';
 import { AccountMenuContent } from './AccountMenu';
+
+// A solid fill reads taller than the outlined header buttons beside it at the
+// same height. Inset it 1px so it lines up with their inner edge.
+const OPTICAL_INSET = 'ring-1 ring-inset ring-background';
 
 const LABELS = {
   connecting: 'Connecting...',
@@ -105,7 +110,7 @@ export function ConnectWallet() {
 
   if (!connected || !publicKey) {
     return (
-      <Button variant="default" size="sm" onClick={handleConnectClick}>
+      <Button variant="default" size="sm" className={OPTICAL_INSET} onClick={handleConnectClick}>
         {connecting ? LABELS['connecting'] : LABELS['connect']}
       </Button>
     );
@@ -120,7 +125,7 @@ export function ConnectWallet() {
         <Button
           variant="default"
           size="sm"
-          className="gap-2 pl-1"
+          className={cn(OPTICAL_INSET, 'gap-2 pl-1')}
           aria-label={`Account menu${showIdentity ? `, ${identity.label}` : ''}`}
         >
           <AccountAvatar address={address} avatarUrl={identity?.avatarUrl} className="size-6" />
