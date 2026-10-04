@@ -6,6 +6,7 @@
  */
 import { useEffect } from 'react';
 import { toast } from 'sonner';
+import { NewVersionToast } from '@/shared/ui/NewVersionToast';
 
 const CHECK_INTERVAL_MS = 2 * 60 * 1000;
 const TOAST_ID = 'new-version';
@@ -22,11 +23,12 @@ async function fetchLiveBuild(): Promise<string | null> {
 }
 
 function showNewVersionToast() {
-  toast('A new version of Fermi is available', {
+  toast.custom(id => <NewVersionToast toastId={id} />, {
     id: TOAST_ID,
-    description: 'Refresh to get the latest.',
     duration: Infinity,
-    action: { label: 'Refresh', onClick: () => window.location.reload() },
+    position: 'bottom-right',
+    unstyled: true,
+    style: { padding: 0, background: 'transparent', border: 'none' },
   });
 }
 
