@@ -388,7 +388,10 @@ const MarketRow = memo(function MarketRow({
             <Star size={14} weight={favorite ? 'fill' : 'regular'} />
           </button>
           <span
-            className={cn('font-medium whitespace-nowrap', current ? 'text-lichen' : 'text-rock')}
+            className={cn(
+              'font-medium whitespace-nowrap',
+              current ? 'text-amber-200' : 'text-rock'
+            )}
           >
             {row.symbol}
           </span>

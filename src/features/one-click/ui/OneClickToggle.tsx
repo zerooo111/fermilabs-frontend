@@ -80,13 +80,13 @@ export function OneClickCard({
   // On: a slim confirmation row that stays out of the order button's way.
   if (on) {
     return (
-      <div className="flex items-center justify-between gap-3 border border-lichen/30 bg-lichen/[0.06] px-3 py-2 text-xs">
+      <div className="flex items-center justify-between gap-3 border border-amber-200/30 bg-amber-200/[0.06] px-3 py-2 text-xs">
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="flex cursor-help items-center gap-2 text-lichen">
+            <span className="flex cursor-help items-center gap-2 text-amber-200">
               <span className="relative flex size-1.5" aria-hidden>
-                <span className="absolute inset-0 animate-ping bg-lichen/70" />
-                <span className="relative size-1.5 bg-lichen" />
+                <span className="absolute inset-0 animate-ping bg-amber-200/70" />
+                <span className="relative size-1.5 bg-amber-200" />
               </span>
               <Lightning size={13} weight="fill" />
               <span className="font-medium">One-click on</span>
@@ -107,11 +107,11 @@ export function OneClickCard({
     );
   }
 
-  // Off: a call to action in the landing page's palette (lichen ground, amber CTA).
+  // Off: a call to action in the landing page's amber.
   return (
-    <div className="flex items-center gap-3 border border-lichen/40 bg-lichen/[0.07] p-3">
+    <div className="flex items-center gap-3 border border-amber-200/40 bg-amber-200/[0.07] p-3">
       <span
-        className="flex size-9 shrink-0 items-center justify-center border border-lichen/40 bg-lichen/10 text-lichen"
+        className="flex size-9 shrink-0 items-center justify-center border border-amber-200/40 bg-amber-200/10 text-amber-200"
         aria-hidden
       >
         <Lightning size={18} weight="fill" />
@@ -120,7 +120,7 @@ export function OneClickCard({
         <span className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-rock">
           One-click trading
           {!pending && (
-            <span className="border border-lichen/50 px-1 font-mono text-[9px] uppercase leading-4 tracking-[0.14em] text-lichen">
+            <span className="border border-amber-200/50 px-1 font-mono text-[9px] uppercase leading-4 tracking-[0.14em] text-amber-200">
               New
             </span>
           )}
