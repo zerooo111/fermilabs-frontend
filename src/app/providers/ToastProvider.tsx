@@ -4,8 +4,11 @@
  */
 
 import { Toaster } from 'sonner';
+import { useNewVersionToast } from '@/shared/hooks/useNewVersionToast';
 
 export function ToastProvider() {
+  useNewVersionToast();
+
   return (
     <Toaster
       richColors

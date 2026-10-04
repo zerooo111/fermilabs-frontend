@@ -1,5 +1,8 @@
 /// <reference types="vite/client" />
 
+/** Unique per build; matches /version.json of the deploy that served this bundle. */
+declare const __BUILD_ID__: string;
+
 interface ImportMetaEnv {
   readonly VITE_GATEWAY_URL?: string;
   readonly VITE_RPC_URL?: string;
