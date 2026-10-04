@@ -13,9 +13,10 @@ import { CaretDown, Check, CircleNotch, Warning, XCircle } from '@phosphor-icons
 import { cn } from '@/lib/utils';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { HealthBar } from '@/shared/ui/health-bar';
 import { OneClickToggle, useOneClick } from '@/features/one-click';
-import { TRIGGER_LATENCY_NOTE } from '@/features/trigger-orders/lib/display';
+import { TRIGGER_LATENCY_NOTE, TRIGGER_SIGN_NOTE } from '@/features/trigger-orders/lib/display';
 import { useTriggerOrdersEnabled } from '@/features/trigger-orders/model/useTriggerOrders';
 import { accountHealthPct, healthTone } from '@/shared/lib/account-health';
 import type { OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
@@ -548,7 +549,17 @@ export function TradeTicket() {
         {/* SL/TP are trigger legs; a reduce-only order has nothing to protect */}
         {sltpAvailable && !f.formState.reduceOnly && (
           <Checkbox checked={f.enableSLTP} onChange={toggleSLTP}>
-            Take profit / stop loss
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help underline decoration-rock/25 decoration-dotted underline-offset-2">
+                  Take profit / stop loss
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-64 text-xs leading-relaxed">
+                {TRIGGER_LATENCY_NOTE}
+                {!oneClickOn && ` ${TRIGGER_SIGN_NOTE}`}
+              </TooltipContent>
+            </Tooltip>
           </Checkbox>
         )}
         {sltpAvailable && !f.formState.reduceOnly && f.enableSLTP && (
@@ -571,13 +582,8 @@ export function TradeTicket() {
                 invalid={sltpProblem?.field === 'stopLoss'}
               />
             </div>
-            {sltpProblem && f.sizeValue > 0 ? (
+            {sltpProblem && f.sizeValue > 0 && (
               <p className="text-[11px] text-danger">{sltpProblem.message}</p>
-            ) : (
-              <p className="text-[11px] text-rock/50">
-                {TRIGGER_LATENCY_NOTE}
-                {!oneClickOn && ' Your wallet asks to sign each one after the order.'}
-              </p>
             )}
           </div>
         )}
