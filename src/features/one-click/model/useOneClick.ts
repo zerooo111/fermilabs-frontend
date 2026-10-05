@@ -57,11 +57,6 @@ const keyQuery = (owner: string | undefined) => ['one-click', 'session-key', own
 const delegateQuery = (account: string | null) => ['one-click', 'delegate', account] as const;
 const balanceQuery = (key: string | undefined) => ['one-click', 'session-balance', key] as const;
 
-// The relayer's margin precheck fetches every remaining account, including the
-// signer slot, and rejects the order if one doesn't exist on-chain. A fresh
-// session key has no lamports, so it doesn't exist. Funding it with the
-// rent-exempt minimum for an empty account makes it exist; turning one-click
-// off sweeps the lamports back to the owner.
 interface DelegateState {
   delegate: string;
   temporaryDelegate: string;
@@ -70,6 +65,22 @@ interface DelegateState {
   gateOpen: boolean;
 }
 
+/** A failure whose message is written for the user and safe to show as-is. */
+export class OneClickError extends Error {
+  name = 'OneClickError';
+}
+
+// Fee plus wallet-added priority fees; generous so the check never blocks a
+// wallet that could actually pay.
+const FEE_BUFFER_LAMPORTS = 100_000;
+
+const solAmount = (lamports: number) => `${(lamports / 1e9).toFixed(4)} SOL`;
+
+// The relayer's margin precheck fetches every remaining account, including the
+// signer slot, and rejects the order if one doesn't exist on-chain. A fresh
+// session key has no lamports, so it doesn't exist. Funding it with the
+// rent-exempt minimum for an empty account makes it exist; turning one-click
+// off sweeps the lamports back to the owner.
 const fundingLamports = (connection: import('@solana/web3.js').Connection) =>
   connection.getMinimumBalanceForRentExemption(0);
 
@@ -195,6 +206,16 @@ export function useOneClick() {
       }
       const signed = await anchorWallet.signTransaction(tx);
 
+      // A long approval (e.g. wallet warning screens) can outlive the
+      // blockhash; sending then would only be dropped by the cluster.
+      const expired = async () =>
+        (await connection.getBlockHeight(config.devnet.commitment)) > lastValidBlockHeight;
+      const expiredError = () =>
+        new OneClickError(
+          'The wallet approval took too long and the request expired. Please try again.'
+        );
+      if (await expired().catch(() => false)) throw expiredError();
+
       let signature: string;
       try {
         signature = await connection.sendRawTransaction(signed.serialize(), {
@@ -202,15 +223,27 @@ export function useOneClick() {
           maxRetries: 10,
         });
       } catch (err) {
-        throw await enrichSendError(err);
+        console.error('One-click send failed:', await enrichSendError(err));
+        throw new OneClickError('Could not send the transaction. Please try again.');
       }
-      const confirmed = await pollForConfirmation(
-        connection,
-        signature,
-        lastValidBlockHeight,
-        config.devnet.commitment
-      );
-      if (!confirmed) throw new Error('Transaction was not confirmed. Please try again.');
+      let confirmed: boolean;
+      try {
+        confirmed = await pollForConfirmation(
+          connection,
+          signature,
+          lastValidBlockHeight,
+          config.devnet.commitment
+        );
+      } catch (err) {
+        console.error(`One-click transaction ${signature} failed:`, err);
+        throw new OneClickError('The transaction failed on-chain. Please try again.');
+      }
+      if (!confirmed) {
+        if (await expired().catch(() => false)) throw expiredError();
+        throw new OneClickError(
+          'The transaction was not confirmed in time. Check your wallet activity, then try again.'
+        );
+      }
 
       queryClient.setQueryData(
         delegateQuery(fermiAccountPk),
@@ -243,10 +276,17 @@ export function useOneClick() {
   const enable = useCallback(async () => {
     if (!owner || !publicKey) throw new Error('Wallet not connected');
     const previous = key;
+    // Before a fresh key replaces the stored one, so a failed check keeps it.
+    const lamports = await fundingLamports(connection);
+    const balance = await connection.getBalance(publicKey, config.devnet.commitment);
+    if (balance < lamports + FEE_BUFFER_LAMPORTS) {
+      throw new OneClickError(
+        `One-click trading needs about ${solAmount(lamports + FEE_BUFFER_LAMPORTS)} in your wallet (returned when you turn it off).`
+      );
+    }
     // A fresh key every time, so an old key (e.g. from a shared machine) is never reused.
     const fresh = await createSessionKey(owner);
     queryClient.setQueryData(keyQuery(owner), fresh);
-    const lamports = await fundingLamports(connection);
     const sweep = await sweepInstructions(previous);
     await setDelegate(
       fresh.publicKey,

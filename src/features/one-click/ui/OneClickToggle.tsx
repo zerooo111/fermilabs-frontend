@@ -8,7 +8,7 @@ import { CircleNotch, Lightning } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
-import { useOneClick } from '../model/useOneClick';
+import { OneClickError, useOneClick } from '../model/useOneClick';
 
 const isRejection = (err: unknown) =>
   /reject|denied|cancel/i.test(err instanceof Error ? err.message : String(err));
@@ -32,7 +32,9 @@ export function OneClickToggle() {
       );
     } catch (err) {
       console.error(`One-click ${action} failed:`, err);
-      if (!isRejection(err)) {
+      if (err instanceof OneClickError) {
+        toast.error(err.message);
+      } else if (!isRejection(err)) {
         toast.error(
           action === 'enable'
             ? 'Could not enable one-click trading. Please try again.'
