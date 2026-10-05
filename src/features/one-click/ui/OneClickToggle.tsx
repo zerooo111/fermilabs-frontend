@@ -4,16 +4,10 @@
  * the account to this browser's session key; after that orders sign instantly.
  */
 import { useState } from 'react';
-import { CircleNotch, Coins, Lightning, ShieldCheck } from '@phosphor-icons/react';
+import { CircleNotch, Lightning } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/shared/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { useOneClick } from '../model/useOneClick';
 
 const isRejection = (err: unknown) =>
@@ -62,26 +56,6 @@ export function OneClickToggle() {
 
 type Pending = 'enable' | 'disable' | null;
 
-const EXPLAINER_POINTS = [
-  {
-    Icon: Lightning,
-    title: 'Instant orders',
-    detail: 'This browser gets its own trading key, so orders and cancels skip wallet pop-ups.',
-  },
-  {
-    Icon: ShieldCheck,
-    title: 'Trade-only key',
-    detail:
-      "It can trade on your account but can't move funds anywhere except back to your wallet.",
-  },
-  {
-    Icon: Coins,
-    title: '~0.0007 SOL deposit',
-    detail:
-      'Moved onto the key so the network recognizes it. Returned when you turn one-click off.',
-  },
-];
-
 /** Stateless view: the off-state call to action and the on-state confirmation row. */
 export function OneClickCard({
   on,
@@ -94,10 +68,6 @@ export function OneClickCard({
   onEnable: () => void;
   onDisable: () => void;
 }) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  // Enabling succeeded: drop the dialog so it doesn't reappear if one-click is later turned off.
-  if (on && confirmOpen) setConfirmOpen(false);
-
   // On: a slim confirmation row that stays out of the order button's way.
   if (on) {
     return (
@@ -125,86 +95,44 @@ export function OneClickCard({
 
   // Off: a call to action in the landing page's amber.
   return (
-    <div className="flex items-center gap-3 border border-amber-200/40 bg-amber-200/[0.07] p-3">
-      <span
-        className="flex size-9 shrink-0 items-center justify-center border border-amber-200/40 bg-amber-200/10 text-amber-200"
-        aria-hidden
-      >
-        <Lightning size={18} weight="fill" />
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-rock">
-          One-click trading
-          {!pending && (
-            <span className="border border-amber-200/50 px-1 font-mono text-[9px] uppercase leading-4 tracking-[0.14em] text-amber-200">
-              New
-            </span>
-          )}
-        </span>
-        {pending === 'enable' ? (
-          <span className="text-xs leading-snug text-amber-200">
-            Confirm the transaction in your wallet.
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center gap-3 border border-amber-200/40 bg-amber-200/[0.07] p-3">
+          <span
+            className="flex size-9 shrink-0 items-center justify-center border border-amber-200/40 bg-amber-200/10 text-amber-200"
+            aria-hidden
+          >
+            <Lightning size={18} weight="fill" />
           </span>
-        ) : (
-          <span className="text-xs leading-snug text-rock/60">No wallet pop-ups per order.</span>
-        )}
-      </div>
-      <button
-        type="button"
-        disabled={pending !== null}
-        onClick={() => setConfirmOpen(true)}
-        className="flex h-8 shrink-0 items-center gap-1.5 bg-amber-200 px-3 text-xs font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-70"
-      >
-        {pending === 'enable' && <CircleNotch size={12} className="animate-spin" />}
-        {pending === 'enable' ? 'Approving' : 'Enable'}
-      </button>
-
-      <Dialog open={confirmOpen} onOpenChange={open => pending === null && setConfirmOpen(open)}>
-        <DialogContent className="max-w-sm gap-5">
-          <DialogHeader className="gap-2">
-            <DialogTitle className="flex items-center gap-2">
-              <Lightning size={16} weight="fill" className="text-amber-200" aria-hidden />
-              Enable one-click trading
-            </DialogTitle>
-            <DialogDescription>Approve once in your wallet, then trade freely.</DialogDescription>
-          </DialogHeader>
-          <ul className="flex flex-col gap-3">
-            {EXPLAINER_POINTS.map(({ Icon, title, detail }) => (
-              <li key={title} className="flex items-start gap-3">
-                <span
-                  className="flex size-7 shrink-0 items-center justify-center border border-amber-200/30 bg-amber-200/[0.07] text-amber-200"
-                  aria-hidden
-                >
-                  <Icon size={14} weight="fill" />
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-rock">
+              One-click trading
+              {!pending && (
+                <span className="border border-amber-200/50 px-1 font-mono text-[9px] uppercase leading-4 tracking-[0.14em] text-amber-200">
+                  New
                 </span>
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium text-rock">{title}</span>
-                  <span className="text-xs leading-snug text-rock/60">{detail}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              disabled={pending !== null}
-              onClick={() => setConfirmOpen(false)}
-              className="h-8 px-3 text-xs text-rock/60 transition-colors hover:text-rock disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={pending !== null}
-              onClick={onEnable}
-              className="flex h-8 items-center gap-1.5 bg-amber-200 px-3 text-xs font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-70"
-            >
-              {pending === 'enable' && <CircleNotch size={12} className="animate-spin" />}
-              {pending === 'enable' ? 'Confirm in wallet…' : 'Approve in wallet'}
-            </button>
+              )}
+            </span>
+            {pending === 'enable' && (
+              <span className="text-xs leading-snug text-amber-200">
+                Confirm the transaction in your wallet.
+              </span>
+            )}
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          <button
+            type="button"
+            disabled={pending !== null}
+            onClick={onEnable}
+            className="flex h-8 shrink-0 items-center gap-1.5 bg-amber-200 px-3 text-xs font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-70"
+          >
+            {pending === 'enable' && <CircleNotch size={12} className="animate-spin" />}
+            {pending === 'enable' ? 'Approving' : 'Enable'}
+          </button>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">
+        Approve once to enable auto signing.
+      </TooltipContent>
+    </Tooltip>
   );
 }
