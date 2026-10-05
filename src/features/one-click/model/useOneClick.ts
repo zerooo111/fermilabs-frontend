@@ -157,7 +157,7 @@ export function useOneClick() {
   /**
    * Owner-signed `account_edit` setting the account's temporary delegate,
    * plus any lamport moves for session keys (which co-sign when they send).
-   * Also clears a permanent delegate left over from before sessions expired.
+   * Always unsets the permanent delegate (see buildSetTemporaryDelegateInstruction).
    */
   const setDelegate = useCallback(
     async (
@@ -168,8 +168,6 @@ export function useOneClick() {
     ) => {
       if (!anchorWallet || !mangoAccountPk) throw new Error('Wallet or Fermi account missing');
       const { client, group } = await getMangoClientAndGroup(connection, serverConfig);
-      const clearPermanent =
-        !!delegate.data && delegate.data.delegate !== PublicKey.default.toBase58();
       const ix = await buildSetTemporaryDelegateInstruction({
         connection,
         client,
@@ -178,7 +176,6 @@ export function useOneClick() {
         owner: anchorWallet.publicKey,
         temporaryDelegate: newDelegate,
         expiry: Math.floor(expiresAt / 1000),
-        delegate: clearPermanent ? PublicKey.default : undefined,
       });
 
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash(
@@ -219,14 +216,14 @@ export function useOneClick() {
         delegateQuery(mangoAccountPk),
         (prev: DelegateState | undefined): DelegateState => ({
           gateOpen: prev?.gateOpen ?? true,
-          delegate: clearPermanent ? PublicKey.default.toBase58() : (prev?.delegate ?? ''),
+          delegate: PublicKey.default.toBase58(),
           temporaryDelegate: newDelegate.toBase58(),
           expiresAt,
         })
       );
       return signature;
     },
-    [anchorWallet, mangoAccountPk, connection, serverConfig, queryClient, delegate.data]
+    [anchorWallet, mangoAccountPk, connection, serverConfig, queryClient]
   );
 
   /** Sweep a session key's lamports back to the owner (empty if it holds none). */
