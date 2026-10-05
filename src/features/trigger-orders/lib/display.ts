@@ -17,14 +17,12 @@ export const TRIGGER_EXPIRY_SECS = TRIGGER_EXPIRY_DAYS * 24 * 60 * 60;
 
 /** Shown next to SL/TP inputs (client-SL-TP.md, "Liveness"). */
 export const TRIGGER_LATENCY_NOTE =
-  `Take profit and stop loss go off when the on-chain price reaches them. ` +
-  `That price can trail the market by up to a minute. ` +
-  `Once triggered, the order closes at most ${TRIGGER_SLIPPAGE_BPS / 100}% worse than your price; ` +
-  `if the market has already moved further, it doesn't close. ` +
-  `Cancels itself after ${TRIGGER_EXPIRY_DAYS} days.`;
+  `Triggers on the on-chain price, which can lag up to a minute. ` +
+  `Closes within ${TRIGGER_SLIPPAGE_BPS / 100}% of your price or not at all. ` +
+  `Expires in ${TRIGGER_EXPIRY_DAYS} days.`;
 
 /** Appended to the note when the owner wallet (not one-click) signs each leg. */
-export const TRIGGER_SIGN_NOTE = 'Your wallet will ask you to approve each one after the order.';
+export const TRIGGER_SIGN_NOTE = 'Approve each in your wallet after the order.';
 
 export type LegMarket = {
   baseDecimals: number;
