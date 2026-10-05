@@ -28,8 +28,8 @@ export interface MarketSummary {
   maxLeverage: number;
   markPrice: number | null;
   oraclePrice: number | null;
-  /** Hourly funding, in the same unit the chart header shows. */
-  fundingHourly: number | null;
+  /** 24h funding, in percent (same as the chart header). */
+  funding24h: number | null;
   openInterestUsd: number | null;
   volume24hUsd: number | null;
   /** Signed 24h price change, absolute and percent. */
@@ -113,7 +113,7 @@ export function useMarketSummaries(markets: Market[], enabled: boolean) {
       const change24h = last !== null && first ? last - first : null;
       const volumeLots = volumeById.get(market.uuid);
       const hasFunding = metaQuery.data?.markets.some(
-        m => m.market === market.uuid && 'funding_rate_hourly' in m.meta
+        m => m.market === market.uuid && 'funding_rate_daily' in m.meta
       );
       const risk = serverConfig?.markets.find(
         m => m.market_index === parseInt(market.uuid, 10)
@@ -126,8 +126,7 @@ export function useMarketSummaries(markets: Market[], enabled: boolean) {
         maxLeverage: marketRiskLimits(risk).maxLeverage,
         markPrice,
         oraclePrice: metrics?.oracle_price_ui || null,
-        // Matches ChartHeader: funding_rate_hourly_pct / 100
-        fundingHourly: metrics && hasFunding ? metrics.funding_rate_hourly_pct / 100 : null,
+        funding24h: metrics && hasFunding ? metrics.funding_rate_daily_pct : null,
         openInterestUsd:
           metrics && markPrice !== null ? metrics.open_interest_base_ui * markPrice : null,
         volume24hUsd:

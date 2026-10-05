@@ -42,9 +42,8 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
     return {
       mark_price_ui: liveMetrics.mark_price_ui,
       oracle_price_ui: liveMetrics.oracle_price_ui,
-      // funding_rate_hourly_pct * 100 was stored as bps, then divided by 10000 in legacy path.
-      // Net result: funding_rate_hourly_pct / 100.
-      funding_rate: liveMetrics.funding_rate_hourly_pct / 100,
+      // Already a percent. Daily, since the hourly rate rounds to ~0.0000%.
+      funding_rate: liveMetrics.funding_rate_daily_pct,
       open_interest_ui: liveMetrics.open_interest_base_ui,
     };
   }, [selectedMarketId, liveMetrics]);
@@ -101,7 +100,7 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
         </div>
 
         <div className="flex flex-col justify-center px-2 h-full ">
-          <span className="text-xs whitespace-nowrap font-medium text-white/50">Funding Rate</span>
+          <span className="text-xs whitespace-nowrap font-medium text-white/50">24h Funding</span>
           <span
             className={cn(
               'font-mono font-semibold text-base',

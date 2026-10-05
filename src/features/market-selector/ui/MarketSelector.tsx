@@ -28,7 +28,7 @@ type SortKey =
   | 'symbol'
   | 'markPrice'
   | 'change24hPct'
-  | 'fundingHourly'
+  | 'funding24h'
   | 'volume24hUsd'
   | 'openInterestUsd';
 
@@ -36,7 +36,7 @@ const COLUMNS: Array<{ key: SortKey; label: string; className: string }> = [
   { key: 'symbol', label: 'Market', className: 'text-left' },
   { key: 'markPrice', label: 'Last price', className: 'text-right' },
   { key: 'change24hPct', label: '24h change', className: 'text-right' },
-  { key: 'fundingHourly', label: '1h funding', className: 'text-right hidden md:table-cell' },
+  { key: 'funding24h', label: '24h funding', className: 'text-right hidden md:table-cell' },
   { key: 'volume24hUsd', label: '24h volume', className: 'text-right hidden sm:table-cell' },
   { key: 'openInterestUsd', label: 'Open interest', className: 'text-right hidden md:table-cell' },
 ];
@@ -432,7 +432,7 @@ const MarketRow = memo(function MarketRow({
         )}
       </td>
       <td className="hidden px-3 text-right font-mono text-rock/80 md:table-cell">
-        {row.fundingHourly === null ? '—' : `${row.fundingHourly.toFixed(4)}%`}
+        {row.funding24h === null ? '—' : `${row.funding24h.toFixed(4)}%`}
       </td>
       <td className="hidden px-3 text-right font-mono text-rock/80 sm:table-cell">
         {fmtUsd(row.volume24hUsd)}
