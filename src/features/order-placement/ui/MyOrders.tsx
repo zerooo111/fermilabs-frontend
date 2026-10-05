@@ -29,8 +29,8 @@ import {
   legSize,
   legTriggerPrice,
   toNative,
-  TRIGGER_LATENCY_NOTE,
 } from '@/features/trigger-orders/lib/display';
+import { TriggerFacts } from '@/features/trigger-orders/ui/TriggerFacts';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 
 const fmtDate = (ms: number) =>
@@ -160,9 +160,9 @@ export function MyOrders() {
                   {selectedMarket.quoteTokenName}
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-72 font-sans text-xs">
-                <span className="block font-medium">{stateLabel}</span>
-                {TRIGGER_LATENCY_NOTE}
+              <TooltipContent side="top" className="font-sans text-xs">
+                <span className="mb-1.5 block font-medium">{stateLabel}</span>
+                <TriggerFacts />
               </TooltipContent>
             </Tooltip>
           </TableCell>

@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { HealthBar } from '@/shared/ui/health-bar';
 import { OneClickToggle, useOneClick } from '@/features/one-click';
-import { TRIGGER_LATENCY_NOTE, TRIGGER_SIGN_NOTE } from '@/features/trigger-orders/lib/display';
+import { TriggerFacts } from '@/features/trigger-orders/ui/TriggerFacts';
 import { useTriggerOrdersEnabled } from '@/features/trigger-orders/model/useTriggerOrders';
 import { accountHealthPct, healthTone } from '@/shared/lib/account-health';
 import type { OrderSide } from '@/features/order-placement/lib/PerpLimitOrderIntent';
@@ -559,9 +559,8 @@ export function TradeTicket() {
                   Take profit / stop loss
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-64 text-xs leading-relaxed">
-                {TRIGGER_LATENCY_NOTE}
-                {!oneClickOn && ` ${TRIGGER_SIGN_NOTE}`}
+              <TooltipContent side="top" className="text-xs">
+                <TriggerFacts walletSigns={!oneClickOn} />
               </TooltipContent>
             </Tooltip>
           </Checkbox>

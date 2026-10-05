@@ -21,9 +21,6 @@ export const TRIGGER_LATENCY_NOTE =
   `Closes within ${TRIGGER_SLIPPAGE_BPS / 100}% of your price or not at all. ` +
   `Expires in ${TRIGGER_EXPIRY_DAYS} days.`;
 
-/** Appended to the note when the owner wallet (not one-click) signs each leg. */
-export const TRIGGER_SIGN_NOTE = 'Approve each in your wallet after the order.';
-
 export type LegMarket = {
   baseDecimals: number;
   quoteDecimals: number;
