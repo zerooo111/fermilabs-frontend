@@ -4,9 +4,16 @@
  * the account to this browser's session key; after that orders sign instantly.
  */
 import { useState } from 'react';
-import { CircleNotch, Lightning } from '@phosphor-icons/react';
+import { CircleNotch, Coins, Lightning, ShieldCheck } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { useOneClick } from '../model/useOneClick';
 
@@ -56,6 +63,26 @@ export function OneClickToggle() {
 
 type Pending = 'enable' | 'disable' | null;
 
+const EXPLAINER_POINTS = [
+  {
+    Icon: Lightning,
+    title: 'Instant orders',
+    detail: 'This browser gets its own trading key, so orders and cancels skip wallet pop-ups.',
+  },
+  {
+    Icon: ShieldCheck,
+    title: 'Trade-only key',
+    detail:
+      "It can trade on your account but can't move funds anywhere except back to your wallet.",
+  },
+  {
+    Icon: Coins,
+    title: '~0.0007 SOL deposit',
+    detail:
+      'Moved onto the key so the network recognizes it. Returned when you turn one-click off.',
+  },
+];
+
 /** Stateless view: the off-state call to action and the on-state confirmation row. */
 export function OneClickCard({
   on,
@@ -68,12 +95,13 @@ export function OneClickCard({
   onEnable: () => void;
   onDisable: () => void;
 }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // Enabling succeeded: drop the dialog so it doesn't reappear if one-click is later turned off.
+  if (on && confirmOpen) setConfirmOpen(false);
+
   const explainer = (
-    <TooltipContent side="top" className="max-w-64 text-xs leading-relaxed">
-      Approve once in your wallet and this browser gets its own trading key, so orders and cancels
-      sign instantly. The key can only trade on your account; it can&apos;t move funds anywhere but
-      back to your wallet. Enabling also moves about 0.0007 SOL onto the key so the network
-      recognizes it; turning one-click off returns it.
+    <TooltipContent side="top" className="text-xs">
+      Orders sign with a trade-only key in this browser.
     </TooltipContent>
   );
 
@@ -143,12 +171,59 @@ export function OneClickCard({
       <button
         type="button"
         disabled={pending !== null}
-        onClick={onEnable}
+        onClick={() => setConfirmOpen(true)}
         className="flex h-8 shrink-0 items-center gap-1.5 bg-amber-200 px-3 text-xs font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-70"
       >
         {pending === 'enable' && <CircleNotch size={12} className="animate-spin" />}
         {pending === 'enable' ? 'Approving' : 'Enable'}
       </button>
+
+      <Dialog open={confirmOpen} onOpenChange={open => pending === null && setConfirmOpen(open)}>
+        <DialogContent className="max-w-sm gap-5">
+          <DialogHeader className="gap-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Lightning size={16} weight="fill" className="text-amber-200" aria-hidden />
+              Enable one-click trading
+            </DialogTitle>
+            <DialogDescription>Approve once in your wallet, then trade freely.</DialogDescription>
+          </DialogHeader>
+          <ul className="flex flex-col gap-3">
+            {EXPLAINER_POINTS.map(({ Icon, title, detail }) => (
+              <li key={title} className="flex items-start gap-3">
+                <span
+                  className="flex size-7 shrink-0 items-center justify-center border border-amber-200/30 bg-amber-200/[0.07] text-amber-200"
+                  aria-hidden
+                >
+                  <Icon size={14} weight="fill" />
+                </span>
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium text-rock">{title}</span>
+                  <span className="text-xs leading-snug text-rock/60">{detail}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={pending !== null}
+              onClick={() => setConfirmOpen(false)}
+              className="h-8 px-3 text-xs text-rock/60 transition-colors hover:text-rock disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={pending !== null}
+              onClick={onEnable}
+              className="flex h-8 items-center gap-1.5 bg-amber-200 px-3 text-xs font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-70"
+            >
+              {pending === 'enable' && <CircleNotch size={12} className="animate-spin" />}
+              {pending === 'enable' ? 'Confirm in wallet…' : 'Approve in wallet'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
