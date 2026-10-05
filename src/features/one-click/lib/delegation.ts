@@ -35,12 +35,12 @@ export async function buildSetTemporaryDelegateInstruction(input: {
   connection: Connection;
   client: MangoClient;
   group: Group;
-  mangoAccount: PublicKey;
+  fermiAccount: PublicKey;
   owner: PublicKey;
   temporaryDelegate: PublicKey;
   expiry: number;
 }): Promise<TransactionInstruction> {
-  const { connection, client, group, mangoAccount, owner, temporaryDelegate, expiry } = input;
+  const { connection, client, group, fermiAccount, owner, temporaryDelegate, expiry } = input;
   const [{ AnchorProvider, BN, Program }, { IDL: MANGO_V4_IDL }] = await Promise.all([
     import('@coral-xyz/anchor'),
     import('@/shared/lib/mango-v4-idl'),
@@ -55,6 +55,6 @@ export async function buildSetTemporaryDelegateInstruction(input: {
   const program = new Program(MANGO_V4_IDL as any, client.programId, provider);
   return program.methods
     .accountEdit(null, PublicKey.default, temporaryDelegate, new BN(expiry))
-    .accounts({ group: group.publicKey, account: mangoAccount, owner })
+    .accounts({ group: group.publicKey, account: fermiAccount, owner })
     .instruction();
 }

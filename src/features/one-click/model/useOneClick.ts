@@ -1,6 +1,6 @@
 /**
  * useOneClick.ts
- * One-click trading: the owner wallet signs one Mango `account_edit` that sets
+ * One-click trading: the owner wallet signs one Fermi `account_edit` that sets
  * the account's `temporary_delegate` to a browser-held session key for 7 days.
  * Until then the session key signs order intents with no wallet prompt. The
  * delegate can place and cancel orders; it cannot change the delegate or
@@ -80,7 +80,7 @@ export function useOneClick() {
   const queryClient = useQueryClient();
   const serverConfig = useAtomValue(serverConfigAtom);
   const owner = publicKey?.toBase58();
-  const { pk: mangoAccountPk } = useAccountMangoAccount(owner);
+  const { pk: fermiAccountPk } = useAccountMangoAccount(owner);
 
   const supported = useQuery({
     queryKey: ['one-click', 'supported'],
@@ -98,13 +98,13 @@ export function useOneClick() {
   // The account's current on-chain delegates (PublicKey.default when unset),
   // and whether the group currently lets delegates sign intents at all.
   const delegate = useQuery({
-    queryKey: delegateQuery(mangoAccountPk),
+    queryKey: delegateQuery(fermiAccountPk),
     queryFn: async (): Promise<DelegateState> => {
       const { client, group } = await getMangoClientAndGroup(connection, serverConfig);
       const onChain = await fetchFermiAccountDelegates(
         client,
         connection,
-        new PublicKey(mangoAccountPk!)
+        new PublicKey(fermiAccountPk!)
       );
       return {
         delegate: onChain.delegate.toBase58(),
@@ -113,7 +113,7 @@ export function useOneClick() {
         gateOpen: delegateIntentsEnabled(group),
       };
     },
-    enabled: !!mangoAccountPk,
+    enabled: !!fermiAccountPk,
     staleTime: 60_000,
   });
 
@@ -140,16 +140,16 @@ export function useOneClick() {
   useEffect(() => {
     if (!active) return;
     const timer = setTimeout(
-      () => queryClient.invalidateQueries({ queryKey: delegateQuery(mangoAccountPk) }),
+      () => queryClient.invalidateQueries({ queryKey: delegateQuery(fermiAccountPk) }),
       expiresAt - Date.now()
     );
     return () => clearTimeout(timer);
-  }, [active, expiresAt, mangoAccountPk, queryClient]);
+  }, [active, expiresAt, fermiAccountPk, queryClient]);
 
   let status: OneClickStatus;
   if (supported.data === false) status = 'unsupported';
   else if (!owner || supported.isLoading || sessionKey.isLoading) status = 'loading';
-  else if (!mangoAccountPk) status = 'no-account';
+  else if (!fermiAccountPk) status = 'no-account';
   else if (delegate.isLoading || (!!key && keyBalance.isLoading)) status = 'loading';
   else if (delegate.data && !delegate.data.gateOpen) status = 'unsupported';
   else status = active ? 'on' : 'off';
@@ -166,13 +166,13 @@ export function useOneClick() {
       extra: { before?: TransactionInstruction[]; after?: TransactionInstruction[] } = {},
       sessionSigners: SessionKey[] = []
     ) => {
-      if (!anchorWallet || !mangoAccountPk) throw new Error('Wallet or Fermi account missing');
+      if (!anchorWallet || !fermiAccountPk) throw new Error('Wallet or Fermi account missing');
       const { client, group } = await getMangoClientAndGroup(connection, serverConfig);
       const ix = await buildSetTemporaryDelegateInstruction({
         connection,
         client,
         group,
-        mangoAccount: new PublicKey(mangoAccountPk),
+        fermiAccount: new PublicKey(fermiAccountPk),
         owner: anchorWallet.publicKey,
         temporaryDelegate: newDelegate,
         expiry: Math.floor(expiresAt / 1000),
@@ -213,7 +213,7 @@ export function useOneClick() {
       if (!confirmed) throw new Error('Transaction was not confirmed. Please try again.');
 
       queryClient.setQueryData(
-        delegateQuery(mangoAccountPk),
+        delegateQuery(fermiAccountPk),
         (prev: DelegateState | undefined): DelegateState => ({
           gateOpen: prev?.gateOpen ?? true,
           delegate: PublicKey.default.toBase58(),
@@ -223,7 +223,7 @@ export function useOneClick() {
       );
       return signature;
     },
-    [anchorWallet, mangoAccountPk, connection, serverConfig, queryClient]
+    [anchorWallet, fermiAccountPk, connection, serverConfig, queryClient]
   );
 
   /** Sweep a session key's lamports back to the owner (empty if it holds none). */

@@ -559,7 +559,7 @@ export function usePerps() {
       remainingAccounts: QueueAccountMeta[];
     }> => {
       if (!publicKey || !signerPublicKey) throw new Error('Wallet not connected');
-      if (!mangoAccountPk) throw new Error('Mango account missing; deposit margin first');
+      if (!mangoAccountPk) throw new Error('Fermi account missing; deposit margin first');
       const signer = signerPublicKey.toBase58();
 
       const cached = canonicalAccountsCacheRef.current;
@@ -1399,7 +1399,7 @@ export function usePerps() {
   ): Promise<{ success: boolean; cancelled: string[]; error?: string }> => {
     try {
       if (!publicKey || !signerPublicKey) throw new Error('Wallet not connected');
-      if (!mangoAccountPk) throw new Error('Mango account missing');
+      if (!mangoAccountPk) throw new Error('Fermi account missing');
       const group = serverConfig?.group;
       if (!group) throw new Error('Server config not loaded');
       const params: TriggerCancelParams = {

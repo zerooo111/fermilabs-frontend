@@ -30,8 +30,8 @@ export async function getMangoClientAndGroup(
   }
   const programIdStr = serverConfig?.program_id ?? config.devnet.mangoProgramId;
   const groupPkStr = serverConfig?.group ?? config.devnet.mangoGroupPk;
-  if (!programIdStr) throw new Error('Mango program ID is not configured');
-  if (!groupPkStr) throw new Error('Mango group PK is not configured');
+  if (!programIdStr) throw new Error('Fermi program ID is not configured');
+  if (!groupPkStr) throw new Error('Fermi group PK is not configured');
 
   cached = (async () => {
     const provider = new AnchorProvider(connection, new Wallet(Keypair.generate()), {

@@ -1,7 +1,7 @@
 /**
  * sessionKey.ts
  * Browser-held Ed25519 trading key for one-click trading. The owner's wallet
- * delegates to it once (Mango `account_edit`); afterwards it signs order
+ * delegates to it once (Fermi `account_edit`); afterwards it signs order
  * intents without wallet prompts.
  *
  * The private key is a non-extractable WebCrypto key kept in IndexedDB: page
