@@ -93,37 +93,29 @@ export function OneClickCard({
     );
   }
 
-  // Off: a call to action in the landing page's amber.
+  // Off: a slim call to action in the landing page's amber, same height as the on row.
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="flex items-center gap-3 border border-amber-200/40 bg-amber-200/[0.07] p-3">
-          <span
-            className="flex size-9 shrink-0 items-center justify-center border border-amber-200/40 bg-amber-200/10 text-amber-200"
-            aria-hidden
-          >
-            <Lightning size={18} weight="fill" />
-          </span>
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-rock">
-              One-click trading
-              {!pending && (
+        <div className="flex items-center justify-between gap-3 border border-amber-200/40 bg-amber-200/[0.07] py-1.5 pl-3 pr-1.5 text-xs">
+          <span className="flex min-w-0 items-center gap-2 whitespace-nowrap">
+            <Lightning size={13} weight="fill" className="shrink-0 text-amber-200" aria-hidden />
+            {pending === 'enable' ? (
+              <span className="text-amber-200">Confirm in your wallet…</span>
+            ) : (
+              <>
+                <span className="font-medium text-rock">One-click trading</span>
                 <span className="border border-amber-200/50 px-1 font-mono text-[9px] uppercase leading-4 tracking-[0.14em] text-amber-200">
                   New
                 </span>
-              )}
-            </span>
-            {pending === 'enable' && (
-              <span className="text-xs leading-snug text-amber-200">
-                Confirm the transaction in your wallet.
-              </span>
+              </>
             )}
-          </div>
+          </span>
           <button
             type="button"
             disabled={pending !== null}
             onClick={onEnable}
-            className="flex h-8 shrink-0 items-center gap-1.5 bg-amber-200 px-3 text-xs font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-70"
+            className="flex h-6 shrink-0 items-center gap-1.5 bg-amber-200 px-2.5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-70"
           >
             {pending === 'enable' && <CircleNotch size={12} className="animate-spin" />}
             {pending === 'enable' ? 'Approving' : 'Enable'}
