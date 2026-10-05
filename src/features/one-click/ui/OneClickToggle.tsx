@@ -27,7 +27,7 @@ export function OneClickToggle() {
       posthog.capture(action === 'enable' ? 'one_click_enabled' : 'one_click_disabled');
       toast.success(
         action === 'enable'
-          ? 'One-click trading on. Orders now sign without wallet prompts.'
+          ? 'One-click trading on for 7 days. Orders now sign without wallet prompts.'
           : 'One-click trading off.'
       );
     } catch (err) {

@@ -1,6 +1,6 @@
 import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 import { Group, MangoAccount, MangoClient } from '@blockworks-foundation/mango-v4';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import { type AccountInfo, Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { config } from '@/shared/config/constants';
 import type { ServerConfig } from '@/entities/server';
 
@@ -60,11 +60,10 @@ export async function getMangoClientAndGroup(
 const FERMI_ACCOUNT_DISCRIMINATOR = Uint8Array.from([245, 36, 51, 8, 90, 127, 231, 244]);
 const MANGO_ACCOUNT_DISCRIMINATOR = Uint8Array.from([243, 228, 247, 3, 169, 52, 175, 31]);
 
-export async function fetchFermiAccount(
-  client: MangoClient,
+async function fetchFermiAccountInfo(
   connection: Connection,
   accountPk: PublicKey
-): Promise<MangoAccount> {
+): Promise<AccountInfo<Buffer>> {
   const ai = await connection.getAccountInfo(accountPk);
   if (!ai) throw new Error(`Fermi account ${accountPk.toBase58()} not found`);
   if (!FERMI_ACCOUNT_DISCRIMINATOR.every((b, i) => ai.data[i] === b)) {
@@ -72,7 +71,37 @@ export async function fetchFermiAccount(
   }
   const data = Buffer.from(ai.data);
   data.set(MANGO_ACCOUNT_DISCRIMINATOR, 0);
-  return client.getMangoAccountFromAi(accountPk, { ...ai, data });
+  return { ...ai, data };
+}
+
+export async function fetchFermiAccount(
+  client: MangoClient,
+  connection: Connection,
+  accountPk: PublicKey
+): Promise<MangoAccount> {
+  return client.getMangoAccountFromAi(
+    accountPk,
+    await fetchFermiAccountInfo(connection, accountPk)
+  );
+}
+
+/**
+ * The account's delegates. The SDK's `MangoAccount` drops the temporary
+ * delegate, so this decodes the raw account instead.
+ */
+export async function fetchFermiAccountDelegates(
+  client: MangoClient,
+  connection: Connection,
+  accountPk: PublicKey
+): Promise<{ delegate: PublicKey; temporaryDelegate: PublicKey; temporaryDelegateExpiry: number }> {
+  const ai = await fetchFermiAccountInfo(connection, accountPk);
+  const raw = client.program.coder.accounts.decode('mangoAccount', ai.data);
+  return {
+    delegate: raw.delegate,
+    temporaryDelegate: raw.temporaryDelegate,
+    // Unix seconds on-chain.
+    temporaryDelegateExpiry: raw.temporaryDelegateExpiry.toNumber(),
+  };
 }
 
 export async function reloadMangoGroup(
