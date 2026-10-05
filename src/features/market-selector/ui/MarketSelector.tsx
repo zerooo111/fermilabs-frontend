@@ -10,9 +10,10 @@ import { useAtom, useAtomValue } from 'jotai';
 import { CaretDown, CaretUp, MagnifyingGlass, Star } from '@phosphor-icons/react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { marketsAtom, MarketKind } from '@/entities/market';
+import { marketNameToSlug, marketsAtom, MarketKind } from '@/entities/market';
 import { useMarketSummaries, type MarketSummary } from '../model/useMarketSummaries';
 import { favoriteMarketIdsAtom } from '../model/favorites';
+import { TokenLogo } from '@/shared/ui/token-logo';
 import { Sparkline } from './Sparkline';
 
 interface MarketSelectorProps {
@@ -172,7 +173,10 @@ function MarketSelectorBase({
   const onSort = (key: SortKey) =>
     setSort(prev => ({ key, desc: prev.key === key ? !prev.desc : key !== 'symbol' }));
 
-  const triggerLabel = selected?.symbol ?? markets.find(m => m.uuid === selectedMarketId)?.name;
+  // Show just the base ("SOL"); every listed market is a perp, so the suffix adds nothing.
+  const selectedName = markets.find(m => m.uuid === selectedMarketId)?.name;
+  const triggerLabel =
+    selected?.base ?? (selectedName && marketNameToSlug(selectedName).split(/[-/]/)[0]);
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
@@ -188,6 +192,7 @@ function MarketSelectorBase({
           </span>
         ) : (
           <>
+            {triggerLabel && <TokenLogo symbol={triggerLabel} size={20} />}
             <span className="text-lg font-medium whitespace-nowrap">
               {triggerLabel ?? 'Select market'}
             </span>
@@ -397,13 +402,14 @@ const MarketRow = memo(function MarketRow({
           >
             <Star size={14} weight={favorite ? 'fill' : 'regular'} />
           </button>
+          <TokenLogo symbol={row.base} size={18} />
           <span
             className={cn(
               'font-medium whitespace-nowrap',
               current ? 'text-amber-200' : 'text-rock'
             )}
           >
-            {row.symbol}
+            {row.base}
           </span>
           <span className="hidden border border-outline px-1 font-mono text-[11px] leading-4 text-rock/70 sm:inline">
             {row.maxLeverage}×
