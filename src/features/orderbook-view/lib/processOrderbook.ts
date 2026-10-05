@@ -197,9 +197,11 @@ export type ProcessedOrderbook = {
 
 /**
  * Converts one side of the book (best price first) into display levels.
- * Per-level sizes drive the min-size filter in both modes; in cumulative mode
- * they are recovered by differencing the server's running totals, and the
- * displayed quantity stays the server's cumulative value.
+ * `minLevelQuantity` is a size resolution: consecutive levels are merged,
+ * walking away from the best price, until a row holds at least that much.
+ * A merged row sits at its worst (last) price, the price you'd reach filling it.
+ * In cumulative mode per-level sizes come from differencing the server's
+ * running totals, and the displayed quantity stays the cumulative value.
  */
 const buildSide = (
   orders: OrderbookItem[],
@@ -209,30 +211,47 @@ const buildSide = (
   minLevelQuantity: number
 ): AggregatedOrder[] => {
   const sorted = [...orders].sort((a, b) => sortFn(a.price, b.price));
+  const cumulative = depthMode === 'cumulative';
 
   let prevCumulative = 0;
   let runningNotional = new BN(0);
+  let bucketQuantity = 0;
+  let bucketNotional = new BN(0);
   const levels: AggregatedOrder[] = [];
 
+  const flush = (price: number, cumulativeQuantity: number) => {
+    levels.push({
+      price,
+      quantity: cumulative ? cumulativeQuantity : bucketQuantity,
+      total: cumulative ? runningNotional : bucketNotional,
+      depth: 0,
+    });
+    bucketQuantity = 0;
+    bucketNotional = new BN(0);
+  };
+
+  let last: OrderbookItem | null = null;
   for (const order of sorted) {
-    const levelQuantity =
-      depthMode === 'cumulative' ? Math.max(0, order.quantity - prevCumulative) : order.quantity;
+    const levelQuantity = cumulative
+      ? Math.max(0, order.quantity - prevCumulative)
+      : order.quantity;
     prevCumulative = order.quantity;
+    if (levelQuantity === 0) continue;
 
     const levelNotional = new BN(order.price).mul(new BN(levelQuantity));
     runningNotional = runningNotional.add(levelNotional);
+    bucketQuantity += levelQuantity;
+    bucketNotional = bucketNotional.add(levelNotional);
+    last = order;
 
-    if (levelQuantity === 0 || levelQuantity < minLevelQuantity) continue;
-
-    const cumulative = depthMode === 'cumulative';
-    levels.push({
-      price: order.price,
-      quantity: cumulative ? order.quantity : levelQuantity,
-      total: cumulative ? runningNotional : levelNotional,
-      depth: 0,
-    });
-    if (levels.length >= maxRows) break;
+    if (bucketQuantity >= minLevelQuantity) {
+      flush(order.price, order.quantity);
+      if (levels.length >= maxRows) return levels;
+    }
   }
+
+  // The book ran out mid-bucket: show the remainder rather than hide it.
+  if (bucketQuantity > 0 && last) flush(last.price, last.quantity);
 
   return levels;
 };
@@ -242,7 +261,7 @@ const buildSide = (
  *
  * @param orderbook The order book; `orderbook.depthMode` says how its quantities are expressed.
  * @param maxRows The maximum number of rows to display per side (bids/asks).
- * @param quantityThreshold Minimum per-level size (normalized). Use 0 to show all levels.
+ * @param quantityThreshold Size resolution per row (normalized). Use 0 to show every level.
  * @param baseDecimals Base token decimals, used to normalize the threshold.
  */
 export const processOrderbook = (

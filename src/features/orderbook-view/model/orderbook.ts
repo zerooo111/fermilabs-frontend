@@ -1,7 +1,7 @@
 import { atom } from 'jotai';
 import type { OrderbookDepthMode } from '@/entities/orderbook';
 
-// Minimum per-level size (in base units) shown in the orderbook.
+// Size resolution (in base units): smaller levels are merged until a row holds at least this much.
 export const QUANTITY_THRESHOLD_OPTIONS = [
   { label: 'All sizes', value: 0 },
   { label: '≥ 0.01', value: 0.01 },

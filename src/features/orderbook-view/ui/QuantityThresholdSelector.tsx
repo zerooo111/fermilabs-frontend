@@ -12,10 +12,10 @@ export function QuantityThresholdSelector() {
     >
       <SelectTrigger
         size="sm"
-        aria-label="Minimum size"
+        aria-label="Size resolution"
         className="!h-7 border-none bg-transparent px-2 text-xs shadow-none"
       >
-        <SelectValue placeholder="Min Size" />
+        <SelectValue placeholder="Resolution" />
       </SelectTrigger>
       <SelectContent>
         {QUANTITY_THRESHOLD_OPTIONS.map(option => (
