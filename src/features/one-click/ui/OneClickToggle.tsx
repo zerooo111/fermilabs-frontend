@@ -14,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { useOneClick } from '../model/useOneClick';
 
 const isRejection = (err: unknown) =>
@@ -99,29 +98,18 @@ export function OneClickCard({
   // Enabling succeeded: drop the dialog so it doesn't reappear if one-click is later turned off.
   if (on && confirmOpen) setConfirmOpen(false);
 
-  const explainer = (
-    <TooltipContent side="top" className="text-xs">
-      Orders sign with a trade-only key in this browser.
-    </TooltipContent>
-  );
-
   // On: a slim confirmation row that stays out of the order button's way.
   if (on) {
     return (
       <div className="flex items-center justify-between gap-3 border border-amber-200/30 bg-amber-200/[0.06] px-3 py-2 text-xs">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="flex cursor-help items-center gap-2 text-amber-200">
-              <span className="relative flex size-1.5" aria-hidden>
-                <span className="absolute inset-0 animate-ping bg-amber-200/70" />
-                <span className="relative size-1.5 bg-amber-200" />
-              </span>
-              <Lightning size={13} weight="fill" />
-              <span className="font-medium">One-click on</span>
-            </span>
-          </TooltipTrigger>
-          {explainer}
-        </Tooltip>
+        <span className="flex items-center gap-2 text-amber-200">
+          <span className="relative flex size-1.5" aria-hidden>
+            <span className="absolute inset-0 animate-ping bg-amber-200/70" />
+            <span className="relative size-1.5 bg-amber-200" />
+          </span>
+          <Lightning size={13} weight="fill" />
+          <span className="font-medium">One-click on</span>
+        </span>
         <button
           type="button"
           disabled={pending !== null}
@@ -158,14 +146,7 @@ export function OneClickCard({
             Confirm the transaction in your wallet.
           </span>
         ) : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="cursor-help text-xs leading-snug text-rock/60 underline decoration-rock/25 decoration-dotted underline-offset-2">
-                Approve once, then trade without wallet pop-ups.
-              </span>
-            </TooltipTrigger>
-            {explainer}
-          </Tooltip>
+          <span className="text-xs leading-snug text-rock/60">No wallet pop-ups per order.</span>
         )}
       </div>
       <button
