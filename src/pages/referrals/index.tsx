@@ -9,7 +9,7 @@ import { ReferralDashboard } from '@/features/referrals';
 
 function ReferralsPage() {
   return (
-    <div className="flex flex-col min-h-[calc(100vh-60px)] px-2 py-6 md:px-4 md:py-8">
+    <div className="flex flex-col min-h-[calc(100vh-84px)] px-2 py-6 md:px-4 md:py-8">
       <div className="mx-auto w-full max-w-5xl space-y-5">
         {/* Header */}
         <div className="flex flex-col gap-1 px-1">

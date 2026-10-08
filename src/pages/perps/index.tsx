@@ -96,7 +96,7 @@ function PerpsPage() {
 
   if (isDesktop && !useClassicLayout) {
     return (
-      <div className="mx-4 h-[calc(100vh-60px)] border-x border-outline overflow-hidden">
+      <div className="mx-4 h-[calc(100vh-84px)] border-x border-outline overflow-hidden">
         <TerminalDock />
       </div>
     );
@@ -106,7 +106,7 @@ function PerpsPage() {
   // layout) the ticket is its own full-height column, so the chart row keeps a
   // fixed height instead of stretching to the ticket.
   return (
-    <div className="mx-2 md:mx-4 flex flex-col min-h-[calc(100vh-60px)] border-x border-outline overflow-hidden lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:grid-rows-[520px_1fr]">
+    <div className="mx-2 md:mx-4 flex flex-col min-h-[calc(100vh-84px)] border-x border-outline overflow-hidden lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:grid-rows-[520px_1fr]">
       {/* Chart + orderbook */}
       <div className="flex flex-col lg:flex-row min-w-0 divide-y lg:divide-y-0 lg:divide-x divide-outline lg:col-start-1 lg:row-start-1">
         <div className="flex-1 min-w-0 overflow-hidden">

@@ -69,20 +69,20 @@ function TradePanelSkeleton() {
       </div>
       <div className="p-3 flex flex-col gap-3">
         {/* Inputs */}
-        <div className="h-10 rounded border border-outline" />
-        <div className="h-10 rounded border border-outline" />
+        <div className="h-10  border border-outline" />
+        <div className="h-10  border border-outline" />
         {/* Leverage presets */}
         <div className="flex gap-1.5">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-8 flex-1 rounded border border-outline" />
+            <div key={i} className="h-8 flex-1  border border-outline" />
           ))}
         </div>
         {/* Slider */}
-        <div className="h-1 rounded-full bg-white/[0.06]" />
+        <div className="h-1 bg-rock/[0.06]" />
         {/* Buttons */}
         <div className="grid grid-cols-2 gap-2 pt-2">
-          <div className="h-10 rounded border border-outline" />
-          <div className="h-10 rounded border border-outline" />
+          <div className="h-10  border border-outline" />
+          <div className="h-10  border border-outline" />
         </div>
       </div>
     </div>
@@ -118,7 +118,7 @@ function PortfolioSkeleton() {
 
 export function TradingSkeleton() {
   return (
-    <div className="flex flex-col min-h-[calc(100vh-56px)]">
+    <div className="flex flex-col min-h-[calc(100vh-80px)]">
       <div className="flex flex-col lg:flex-row mx-2 md:mx-4 border-x border-outline divide-y lg:divide-y-0 lg:divide-x divide-outline">
         <ChartSkeleton />
         <OrderbookSkeleton />

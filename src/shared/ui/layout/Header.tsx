@@ -8,17 +8,9 @@ import { ApiKeysPanel } from '@/features/api-keys';
 import { MarginPanel } from '@/features/margin-panel/ui/MarginPanel';
 import { accessSessionAtom } from '@/features/access-gate';
 import FermiLogo3d from './FermiLogo';
-import { config } from '@/shared/config/constants';
+import { LayoutMenu } from '@/features/layout';
 
-function getNetwork(rpcUrl: string): { label: string; className: string } {
-  if (rpcUrl.includes('mainnet'))
-    return { label: 'Mainnet', className: 'text-green-400 bg-green-500/15 border-green-500/30' };
-  if (rpcUrl.includes('devnet'))
-    return { label: 'Devnet', className: 'text-amber-400 bg-amber-500/15 border-amber-500/30' };
-  if (rpcUrl.includes('testnet'))
-    return { label: 'Testnet', className: 'text-blue-400 bg-blue-500/15 border-blue-500/30' };
-  return { label: 'Custom', className: 'text-zinc-400 bg-zinc-500/15 border-zinc-500/30' };
-}
+const NAV_LINK = 'flex items-center px-2.5 text-sm transition-colors duration-150 hover:text-rock';
 
 export function Header() {
   const location = useLocation();
@@ -32,27 +24,22 @@ export function Header() {
     session[walletKey].expiresAt - 5 * 60 > Math.floor(Date.now() / 1000)
   );
 
-  const network = getNetwork(config.devnet.rpcUrl);
-
   return (
-    <nav className="w-full h-14 flex items-center p-3 border-b border-outline bg-background">
-      <div className="flex items-center justify-between flex-1">
-        <div className="flex items-center gap-3 relative">
-          <Link
-            to="/"
-            className="flex font-semibold items-center px-2 py-1 gap-2 text-lg text-primary"
-          >
-            <FermiLogo3d className="w-6 h-6 " />
+    <nav className="w-full h-14 flex items-stretch border-b border-outline bg-background text-rock">
+      <div className="flex items-stretch justify-between flex-1 px-2 md:px-4">
+        <div className="flex items-stretch gap-1">
+          <Link to="/" className="flex items-center gap-2.5 pr-5 text-lg hover:text-amber-100">
+            <FermiLogo3d className="w-6 h-6" />
             Fermi Trade
-            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-sm bg-amber-400/15 text-amber-300 border border-amber-400/30 leading-none">
-              Beta
+            <span className="border border-amber-200/60 px-1 text-[9px] font-semibold tracking-wider text-amber-200 leading-[14px]">
+              BETA
             </span>
           </Link>
           <Link
             to="/perps"
             className={cn(
-              'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
-              location.pathname === '/perps' && 'text-white'
+              NAV_LINK,
+              location.pathname.startsWith('/perps') ? 'text-rock' : 'text-rock/60'
             )}
           >
             Perps
@@ -60,19 +47,15 @@ export function Header() {
           <Link
             to="/referrals"
             className={cn(
-              'duration-100 ease-out relative text-white/50 hover:text-white  group px-2 py-1',
-              location.pathname === '/referrals' && 'text-white'
+              NAV_LINK,
+              location.pathname === '/referrals' ? 'text-rock' : 'text-rock/60'
             )}
           >
             Referrals
           </Link>
-          <span
-            className={cn('text-xs font-medium px-2 py-0.5 rounded-full border', network.className)}
-          >
-            {network.label}
-          </span>
         </div>
         <div className="flex items-center gap-1.5">
+          <LayoutMenu />
           {hasSession && (
             <>
               <MarginPanel />

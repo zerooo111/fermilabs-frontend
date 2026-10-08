@@ -322,7 +322,7 @@ function VaultPage() {
   const isButtonDisabled = inputAmount === 0 || inputAmount > maxAmount;
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-60px)] px-4 py-8">
+    <div className="flex flex-col min-h-[calc(100vh-84px)] px-4 py-8">
       <div className="max-w-lg mx-auto w-full space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
