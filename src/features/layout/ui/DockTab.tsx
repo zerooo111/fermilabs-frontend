@@ -19,18 +19,26 @@ const hoveredDockTabAtom = atom<string | null>(null);
 export function DockTab({ api }: IDockviewPanelHeaderProps) {
   const [hovered, setHovered] = useAtom(hoveredDockTabAtom);
   const locked = useAtomValue(layoutLockedAtom);
-  const [active, setActive] = useState(api.isActive);
+  // Each group keeps its own selected tab. `api.isActive` is dock-wide (only
+  // the focused group's tab), which would clear the line in every other group.
+  const [active, setActive] = useState(api.group.activePanel?.id === api.id);
   const [title, setTitle] = useState(api.title ?? api.id);
   const [groupId, setGroupId] = useState(api.group.id);
 
   useEffect(() => {
     const subs = [
-      api.onDidActiveChange(e => setActive(e.isActive)),
       api.onDidTitleChange(e => setTitle(e.title)),
       api.onDidGroupChange(() => setGroupId(api.group.id)),
     ];
     return () => subs.forEach(s => s.dispose());
   }, [api]);
+
+  useEffect(() => {
+    const group = api.group;
+    setActive(group.activePanel?.id === api.id);
+    const sub = group.api.onDidActivePanelChange(e => setActive(e.panel?.id === api.id));
+    return () => sub.dispose();
+  }, [api, groupId]);
 
   const key = `${groupId}:${api.id}`;
   const isHovered = hovered === key;
