@@ -7,6 +7,7 @@ import { AccessGateProvider } from '@/features/access-gate';
 import { QueryProvider } from './QueryProvider';
 import { ToastProvider } from './ToastProvider';
 import { PostHogProvider } from './PostHogProvider';
+import { MotionConfig } from 'motion/react';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -14,15 +15,17 @@ interface AppProvidersProps {
 
 export const AppProviders = ({ children }: AppProvidersProps) => {
   return (
-    <PostHogProvider>
-      <QueryProvider>
-        <WalletContextProvider>
-          <AccessGateProvider>
-            {children}
-            <ToastProvider />
-          </AccessGateProvider>
-        </WalletContextProvider>
-      </QueryProvider>
-    </PostHogProvider>
+    <MotionConfig reducedMotion="user">
+      <PostHogProvider>
+        <QueryProvider>
+          <WalletContextProvider>
+            <AccessGateProvider>
+              {children}
+              <ToastProvider />
+            </AccessGateProvider>
+          </WalletContextProvider>
+        </QueryProvider>
+      </PostHogProvider>
+    </MotionConfig>
   );
 };
