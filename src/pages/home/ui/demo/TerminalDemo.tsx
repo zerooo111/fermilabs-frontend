@@ -291,7 +291,7 @@ export default function TerminalDemo() {
         <div className="flex h-12 shrink-0 items-center gap-6 border-b border-[#35654e] px-5">
           <div className="flex items-center gap-2">
             <img src="/logo.svg" alt="" className="h-3 w-auto" />
-            <span className="font-serif text-[19px] tracking-tight">Fermi Trade</span>
+            <span className="text-[19px]">Fermi Trade</span>
             <span className="border border-amber-200/60 px-1 text-[9px] font-semibold tracking-wider text-amber-200">
               BETA
             </span>

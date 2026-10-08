@@ -9,7 +9,7 @@ export default function LandingHeader() {
       <nav className="frame flex h-14 items-stretch justify-between">
         <a href="/" className="flex items-center gap-2.5 pl-5 hover:text-amber-200 md:pl-10">
           <img src="/logo.svg" alt="" width="21" height="12" className="h-3 w-auto" />
-          <span className="font-serif text-xl tracking-tight">Fermi Trade</span>
+          <span className="text-xl">Fermi Trade</span>
         </a>
         <div className="flex items-stretch text-sm text-rock/75">
           <a href={LINKS.DOCS} target="_blank" rel="noreferrer" className={CELL}>

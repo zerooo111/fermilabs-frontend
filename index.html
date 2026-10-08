@@ -49,11 +49,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <!-- Newsreader loads here rather than from index.css so the boot splash
-         can use it before the bundle arrives. Non-blocking: print-media swap. -->
+    <!-- Archivo (splash wordmark) and Newsreader load here rather than from
+         index.css so the boot splash can use them before the bundle arrives.
+         Non-blocking: print-media swap. -->
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300..600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&family=Newsreader:opsz,wght@6..72,300..600&display=swap"
       media="print"
       onload="this.media='all'"
     />
@@ -174,11 +175,10 @@
       }
       .boot-splash__wordmark {
         margin: 0;
-        font-family: 'Newsreader', Georgia, serif;
-        font-weight: 300;
+        font-family: 'Archivo', system-ui, sans-serif;
+        font-weight: 400;
         font-size: clamp(44px, 7vw, 76px);
         line-height: 1.1;
-        letter-spacing: -0.03em;
       }
       /* Pixel loader: five amber blocks lighting up in sequence. Negative
          delays put it mid-sequence on its first visible frame. */
