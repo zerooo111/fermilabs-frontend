@@ -5,6 +5,7 @@
 import { Component, ReactNode, ErrorInfo } from 'react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
+import { hideBootSplash } from '@/shared/lib/boot-splash';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -34,6 +35,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('[ErrorBoundary]', error, errorInfo);
+    // A route that throws never reaches HideBootSplash; don't hide the error
+    hideBootSplash();
     toast.error('Something went wrong. Please try again later.');
     posthog.capture('error_boundary_triggered', {
       error_message: error.message,

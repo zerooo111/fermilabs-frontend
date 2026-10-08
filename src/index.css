@@ -1,16 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&family=Newsreader:opsz,wght@6..72,300..600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&display=swap');
 
 @import 'tailwindcss';
 @plugin 'tailwindcss-animate';
 
-/* Paper Mono (OFL 1.1, https://github.com/paper-design/paper-mono) */
-@font-face {
-  font-family: 'Paper Mono';
-  src: url('/fonts/PaperMono-VF.woff2') format('woff2');
-  font-weight: 100 800;
-  font-style: normal;
-  font-display: swap;
-}
+/* Paper Mono and Newsreader are loaded in index.html, for the boot splash. */
 
 @theme {
   --font-sans: 'Archivo', sans-serif;
@@ -84,6 +77,11 @@ html {
 @layer base {
   html {
     @apply !bg-dark-forest;
+  }
+  /* App routes are dark. data-boot is set in index.html before first paint,
+     so this matches the boot splash instead of flashing forest green. */
+  html[data-boot='app'] {
+    @apply !bg-background;
   }
 }
 

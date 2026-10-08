@@ -2,19 +2,21 @@
  * LazyRoutes.tsx
  * Defines lazy-loaded route components with skeleton loading states
  */
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 import { TradingSkeleton } from '@/shared/ui/TradingSkeleton';
-import NoiseOverlay from '@/pages/home/ui/NoiseOverlay';
+import { hideBootSplash } from '@/shared/lib/boot-splash';
 
-// Landing page loading — branded splash
-const LoadingPage = () => (
-  <div className="flex flex-col items-center justify-center min-h-screen bg-dark-forest text-rock">
-    <img src="/logo.svg" alt="Fermi" className="w-12 h-12 mb-4 animate-pulse" />
-    <span className="text-3xl font-serif font-light tracking-tight">Fermi Trade</span>
-    <NoiseOverlay />
-  </div>
-);
+// The boot splash (index.html) covers the first load until a route renders.
+// These fallbacks only show on later client-side navigations.
+const LoadingPage = () => <div className="min-h-screen bg-dark-forest" />;
+
+// Rendered beside each page inside its Suspense boundary, so it mounts only
+// once the page's chunk has loaded and the page itself has rendered.
+const HideBootSplash = () => {
+  useEffect(hideBootSplash, []);
+  return null;
+};
 
 export const HomePage = lazy(() => import('@/pages/home'));
 export const PerpsPage = lazy(() => import('@/pages/perps'));
@@ -26,6 +28,7 @@ export const LazyHomePage = () => (
   <ErrorBoundary>
     <Suspense fallback={<LoadingPage />}>
       <HomePage />
+      <HideBootSplash />
     </Suspense>
   </ErrorBoundary>
 );
@@ -34,6 +37,7 @@ export const LazyPerpsPage = () => (
   <ErrorBoundary>
     <Suspense fallback={<TradingSkeleton />}>
       <PerpsPage />
+      <HideBootSplash />
     </Suspense>
   </ErrorBoundary>
 );
@@ -42,6 +46,7 @@ export const LazyVaultPage = () => (
   <ErrorBoundary>
     <Suspense fallback={<TradingSkeleton />}>
       <VaultPage />
+      <HideBootSplash />
     </Suspense>
   </ErrorBoundary>
 );
@@ -50,6 +55,7 @@ export const LazyReferralsPage = () => (
   <ErrorBoundary>
     <Suspense fallback={<TradingSkeleton />}>
       <ReferralsPage />
+      <HideBootSplash />
     </Suspense>
   </ErrorBoundary>
 );

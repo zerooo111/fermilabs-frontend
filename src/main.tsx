@@ -3,6 +3,7 @@
  */
 import { createRoot } from 'react-dom/client';
 import { App } from './app';
+import { hideBootSplash } from '@/shared/lib/boot-splash';
 import './index.css';
 
 // A lazy chunk fails to load when a tab outlives a deploy (the chunk's hashed
@@ -24,3 +25,7 @@ window.addEventListener('vite:preloadError', event => {
 });
 
 createRoot(document.getElementById('root')!).render(<App />);
+
+// Routes hide the boot splash once they render (LazyRoutes) or fail
+// (ErrorBoundary). This is the backstop for a crash outside either.
+window.setTimeout(hideBootSplash, 15_000);

@@ -49,6 +49,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
+    <!-- Newsreader loads here rather than from index.css so the boot splash
+         can use it before the bundle arrives. Non-blocking: print-media swap. -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300..600&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+
     <!-- DNS prefetch as fallback for older browsers -->
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
@@ -61,8 +70,9 @@
       gtag('js', new Date());
       gtag('config', 'G-QP43KSLRBC');
     </script>
-    <!-- Boot splash: shown until React mounts and replaces #root, so a cold
-         load (e.g. right after a deploy) isn't a blank page. Colors are inline
+    <!-- Boot splash: shown until the first route has rendered (see
+         src/shared/lib/boot-splash.ts), so a cold load (e.g. right after a
+         deploy) isn't a blank page. Colors are inline
          because index.css hasn't loaded yet. The landing page (/ off the app
          host) is forest green like its own splash; the app is --color-background. -->
     <script>
@@ -71,31 +81,153 @@
       }
     </script>
     <style>
+      /* Paper Mono (OFL 1.1, https://github.com/paper-design/paper-mono).
+         Declared here, not in index.css, so the boot splash can use it. */
+      @font-face {
+        font-family: 'Paper Mono';
+        src: url('/fonts/PaperMono-VF.woff2') format('woff2');
+        font-weight: 100 800;
+        font-style: normal;
+        font-display: swap;
+      }
       html { background: #185038; }
       html[data-boot='app'] { background: #011812; }
-      #boot-splash {
+      /* Sits outside #root so React mounting can't cut it off; src/shared/lib/
+         boot-splash.ts removes it once the first route has rendered.
+         Timing: invisible for 150ms, then everything appears at once, so a warm
+         load never sees it and there is never a half-built frame. Once shown it
+         stays >= 400ms, then fades. All motion is opacity/transform only. */
+      .boot-splash {
         position: fixed;
         inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        color: #f8f7e7;
+        text-align: center;
+        /* Own background: z-index makes this a stacking context, so the grain's
+           soft-light needs a backdrop inside it or it just darkens. */
+        background: #185038;
+        animation: boot-in 0.15s ease-out 0.15s both;
+      }
+      html[data-boot='app'] .boot-splash { background: #011812; }
+      /* Both directions are animations: a transition can't start from an
+         animated value, so it would snap instead of fading. */
+      .boot-splash.is-done { animation: boot-out 0.28s ease both; pointer-events: none; }
+      @keyframes boot-in { from { opacity: 0; } }
+      @keyframes boot-out { to { opacity: 0; } }
+      /* An orderbook depth chart as a dithered pixel ridge: bids climb left,
+         asks climb right. 200x84 3-colour PNG (~1 KB) inlined so it paints with
+         the first frame, upscaled nearest-neighbour. The scene keeps the art's
+         aspect ratio so the order fills land on exact art pixels. */
+      .boot-splash__scene {
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        width: max(100%, 1200px);
+        aspect-ratio: 200 / 84;
+        transform: translateX(-50%);
+      }
+      .boot-splash__ridge {
+        position: absolute;
+        inset: 0;
+        background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAABUAgMAAAC6kpA1AAAACVBMVEUAAAAfXkE/gVCzrE0vAAAAAXRSTlMAQObYZgAAA6dJREFUeNqVl71u2zAQxyXDUyc5QDJkb4Y8hQJQBZKpAXQC1CkFagLVWxTwA3SwgMhTAqREzKfs3ZEiqQ/b1HHJx9F//nz/O0qJyDGS2BAYSZYsiYzycds6eseaVZZFigtVFrAYlSxbQpNR+ifui1fRGMkxXcLCW14XqOSiw0g+sgU0mcJIDvoj+qsWRqXR72m0yn2DkXTdPtZmuahZRSmt32JV7piF9u3jbLa2KrJp4lXuJYZRWcqiVKxKdqeksipxBhA9i2zkzziRlVaehZrm8pai64wKHu8tzmZXyqscdlEDwKlgNH+immbVSKfS7SIGQJ47la2UkTbT6t8Ww6jwl3bBYGvRhSyNfolQIZRKVoFKfsFgToVOJ9FmWUTjy4UsXqWqKrbZ5cqkyAIVDFjy8yhDFqkanV0cx1u5DVm67qzNsCqicSx0PKTRnxdIUmx8oPAqr/npyuS5eNJ9YgIMg6X5OA9zoxQmjlROw6wR5bHzKhgVGe33eZQvWJUKJirUNFOenFB6lbZrWSXCZtj3yqAEKmSAeaPRPVx0IxYgo72fsVm6UrYqqNK2rd190PPPAGSvp6MhoWAVsE1zEibDqkiLAkntD9mJWRr6Y1+VGiOxB0QYvAVP+stXxbC0A5UxTh6oBCyEg03zOTuas+xWO4MxC+DxvAHQaGLSKc5fgNngVMhoWr/Pktw2its+YPE4ezGeAeiv5hiQBCxUG/JZNndD8jDuE3mLpzno3ag0a3tDclX8FlsZHgEP0xtSS18Us6UFhrE4Y6M5D7fEMlQBmmdktGyuUzxKv6WuB0ZLZlSwKjBiweC7Jt2MOoVItkFWUpYlQFgarXc9Cz2n9Sotk2B2OVCxbfM3VLnV2wEJqhT9Tx5nZ8fmOgnmV81FKXANVLhtpHwYzq9qmMIsJZSmOl4l7/2VP3p3lSZGKlyd72FpbgYchoXCwEDnDCD6+fWNXVzbmhSFKMREBXGaoDIrNUlIyj6C6uADejAlLQiUp1hgC9I+bNLbwNUEBXhKCc9jqrMPVWpwIGbQwTQq+WKbPk2vYIZF4HI4DNS/BuAo1sewIpw7qwLbl8yw3GDTwzyLBerdRi8BuO710XZJAaJwebMq8IMfAu4ad6fMqzigElqcm2gv/vIcR+lUnikmn/SLVL6Oa8K5zwFLgFTzdK7ZXJOEeRYoSeV6/n9TFYICvp2BjTVVeR4E0CIV8tf1AMHFjMqlSK43uFxAv9JNujEq/LsNyt38BwE7ejz3C+nWAAAAAElFTkSuQmCC') 0 0 / 100% 100%;
+        image-rendering: pixelated;
+        opacity: 0.55;
+      }
+      /* Order fills: single ridge-top pixels flashing amber, like orders filling. */
+      .boot-splash__fills i {
+        position: absolute;
+        width: calc(100% / 200);
+        height: calc(100% / 84);
+        background: #fde68a;
+        opacity: 0;
+        animation: boot-fill 2.6s steps(1) infinite;
+      }
+      @keyframes boot-fill { 0% { opacity: 0.9; } 8% { opacity: 0.45; } 16%, 100% { opacity: 0; } }
+      /* Film grain, same as the landing page's NoiseOverlay. */
+      .boot-splash::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: url('/noise.png') repeat;
+        background-size: 256px;
+        mix-blend-mode: soft-light;
+        pointer-events: none;
+      }
+      .boot-splash__content {
+        position: relative;
+        z-index: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
-        gap: 16px;
-        color: #f8f7e7;
+        margin-bottom: 12vh;
+      }
+      .boot-splash__logo { width: 40px; height: 40px; margin-bottom: 28px; image-rendering: pixelated; }
+      .boot-splash__eyebrow {
+        margin: 0 0 18px;
+        font: 400 12px/1 'Paper Mono', ui-monospace, monospace;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(248, 247, 231, 0.6);
+      }
+      .boot-splash__wordmark {
+        margin: 0;
         font-family: 'Newsreader', Georgia, serif;
         font-weight: 300;
-        font-size: 30px;
-        letter-spacing: -0.025em;
+        font-size: clamp(44px, 7vw, 76px);
+        line-height: 1.1;
+        letter-spacing: -0.03em;
       }
-      #boot-splash img { width: 48px; height: 48px; animation: boot-pulse 2s ease-in-out infinite; }
-      @keyframes boot-pulse { 50% { opacity: 0.5; } }
+      /* Pixel loader: five amber blocks lighting up in sequence. Negative
+         delays put it mid-sequence on its first visible frame. */
+      .boot-splash__pixels { display: flex; gap: 6px; margin-top: 30px; }
+      .boot-splash__pixels i {
+        width: 8px;
+        height: 8px;
+        background: #fde68a;
+        opacity: 0.15;
+        animation: boot-step 1.25s steps(1) infinite;
+      }
+      .boot-splash__pixels i:nth-child(1) { animation-delay: -1s; }
+      .boot-splash__pixels i:nth-child(2) { animation-delay: -0.75s; }
+      .boot-splash__pixels i:nth-child(3) { animation-delay: -0.5s; }
+      .boot-splash__pixels i:nth-child(4) { animation-delay: -0.25s; }
+      @keyframes boot-step { 0% { opacity: 1; } 20% { opacity: 0.6; } 40%, 100% { opacity: 0.15; } }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-splash__fills i, .boot-splash__pixels i { animation: none; }
+        .boot-splash__pixels i { opacity: 0.6; }
+      }
     </style>
   </head>
   <body>
-    <div id="root">
-      <div id="boot-splash">
-        <img src="/logo.svg" alt="" />
-        <span>Fermi Trade</span>
+    <div id="root"></div>
+    <div id="boot-splash" class="boot-splash" aria-hidden="true">
+      <div class="boot-splash__scene">
+        <div class="boot-splash__ridge"></div>
+        <div class="boot-splash__fills">
+          <i style="left: 3.500%; top: 11.905%; animation-delay: -0.00s"></i>
+          <i style="left: 6.500%; top: 15.476%; animation-delay: -0.37s"></i>
+          <i style="left: 14.000%; top: 29.762%; animation-delay: -0.74s"></i>
+          <i style="left: 20.000%; top: 48.810%; animation-delay: -1.11s"></i>
+          <i style="left: 31.500%; top: 64.286%; animation-delay: -1.48s"></i>
+          <i style="left: 32.500%; top: 66.667%; animation-delay: -1.85s"></i>
+          <i style="left: 54.500%; top: 88.095%; animation-delay: -2.22s"></i>
+          <i style="left: 56.500%; top: 88.095%; animation-delay: -2.59s"></i>
+          <i style="left: 68.500%; top: 65.476%; animation-delay: -0.36s"></i>
+          <i style="left: 69.000%; top: 65.476%; animation-delay: -0.73s"></i>
+          <i style="left: 76.500%; top: 58.333%; animation-delay: -1.10s"></i>
+          <i style="left: 88.500%; top: 22.619%; animation-delay: -1.47s"></i>
+          <i style="left: 92.000%; top: 7.143%; animation-delay: -1.84s"></i>
+          <i style="left: 97.000%; top: 7.143%; animation-delay: -2.21s"></i>
+        </div>
+      </div>
+      <div class="boot-splash__content">
+        <img class="boot-splash__logo" src="/logo.svg" alt="" />
+        <p class="boot-splash__eyebrow">Perpetuals on Solana</p>
+        <p class="boot-splash__wordmark">Fermi Trade</p>
+        <div class="boot-splash__pixels"><i></i><i></i><i></i><i></i><i></i></div>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
