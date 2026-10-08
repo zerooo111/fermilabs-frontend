@@ -41,19 +41,17 @@ function ServerStatus({ server }: { server: ServerWithHealth }) {
       <div
         className={cn(
           'h-2 w-2 border border-black/50',
-          server.status === 'healthy' && 'bg-emerald-500 ',
-          server.status === 'unhealthy' && 'bg-red-500',
-          server.status === 'checking' && 'bg-yellow-500 animate-pulse'
+          server.status === 'healthy' && 'bg-success ',
+          server.status === 'unhealthy' && 'bg-danger',
+          server.status === 'checking' && 'bg-amber-200 animate-pulse'
         )}
       />
       <span>{server.label}</span>
       {server.latency !== null && server.status !== 'unhealthy' && (
-        <span className="ml-auto text-xs text-muted-foreground">
-          {Math.round(server.latency)}ms
-        </span>
+        <span className="ml-auto text-xs text-rock/50">{Math.round(server.latency)}ms</span>
       )}
       {server.status === 'unhealthy' && (
-        <span className="ml-auto text-xs text-red-500">Offline</span>
+        <span className="ml-auto text-xs text-danger">Offline</span>
       )}
     </div>
   );

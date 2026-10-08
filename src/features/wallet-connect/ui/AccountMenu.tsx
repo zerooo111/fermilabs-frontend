@@ -149,8 +149,8 @@ export function AccountMenuContent({
           <Repeat className="size-3.5" />
           Switch account
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={onLogOut} className="text-xs text-red-400">
-          <LogOut className="size-3.5 text-red-400" />
+        <DropdownMenuItem onSelect={onLogOut} className="text-xs text-danger">
+          <LogOut className="size-3.5 text-danger" />
           Log out
         </DropdownMenuItem>
       </div>

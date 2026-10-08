@@ -34,7 +34,7 @@ export function OnboardingModal({ open, onDeposit, onDismiss }: Props) {
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-outline text-center space-y-1">
           <h2 className="text-lg font-semibold tracking-tight">Welcome to Fermi</h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-rock/50">
             Deposit USDC to unlock trading — it only takes a moment.
           </p>
         </div>
@@ -44,22 +44,22 @@ export function OnboardingModal({ open, onDeposit, onDismiss }: Props) {
           {STEPS.map(step => (
             <div
               key={step.n}
-              className={`flex items-center gap-4 p-3 rounded-lg border transition-opacity ${
+              className={`flex items-center gap-4 p-3 border transition-opacity ${
                 step.active
-                  ? 'border-outline bg-muted/20'
+                  ? 'border-outline bg-rock/10'
                   : 'border-outline/40 bg-transparent opacity-50'
               }`}
             >
               <div
                 className={`size-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                  step.active ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'
+                  step.active ? 'bg-foreground text-background' : 'bg-rock/10 text-rock/50'
                 }`}
               >
                 {step.n}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium leading-tight">{step.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
+                <p className="text-xs text-rock/50 mt-0.5">{step.description}</p>
               </div>
             </div>
           ))}
@@ -73,7 +73,7 @@ export function OnboardingModal({ open, onDeposit, onDismiss }: Props) {
           </Button>
           <button
             onClick={onDismiss}
-            className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+            className="w-full text-xs text-rock/50 hover:text-rock transition-colors py-1"
           >
             Skip for now
           </button>

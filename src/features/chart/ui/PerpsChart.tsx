@@ -42,8 +42,9 @@ const useChartColors = () => {
   return useMemo(() => {
     const root = getComputedStyle(document.documentElement);
     return {
-      buyColor: root.getPropertyValue('--color-buy-chart')?.trim() || '#10b981',
-      sellColor: root.getPropertyValue('--color-sell-chart')?.trim() || '#ef4444',
+      buyColor: root.getPropertyValue('--color-buy-chart')?.trim() || '#219e61',
+      sellColor: root.getPropertyValue('--color-sell-chart')?.trim() || '#d53736',
+      lineColor: root.getPropertyValue('--color-lichen')?.trim() || '#b4dc78',
     };
   }, []);
 };
@@ -107,6 +108,8 @@ interface PerpsChartComponentProps {
     textColor?: string;
     wickUpColor?: string;
     wickDownColor?: string;
+    /** Line and area series ink; defaults to the theme's lichen. */
+    lineColor?: string;
     gridColor?: string;
   };
   className?: string;
@@ -219,10 +222,11 @@ function PerpsChartComponent({
     backgroundColor = 'transparent',
     upColor = chartColors.buyColor,
     downColor = chartColors.sellColor,
-    textColor = '#94a3b8', // Subtle text color
+    textColor = 'rgba(248, 247, 231, 0.55)', // Cream axis text
     wickUpColor = chartColors.buyColor,
     wickDownColor = chartColors.sellColor,
-    gridColor = 'rgba(148, 163, 184, 0.1)', // Very subtle grid
+    lineColor = chartColors.lineColor,
+    gridColor = 'rgba(248, 247, 231, 0.07)', // Hairline grid, matching the landing blueprint
   } = colors || {};
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -311,7 +315,7 @@ function PerpsChartComponent({
           volumeData.push({
             time,
             value: item.volume,
-            color: item.close! >= item.open! ? `${upColor}80` : `${downColor}80`,
+            color: item.close! >= item.open! ? `${upColor}3d` : `${downColor}3d`,
           });
         }
 
@@ -382,12 +386,12 @@ function PerpsChartComponent({
           mode: 1,
           vertLine: {
             width: 1,
-            color: 'rgba(148, 163, 184, 0.4)',
+            color: 'rgba(248, 247, 231, 0.4)',
             style: 3,
           },
           horzLine: {
             width: 1,
-            color: 'rgba(148, 163, 184, 0.4)',
+            color: 'rgba(248, 247, 231, 0.4)',
             style: 3,
           },
         },
@@ -403,7 +407,7 @@ function PerpsChartComponent({
       switch (chartType) {
         case 'line':
           series = chart.addSeries(LineSeries, {
-            color: upColor,
+            color: lineColor,
             lineWidth: 2,
             crosshairMarkerVisible: true,
             lastValueVisible: true,
@@ -412,9 +416,9 @@ function PerpsChartComponent({
           break;
         case 'area':
           series = chart.addSeries(AreaSeries, {
-            lineColor: upColor,
-            topColor: `${upColor}40`,
-            bottomColor: `${upColor}05`,
+            lineColor,
+            topColor: `${lineColor}24`,
+            bottomColor: `${lineColor}00`,
             lineWidth: 2,
             crosshairMarkerVisible: true,
             lastValueVisible: true,
@@ -447,7 +451,7 @@ function PerpsChartComponent({
       }
 
       const volumeSeries = chart.addSeries(HistogramSeries, {
-        color: 'rgba(148, 163, 184, 0.5)',
+        color: 'rgba(248, 247, 231, 0.5)',
         priceFormat: {
           type: 'volume',
         },
@@ -565,6 +569,7 @@ function PerpsChartComponent({
     textColor,
     wickUpColor,
     wickDownColor,
+    lineColor,
     gridColor,
   ]);
 
@@ -827,30 +832,30 @@ function PerpsChartComponent({
     >
       {/* OHLC legend */}
       {legendCandle && (
-        <div className="pointer-events-none absolute top-2 left-2 z-20 flex flex-col gap-0.5 font-mono text-[11px] text-white/80">
+        <div className="pointer-events-none absolute top-2 left-2 z-20 flex flex-col gap-0.5 font-mono text-[11px] text-rock/80">
           <div className="flex items-center gap-2">
-            {selectedMarketName && <span className="text-white">{selectedMarketName}</span>}
-            <span className="uppercase text-white/50">{interval}</span>
-            <span className="text-white/40">{formatLegendTime(legendCandle.time, interval)}</span>
+            {selectedMarketName && <span className="text-rock">{selectedMarketName}</span>}
+            <span className="uppercase text-rock/50">{interval}</span>
+            <span className="text-rock/40">{formatLegendTime(legendCandle.time, interval)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span>
-              <span className="text-white/40">O</span> {formatLegendPrice(legendCandle.open)}
+              <span className="text-rock/40">O</span> {formatLegendPrice(legendCandle.open)}
             </span>
             <span>
-              <span className="text-white/40">H</span> {formatLegendPrice(legendCandle.high)}
+              <span className="text-rock/40">H</span> {formatLegendPrice(legendCandle.high)}
             </span>
             <span>
-              <span className="text-white/40">L</span> {formatLegendPrice(legendCandle.low)}
+              <span className="text-rock/40">L</span> {formatLegendPrice(legendCandle.low)}
             </span>
             <span>
-              <span className="text-white/40">C</span> {formatLegendPrice(legendCandle.close)}
+              <span className="text-rock/40">C</span> {formatLegendPrice(legendCandle.close)}
             </span>
             {legendChangePct && (
               <span
                 className={cn(
                   legendChangePct.pct === 0
-                    ? 'text-white/60'
+                    ? 'text-rock/60'
                     : legendChangePct.isPositive
                       ? 'text-success'
                       : 'text-danger'
@@ -878,7 +883,7 @@ function PerpsChartComponent({
       {/* Load-older indicator (left edge) */}
       {isLoadingOlder && (
         <div
-          className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-1 text-[10px] text-white/80 backdrop-blur-sm"
+          className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-black/60 px-2 py-1 text-[10px] text-rock/80 backdrop-blur-sm"
           aria-live="polite"
         >
           <Loader2 className="size-3 animate-spin" />
@@ -886,36 +891,34 @@ function PerpsChartComponent({
         </div>
       )}
       {reachedBeginningOfHistory && !isLoadingOlder && !hasNoData && (
-        <div className="pointer-events-none absolute bottom-8 left-2 z-20 rounded-md bg-black/50 px-2 py-1 text-[10px] text-white/50 backdrop-blur-sm">
+        <div className="pointer-events-none absolute bottom-8 left-2 z-20 bg-black/50 px-2 py-1 text-[10px] text-rock/50 backdrop-blur-sm">
           Beginning of history
         </div>
       )}
 
       {isRefreshing && (
         <div className="absolute top-2 right-2 z-20">
-          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          <Loader2 className="size-4 animate-spin text-rock/50" />
         </div>
       )}
       {showErrorOverlay && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
           <div className="flex flex-col items-center gap-3">
             <AlertCircle className="size-6 text-destructive" />
-            <span className="text-sm text-muted-foreground">
-              {error?.message || 'Failed to load chart'}
-            </span>
+            <span className="text-sm text-rock/50">{error?.message || 'Failed to load chart'}</span>
           </div>
         </div>
       )}
       {showEmptyOverlay && (
         <div className="absolute inset-0 flex items-center justify-center z-10">
-          <span className="text-sm text-muted-foreground">{emptyMessage}</span>
+          <span className="text-sm text-rock/50">{emptyMessage}</span>
         </div>
       )}
       {showLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
           <div className="flex flex-col items-center gap-3">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Loading chart data...</span>
+            <Loader2 className="size-6 animate-spin text-rock/50" />
+            <span className="text-sm text-rock/50">Loading chart data...</span>
           </div>
         </div>
       )}

@@ -106,8 +106,8 @@ export function MyAssets() {
 
   if (!publicKey) {
     return (
-      <div>
-        <h2 className="text-lg font-medium">Please connect your wallet</h2>
+      <div className="flex h-full min-h-24 items-center justify-center p-4 text-xs text-rock/45">
+        Connect a wallet to see this
       </div>
     );
   }
@@ -127,7 +127,7 @@ export function MyAssets() {
         <TableBody>
           <TableRow>
             <TableCell colSpan={5} className="h-24 text-center">
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center justify-center gap-2 text-sm text-rock/50">
                 <Loader2 className="size-4 animate-spin" />
                 Loading balances...
               </div>
@@ -146,7 +146,7 @@ export function MyAssets() {
     if (assetEntries.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={5} className="h-24 text-center text-sm text-muted-foreground">
+          <TableCell colSpan={5} className="h-24 text-center text-sm text-rock/50">
             No assets found
           </TableCell>
         </TableRow>
@@ -169,7 +169,7 @@ export function MyAssets() {
       const isQuoteAsset = mint === selectedMarket?.quote_mint;
 
       return (
-        <TableRow key={mint} className="text-white/90">
+        <TableRow key={mint} className="text-rock/90">
           <TableCell className="font-medium">{tokenName}</TableCell>
           <TableCell className="text-center font-mono tabular-nums">{availableFormatted}</TableCell>
           <TableCell className="text-center font-mono tabular-nums">{reservedFormatted}</TableCell>

@@ -62,11 +62,11 @@ export function RefereesPanel({
                   <TableCell className={`${TD} font-mono text-xs text-rock/90`}>
                     {shortWallet(r.referee_wallet)}
                   </TableCell>
-                  <TableCell className={`${TD} font-mono text-xs text-white/55`}>
+                  <TableCell className={`${TD} font-mono text-xs text-rock/55`}>
                     {formatDate(r.bound_at)}
                   </TableCell>
                   <TableCell
-                    className={`${TD} text-right font-mono text-xs tabular-nums text-white/75`}
+                    className={`${TD} text-right font-mono text-xs tabular-nums text-rock/75`}
                   >
                     {usd(r.accrued_volume_usdc)}
                   </TableCell>

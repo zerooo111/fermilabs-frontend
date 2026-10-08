@@ -75,7 +75,7 @@ export function BindPanel({
     return (
       <Panel className="bg-card/20">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-          <span className="flex items-center gap-2 text-sm text-white/70">
+          <span className="flex items-center gap-2 text-sm text-rock/70">
             <Check className="size-4 shrink-0 text-success" />
             You were referred
           </span>
@@ -87,13 +87,13 @@ export function BindPanel({
               </span>
               <span className="flex items-center gap-2 text-xs">
                 <Eyebrow>Referrer</Eyebrow>
-                <span className="font-mono text-white/70">
+                <span className="font-mono text-rock/70">
                   {shortWallet(referredBy.referrer_wallet)}
                 </span>
               </span>
               <span className="flex items-center gap-2 text-xs">
                 <Eyebrow>Applied</Eyebrow>
-                <span className="font-mono text-white/70">{formatDate(referredBy.bound_at)}</span>
+                <span className="font-mono text-rock/70">{formatDate(referredBy.bound_at)}</span>
               </span>
             </>
           )}
@@ -108,18 +108,18 @@ export function BindPanel({
         type="button"
         onClick={() => setOpen(v => !v)}
         className={cn(
-          'flex items-center gap-2 px-4 py-3 text-left text-sm text-white/70 transition-colors hover:text-rock',
+          'flex items-center gap-2 px-4 py-3 text-left text-sm text-rock/70 transition-colors hover:text-rock',
           FOCUS_RING
         )}
       >
-        <Gift className="size-4 shrink-0 text-white/50" />
+        <Gift className="size-4 shrink-0 text-rock/50" />
         Were you referred? Apply a friend&apos;s code
         <ChevronDown className={cn('ml-auto size-4 transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
         <div className="flex flex-col gap-3 border-t border-outline px-4 py-3">
-          <p className="text-[11px] leading-relaxed text-white/55">
+          <p className="text-[11px] leading-relaxed text-rock/55">
             Applying a code permanently links your wallet to that referrer — you can only do this
             once.
           </p>
@@ -151,8 +151,8 @@ export function BindPanel({
             </Button>
           </div>
           {fromLink && (
-            <p className="flex items-start gap-2 text-[11px] leading-relaxed text-white/55">
-              <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
+            <p className="flex items-start gap-2 text-[11px] leading-relaxed text-rock/55">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-200" />
               You followed a referral link. Applying this code permanently links your wallet to this
               referrer.
             </p>

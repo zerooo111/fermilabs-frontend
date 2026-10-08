@@ -117,7 +117,7 @@ export function OneClickCard({
             type="button"
             disabled={pending !== null}
             onClick={onEnable}
-            className="flex h-6 shrink-0 items-center gap-1.5 bg-amber-200 px-2.5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-70"
+            className="flex h-6 shrink-0 items-center gap-1.5 bg-amber-200 px-2.5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-200 disabled:cursor-wait disabled:opacity-70"
           >
             {pending === 'enable' && <CircleNotch size={12} className="animate-spin" />}
             {pending === 'enable' ? 'Approving' : 'Enable'}

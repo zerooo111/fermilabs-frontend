@@ -183,7 +183,7 @@ function MarketSelectorBase({
       <DialogPrimitive.Trigger
         disabled={isLoading || markets.length === 0}
         aria-label="Select market"
-        className="flex h-12 items-center gap-2 px-3 text-rock transition-colors hover:bg-white/5 disabled:opacity-50 data-[state=open]:bg-white/5"
+        className="flex h-10 items-center gap-2 px-3 text-rock transition-colors hover:bg-rock/5 disabled:opacity-50 data-[state=open]:bg-rock/5"
       >
         {isLoading ? (
           <span className="flex items-center gap-2 text-sm text-rock/60">
@@ -381,7 +381,7 @@ const MarketRow = memo(function MarketRow({
       aria-selected={active}
       onMouseMove={() => onHover(index)}
       onClick={() => onPick(row.id)}
-      className={cn('h-10 cursor-pointer transition-colors', active && 'bg-white/5')}
+      className={cn('h-10 cursor-pointer transition-colors', active && 'bg-rock/5')}
     >
       <td className="px-2 sm:px-3">
         <div className="flex items-center gap-2">

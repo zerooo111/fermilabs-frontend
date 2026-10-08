@@ -30,8 +30,8 @@ const useChartColors = () => {
   return useMemo(() => {
     const root = getComputedStyle(document.documentElement);
     return {
-      buyColor: root.getPropertyValue('--color-buy-chart')?.trim() || '#10b981',
-      sellColor: root.getPropertyValue('--color-sell-chart')?.trim() || '#ef4444',
+      buyColor: root.getPropertyValue('--color-buy-chart')?.trim() || '#219e61',
+      sellColor: root.getPropertyValue('--color-sell-chart')?.trim() || '#d53736',
     };
   }, []);
 };

@@ -99,9 +99,9 @@ export function PositionTriggerEditor({
       <PopoverContent align="end" className="w-80 space-y-3">
         <div className="space-y-1">
           <div className="text-sm font-medium">TP/SL for {marketName}</div>
-          <div className="text-xs text-zinc-400">
+          <div className="text-xs text-rock/50">
             Closes the whole {position} when the oracle reaches a price. Mark{' '}
-            <span className="font-mono tabular-nums text-zinc-100">
+            <span className="font-mono tabular-nums text-rock">
               {formatPrice(toNative(markPrice, market.quoteDecimals), market.quoteDecimals)}
             </span>{' '}
             {quoteUnit}.
@@ -127,7 +127,7 @@ export function PositionTriggerEditor({
           allowNegative={false}
           unit={quoteUnit}
         />
-        <p className={`text-xs ${problem ? 'text-red-400' : 'text-zinc-400'}`}>
+        <p className={`text-xs ${problem ? 'text-danger' : 'text-rock/50'}`}>
           {problem ?? TRIGGER_LATENCY_NOTE}
         </p>
         <div className="flex justify-end gap-2">

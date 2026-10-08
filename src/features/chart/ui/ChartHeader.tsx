@@ -51,7 +51,7 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
   if (!selectedMarket) return null;
 
   return (
-    <div className="flex h-12  items-center divide-x divide-outline justify-between border-b border-outline">
+    <div className="flex h-10 items-center divide-x divide-outline justify-between border-b border-outline">
       <div>
         <MarketSelector
           isLoading={false}
@@ -62,25 +62,31 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
       </div>
       <div className="flex items-center overflow-x-auto flex-1 h-full divide-x divide-outline">
         {/* Mark Price */}
-        <div className="flex flex-col justify-center px-2 h-full border-r ">
-          <span className="text-xs whitespace-nowrap font-medium text-white/50">Mark Price</span>
-          <span className="font-mono font-semibold text-base text-white">
+        <div className="flex flex-col justify-center px-3 h-full">
+          <span className="text-[11px] leading-none whitespace-nowrap text-rock/55">
+            Mark Price
+          </span>
+          <span className="font-mono text-sm leading-tight tabular-nums text-rock">
             {marketStats?.mark_price_ui ? formatUiNumber(marketStats.mark_price_ui) : '0.0000'}
           </span>
         </div>
 
         {/* Oracle Price — on-chain oracle (Pyth/Switchboard) sourced via the
             harness mirror; shown alongside mark for liquidation context. */}
-        <div className="flex flex-col justify-center px-2 h-full border-r ">
-          <span className="text-xs whitespace-nowrap font-medium text-white/50">Oracle Price</span>
-          <span className="font-mono font-semibold text-base text-white">
+        <div className="flex flex-col justify-center px-3 h-full">
+          <span className="text-[11px] leading-none whitespace-nowrap text-rock/55">
+            Oracle Price
+          </span>
+          <span className="font-mono text-sm leading-tight tabular-nums text-rock">
             {marketStats?.oracle_price_ui ? formatUiNumber(marketStats.oracle_price_ui) : '0.0000'}
           </span>
         </div>
 
         {/* 24 h change */}
-        <div className="flex flex-col justify-center px-2 h-full ">
-          <span className="text-xs whitespace-nowrap font-medium text-white/50">24h Change</span>
+        <div className="flex flex-col justify-center px-3 h-full">
+          <span className="text-[11px] leading-none whitespace-nowrap text-rock/55">
+            24h Change
+          </span>
           {(() => {
             const pct = latestPrice?.percentChange ?? '0.0';
             const isZero = !latestPrice || latestPrice.change === 0 || pct === '0.0';
@@ -88,8 +94,8 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
             return (
               <span
                 className={cn(
-                  'font-mono font-semibold text-base',
-                  isZero ? 'text-white' : latestPrice?.isPositive ? 'text-success' : 'text-danger'
+                  'font-mono text-sm leading-tight tabular-nums',
+                  isZero ? 'text-rock' : latestPrice?.isPositive ? 'text-success' : 'text-danger'
                 )}
               >
                 {sign}
@@ -99,14 +105,16 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
           })()}
         </div>
 
-        <div className="flex flex-col justify-center px-2 h-full ">
-          <span className="text-xs whitespace-nowrap font-medium text-white/50">24h Funding</span>
+        <div className="flex flex-col justify-center px-3 h-full">
+          <span className="text-[11px] leading-none whitespace-nowrap text-rock/55">
+            24h Funding
+          </span>
           <span
             className={cn(
-              'font-mono font-semibold text-base',
+              'font-mono text-sm leading-tight tabular-nums',
               marketStats?.funding_rate && marketStats.funding_rate > 0
                 ? 'text-danger'
-                : 'text-white'
+                : 'text-rock'
             )}
           >
             {marketStats?.funding_rate !== undefined
@@ -116,17 +124,21 @@ function ChartHeaderComponent({ selectedMarketId, onMarketSelect, latestPrice }:
         </div>
 
         {/* Open Interest */}
-        <div className="flex flex-col justify-center px-2 h-full ">
-          <span className="text-xs whitespace-nowrap font-medium text-white/50">Open Interest</span>
-          <span className="font-mono font-semibold text-base text-white">
+        <div className="flex flex-col justify-center px-3 h-full">
+          <span className="text-[11px] leading-none whitespace-nowrap text-rock/55">
+            Open Interest
+          </span>
+          <span className="font-mono text-sm leading-tight tabular-nums text-rock">
             {marketStats?.open_interest_ui ? formatUiNumber(marketStats.open_interest_ui) : '0'}
           </span>
         </div>
 
         {/* 24h Volume */}
-        <div className="flex flex-col justify-center px-2 h-full ">
-          <span className="text-xs whitespace-nowrap font-medium text-white/50">24h Volume</span>
-          <span className="font-mono font-semibold text-base text-white">
+        <div className="flex flex-col justify-center px-3 h-full">
+          <span className="text-[11px] leading-none whitespace-nowrap text-rock/55">
+            24h Volume
+          </span>
+          <span className="font-mono text-sm leading-tight tabular-nums text-rock">
             {volumeData?.total_volume_quote_lots
               ? `$${quoteLotsToUi(volumeData.total_volume_quote_lots, {
                   quoteDecimals: selectedMarket.quoteDecimals,

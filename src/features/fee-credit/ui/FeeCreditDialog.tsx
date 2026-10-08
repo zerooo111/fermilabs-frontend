@@ -132,7 +132,7 @@ export function FeeCreditDialog() {
                 'gap-2 px-2.5 font-mono tabular-nums',
                 health === 'danger' &&
                   'ring-danger/60 text-danger hover:ring-danger hover:text-danger',
-                health === 'warn' && 'ring-amber-400/50 text-amber-300 hover:ring-amber-400/80'
+                health === 'warn' && 'ring-amber-200/50 text-amber-200 hover:ring-amber-200/80'
               )}
             >
               <span className="relative flex items-center">
@@ -141,7 +141,7 @@ export function FeeCreditDialog() {
                   className={cn(
                     'absolute -right-1 -top-1 size-1.5 rounded-full ring-1 ring-background',
                     health === 'ok' && 'bg-success',
-                    health === 'warn' && 'bg-amber-400 animate-pulse',
+                    health === 'warn' && 'bg-amber-200 animate-pulse',
                     health === 'danger' && 'bg-danger animate-pulse',
                     health === 'unknown' && 'bg-rock/30'
                   )}
@@ -179,7 +179,7 @@ export function FeeCreditDialog() {
                 <div className="text-danger font-sans mt-1">Top up to keep trading</div>
               )}
               {health === 'warn' && (
-                <div className="text-amber-300 font-sans mt-1">Running low</div>
+                <div className="text-amber-200 font-sans mt-1">Running low</div>
               )}
             </div>
           ) : (

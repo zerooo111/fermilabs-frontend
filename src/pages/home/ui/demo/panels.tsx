@@ -204,7 +204,7 @@ export function TradePanel({
               focused ? 'border-[#a3b89c] bg-rock/[0.04]' : 'border-[#436f59]'
             }`}
           >
-            <span className={size ? 'text-rock' : 'text-rock/35'}>
+            <span className={size ? 'text-rock' : 'text-rock/40'}>
               {size || '0.00'}
               {focused && (
                 <span className="demo-caret ml-px inline-block h-4 w-px translate-y-0.5 bg-rock" />
@@ -337,7 +337,7 @@ export function PositionsPanel({
             </span>
           </div>
         ) : (
-          <div className="flex flex-1 items-center justify-center text-sm text-rock/35">
+          <div className="flex flex-1 items-center justify-center text-sm text-rock/40">
             No open positions
           </div>
         )}

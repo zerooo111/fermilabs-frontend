@@ -302,13 +302,13 @@ export function PositionLines({
       <div
         key={kind}
         className={cn(
-          'pointer-events-auto absolute flex h-5 -translate-y-1/2 select-none items-stretch border font-mono text-[10px] leading-none tabular-nums shadow-sm',
+          'pointer-events-auto absolute flex h-5 -translate-y-1/2 select-none items-stretch border font-mono text-[10px] leading-none tabular-nums',
           editable || dragging ? 'cursor-ns-resize' : 'cursor-default'
         )}
         style={{
           top: y,
           right: layout.right + 8,
-          borderColor: invalid ? '#f59e0b' : color,
+          borderColor: invalid ? '#fde68a' : color,
           background: 'rgb(9 20 16 / 0.92)',
         }}
         onPointerDown={e => startDrag(e, kind, false)}
@@ -333,7 +333,7 @@ export function PositionLines({
           <button
             type="button"
             aria-label={`Remove ${NAME[kind].toLowerCase()}`}
-            className="flex items-center border-l px-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex items-center border-l px-1 text-rock/50 transition-colors hover:bg-rock/10 hover:text-rock"
             style={{ borderColor: `${color}66` }}
             onPointerDown={e => e.stopPropagation()}
             onClick={() => void commit(kind, null)}
@@ -356,7 +356,7 @@ export function PositionLines({
       <button
         type="button"
         disabled={!editable}
-        className="flex cursor-ns-resize items-center border-l px-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-default disabled:opacity-40"
+        className="flex cursor-ns-resize items-center border-l px-1.5 text-rock/60 transition-colors hover:bg-rock/10 hover:text-rock disabled:cursor-default disabled:opacity-40"
         style={{ borderColor: 'rgb(255 255 255 / 0.15)' }}
         title={`Drag ${long === (kind === 'take_profit') ? 'up' : 'down'} to set a ${NAME[kind].toLowerCase()}`}
         onPointerDown={e => startDrag(e, kind, true)}
@@ -373,7 +373,7 @@ export function PositionLines({
     <div ref={overlayRef} className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
       {visible(entryY) && (
         <div
-          className="pointer-events-auto absolute flex h-5 -translate-y-1/2 select-none items-stretch border font-mono text-[10px] leading-none tabular-nums shadow-sm"
+          className="pointer-events-auto absolute flex h-5 -translate-y-1/2 select-none items-stretch border font-mono text-[10px] leading-none tabular-nums"
           style={{
             top: entryY,
             right: layout.right + 8,

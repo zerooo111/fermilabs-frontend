@@ -74,7 +74,7 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
     <th
       data-slot="table-head"
       className={cn(
-        'text-zinc-100 h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] border-b border-outline',
+        'text-rock/50 h-9 px-2 text-left align-middle text-xs font-normal whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] border-b border-outline',
         className
       )}
       {...props}
@@ -99,7 +99,7 @@ function TableCaption({ className, ...props }: React.ComponentProps<'caption'>) 
   return (
     <caption
       data-slot="table-caption"
-      className={cn('text-zinc-300 mt-4 text-sm', className)}
+      className={cn('text-rock/60 mt-4 text-sm', className)}
       {...props}
     />
   );

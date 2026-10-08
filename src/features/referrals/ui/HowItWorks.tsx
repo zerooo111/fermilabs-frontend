@@ -28,10 +28,10 @@ export function HowItWorks() {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="flex items-baseline gap-1.5 text-sm font-medium text-rock">
-                <span className="font-mono text-xs tabular-nums text-white/40">{i + 1}</span>
+                <span className="font-mono text-xs tabular-nums text-rock/40">{i + 1}</span>
                 {step.title}
               </span>
-              <span className="text-xs leading-relaxed text-white/60">{step.body}</span>
+              <span className="text-xs leading-relaxed text-rock/60">{step.body}</span>
             </div>
           </div>
         ))}

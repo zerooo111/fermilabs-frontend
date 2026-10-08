@@ -32,7 +32,7 @@ type FeeBannerTone = 'ok' | 'warn' | 'danger';
 
 const FEE_BANNER_STYLES: Record<FeeBannerTone, string> = {
   ok: 'bg-success/10 border-success/30 text-success',
-  warn: 'bg-amber-400/10 border-amber-400/30 text-amber-300',
+  warn: 'bg-amber-200/10 border-amber-200/30 text-amber-200',
   danger: 'bg-danger/10 border-danger/30 text-danger',
 };
 
@@ -67,8 +67,8 @@ function FeeBanner({
 
 function healthColor(ratio: number) {
   if (ratio < 0) return { bar: 'bg-danger', text: 'text-danger' };
-  if (ratio < 10) return { bar: 'bg-orange-500', text: 'text-orange-400' };
-  if (ratio < 30) return { bar: 'bg-amber-400', text: 'text-amber-400' };
+  if (ratio < 10) return { bar: 'bg-amber-200', text: 'text-amber-200' };
+  if (ratio < 30) return { bar: 'bg-amber-200', text: 'text-amber-200' };
   return { bar: 'bg-success', text: 'text-success' };
 }
 
@@ -79,9 +79,9 @@ function InlineHealthBar({ label, ratio }: { label: string; ratio?: number }) {
   if (ratio === undefined) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-muted-foreground shrink-0 w-28">{label}</span>
+        <span className="text-rock/50 shrink-0 w-28">{label}</span>
         <div className="flex-1 h-0.5 bg-outline overflow-hidden" />
-        <span className="tabular-nums shrink-0 text-muted-foreground">—</span>
+        <span className="tabular-nums shrink-0 text-rock/50">—</span>
       </div>
     );
   }
@@ -89,7 +89,7 @@ function InlineHealthBar({ label, ratio }: { label: string; ratio?: number }) {
   const clamped = Math.max(0, Math.min(100, ratio));
   return (
     <div className="flex items-center gap-2">
-      <span className="text-muted-foreground shrink-0 w-28">{label}</span>
+      <span className="text-rock/50 shrink-0 w-28">{label}</span>
       <div className="flex-1 h-0.5 bg-outline overflow-hidden">
         <div
           className={`h-full transition-all duration-500 ${bar}`}
@@ -381,7 +381,7 @@ export function PerpsTradePanel() {
                     const formattedPrice = markPrice.toFixed(marketQuoteDecimals(selectedMarket));
                     setFormState(prev => ({ ...prev, price: formattedPrice }));
                   }}
-                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                  className="text-xs text-rock/50 hover:text-rock underline"
                 >
                   Market
                 </button>
@@ -405,7 +405,7 @@ export function PerpsTradePanel() {
         )}
 
         {formState.orderType === 'market' && (
-          <div className="space-y-1.5 rounded-sm bg-muted/20 px-2 py-1.5 border border-outline/60">
+          <div className="space-y-1.5 bg-rock/10 px-2 py-1.5 border border-outline/60">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <input
@@ -418,17 +418,17 @@ export function PerpsTradePanel() {
                       setFormState(prev => ({ ...prev, slippage: '0.25' }));
                     }
                   }}
-                  className="h-3 w-3 rounded border-outline shrink-0"
+                  className="h-3 w-3 border-outline shrink-0"
                 />
                 <label
                   htmlFor="customSlippage"
-                  className="text-[11px] text-muted-foreground cursor-pointer truncate"
+                  className="text-[11px] text-rock/50 cursor-pointer truncate"
                 >
                   Custom slippage limit
                 </label>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="size-3 text-muted-foreground cursor-help shrink-0" />
+                    <Info className="size-3 text-rock/50 cursor-help shrink-0" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <div className="text-xs">
@@ -438,7 +438,7 @@ export function PerpsTradePanel() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <span className="text-[11px] tabular-nums text-foreground shrink-0">
+              <span className="text-[11px] tabular-nums text-rock shrink-0">
                 {formState.slippage}%
               </span>
             </div>
@@ -452,8 +452,8 @@ export function PerpsTradePanel() {
                       size="sm"
                       className={`h-6 flex-1 text-[11px] px-1 ${
                         formState.slippage === pct
-                          ? 'bg-white text-black font-bold hover:bg-white/90'
-                          : 'hover:bg-accent/50'
+                          ? 'bg-rock text-dark-forest font-medium hover:bg-rock/90'
+                          : 'hover:bg-amber-200/50'
                       }`}
                       onClick={() => setFormState(prev => ({ ...prev, slippage: pct }))}
                     >
@@ -493,11 +493,11 @@ export function PerpsTradePanel() {
         />
 
         <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <span className="font-medium text-foreground">Leverage</span>
+          <div className="flex items-center gap-1.5 text-rock/50">
+            <span className="font-medium text-rock">Leverage</span>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="size-3.5 text-muted-foreground cursor-help" />
+                <Info className="size-3.5 text-rock/50 cursor-help" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <div className="text-xs">
@@ -517,14 +517,14 @@ export function PerpsTradePanel() {
             id="reduceOnly"
             checked={formState.reduceOnly}
             onChange={e => setFormState(prev => ({ ...prev, reduceOnly: e.target.checked }))}
-            className="h-4 w-4 rounded border-outline"
+            className="h-4 w-4 border-outline"
           />
           <label htmlFor="reduceOnly" className="text-sm font-medium cursor-pointer">
             Reduce Only
           </label>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Info className="size-3.5 text-muted-foreground cursor-help" />
+              <Info className="size-3.5 text-rock/50 cursor-help" />
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
               <div className="text-xs">
@@ -580,14 +580,14 @@ export function PerpsTradePanel() {
                   }
                 }
               }}
-              className="h-4 w-4 rounded border-outline"
+              className="h-4 w-4 border-outline"
             />
             <label htmlFor="enableSLTP" className="text-sm font-medium cursor-pointer">
               Stop loss / Take Profit
             </label>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="size-3.5 text-muted-foreground cursor-help" />
+                <Info className="size-3.5 text-rock/50 cursor-help" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <div className="space-y-1">
@@ -690,7 +690,7 @@ export function PerpsTradePanel() {
                     </div>
                   ))}
                   {warnings.map((w, i) => (
-                    <div key={i} className="flex items-start gap-1.5 text-amber-400">
+                    <div key={i} className="flex items-start gap-1.5 text-amber-200">
                       <AlertTriangle className="size-3 mt-0.5 shrink-0" />
                       <span>{w}</span>
                     </div>
@@ -700,38 +700,38 @@ export function PerpsTradePanel() {
 
               {/* Static order details — always rendered. */}
               <div className="px-3 py-2.5 space-y-2">
-                <div className="flex items-center justify-between text-muted-foreground">
+                <div className="flex items-center justify-between text-rock/50">
                   <span>Size</span>
-                  <span className="tabular-nums text-foreground">
+                  <span className="tabular-nums text-rock">
                     {sizeValue > 0
                       ? `${sizeValue.toFixed(marketBaseDecimals(selectedMarket))} ${selectedMarket?.baseTokenName ?? ''}`
                       : '—'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-muted-foreground">
+                <div className="flex items-center justify-between text-rock/50">
                   <span>Margin</span>
-                  <span className="tabular-nums text-foreground">{marginDisplay}</span>
+                  <span className="tabular-nums text-rock">{marginDisplay}</span>
                 </div>
-                <div className="flex items-center justify-between text-muted-foreground">
+                <div className="flex items-center justify-between text-rock/50">
                   <span>Est. Liq. Price</span>
-                  <span className="tabular-nums text-foreground">{liqPriceDisplay}</span>
+                  <span className="tabular-nums text-rock">{liqPriceDisplay}</span>
                 </div>
-                <div className="flex items-center justify-between text-muted-foreground">
+                <div className="flex items-center justify-between text-rock/50">
                   <span>Fee</span>
-                  <span className="tabular-nums text-foreground">0.01%</span>
+                  <span className="tabular-nums text-rock">0.01%</span>
                 </div>
               </div>
 
               {/* After Trade — always rendered with placeholders so the panel
                   has a constant height while pre-trade simulation is in flight. */}
               <div className="px-3 pb-2.5 pt-2 border-t border-dashed border-outline space-y-2">
-                <div className="flex items-center justify-between text-muted-foreground">
+                <div className="flex items-center justify-between text-rock/50">
                   <span className="uppercase tracking-wide text-[10px]">After Trade</span>
-                  {simLoading && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+                  {simLoading && <Loader2 className="size-3 animate-spin text-rock/50" />}
                 </div>
                 <InlineHealthBar label="Init Health" ratio={simResult?.after.init_health_ratio} />
                 <InlineHealthBar label="Maint Health" ratio={simResult?.after.maint_health_ratio} />
-                <div className="flex items-center justify-between text-muted-foreground pt-0.5">
+                <div className="flex items-center justify-between text-rock/50 pt-0.5">
                   <span>Health Impact</span>
                   {simResult ? (
                     <span
@@ -744,7 +744,7 @@ export function PerpsTradePanel() {
                       })}
                     </span>
                   ) : (
-                    <span className="tabular-nums text-muted-foreground">—</span>
+                    <span className="tabular-nums text-rock/50">—</span>
                   )}
                 </div>
               </div>

@@ -51,7 +51,7 @@ export function TradingStatsPanel({ me, loading }: { me: ReferralMe | null; load
 
         {!loading &&
           (bound ? (
-            <p className="flex items-start gap-2 text-[11px] leading-relaxed text-white/55">
+            <p className="flex items-start gap-2 text-[11px] leading-relaxed text-rock/55">
               <Gift className="mt-px size-3.5 shrink-0 text-rock/70" />
               You get {REBATE_SHARE_LABEL} of the fees you pay back as a rebate ({REBATE_RATE_LABEL}{' '}
               of your volume), added to your claimable rewards. Only trades after you applied a code
@@ -59,8 +59,8 @@ export function TradingStatsPanel({ me, loading }: { me: ReferralMe | null; load
             </p>
           ) : (
             <div className="flex items-start gap-2 border border-outline bg-card/40 px-3 py-2.5">
-              <Lock className="mt-0.5 size-3.5 shrink-0 text-white/45" />
-              <p className="text-[11px] leading-relaxed text-white/60">
+              <Lock className="mt-0.5 size-3.5 shrink-0 text-rock/45" />
+              <p className="text-[11px] leading-relaxed text-rock/60">
                 Apply a referral code to unlock a{' '}
                 <span className="text-rock">{REBATE_SHARE_LABEL} rebate</span> on the fees you pay.
                 Head to the <span className="text-rock">Referrals</span> tab to add one.
@@ -91,7 +91,7 @@ function StatCard({
     <div className="flex flex-col gap-1.5 border border-outline bg-card/40 p-3">
       <div className="flex items-center gap-1.5">
         <Eyebrow>{label}</Eyebrow>
-        {hint && <span className="font-mono text-[10px] text-white/35">{hint}</span>}
+        {hint && <span className="font-mono text-[10px] text-rock/40">{hint}</span>}
       </div>
       {loading ? (
         <div className="skeleton-bone h-6 w-20" />
@@ -99,7 +99,7 @@ function StatCard({
         <span
           className={cn(
             'font-mono text-lg font-semibold tabular-nums',
-            locked ? 'text-white/40' : accent ? 'text-rock' : 'text-white/90'
+            locked ? 'text-rock/40' : accent ? 'text-rock' : 'text-rock/90'
           )}
         >
           {value}

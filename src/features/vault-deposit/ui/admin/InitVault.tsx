@@ -31,11 +31,11 @@ export function InitVaultFlow() {
   };
 
   return (
-    <div className="border border-zinc-300 bg-white p-6 flex flex-col gap-3">
+    <div className="border border-rock/20 bg-rock p-6 flex flex-col gap-3">
       <h1 className="text-xl">Init Vault</h1>
       <form onSubmit={handleSubmit} className="flex gap-3">
         <Input
-          className="flex-1 bg-zinc-100"
+          className="flex-1 bg-rock/10"
           name="tokenMintAddress"
           placeholder="Token Mint Address"
         />
@@ -51,8 +51,8 @@ export function InitVaultFlow() {
           View Transaction on Solana Explorer
         </a>
       )}
-      {error && <div className="text-red-500 font-mono font-medium">{error}</div>}
-      <div className="bg-zinc-100 p-3">
+      {error && <div className="text-danger font-mono font-medium">{error}</div>}
+      <div className="bg-rock/10 p-3">
         <pre>{JSON.stringify(vaultData, null, 2)}</pre>
       </div>
     </div>

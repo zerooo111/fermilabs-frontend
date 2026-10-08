@@ -13,7 +13,7 @@ export function QuantityThresholdSelector() {
       <SelectTrigger
         size="sm"
         aria-label="Size resolution"
-        className="!h-7 border-none bg-transparent px-2 text-xs shadow-none"
+        className="!h-6 border-none bg-transparent px-2 text-[11px] text-rock/70 hover:text-rock"
       >
         <SelectValue placeholder="Resolution" />
       </SelectTrigger>

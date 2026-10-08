@@ -81,8 +81,8 @@ export function MyOrders() {
 
   if (!publicKey) {
     return (
-      <div>
-        <h2 className="text-lg font-medium">Please connect your wallet</h2>
+      <div className="flex h-full min-h-24 items-center justify-center p-4 text-xs text-rock/45">
+        Connect a wallet to see this
       </div>
     );
   }
@@ -134,7 +134,7 @@ export function MyOrders() {
       const isCancelling = cancellingLegs.has(leg.id);
       const stateLabel = LEG_STATE_LABEL[leg.state] ?? leg.state;
       return (
-        <TableRow key={leg.id} className="text-xs text-white/75">
+        <TableRow key={leg.id} className="text-xs text-rock/75">
           <TableCell>
             <div className="flex flex-col">
               <span>{leg.kind === 'stop_loss' ? 'Stop loss' : 'Take profit'}</span>
@@ -192,7 +192,7 @@ export function MyOrders() {
     if (myOrders.length === 0 && myLegs.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={7} className="h-24 text-center text-sm text-neutral-500">
+          <TableCell colSpan={7} className="h-24 text-center text-sm text-rock/40">
             No active orders
           </TableCell>
         </TableRow>
@@ -203,7 +203,7 @@ export function MyOrders() {
 
     const bookRows = myOrders.map(order => {
       return (
-        <TableRow key={order.order_id} className="text-xs text-white/75">
+        <TableRow key={order.order_id} className="text-xs text-rock/75">
           <TableCell title={`Order ${order.order_id}`}>Limit</TableCell>
           <TableCell>
             <Badge variant={order.side === 'Buy' ? 'success' : 'danger'}>{order.side}</Badge>

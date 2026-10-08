@@ -90,7 +90,7 @@ function CreateCode({ onCreate }: { onCreate: (code?: string) => Promise<string 
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold text-rock">Create your referral code</h2>
-        <p className="max-w-xl text-sm leading-relaxed text-white/65">{VALUE_PROP}</p>
+        <p className="max-w-xl text-sm leading-relaxed text-rock/65">{VALUE_PROP}</p>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -108,7 +108,7 @@ function CreateCode({ onCreate }: { onCreate: (code?: string) => Promise<string 
           disabled={creating}
           onClick={() => setShowCustom(v => !v)}
           className={cn(
-            'flex items-center gap-1 self-start text-xs text-white/55 transition-colors hover:text-white/80 disabled:opacity-40',
+            'flex items-center gap-1 self-start text-xs text-rock/55 transition-colors hover:text-rock/80 disabled:opacity-40',
             FOCUS_RING
           )}
         >
@@ -180,9 +180,9 @@ function ShareCode({ code }: { code: string }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-3">
-        <p className="text-sm leading-relaxed text-white/65">{VALUE_PROP}</p>
+        <p className="text-sm leading-relaxed text-rock/65">{VALUE_PROP}</p>
         <div className="flex flex-col gap-1.5">
-          <span className="text-xs text-white/50">Your referral code</span>
+          <span className="text-xs text-rock/50">Your referral code</span>
           <code className="font-mono text-3xl font-semibold tracking-[0.2em] text-rock">
             {code}
           </code>
@@ -218,7 +218,7 @@ function ShareCode({ code }: { code: string }) {
         </Button>
       </div>
 
-      <p className="text-[11px] leading-relaxed text-white/45">
+      <p className="text-[11px] leading-relaxed text-rock/45">
         Up to {MAX_REFERRALS_PER_CODE} referrals per code during beta — this limit will increase.
       </p>
     </div>

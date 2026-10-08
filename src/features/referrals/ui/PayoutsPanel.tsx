@@ -22,8 +22,8 @@ const STATUS: Record<
   PayoutStatus,
   { dot: string; label: string; variant: React.ComponentProps<typeof Badge>['variant'] }
 > = {
-  requested: { dot: 'bg-white/50', label: 'Requested', variant: 'secondary' },
-  processing: { dot: 'bg-amber-400', label: 'Processing', variant: 'outline' },
+  requested: { dot: 'bg-rock/50', label: 'Requested', variant: 'secondary' },
+  processing: { dot: 'bg-amber-200', label: 'Processing', variant: 'outline' },
   completed: { dot: 'bg-success', label: 'Completed', variant: 'success' },
   failed: { dot: 'bg-danger', label: 'Failed', variant: 'danger' },
 };
@@ -89,7 +89,7 @@ export function PayoutsPanel({ payouts, loading }: { payouts: Payout[]; loading:
                       <TableCell
                         className={cn(
                           TD,
-                          'font-mono text-xs text-white/55',
+                          'font-mono text-xs text-rock/55',
                           hasDetail && 'border-0 pb-1'
                         )}
                       >
@@ -110,7 +110,7 @@ export function PayoutsPanel({ payouts, loading }: { payouts: Payout[]; loading:
                               target="_blank"
                               rel="noopener noreferrer"
                               className={cn(
-                                'truncate font-mono text-[11px] text-white/55 underline-offset-2 transition-colors hover:text-white/80 hover:underline',
+                                'truncate font-mono text-[11px] text-rock/55 underline-offset-2 transition-colors hover:text-rock/80 hover:underline',
                                 FOCUS_RING
                               )}
                             >
@@ -118,7 +118,7 @@ export function PayoutsPanel({ payouts, loading }: { payouts: Payout[]; loading:
                             </a>
                           )}
                           {p.note && (
-                            <span className="block text-[11px] text-white/55">{p.note}</span>
+                            <span className="block text-[11px] text-rock/55">{p.note}</span>
                           )}
                         </TableCell>
                       </TableRow>

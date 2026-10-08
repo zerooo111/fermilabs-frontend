@@ -27,7 +27,7 @@ export function useVaultClient() {
     return new LiquidityVaultClient(provider, new PublicKey(config.devnet.vaultProgramId), {
       postSendTxCallback: ({ txid }) => {
         toast.custom(() => (
-          <div className="bg-white border border-zinc-300 shadow-2xl p-3 rounded-xl flex flex-col gap-2 text-xs">
+          <div className="bg-rock border border-rock/20 shadow-2xl p-3 flex flex-col gap-2 text-xs">
             <p className="font-semibold">Transaction sent successfully</p>
             <a
               className="text-blue-500 underline flex items-center gap-1"

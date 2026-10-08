@@ -91,13 +91,13 @@ export function RewardsPanel({
 
           {!loading && belowMin && claimable > 0 && (
             <div className="flex flex-col gap-1.5">
-              <div className="h-1 w-full overflow-hidden bg-white/10">
+              <div className="h-1 w-full overflow-hidden bg-rock/10">
                 <div
                   className="h-full bg-rock/50 transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <span className="text-[11px] leading-relaxed text-white/55">
+              <span className="text-[11px] leading-relaxed text-rock/55">
                 Minimum payout is {usd(minClaim)}. Keep trading and referring to reach it.
               </span>
             </div>
@@ -117,7 +117,7 @@ export function RewardsPanel({
           </Button>
         </div>
 
-        <p className="text-[11px] leading-relaxed text-white/55">
+        <p className="text-[11px] leading-relaxed text-rock/55">
           Requesting moves the amount into a pending payout. We send the USDC to your wallet and
           mark it complete with the transaction.
         </p>

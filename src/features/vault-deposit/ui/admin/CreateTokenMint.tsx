@@ -35,7 +35,7 @@ export function CreateTokenMintFlow() {
   // mint tokens to the keypair
 
   return (
-    <div className="border border-zinc-300 bg-white p-6 flex flex-col gap-3">
+    <div className="border border-rock/20 bg-rock p-6 flex flex-col gap-3">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl">Create Token Mint</h1>
         <Button onClick={handleCreateMint}>Create Mint</Button>
@@ -53,7 +53,7 @@ export function CreateTokenMintFlow() {
           View Transaction on Solan Explorer
         </a>
       )}
-      <hr className="w-full border-zinc-300" />
+      <hr className="w-full border-rock/20" />
     </div>
   );
 }

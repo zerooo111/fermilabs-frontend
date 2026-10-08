@@ -17,17 +17,41 @@
   --screen-lg: 1024px;
   --screen-xl: 1280px;
   --screen-2xl: 1440px;
-  --color-background: hsla(163, 90%, 5%, 1);
-  --color-outline: rgba(255, 255, 255, 0.2);
-  --color-card: rgba(255, 255, 255, 0.05);
+  /* Terminal palette, built in OKLCH on the landing's forest hue (160) so
+     every step differs only in lightness, with cream (rock) tints for rules
+     and surfaces so chrome reads warm rather than grey. All text/surface
+     pairs clear WCAG AA (body text clears AAA); see the contrast table in the
+     commit that introduced these. Keep --color-background in sync with
+     html[data-boot='app'] in index.html (#001409). */
+  --color-background: oklch(17% 0.038 160);
+  --color-surface: oklch(24% 0.046 160); /* raised: popovers, menus, window chrome */
+  --color-outline: rgba(248, 247, 231, 0.16);
+  --color-card: rgba(248, 247, 231, 0.035);
   --color-rock: #f8f7e7;
+  /* Semantic aliases used by the shared primitives */
+  --color-foreground: #f8f7e7;
+  --color-muted-foreground: rgba(248, 247, 231, 0.55);
+  --color-primary: var(--color-amber-200);
+  --color-primary-foreground: #185038;
+  --color-secondary: rgba(248, 247, 231, 0.1);
+  --color-secondary-foreground: #f8f7e7;
+  --color-accent: rgba(248, 247, 231, 0.05);
+  --color-accent-foreground: #f8f7e7;
+  --color-muted: rgba(248, 247, 231, 0.1);
+  --color-ring: var(--color-amber-200);
+  --color-destructive: var(--color-danger);
   /* --color-dark-forest: #002513; */
   --color-dark-forest: #185038;
   --color-lichen: #b4dc78;
   --color-buy: hsla(163, 90%, 5%, 1);
   --color-sell: hsla(348, 90%, 5%, 1);
-  --color-success: #10b981;
-  --color-danger: #ef4444;
+  /* Chart ink: deep emerald / crimson, darker and more saturated than the UI
+     success/danger so candles read bold against the forest without glowing.
+     Hex on purpose: the chart appends alpha bytes (e.g. `${color}3d`). */
+  --color-buy-chart: #219e61;
+  --color-sell-chart: #d53736;
+  --color-success: oklch(75% 0.16 158);
+  --color-danger: oklch(70% 0.19 25);
 }
 
 body {
@@ -44,18 +68,12 @@ html {
   scroll-behavior: smooth;
 }
 
-.text-success {
-  color: #10b981;
-}
-
-.text-danger {
-  color: #ef4444;
-}
+/* .text-success / .text-danger come from the --color-success / --color-danger tokens. */
 
 /* Custom scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-color: rgba(248, 247, 231, 0.18) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -68,12 +86,11 @@ html {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 9999px;
+  background: rgba(248, 247, 231, 0.18);
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(248, 247, 231, 0.32);
 }
 
 @layer base {
@@ -99,6 +116,28 @@ html {
   }
 }
 
+/* Frosted glass for floating surfaces (menus, selects, popovers, tooltips).
+   Same recipe as the landing header's .glass-nav, tuned for the dark base:
+   a translucent forest wash, heavy blur with a saturation lift so content
+   behind reads as colour rather than mud, an even 1px cream rim, and a deep
+   soft drop shadow that lifts the sheet off the terminal. */
+.glass {
+  position: relative;
+  background: color-mix(in oklab, var(--color-background) 66%, transparent);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  /* Edge stack, outside-in (the macOS menu recipe): a near-black 1px outline
+     that separates the sheet from whatever is behind it, then a light 1px rim
+     just inside it that reads as the glass edge, then the drop shadow. The CSS
+     border is the dark outline; the rim is an inset shadow so it never fights
+     the blur. */
+  border: 1px solid rgb(0 0 0 / 0.5);
+  box-shadow:
+    inset 0 0 0 1px rgb(248 247 231 / 0.12),
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 20px 56px -16px rgb(0 0 0 / 0.8);
+}
+
 /* Skeleton shimmer */
 @keyframes skeleton-shimmer {
   0% {
@@ -112,11 +151,10 @@ html {
 .skeleton-bone {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 0%,
-    rgba(255, 255, 255, 0.08) 40%,
-    rgba(255, 255, 255, 0.04) 80%
+    rgba(248, 247, 231, 0.04) 0%,
+    rgba(248, 247, 231, 0.09) 40%,
+    rgba(248, 247, 231, 0.04) 80%
   );
   background-size: 400px 100%;
   animation: skeleton-shimmer 1.8s ease-in-out infinite;
-  border-radius: 3px;
 }

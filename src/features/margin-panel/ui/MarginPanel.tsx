@@ -125,8 +125,8 @@ export function MarginPanel() {
             {/* Pulsing beacon — draws the eye to the button */}
             {guideVisible && (
               <span className="absolute -top-1 -right-1 flex size-2.5 z-10 pointer-events-none">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex rounded-full size-2.5 bg-primary" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-200 text-dark-forest opacity-75" />
+                <span className="relative inline-flex rounded-full size-2.5 bg-amber-200 text-dark-forest" />
               </span>
             )}
 
@@ -192,17 +192,17 @@ export function MarginPanel() {
         >
           {/* Arrow indicator */}
           <div className="flex items-center gap-2 px-3 pt-3 pb-2 border-b border-outline">
-            <span className="text-xs font-medium text-foreground">Start by depositing USDC</span>
+            <span className="text-xs font-medium text-rock">Start by depositing USDC</span>
             <button
               onClick={handleGuideDismiss}
-              className="ml-auto text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              className="ml-auto text-rock/50 hover:text-rock transition-colors shrink-0"
               aria-label="Dismiss"
             >
               <X className="size-3.5" />
             </button>
           </div>
           <div className="px-3 py-3 space-y-3">
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-xs text-rock/50 leading-relaxed">
               Add USDC as collateral to your margin account before placing your first trade.
             </p>
             <Button size="sm" className="w-full gap-1.5" onClick={handleGuideDeposit}>
@@ -211,7 +211,7 @@ export function MarginPanel() {
             </Button>
             <button
               onClick={handleGuideDismiss}
-              className="w-full text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full text-[11px] text-rock/50 hover:text-rock transition-colors"
             >
               I'll do it later
             </button>

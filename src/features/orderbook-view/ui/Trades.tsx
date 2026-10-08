@@ -4,6 +4,7 @@
  */
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { formatPrice, formatQuantity } from '../lib/processOrderbook';
 import { useAtomValue } from 'jotai';
 
 import { selectedMarketAtom } from '@/entities/market';
@@ -12,7 +13,7 @@ import { recentMarketTradesAtom } from '@/shared/api/sse-atoms';
 import { sseConnectionStateAtom } from '@/shared/api/sse-atoms';
 import type { RecentTrade } from '@/shared/api/sse-atom-bridge';
 
-const ROW_HEIGHT_CLASS = 'h-[26px]';
+const ROW_HEIGHT_CLASS = 'h-[22px]';
 
 function formatTimestamp(timestamp: number | string): string {
   const ts = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
@@ -46,7 +47,7 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
 
   function SkeletonRow() {
     return (
-      <div className={`relative font-medium w-full select-none ${ROW_HEIGHT_CLASS}`}>
+      <div className={`relative w-full select-none ${ROW_HEIGHT_CLASS}`}>
         <div className="relative z-10 px-4 h-full flex items-center">
           <div
             className={`grid gap-4 items-center font-mono text-xs leading-none tracking-tight w-full ${
@@ -54,24 +55,24 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
             }`}
           >
             <div className="text-left">
-              <div className="h-3 w-16 bg-white/10 rounded animate-pulse" />
+              <div className="h-3 w-16 bg-rock/10 animate-pulse" />
             </div>
             <div className="text-right">
-              <div className="h-3 w-12 bg-white/10 rounded animate-pulse ml-auto" />
+              <div className="h-3 w-12 bg-rock/10 animate-pulse ml-auto" />
             </div>
             <div className="text-right">
-              <div className="h-3 w-14 bg-white/10 rounded animate-pulse ml-auto" />
+              <div className="h-3 w-14 bg-rock/10 animate-pulse ml-auto" />
             </div>
             {fullView && (
               <>
                 <div className="text-left">
-                  <div className="h-3 w-20 bg-white/10 rounded animate-pulse" />
+                  <div className="h-3 w-20 bg-rock/10 animate-pulse" />
                 </div>
                 <div className="text-left">
-                  <div className="h-3 w-20 bg-white/10 rounded animate-pulse" />
+                  <div className="h-3 w-20 bg-rock/10 animate-pulse" />
                 </div>
                 <div className="text-right">
-                  <div className="h-3 w-16 bg-white/10 rounded animate-pulse ml-auto" />
+                  <div className="h-3 w-16 bg-rock/10 animate-pulse ml-auto" />
                 </div>
               </>
             )}
@@ -93,14 +94,17 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
     const quantity = rawQuantity / Math.pow(10, baseDecimals);
     const total = price * quantity;
 
-    const formattedPrice = price.toFixed(quoteDecimals);
-    const formattedQuantity = quantity.toFixed(baseDecimals);
-    const formattedTotal = total.toFixed(quoteDecimals);
+    // formatPrice/formatQuantity take the scaled integers and pick a sane
+    // display precision, so pass the raw values rather than the UI floats.
+    const formattedPrice = formatPrice(rawPrice, quoteDecimals);
+    const formattedQuantity = formatQuantity(rawQuantity, baseDecimals);
+    const formattedTotal = formatPrice(
+      Math.round(total * Math.pow(10, quoteDecimals)),
+      quoteDecimals
+    );
 
     return (
-      <div
-        className={`relative font-medium w-full select-none hover:bg-white/3 ${ROW_HEIGHT_CLASS}`}
-      >
+      <div className={`relative w-full select-none hover:bg-rock/3 ${ROW_HEIGHT_CLASS}`}>
         <div className="relative z-10 px-4 h-full flex items-center">
           <div
             className={cn(
@@ -123,17 +127,17 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
             {fullView && (
               <>
                 <div className="text-center">
-                  <span className="tabular-nums text-white/60">
+                  <span className="tabular-nums text-rock/60">
                     {buyer_owner ? formatAddress(buyer_owner) : '-'}
                   </span>
                 </div>
                 <div className="text-center">
-                  <span className="tabular-nums text-white/60">
+                  <span className="tabular-nums text-rock/60">
                     {seller_owner ? formatAddress(seller_owner) : '-'}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="tabular-nums text-white/60">
+                  <span className="tabular-nums text-rock/60">
                     {timestamp ? formatTimestamp(timestamp) : '-'}
                   </span>
                 </div>
@@ -149,7 +153,7 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
     <div
       className={`flex flex-col flex-1 min-h-0 overflow-hidden ${fullView ? 'h-[500px] py-2' : ''}`}
     >
-      <div className="flex-1 flex flex-col overflow-y-auto divide-y divide-white/5 border-none">
+      <div className="flex-1 flex flex-col overflow-y-auto divide-y divide-rock/5 border-none">
         {isLoading ? (
           Array.from({ length: rows }).map((_, i) => <SkeletonRow key={`skeleton-trade-${i}`} />)
         ) : (

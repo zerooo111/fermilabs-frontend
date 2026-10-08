@@ -15,11 +15,11 @@ export function UnauthorizedState({ connected }: { connected: boolean }) {
           <Gift className="size-5" />
         </div>
         <h2 className="text-base font-medium text-rock">Referral programme</h2>
-        <p className="max-w-md text-sm leading-relaxed text-white/65">
+        <p className="max-w-md text-sm leading-relaxed text-rock/65">
           Earn {REWARD_RATE_LABEL} of every trade your friends make on Fermi — forever, paid
           in&nbsp;USDC.
         </p>
-        <p className="max-w-sm text-xs leading-relaxed text-white/55">
+        <p className="max-w-sm text-xs leading-relaxed text-rock/55">
           {connected
             ? 'This wallet does not have access yet. Redeem an invite to mint your referral code and start earning.'
             : 'Connect a whitelisted wallet to mint your referral code, track referrals, and claim rewards.'}

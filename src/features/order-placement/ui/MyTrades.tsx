@@ -31,7 +31,7 @@ function StatusRow({ children, tone }: { children: ReactNode; tone?: 'danger' })
     <TableRow>
       <TableCell
         colSpan={7}
-        className={`h-24 text-center text-sm ${tone === 'danger' ? 'text-danger' : 'text-muted-foreground'}`}
+        className={`h-24 text-center text-sm ${tone === 'danger' ? 'text-danger' : 'text-rock/50'}`}
       >
         {children}
       </TableCell>
@@ -135,8 +135,8 @@ export function MyTrades() {
 
   if (!publicKey) {
     return (
-      <div className="p-4">
-        <h2 className="text-lg font-medium">Please connect your wallet</h2>
+      <div className="flex h-full min-h-24 items-center justify-center p-4 text-xs text-rock/45">
+        Connect a wallet to see this
       </div>
     );
   }

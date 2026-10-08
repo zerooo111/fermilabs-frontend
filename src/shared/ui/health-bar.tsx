@@ -26,7 +26,7 @@ export function HealthBar({
       {Array.from({ length: segments }, (_, i) => {
         const fill = Math.max(0, Math.min(1, (pct - i * size) / size));
         return (
-          <div key={i} className="h-1.5 flex-1 overflow-hidden bg-white/10">
+          <div key={i} className="h-1.5 flex-1 overflow-hidden bg-rock/10">
             <div
               className={cn('h-full transition-[width] duration-300', bar)}
               style={{ width: `${fill * 100}%` }}

@@ -536,10 +536,10 @@ function PerpsChartContainerComponent() {
           onPriceSourceChange={handlePriceSourceChange}
         />
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <AlertCircle className="h-12 w-12 text-red-500" />
+          <AlertCircle className="h-12 w-12 text-danger" />
           <div className="text-center">
-            <h3 className="text-lg font-medium text-red-500 mb-1">Failed to fetch chart data</h3>
-            <p className="text-sm text-muted-foreground max-w-md mb-4">
+            <h3 className="text-lg font-medium text-danger mb-1">Failed to fetch chart data</h3>
+            <p className="text-sm text-rock/50 max-w-md mb-4">
               {error instanceof Error ? error.message : 'Unknown error'}
             </p>
           </div>
@@ -575,7 +575,7 @@ function PerpsChartContainerComponent() {
         isRefreshing={isFetching && !isLoading}
       />
 
-      <div className="flex-1 relative min-h-[250px] md:min-h-[350px] lg:min-h-[400px] overflow-hidden">
+      <div className="flex-1 relative min-h-[200px] overflow-hidden">
         <ErrorBoundary>
           <PerpsChart
             key={selectedMarket?.uuid}

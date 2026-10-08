@@ -2,7 +2,7 @@
  * Shared layout primitives for the referral dashboard.
  *
  * Visual language follows the trading terminal: flat panels delineated by thin
- * `border-outline` dividers with a subtle `bg-card` header — no rounded cards,
+ * `border-outline` dividers with a subtle `bg-card` header — no cards,
  * no tinted fills.
  *
  * Note: the app-wide `ring` / `accent` design tokens are undefined in the
@@ -36,7 +36,7 @@ export function PanelHeader({
 }) {
   return (
     <div className="flex h-11 items-center gap-2 border-b border-outline bg-card px-4">
-      <Icon className="size-3.5 text-white/50" />
+      <Icon className="size-3.5 text-rock/50" />
       <span className="text-sm font-medium text-rock">{title}</span>
       {right && <div className="ml-auto">{right}</div>}
     </div>
@@ -53,7 +53,7 @@ export function Eyebrow({
 }) {
   return (
     <span
-      className={cn('font-mono text-[11px] uppercase tracking-[0.12em] text-white/50', className)}
+      className={cn('font-mono text-[11px] uppercase tracking-[0.12em] text-rock/50', className)}
     >
       {children}
     </span>
@@ -68,7 +68,7 @@ export function PanelEmpty({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-center gap-2 px-4 py-10 text-sm text-white/55">
+    <div className="flex items-center justify-center gap-2 px-4 py-10 text-sm text-rock/55">
       {loading ? (
         <>
           <Loader2 className="size-4 animate-spin" /> Loading…

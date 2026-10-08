@@ -78,9 +78,9 @@ const BETA_ITEMS = [
 
 function HeaderIcon({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex size-12 items-center justify-center border border-accent/30 bg-accent/10 text-accent">
+    <span className="inline-flex size-7 shrink-0 items-center justify-center border border-amber-200/40 bg-amber-200/10 text-amber-200 [&_svg]:size-4">
       {children}
-    </div>
+    </span>
   );
 }
 
@@ -199,29 +199,27 @@ export function InviteCodeModal() {
         if (!next) handleDismiss();
       }}
     >
-      <DialogContent className="max-w-md gap-6 p-6">
+      <DialogContent className="max-w-md gap-5 p-5">
         {!acknowledged ? (
           // ── Step 1: Beta acknowledgement ──
           <>
-            <DialogHeader className="gap-4">
-              <HeaderIcon>
-                <Atom weight="duotone" className="size-7" />
-              </HeaderIcon>
-              <div className="flex flex-col gap-2">
-                <DialogTitle className="text-lg font-semibold tracking-tight">
-                  Welcome to Fermilabs
-                </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  A few things to know before you start trading.
-                </DialogDescription>
+            <DialogHeader className="gap-2 pr-6">
+              <div className="flex items-center gap-2.5">
+                <HeaderIcon>
+                  <Atom weight="duotone" className="size-7" />
+                </HeaderIcon>
+                <DialogTitle className="text-base font-semibold">Welcome to Fermilabs</DialogTitle>
               </div>
+              <DialogDescription className="text-sm text-rock/60 leading-relaxed">
+                A few things to know before you start trading.
+              </DialogDescription>
             </DialogHeader>
 
             <ul className="flex flex-col gap-2.5">
               {BETA_ITEMS.map((item, i) => (
                 <li
                   key={i}
-                  className="text-sm text-muted-foreground border-l-2 border-accent/30 pl-3 py-1 leading-relaxed"
+                  className="text-sm text-rock/50 border-l-2 border-amber-200/40 pl-3 py-1 leading-relaxed"
                 >
                   {item}
                 </li>
@@ -235,21 +233,21 @@ export function InviteCodeModal() {
         ) : // ── Step 2: Wallet connect ──
         !publicKey ? (
           <>
-            <DialogHeader className="gap-4">
-              <HeaderIcon>
-                <Wallet className="size-6" />
-              </HeaderIcon>
-              <div className="flex flex-col gap-2">
-                <DialogTitle className="text-lg font-semibold tracking-tight">
+            <DialogHeader className="gap-2 pr-6">
+              <div className="flex items-center gap-2.5">
+                <HeaderIcon>
+                  <Wallet className="size-6" />
+                </HeaderIcon>
+                <DialogTitle className="text-base font-semibold">
                   {embeddedWalletsEnabled ? 'Log in to Fermilabs' : 'Connect your wallet'}
                 </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  {embeddedWalletsEnabled
-                    ? 'Continue with email, Google, X, or a Solana wallet.'
-                    : 'Connect a Solana wallet such as Phantom or Solflare.'}{' '}
-                  We'll then ask you for your invite or referral code.
-                </DialogDescription>
               </div>
+              <DialogDescription className="text-sm text-rock/60 leading-relaxed">
+                {embeddedWalletsEnabled
+                  ? 'Continue with email, Google, X, or a Solana wallet.'
+                  : 'Connect a Solana wallet such as Phantom or Solflare.'}{' '}
+                We'll then ask you for your invite or referral code.
+              </DialogDescription>
             </DialogHeader>
 
             <Button onClick={handleLogin} disabled={!loginReady} size="lg" className="w-full">
@@ -265,7 +263,7 @@ export function InviteCodeModal() {
             </Button>
 
             <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
-              <span className="text-sm text-muted-foreground">No invite code?</span>
+              <span className="text-sm text-rock/50">No invite code?</span>
               <Button variant="outline" size="sm" asChild>
                 <a
                   href={DISCORD_URL}
@@ -284,51 +282,47 @@ export function InviteCodeModal() {
           // Show a spinner instead of the code form so the user isn't asked
           // to enter a code while their wallet signature popup is open.
           <>
-            <DialogHeader className="gap-4">
-              <HeaderIcon>
-                <Key weight="duotone" className="size-7" />
-              </HeaderIcon>
-              <div className="flex flex-col gap-2">
-                <DialogTitle className="text-lg font-semibold tracking-tight">
-                  Checking access…
-                </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  Approve the signature request in your wallet to continue.
-                </DialogDescription>
+            <DialogHeader className="gap-2 pr-6">
+              <div className="flex items-center gap-2.5">
+                <HeaderIcon>
+                  <Key weight="duotone" className="size-7" />
+                </HeaderIcon>
+                <DialogTitle className="text-base font-semibold">Checking access…</DialogTitle>
               </div>
+              <DialogDescription className="text-sm text-rock/60 leading-relaxed">
+                Approve the signature request in your wallet to continue.
+              </DialogDescription>
             </DialogHeader>
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              <Loader2 className="size-6 animate-spin text-rock/50" />
             </div>
           </>
         ) : (
           // ── Step 3: Redeem invite code ──
           <>
-            <DialogHeader className="gap-4">
-              <HeaderIcon>
-                <Key weight="duotone" className="size-7" />
-              </HeaderIcon>
-              <div className="flex flex-col gap-2">
-                <DialogTitle className="text-lg font-semibold tracking-tight">
-                  Enter your code
-                </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                  {identity ? (
-                    <>
-                      {identity.method === 'wallet' ? 'Connected with ' : 'Logged in as '}
-                      <span className="text-rock">{identity.label}</span>.{' '}
-                    </>
-                  ) : (
-                    "You're logged in. "
-                  )}
-                  Paste an invite code or a referral code to unlock trading.
-                </DialogDescription>
+            <DialogHeader className="gap-2 pr-6">
+              <div className="flex items-center gap-2.5">
+                <HeaderIcon>
+                  <Key weight="duotone" className="size-7" />
+                </HeaderIcon>
+                <DialogTitle className="text-base font-semibold">Enter your code</DialogTitle>
               </div>
+              <DialogDescription className="text-sm text-rock/60 leading-relaxed">
+                {identity ? (
+                  <>
+                    {identity.method === 'wallet' ? 'Connected with ' : 'Logged in as '}
+                    <span className="text-rock">{identity.label}</span>.{' '}
+                  </>
+                ) : (
+                  "You're logged in. "
+                )}
+                Paste an invite code or a referral code to unlock trading.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                <label className="font-mono text-[10px] uppercase tracking-[0.15em] text-rock/50">
                   Invite or Referral Code
                 </label>
                 <Input
@@ -338,7 +332,7 @@ export function InviteCodeModal() {
                   disabled={submitting}
                   spellCheck={false}
                   autoComplete="off"
-                  className="h-11 font-mono text-sm tracking-widest placeholder:tracking-normal placeholder:font-sans placeholder:text-muted-foreground/40"
+                  className="h-11 font-mono text-sm tracking-widest placeholder:tracking-normal placeholder:font-sans placeholder:text-rock/35"
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !submitting && code.trim()) {
                       e.preventDefault();
@@ -346,7 +340,7 @@ export function InviteCodeModal() {
                     }
                   }}
                 />
-                <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                <p className="text-xs text-rock/50 leading-relaxed">
                   Have a friend's referral code? It works here too — you'll get access and they'll
                   be credited. Your wallet signs a one-time message to prove ownership. No
                   transaction or gas fee.
@@ -371,7 +365,7 @@ export function InviteCodeModal() {
             </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-outline pt-4">
-              <span className="text-sm text-muted-foreground">No invite code?</span>
+              <span className="text-sm text-rock/50">No invite code?</span>
               <Button variant="outline" size="sm" asChild>
                 <a
                   href={DISCORD_URL}

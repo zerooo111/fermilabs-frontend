@@ -5,19 +5,18 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  "inline-flex cursor-pointer items-center justify-center gap-2 hover:scale-101 hover:rounded-md active:scale-99 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:outline-2 focus-visible:outline-amber-200 focus-visible:outline-offset-2 aria-invalid:border-danger",
   {
     variants: {
       variant: {
-        default: 'bg-rock text-background shadow-xs hover:bg-primary/90',
-        destructive:
-          'bg-danger text-white shadow-xs hover:brightness-125 focus-visible:ring-danger/20',
-        success:
-          'bg-success text-white shadow-xs hover:brightness-125 focus-visible:ring-success/20',
-        outline: 'ring  ring-inset ring-outline bg-background hover:bg-card shadow-xs',
-        secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
-        link: 'text-primary underline-offset-4 hover:underline',
+        default: 'bg-amber-200 font-semibold text-dark-forest hover:bg-amber-100',
+        destructive: 'bg-danger font-semibold text-background hover:brightness-110',
+        success: 'bg-success font-semibold text-background hover:brightness-110',
+        outline:
+          'border border-outline bg-transparent text-rock hover:bg-rock/5 hover:border-rock/40',
+        secondary: 'bg-rock/10 text-rock hover:bg-rock/15',
+        ghost: 'text-rock/80 hover:bg-rock/5 hover:text-rock',
+        link: 'text-amber-200 underline-offset-4 hover:text-amber-100 hover:underline',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',

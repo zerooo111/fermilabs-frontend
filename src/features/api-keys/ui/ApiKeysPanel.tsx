@@ -218,7 +218,7 @@ export function ApiKeysPanel() {
                       key={i}
                       className={cn(
                         'h-1 w-6 transition-colors',
-                        i < activeCount ? (atLimit ? 'bg-amber-400' : 'bg-rock') : 'bg-rock/15'
+                        i < activeCount ? (atLimit ? 'bg-amber-200' : 'bg-rock') : 'bg-rock/15'
                       )}
                     />
                   ))}
@@ -429,7 +429,7 @@ function CreatedSecretView({ created, onDone }: { created: CreatedKey; onDone: (
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start gap-2.5 border border-amber-400/40 bg-amber-500/10 px-3 py-2.5 text-amber-200">
+      <div className="flex items-start gap-2.5 border border-amber-200/40 bg-amber-200/10 px-3 py-2.5 text-amber-200">
         <AlertTriangle className="mt-0.5 size-4 shrink-0" />
         <p className="text-xs leading-relaxed">
           Copy this key now — you won't be able to see it again. Store it somewhere safe; if you
@@ -440,7 +440,7 @@ function CreatedSecretView({ created, onDone }: { created: CreatedKey; onDone: (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <FieldLabel>{created.label}</FieldLabel>
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-amber-300/80">
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-amber-200/80">
             Shown once
           </span>
         </div>

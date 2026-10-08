@@ -22,13 +22,12 @@ import { ConnectionIndicator } from '@/shared/ui/ConnectionIndicator';
 
 // Pixel sizes used to size rows / chrome. Keep in sync with the row/header
 // classNames below — these drive the dynamic row-count math.
-// Softer active-tab underline than the shared TabsTrigger's solid white bar.
-const TAB_TRIGGER_CLASS = 'flex-1 border-b data-[state=active]:border-white/25';
+const TAB_TRIGGER_CLASS = 'flex-1';
 
-const ROW_HEIGHT_PX = 26;
+const ROW_HEIGHT_PX = 22;
 const TOOLBAR_PX = 33; // depth-mode / size-filter bar (h-8 + border)
-const HEADER_PX = 36; // column headers row (px-4 py-2 + text-xs)
-const SPREAD_PX = 36; // spread bar between asks and bids
+const HEADER_PX = 29; // column headers row (h-7 + border)
+const SPREAD_PX = 30; // spread bar between asks and bids (h-7 + borders)
 const MIN_ROWS_PER_SIDE = 5;
 const MAX_ROWS_PER_SIDE = 30;
 
@@ -93,7 +92,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
     return lastProcessedRef.current;
   }, [orderbook, orderbookRows, quantityThreshold, selectedMarket?.baseDecimals]);
 
-  const ROW_HEIGHT_CLASS = 'h-[26px]';
+  const ROW_HEIGHT_CLASS = 'h-[22px]';
   // Side height = orderbookRows × ROW_HEIGHT_PX, recomputed whenever the
   // measured container resizes. Keeps bids and asks equally sized and packed
   // tightly without overflow scrollbars.
@@ -101,20 +100,20 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
 
   function SkeletonOrderbookRow() {
     return (
-      <div className={`relative font-medium w-full select-none ${ROW_HEIGHT_CLASS}`}>
-        <div className="relative z-10 px-4 h-full flex items-center">
+      <div className={`relative w-full select-none ${ROW_HEIGHT_CLASS}`}>
+        <div className="relative z-10 px-3 h-full flex items-center">
           <div className="grid grid-cols-3 gap-4 items-center font-mono text-xs leading-none tracking-tight w-full">
             {/* Price skeleton */}
             <div className="text-left">
-              <div className="h-3 w-16 bg-white/10 rounded animate-pulse" />
+              <div className="h-3 w-16 bg-rock/10 animate-pulse" />
             </div>
             {/* Size skeleton */}
             <div className="text-right">
-              <div className="h-3 w-12 bg-white/10 rounded animate-pulse ml-auto" />
+              <div className="h-3 w-12 bg-rock/10 animate-pulse ml-auto" />
             </div>
             {/* Total skeleton */}
             <div className="text-right">
-              <div className="h-3 w-14 bg-white/10 rounded animate-pulse ml-auto" />
+              <div className="h-3 w-14 bg-rock/10 animate-pulse ml-auto" />
             </div>
           </div>
         </div>
@@ -129,13 +128,13 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
   const orderbookContent = (
     <>
       {/* Depth mode + min size */}
-      <div className="flex items-center justify-between h-8 px-2 border-b border-outline shrink-0">
+      <div className="flex items-center justify-between h-7 px-1 border-b border-outline shrink-0 text-rock/70">
         <DepthModeSelector />
         <QuantityThresholdSelector />
       </div>
 
       {/* Column Headers */}
-      <div className="grid grid-cols-3 px-4 py-2 text-xs bg-card border-b border-outline shrink-0">
+      <div className="grid grid-cols-3 h-7 items-center px-3 text-[11px] text-rock/50 bg-card border-b border-outline shrink-0">
         <div className="text-left font-mono flex items-center gap-1.5">
           Price <ConnectionIndicator />
         </div>
@@ -155,9 +154,9 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
             </div>
 
             {/* Spread skeleton */}
-            <div className="px-4 py-2 text-xs flex justify-between items-center shrink-0 bg-card border-y border-outline">
+            <div className="h-7 px-3 text-xs flex justify-between items-center shrink-0 bg-card border-y border-outline">
               <span>Spread</span>
-              <div className="h-3 w-16 bg-white/10 rounded animate-pulse" />
+              <div className="h-3 w-16 bg-rock/10 animate-pulse" />
             </div>
 
             {/* Skeleton Buys (bids) */}
@@ -190,7 +189,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
             </div>
 
             {/* Spread */}
-            <div className="px-4 py-2 text-xs flex justify-between items-center shrink-0 bg-card border-y border-outline">
+            <div className="h-7 px-3 text-xs flex justify-between items-center shrink-0 bg-card border-y border-outline">
               <span>Spread</span>
               <span className="font-mono">
                 {formatPrice(processedOrderbook.spread, selectedMarket.quoteDecimals)}
@@ -256,7 +255,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
           {showTradesTab && (
             <TabsContent value="trades">
               {/* Column Headers (same as orderbook for consistent layout) */}
-              <div className="grid grid-cols-3 px-4 py-2 text-xs bg-card border-b border-outline shrink-0">
+              <div className="grid grid-cols-3 h-7 items-center px-3 text-[11px] text-rock/50 bg-card border-b border-outline shrink-0">
                 <div className="text-left font-mono">Price</div>
                 <div className="text-right font-mono">Size</div>
                 <div className="text-right font-mono">Total</div>
