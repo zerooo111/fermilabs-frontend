@@ -32,7 +32,11 @@ const SPREAD_PX = 36; // spread bar between asks and bids
 const MIN_ROWS_PER_SIDE = 5;
 const MAX_ROWS_PER_SIDE = 30;
 
-export function Orderbook() {
+/**
+ * `standalone` is used inside a dock pane: the parent owns the width and the
+ * Orderbook/Trades tab strip is dropped (Trades is its own widget there).
+ */
+export function Orderbook({ standalone = false }: { standalone?: boolean } = {}) {
   const { selectedMarket } = useSelectedMarket();
   const { orderbook } = useOrderbook();
   const { publicKey } = useWallet();
@@ -217,6 +221,16 @@ export function Orderbook() {
       </div>
     </>
   );
+
+  if (standalone) {
+    return (
+      <div className="w-full h-full flex flex-col">
+        <div ref={tabContentRef} className="flex-1 min-h-0">
+          {orderbookContent}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full lg:w-[360px] h-full flex flex-col">

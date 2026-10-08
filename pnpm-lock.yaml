@@ -110,6 +110,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      dockview-react:
+        specifier: ^8.4.1
+        version: 8.4.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       jotai:
         specifier: ^2.11.0
         version: 2.12.5(@types/react@18.3.23)(react@18.3.1)
@@ -4309,6 +4312,18 @@ packages:
 
   dijkstrajs@1.0.3:
     resolution: {integrity: sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA==}
+
+  dockview-core@8.4.1:
+    resolution: {integrity: sha512-LcvhGwmK/Q1tFDEPkiBpkLIYctimmu8JJHgG5yhIXwyf9IvWQkJa3EG7/a1NKUS2Q8w82uoYZTL+c84/zpQUjg==}
+
+  dockview-react@8.4.1:
+    resolution: {integrity: sha512-6C5FV5Y0n0S3IljnKNn9stLm45SkbzZzlLnV2286sm1W2cnZXPmqDuZOWq3wWj9tZ2MvuV1q0c9hLT9NT6H+NQ==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  dockview@8.4.1:
+    resolution: {integrity: sha512-6CrXwfDkhTL0N8stgnur8E/WYFZqltAtHaAV96Ia9lA1JGWwWMw5MWZznWckIMocS2Il5rgaqP/i/l2ltYaTqw==}
 
   domain-browser@4.22.0:
     resolution: {integrity: sha512-IGBwjF7tNk3cwypFNH/7bfzBcgSCbaMOD3GsaY1AU/JRrnHnYgEM0+9kQt52iZxjNsjBtJYtao146V+f8jFZNw==}
@@ -13426,6 +13441,18 @@ snapshots:
       randombytes: 2.1.0
 
   dijkstrajs@1.0.3: {}
+
+  dockview-core@8.4.1: {}
+
+  dockview-react@8.4.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      dockview: 8.4.1
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
+  dockview@8.4.1:
+    dependencies:
+      dockview-core: 8.4.1
 
   domain-browser@4.22.0: {}
 
