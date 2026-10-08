@@ -52,6 +52,9 @@
   --color-sell-chart: #d53736;
   --color-success: oklch(75% 0.16 158);
   --color-danger: oklch(70% 0.19 25);
+  /* Deeper red for orderbook asks, so the ladder reads red rather than coral.
+     Kept just above 4.5:1 against --color-background. */
+  --color-danger-deep: oklch(62% 0.2 25);
 }
 
 body {

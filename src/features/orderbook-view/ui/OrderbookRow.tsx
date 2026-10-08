@@ -46,7 +46,7 @@ export function OrderbookRow({
           className={cn(
             'grid grid-cols-3 gap-4 items-center',
             'font-mono text-xs leading-none tracking-tight w-full',
-            side === 'Buy' ? 'text-success' : 'text-danger'
+            side === 'Buy' ? 'text-success' : 'text-danger-deep'
           )}
         >
           {/* Price */}
