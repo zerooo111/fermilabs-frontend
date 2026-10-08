@@ -14,7 +14,7 @@ export function ToastProvider() {
       richColors
       position="bottom-center"
       theme="dark"
-      style={{ fontFamily: 'Geist Mono' }}
+      style={{ fontFamily: "'Paper Mono', monospace" }}
       toastOptions={{
         className: 'backdrop-blur-2xl !rounded-none',
         style: {

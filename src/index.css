@@ -1,15 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Archivo:wght@100..900&family=Arimo:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&family=Newsreader:opsz,wght@6..72,300..600&display=swap');
 
 @import 'tailwindcss';
 @plugin 'tailwindcss-animate';
 
+/* Paper Mono (OFL 1.1, https://github.com/paper-design/paper-mono) */
+@font-face {
+  font-family: 'Paper Mono';
+  src: url('/fonts/PaperMono-VF.woff2') format('woff2');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --font-sans: 'Archivo', sans-serif;
-  --font-mono: 'Geist Mono', monospace;
-  --font-display: 'Instrument Serif', serif;
+  --font-mono: 'Paper Mono', ui-monospace, monospace;
   /* Landing page, shared with fermilabs.xyz */
   --font-serif: 'Newsreader', ui-serif, Georgia, serif;
-  --font-grotesk: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
   --screen-sm: 640px;
   --screen-md: 768px;
   --screen-lg: 1024px;

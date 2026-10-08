@@ -358,7 +358,7 @@ function PerpsChartComponent({
         layout: {
           background: { type: ColorType.Solid, color: backgroundColor },
           textColor,
-          fontFamily: 'Geist Mono, sans-serif',
+          fontFamily: "'Paper Mono', monospace",
         },
         grid: {
           vertLines: { color: gridColor },

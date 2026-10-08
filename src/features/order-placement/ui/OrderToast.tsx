@@ -89,7 +89,7 @@ export function OrderToast({ toastId, title, txSignature, acceptedLatencyMs }: O
     <div
       className="flex flex-col gap-1.5 px-4 py-3 w-full backdrop-blur-2xl"
       style={{
-        fontFamily: 'Geist Mono, monospace',
+        fontFamily: "'Paper Mono', monospace",
         background: 'rgba(255, 255, 255, 0.05)',
         border: '1px solid rgba(255, 255, 255, 0.2)',
         color: '#ffffff',

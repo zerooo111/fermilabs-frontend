@@ -4,7 +4,7 @@
 .landing {
   /* Registration marks overhang the frame when it spans the full width */
   overflow-x: clip;
-  font-family: var(--font-grotesk);
+  font-family: var(--font-sans);
   font-optical-sizing: auto;
 }
 
@@ -286,7 +286,7 @@ html:has(.landing) body {
 .bp text {
   fill: rgb(248 247 231 / 0.6);
   stroke: none;
-  font-family: var(--font-grotesk);
+  font-family: var(--font-sans);
   font-size: 10px;
   letter-spacing: 0.02em;
 }
@@ -611,7 +611,7 @@ html:has(.landing) body {
 
 .ob-label {
   fill: rgb(248 247 231 / 0.65);
-  font-family: var(--font-grotesk);
+  font-family: var(--font-sans);
   font-size: 10px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -658,7 +658,7 @@ html:has(.landing) body {
 
 /* Terminal demo */
 .demo-stage {
-  font-family: var(--font-grotesk);
+  font-family: var(--font-sans);
 }
 
 .demo-stage .font-mono {

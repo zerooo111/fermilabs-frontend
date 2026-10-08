@@ -143,7 +143,7 @@ function CandlestickChartComponent({ data, interval, colors, className }: ChartC
         layout: {
           background: { type: ColorType.Solid, color: backgroundColor },
           textColor,
-          fontFamily: 'Geist Mono, sans-serif',
+          fontFamily: "'Paper Mono', monospace",
         },
         grid: {
           vertLines: { color: gridColor },
