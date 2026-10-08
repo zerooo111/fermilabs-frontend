@@ -22,8 +22,12 @@ export const terminalLayoutAtom = atomWithStorage<StoredLayout | null>(
   { getOnInit: true }
 );
 
-/** When true, drag/drop and closing panes are disabled; resizing still works. */
-export const layoutLockedAtom = atomWithStorage<boolean>('perps:layout:locked', false, undefined, {
+/**
+ * Locked (the default) is the trading mode: single-pane groups hide their tab
+ * strip, close buttons are hidden, and drag/drop is off. Resizing still works.
+ * Unlocked is "Edit layout": tab strips and close buttons show, drag/drop is on.
+ */
+export const layoutLockedAtom = atomWithStorage<boolean>('perps:layout:locked', true, undefined, {
   getOnInit: true,
 });
 

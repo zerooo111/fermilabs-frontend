@@ -20,7 +20,8 @@ import {
   layoutLockedAtom,
   terminalLayoutAtom,
 } from '../model/layout-storage';
-import { LayoutToolbar } from './LayoutToolbar';
+import { dockApiAtom } from '../model/dock-api';
+import { DockTab } from './DockTab';
 
 const FERMI_THEME: DockviewTheme = {
   name: 'fermi',
@@ -35,6 +36,12 @@ export function TerminalDock() {
   const setStored = useSetAtom(terminalLayoutAtom);
   const locked = useAtomValue(layoutLockedAtom);
   const [api, setApi] = useState<DockviewApi | null>(null);
+  const setDockApi = useSetAtom(dockApiAtom);
+
+  useEffect(() => {
+    setDockApi(api);
+    return () => setDockApi(null);
+  }, [api, setDockApi]);
 
   // Only the layout present at mount matters; later writes come from us.
   const initialRef = useRef(stored);
@@ -71,17 +78,36 @@ export function TerminalDock() {
     };
   }, [api, setStored]);
 
+  // Trading mode (locked): a group with one pane needs no tab strip, the
+  // pane's own header is its title. Edit mode shows every strip so panes can
+  // be dragged. Re-applied whenever the group structure changes.
   useEffect(() => {
-    api?.updateOptions({ disableDnd: locked, disableFloatingGroups: locked });
+    if (!api) return;
+    api.updateOptions({ disableDnd: locked, disableFloatingGroups: locked });
+    const apply = () => {
+      for (const group of api.groups) {
+        group.header.hidden = locked && group.panels.length <= 1;
+      }
+    };
+    apply();
+    const subs = [
+      api.onDidAddGroup(apply),
+      api.onDidRemoveGroup(apply),
+      api.onDidAddPanel(apply),
+      api.onDidRemovePanel(apply),
+      api.onDidMovePanel(apply),
+      api.onDidLayoutFromJSON(apply),
+    ];
+    return () => subs.forEach(s => s.dispose());
   }, [api, locked]);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <LayoutToolbar api={api} />
       <div className="terminal-dock relative flex-1 min-h-0" data-locked={locked || undefined}>
         <DockviewReact
           theme={FERMI_THEME}
           components={DOCK_COMPONENTS}
+          defaultTabComponent={DockTab}
           onReady={onReady}
           singleTabMode="fullwidth"
           floatingGroupBounds="boundedWithinViewport"

@@ -58,12 +58,12 @@ function applyDefault(api: DockviewApi) {
   });
   add(api, 'trades', { position: { referencePanel: 'orderbook', direction: 'within' } });
   // Absolute position: a full-height column on the right edge of the whole dock.
-  add(api, 'ticket', { position: { direction: 'right' }, initialWidth: 320 });
+  add(api, 'ticket', { position: { direction: 'right' }, initialWidth: 340 });
   add(api, 'account', {
     position: { referencePanel: 'ticket', direction: 'below' },
     initialHeight: 260,
   });
-  size(api, 'ticket', { width: 320 });
+  size(api, 'ticket', { width: 340 });
   size(api, 'orderbook', { width: 340 });
   size(api, 'positions', { height: 280 });
   size(api, 'account', { height: 260 });
@@ -83,7 +83,7 @@ function applyChartFocus(api: DockviewApi) {
   add(api, 'orders', { position: { referencePanel: 'positions', direction: 'within' } });
   add(api, 'my-trades', { position: { referencePanel: 'positions', direction: 'within' } });
   add(api, 'assets', { position: { referencePanel: 'positions', direction: 'within' } });
-  add(api, 'ticket', { position: { direction: 'right' }, initialWidth: 320 });
+  add(api, 'ticket', { position: { direction: 'right' }, initialWidth: 340 });
   add(api, 'orderbook', { position: { referencePanel: 'ticket', direction: 'within' } });
   add(api, 'trades', { position: { referencePanel: 'ticket', direction: 'within' } });
   add(api, 'account', {
@@ -114,12 +114,12 @@ function applyOrderbookFocus(api: DockviewApi) {
   add(api, 'orders', { position: { referencePanel: 'positions', direction: 'within' } });
   add(api, 'my-trades', { position: { referencePanel: 'positions', direction: 'within' } });
   add(api, 'assets', { position: { referencePanel: 'positions', direction: 'within' } });
-  add(api, 'ticket', { position: { direction: 'right' }, initialWidth: 320 });
+  add(api, 'ticket', { position: { direction: 'right' }, initialWidth: 340 });
   add(api, 'account', {
     position: { referencePanel: 'ticket', direction: 'below' },
     initialHeight: 260,
   });
-  size(api, 'ticket', { width: 320 });
+  size(api, 'ticket', { width: 340 });
   size(api, 'chart', { width: 520 });
   size(api, 'positions', { height: 240 });
   size(api, 'account', { height: 260 });

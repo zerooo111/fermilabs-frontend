@@ -44,6 +44,13 @@ const Pane = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
+/** Quiet, centred one-liner for panes with nothing to show yet. */
+export const EmptyState = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex h-full min-h-24 items-center justify-center p-4 text-xs text-rock/45">
+    {children}
+  </div>
+);
+
 const Scroll = ({ children }: { children: React.ReactNode }) => (
   <div className="h-full w-full overflow-auto">{children}</div>
 );
@@ -62,19 +69,24 @@ const OrderbookWidget = memo(() => (
 ));
 OrderbookWidget.displayName = 'OrderbookWidget';
 
-const TRADE_ROW_PX = 26;
-const TRADE_HEADER_PX = 33;
+const TRADE_ROW_PX = 22;
+const TRADE_HEADER_PX = 29;
+/** Below this width the Buyer/Seller/Time columns don't fit; fall back to Price/Size/Total. */
+const TRADE_FULL_VIEW_MIN_PX = 520;
 
 /** Recent market trades in a standalone pane; row count follows the pane height. */
 const TradesWidget = memo(() => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [rows, setRows] = useState(20);
+  const [fullView, setFullView] = useState(false);
 
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
-    const update = () =>
+    const update = () => {
       setRows(Math.max(5, Math.floor((node.clientHeight - TRADE_HEADER_PX) / TRADE_ROW_PX)));
+      setFullView(node.clientWidth >= TRADE_FULL_VIEW_MIN_PX);
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(node);
@@ -84,16 +96,24 @@ const TradesWidget = memo(() => {
   return (
     <Pane>
       <div ref={ref} className="flex flex-col h-full">
-        <div className="grid grid-cols-6 px-4 py-2 text-xs bg-card border-b border-outline shrink-0">
-          <div className="text-left font-mono">Price</div>
-          <div className="text-center font-mono">Size</div>
-          <div className="text-center font-mono">Total</div>
-          <div className="text-center font-mono">Buyer</div>
-          <div className="text-center font-mono">Seller</div>
-          <div className="text-right font-mono">Time</div>
-        </div>
+        {fullView ? (
+          <div className="grid grid-cols-6 h-7 items-center px-3 text-[11px] text-rock/50 bg-card border-b border-outline shrink-0">
+            <div className="text-left font-mono">Price</div>
+            <div className="text-center font-mono">Size</div>
+            <div className="text-center font-mono">Total</div>
+            <div className="text-center font-mono">Buyer</div>
+            <div className="text-center font-mono">Seller</div>
+            <div className="text-right font-mono">Time</div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 h-7 items-center px-3 text-[11px] text-rock/50 bg-card border-b border-outline shrink-0">
+            <div className="text-left font-mono">Price</div>
+            <div className="text-right font-mono">Size</div>
+            <div className="text-right font-mono">Total</div>
+          </div>
+        )}
         <div className="flex-1 min-h-0">
-          <Trades rows={rows} fullView />
+          <Trades rows={rows} fullView={fullView} />
         </div>
       </div>
     </Pane>
@@ -104,7 +124,7 @@ TradesWidget.displayName = 'TradesWidget';
 const TicketWidget = memo(() => (
   <Pane>
     <Scroll>
-      <TradeTicket />
+      <TradeTicket fluid />
     </Scroll>
   </Pane>
 ));
@@ -119,9 +139,7 @@ const AccountWidget = memo(() => {
           <AccountCard />
         </Scroll>
       ) : (
-        <div className="flex h-full items-center justify-center p-4 text-xs text-rock/50">
-          Connect a wallet to see your account
-        </div>
+        <EmptyState>Connect a wallet to see your account</EmptyState>
       )}
     </Pane>
   );
@@ -168,7 +186,7 @@ export const WIDGETS: readonly WidgetDefinition[] = [
   { id: 'chart', title: 'Chart', component: ChartWidget, minimumWidth: 320, minimumHeight: 240 },
   { id: 'orderbook', title: 'Orderbook', component: OrderbookWidget, minimumWidth: 240 },
   { id: 'trades', title: 'Trades', component: TradesWidget, minimumWidth: 240 },
-  { id: 'ticket', title: 'Trade', component: TicketWidget, minimumWidth: 280 },
+  { id: 'ticket', title: 'Trade', component: TicketWidget, minimumWidth: 320 },
   { id: 'account', title: 'Account', component: AccountWidget, minimumWidth: 240 },
   { id: 'positions', title: 'Positions', component: PositionsWidget, minimumHeight: 120 },
   { id: 'orders', title: 'Orders', component: OrdersWidget, minimumHeight: 120 },

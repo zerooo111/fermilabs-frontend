@@ -11,6 +11,7 @@ import * as SliderPrimitive from '@radix-ui/react-slider';
 import { CaretDown, Check, CircleNotch, Warning, XCircle } from '@phosphor-icons/react';
 
 import { cn } from '@/lib/utils';
+import { TabActive, TabHover, TabStrip, useTabStripItem } from '@/shared/ui/tab-strip';
 import { calculatePerpMargin } from '@/shared/lib/margin-calculator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
@@ -217,7 +218,69 @@ function TickSlider({
   );
 }
 
-export function TradeTicket() {
+/** Buy/Sell cell: hover pill plus a shared tinted fill that slides and recolours between sides. */
+function SideButton({
+  value,
+  active,
+  onSelect,
+}: {
+  value: 'Buy' | 'Sell';
+  active: boolean;
+  onSelect: (side: 'Buy' | 'Sell') => void;
+}) {
+  const item = useTabStripItem(value);
+  const buy = value === 'Buy';
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
+      onClick={() => onSelect(value)}
+      className={cn(
+        'relative isolate h-8 text-sm transition-colors duration-200',
+        active ? (buy ? 'text-success' : 'text-danger') : 'text-rock/50 hover:text-rock'
+      )}
+      {...item.bind}
+    >
+      <TabHover show={item.isHovered && !active} stripId={item.stripId} />
+      <TabActive
+        show={active}
+        stripId={item.stripId}
+        className={cn(
+          'inset-0 h-auto -z-10',
+          buy
+            ? 'bg-success/15 shadow-[inset_0_-2px_0_0_var(--color-success)]'
+            : 'bg-danger/15 shadow-[inset_0_-2px_0_0_var(--color-danger)]'
+        )}
+      />
+      {buy ? 'Buy / Long' : 'Sell / Short'}
+    </button>
+  );
+}
+
+function OrderTypeTab({ value, onSelect }: { value: 'market' | 'limit'; onSelect: () => void }) {
+  const item = useTabStripItem(value);
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={item.isActive}
+      onClick={onSelect}
+      className={cn(
+        'relative isolate -mb-px flex h-8 items-center px-3 text-xs tracking-[0.01em] capitalize transition-colors first:pl-0',
+        item.isActive ? 'text-rock' : 'text-rock/50 hover:text-rock'
+      )}
+      {...item.bind}
+    >
+      <TabHover show={item.isHovered} stripId={item.stripId} />
+      <TabActive show={item.isActive} stripId={item.stripId} />
+      {value}
+    </button>
+  );
+}
+
+/** `fluid`: let the parent (a dock pane) own the width instead of the fixed desktop column. */
+export function TradeTicket({ fluid = false }: { fluid?: boolean } = {}) {
   const f = useOrderForm();
   const [side, setSide] = useState<OrderSide>('Buy');
   const isBuy = side === 'Buy';
@@ -319,62 +382,40 @@ export function TradeTicket() {
   };
 
   return (
-    <div className="flex w-full flex-col gap-4 overflow-y-auto p-3 text-rock lg:w-xs [&>*]:shrink-0">
+    <div
+      className={cn(
+        'flex w-full flex-col gap-4 overflow-y-auto p-3 text-rock [&>*]:shrink-0',
+        !fluid && 'lg:w-xs'
+      )}
+    >
       {/* Side */}
-      <div role="radiogroup" aria-label="Side" className="grid grid-cols-2 bg-card p-0.5">
-        {(['Buy', 'Sell'] as const).map(s => {
-          const active = side === s;
-          return (
-            <button
-              key={s}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              onClick={() => setSide(s)}
-              className={cn(
-                'h-8 text-sm font-medium transition-colors',
-                active
-                  ? s === 'Buy'
-                    ? 'bg-success text-white'
-                    : 'bg-danger text-white'
-                  : 'text-rock/50 hover:text-rock'
-              )}
-            >
-              {s === 'Buy' ? 'Buy / Long' : 'Sell / Short'}
-            </button>
-          );
-        })}
-      </div>
+      <TabStrip
+        id="ticket-side"
+        role="radiogroup"
+        aria-label="Side"
+        className="grid grid-cols-2 border border-outline"
+      >
+        {(['Buy', 'Sell'] as const).map(s => (
+          <SideButton key={s} value={s} active={side === s} onSelect={setSide} />
+        ))}
+      </TabStrip>
 
       {/* Order type, margin mode */}
       {/* Sits 8px under the side toggle (-mt-2 off the 16px section gap), as one
           group with it. Tab labels sit 8px above the underline; the badge
           centres on the labels (8px clear + 12px half-height = 20px) */}
       <div className="-mt-2 flex items-end justify-between border-b border-outline/60">
-        <div role="tablist" aria-label="Order type" className="flex">
-          {(['market', 'limit'] as const).map(t => {
-            const active = f.formState.orderType === t;
-            return (
-              <button
-                key={t}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => {
-                  f.handleInputChange('orderType', t);
-                }}
-                className={cn(
-                  '-mb-px border-b-2 px-3 pb-2 text-sm leading-5 capitalize transition-colors first:pl-0',
-                  active
-                    ? 'border-rock text-rock'
-                    : 'border-transparent text-rock/50 hover:text-rock'
-                )}
-              >
-                {t}
-              </button>
-            );
-          })}
-        </div>
+        <TabStrip
+          id="ticket-order-type"
+          role="tablist"
+          aria-label="Order type"
+          active={f.formState.orderType}
+          className="flex"
+        >
+          {(['market', 'limit'] as const).map(t => (
+            <OrderTypeTab key={t} value={t} onSelect={() => f.handleInputChange('orderType', t)} />
+          ))}
+        </TabStrip>
         {/* Margin mode is set-and-forget, so it lives behind the badge. Leverage
             is shown, not chosen: it follows from the margin committed */}
         <Popover>
@@ -398,7 +439,7 @@ export function TradeTicket() {
                   type="button"
                   role="radio"
                   aria-checked
-                  className="h-7 bg-white/10 text-xs text-rock"
+                  className="h-7 bg-rock/10 text-xs text-rock"
                 >
                   Cross
                 </button>
@@ -447,7 +488,7 @@ export function TradeTicket() {
                         price: f.markPrice!.toFixed(quoteDecimals),
                       }))
                     }
-                    className="-mr-1 shrink-0 bg-white/10 px-1.5 py-0.5 text-[11px] text-rock/70 hover:bg-white/15 hover:text-rock"
+                    className="-mr-1 shrink-0 bg-rock/10 px-1.5 py-0.5 text-[11px] text-rock/70 hover:bg-rock/15 hover:text-rock"
                   >
                     Mark
                   </button>
@@ -539,7 +580,7 @@ export function TradeTicket() {
                         '-ml-px h-7 border text-xs first:ml-0',
                         f.formState.slippage === p
                           ? 'relative border-rock bg-rock text-background'
-                          : 'border-outline text-rock/70 hover:bg-white/10'
+                          : 'border-outline text-rock/70 hover:bg-rock/10'
                       )}
                     >
                       {p}%
@@ -605,7 +646,7 @@ export function TradeTicket() {
             </p>
           ))}
           {warnings.map((w, i) => (
-            <p key={`w${i}`} className="flex items-start gap-1.5 text-amber-400">
+            <p key={`w${i}`} className="flex items-start gap-1.5 text-amber-200">
               <Warning size={14} className="mt-px shrink-0" />
               {w}
             </p>
@@ -614,7 +655,7 @@ export function TradeTicket() {
             <p
               className={cn(
                 'flex items-center justify-between',
-                f.feeInsufficient ? 'text-danger' : 'text-amber-400'
+                f.feeInsufficient ? 'text-danger' : 'text-amber-200'
               )}
             >
               {f.feeInsufficient ? 'Not enough fee credit' : 'Fee credit running low'}
@@ -635,7 +676,7 @@ export function TradeTicket() {
         <button
           type="button"
           onClick={f.openConnect}
-          className="h-10 bg-rock text-sm font-medium text-background transition-colors hover:bg-rock/90"
+          className="h-10 bg-amber-200 text-sm font-semibold text-dark-forest transition-colors hover:bg-amber-100"
         >
           Connect wallet
         </button>
@@ -647,10 +688,10 @@ export function TradeTicket() {
             disabled={!canSubmit}
             onClick={() => f.handleOpenPosition(side)}
             className={cn(
-              'flex h-10 items-center justify-center gap-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+              'flex h-10 items-center justify-center gap-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40',
               isBuy
-                ? 'bg-success text-white hover:brightness-125'
-                : 'bg-danger text-white hover:brightness-125'
+                ? 'bg-success text-background hover:brightness-110'
+                : 'bg-danger text-background hover:brightness-110'
             )}
           >
             {f.submittingSide === side && <CircleNotch size={16} className="animate-spin" />}
