@@ -127,8 +127,10 @@ html {
 .glass {
   position: relative;
   background: color-mix(in oklab, var(--color-background) 66%, transparent);
-  backdrop-filter: blur(24px) saturate(160%);
+  /* Prefixed first: with the unprefixed line first, the production minifier
+     folds the pair into the -webkit- one alone and Chrome loses the blur. */
   -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
   /* Edge stack, outside-in (the macOS menu recipe): a near-black 1px outline
      that separates the sheet from whatever is behind it, then a light 1px rim
      just inside it that reads as the glass edge, then the drop shadow. The CSS
