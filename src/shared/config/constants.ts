@@ -111,6 +111,8 @@ export const API_ROUTES_V2 = {
   snapshot_and_stream: '/v2/events/snapshot-and-stream/{marketId}',
   stream_frontend: '/v2/stream/frontend/{marketId}',
   stream_trades: '/v2/stream/trades',
+  leaderboard: '/v2/leaderboard',
+  leaderboard_rank: '/v2/leaderboard/rank/{owner}',
 };
 
 export const API_ROUTES = {

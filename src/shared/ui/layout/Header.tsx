@@ -10,7 +10,8 @@ import { accessSessionAtom } from '@/features/access-gate';
 import FermiLogo3d from './FermiLogo';
 import { LayoutMenu } from '@/features/layout';
 
-const NAV_LINK = 'flex items-center px-2.5 text-sm transition-colors duration-150 hover:text-rock';
+const NAV_LINK =
+  'flex shrink-0 items-center px-2.5 text-sm transition-colors duration-150 hover:text-rock';
 
 export function Header() {
   const location = useLocation();
@@ -26,9 +27,13 @@ export function Header() {
 
   return (
     <nav className="w-full h-14 flex items-stretch border-b border-outline bg-background text-rock">
-      <div className="flex items-stretch justify-between flex-1 px-2 md:px-4">
-        <div className="flex items-stretch gap-1">
-          <Link to="/" className="flex items-center gap-2.5 pr-5 text-lg hover:text-amber-100">
+      <div className="flex min-w-0 items-stretch justify-between flex-1 px-2 md:px-4">
+        {/* Nav scrolls within itself on narrow screens rather than widening the page. */}
+        <div className="flex min-w-0 items-stretch gap-1 overflow-x-auto [scrollbar-width:none]">
+          <Link
+            to="/"
+            className="flex shrink-0 items-center gap-2.5 pr-5 text-lg hover:text-amber-100"
+          >
             <FermiLogo3d className="w-6 h-6" />
             Fermi Trade
             <span className="border border-amber-200/60 px-1 text-[9px] font-semibold tracking-wider text-amber-200 leading-[14px]">
@@ -53,8 +58,17 @@ export function Header() {
           >
             Referrals
           </Link>
+          <Link
+            to="/leaderboard"
+            className={cn(
+              NAV_LINK,
+              location.pathname === '/leaderboard' ? 'text-rock' : 'text-rock/60'
+            )}
+          >
+            Leaderboard
+          </Link>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <LayoutMenu />
           {hasSession && (
             <>

@@ -4,7 +4,13 @@
  */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from '@/shared/ui/layout/Layout';
-import { LazyHomePage, LazyPerpsPage, LazyVaultPage, LazyReferralsPage } from './LazyRoutes';
+import {
+  LazyHomePage,
+  LazyPerpsPage,
+  LazyVaultPage,
+  LazyReferralsPage,
+  LazyLeaderboardPage,
+} from './LazyRoutes';
 import { isAppHost, redirectOffLanding } from './domains';
 
 export const AppRouter = () => {
@@ -22,6 +28,7 @@ export const AppRouter = () => {
           <Route path="/perps/:id" element={<LazyPerpsPage />} />
           <Route path="/vault" element={<LazyVaultPage />} />
           <Route path="/referrals" element={<LazyReferralsPage />} />
+          <Route path="/leaderboard" element={<LazyLeaderboardPage />} />
           <Route path="*" element={<Navigate replace to="/perps" />} />
         </Route>
       </Routes>
