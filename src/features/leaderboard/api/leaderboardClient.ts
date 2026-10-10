@@ -8,7 +8,7 @@
  * they're parsed for display only in `model/format.ts`.
  */
 import axios from 'axios';
-import { API_ROUTES_V2, config } from '@/shared/config/constants';
+import { API_ROUTES_V2 } from '@/shared/config/constants';
 
 /** Rolling (`24h`/`7d`/`30d`), calendar UTC (`week` from Mon 00:00, `month`), or `all`. */
 export type LeaderboardWindow = '24h' | '7d' | '30d' | 'week' | 'month' | 'all';
@@ -42,7 +42,11 @@ export interface LeaderboardRank {
   entry: LeaderboardEntry | null;
 }
 
-const GATEWAY = () => config.devnet.gatewayUrl;
+// The leaderboard endpoints are only deployed on the staging gateway for now,
+// so they're read from there regardless of VITE_GATEWAY_URL. Drop this override
+// (fall back to `config.devnet.gatewayUrl`) once the gateway ships to prod.
+const STAGING_GATEWAY_URL = 'https://v1.fermi.trade/staging';
+const GATEWAY = () => import.meta.env.VITE_LEADERBOARD_GATEWAY_URL || STAGING_GATEWAY_URL;
 
 export async function fetchLeaderboard(
   params: { window: LeaderboardWindow; sort: LeaderboardSort; limit: number; offset: number },
