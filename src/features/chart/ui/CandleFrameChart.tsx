@@ -1,30 +1,36 @@
 /**
- * CandleFrame chart for a perps market: the full CandleFrame workbench
- * (drawings, indicators, chart types, layouts, PNG export) fed from Fermi
- * candles, with the open position, SL and TP drawn as CandleFrame price lines.
+ * Perps chart: our toolbar and drawing rail around a grid of CandleFrame
+ * panes (ChartPane). The toolbar and rail act on the active pane; clicking a
+ * pane activates it. Panes share crosshair and time through a CandleFrame
+ * chart group, and each keeps its own interval, price source, indicators and
+ * drawings.
  *
- * The widget owns interval and price-source selection (its interval picker and
- * source picker); we persist them and pick them up again on mount. The market
- * itself stays app-controlled: changing it remounts the widget.
+ * Pane 1's interval / source are the container's (persisted there and used by
+ * the header); panes 2..4 and the preset are saved by chart-grid.ts.
  */
-import { memo, useEffect, useRef, useState } from 'react';
-import { createChartWidget, type ChartApi, type ChartWidgetApi, type PriceLine } from 'candleframe';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { createChartGroup, type ChartApi } from 'candleframe/chart';
 import type { Candle } from 'candleframe/core';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import type { HarnessMarketConversionParams } from '@/shared/lib/harness-market';
-import { fermiChartTheme } from '@/features/chart/lib/candleframe-theme';
 import {
-  createFermiFeed,
-  FERMI_INTERVALS,
-  PRICE_SOURCE_LABEL,
-  type FermiFeed,
-} from '@/features/chart/lib/fermi-feed';
+  GRID_PRESETS,
+  loadGrid,
+  saveGrid,
+  type GridPreset,
+  type PaneSelection,
+  type SavedGrid,
+} from '@/features/chart/lib/chart-grid';
 import type { PerpsPriceSource, PerpsTimeframe } from '@/features/chart/lib/perps-chart';
+import { ChartToolbar } from './ChartToolbar';
+import { ChartActions } from './ChartActions';
+import { ChartDrawingRail } from './ChartDrawingRail';
+import { ChartPane, type CandleFrameMarket, type PaneView } from './ChartPane';
 import type { ChartPosition, TriggerKind } from './PositionLines';
 
-const PRICE_SOURCES: readonly PerpsPriceSource[] = ['mark', 'ltp'];
-// Keyboard shortcuts 1..6 → timeframe
+export type { CandleFrameMarket } from './ChartPane';
+
+// Keyboard shortcuts 1..6 → timeframe of the active pane
 const TIMEFRAME_SHORTCUTS: Record<string, PerpsTimeframe> = {
   '1': '1m',
   '2': '5m',
@@ -33,28 +39,25 @@ const TIMEFRAME_SHORTCUTS: Record<string, PerpsTimeframe> = {
   '5': '4h',
   '6': '1d',
 };
-const LABEL: Record<TriggerKind, string> = { stop_loss: 'SL', take_profit: 'TP' };
-// Give up waiting for the keeper to echo a save after this long.
-const PENDING_TIMEOUT_MS = 20_000;
 
-export interface CandleFrameMarket {
-  uuid: string;
-  symbol: string;
-  base: string;
-  quote: string;
-  tickSize: number;
-  conversion: HarnessMarketConversionParams;
-}
+const EMPTY_VIEW: PaneView = {
+  volume: true,
+  log: false,
+  canUndo: false,
+  canRedo: false,
+  hasDrawings: false,
+  tool: 'cursor',
+};
 
 interface CandleFrameChartProps {
   market: CandleFrameMarket;
   interval: PerpsTimeframe;
+  onIntervalChange: (interval: PerpsTimeframe) => void;
   priceSource: PerpsPriceSource;
-  /** The user picked another interval or source in the chart. */
-  onSelectionChange: (interval: PerpsTimeframe, source: PerpsPriceSource) => void;
-  /** Live ticks, UI units. Each feed takes the one matching its source. */
+  onPriceSourceChange: (source: PerpsPriceSource) => void;
+  /** Live ticks, UI units. Each pane's feed takes the one matching its source. */
   livePrices: Record<PerpsPriceSource, number | null>;
-  /** Loaded candles of the active chart, for the header's 24h change. */
+  /** Pane 1's loaded candles, for the header's 24h change. */
   onCandles?: (candles: readonly Candle[]) => void;
   position: ChartPosition | null;
   /** Sets (price) or removes (null) one leg. Absent = lines are read-only. */
@@ -62,315 +65,265 @@ interface CandleFrameChartProps {
   className?: string;
 }
 
-interface Pending {
-  kind: TriggerKind;
-  /** null = removing the leg. */
-  price: number | null;
-}
-
-const decimalsOf = (tick: number) => Math.max(0, Math.ceil(-Math.log10(tick) - 1e-9));
-
-const formatSigned = (n: number) =>
-  `${n >= 0 ? '+' : '−'}${Math.abs(n).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-
 function CandleFrameChartComponent({
   market,
   interval,
+  onIntervalChange,
   priceSource,
-  onSelectionChange,
+  onPriceSourceChange,
   livePrices,
   onCandles,
   position,
   onTriggerChange,
   className,
 }: CandleFrameChartProps) {
-  const hostRef = useRef<HTMLDivElement>(null);
-  const widgetRef = useRef<ChartWidgetApi | null>(null);
-  const feedsRef = useRef(new Set<FermiFeed>());
-  const feedForRef = useRef<(source: PerpsPriceSource, tf: PerpsTimeframe) => FermiFeed>(
-    () => {
-      throw new Error('Chart is not mounted');
-    }
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [grid, setGrid] = useState<SavedGrid>(loadGrid);
+  const [charts, setCharts] = useState<(ChartApi | null)[]>([]);
+  const [views, setViews] = useState<PaneView[]>([]);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  const paneCount = GRID_PRESETS[grid.preset].panes;
+  const active = Math.min(grid.active, paneCount - 1);
+  const multi = paneCount > 1;
+
+  useEffect(() => saveGrid(grid), [grid]);
+
+  // Every pane's selection; pane 1 is the container's.
+  const selections: PaneSelection[] = Array.from({ length: paneCount }, (_, i) =>
+    i === 0
+      ? { interval, source: priceSource }
+      : (grid.extra[i - 1] ?? { interval, source: priceSource })
   );
-  const [charts, setCharts] = useState<readonly ChartApi[]>([]);
+  const activeSelection = selections[active];
+  const activeChart = charts[active] ?? null;
+  const activeView = views[active] ?? EMPTY_VIEW;
 
-  // Latest props for the widget's callbacks, which outlive renders.
-  const latest = useRef({ market, livePrices, onSelectionChange, onCandles });
-  latest.current = { market, livePrices, onSelectionChange, onCandles };
-
-  // ── Widget lifecycle: one per market ──────────────────────────────────────
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
-    const feeds = feedsRef.current;
-
-    const feedFor = (source: PerpsPriceSource, tf: PerpsTimeframe) => {
-      const m = latest.current.market;
-      const feed = createFermiFeed({
-        marketId: m.uuid,
-        symbol: m.symbol,
-        base: m.base,
-        quote: m.quote,
-        tickSize: m.tickSize,
-        conversion: m.conversion,
-        interval: tf,
-        source,
-      });
-      for (const old of feeds) if (old.closed) feeds.delete(old);
-      feeds.add(feed);
-      // Seed with the latest tick so a quiet market still shows its price.
-      const price = latest.current.livePrices[source];
-      if (price !== null) feed.pushPrice(price);
-      return feed;
-    };
-    feedForRef.current = feedFor;
-
-    let widget: ChartWidgetApi;
-    try {
-      widget = createChartWidget(host, {
-        feed: feedFor(priceSource, interval),
-        markets: PRICE_SOURCES.map(source => ({
-          id: source,
-          label: PRICE_SOURCE_LABEL[source],
-          symbols: [market.symbol],
-          intervals: FERMI_INTERVALS,
-          createFeed: ({ interval: tf }) => feedFor(source, tf as PerpsTimeframe),
-        })),
-        theme: fermiChartTheme,
-        // Our own Archivo / Paper Mono are already loaded by the page.
-        fonts: false,
-        storageKey: 'fermi-perps-chart',
-      });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Chart failed to start');
-      return;
-    }
-    widgetRef.current = widget;
-    // CandleFrame labels every non-simulated feed "Spot market"; these are perps.
-    const shadow = host.querySelector('.candleframe-widget')?.shadowRoot;
-    if (shadow) {
-      const style = document.createElement('style');
-      style.textContent = '.market-kind { display: none; }';
-      shadow.append(style);
-    }
-
-    // Follow the active chart's market selection and candles, and the set of
-    // charts (grid layouts add and remove them).
-    let lastSelection = `${interval}:${priceSource}`;
-    let lastCandles: readonly Candle[] | null = null;
-    let lastCharts: readonly ChartApi[] = [];
-    const unsubscribe = widget.subscribe(state => {
-      const { id, interval: tf } = state.feed;
-      const selection = `${tf}:${id}`;
-      if (
-        selection !== lastSelection &&
-        (FERMI_INTERVALS as readonly string[]).includes(tf) &&
-        (PRICE_SOURCES as readonly string[]).includes(id)
-      ) {
-        lastSelection = selection;
-        latest.current.onSelectionChange(tf as PerpsTimeframe, id as PerpsPriceSource);
-      }
-      if (state.candles !== lastCandles) {
-        lastCandles = state.candles;
-        latest.current.onCandles?.(state.candles);
-      }
-      const now = widget.charts();
-      if (now.length !== lastCharts.length || now.some((c, i) => c !== lastCharts[i])) {
-        lastCharts = now;
-        setCharts(now);
-      }
+  const handleChart = useCallback((index: number, chart: ChartApi | null) => {
+    setCharts(prev => {
+      const next = [...prev];
+      next[index] = chart;
+      return next;
     });
-    setCharts(widget.charts());
+  }, []);
+  const handleView = useCallback((index: number, view: PaneView) => {
+    setViews(prev => {
+      const next = [...prev];
+      next[index] = view;
+      return next;
+    });
+  }, []);
+  const handleActivate = useCallback((index: number) => {
+    setGrid(g => (g.active === index ? g : { ...g, active: index }));
+  }, []);
 
-    return () => {
-      unsubscribe();
-      widget.dispose();
-      widgetRef.current = null;
-      feeds.clear();
-      setCharts([]);
-    };
-    // The widget owns interval/source after mount; only the market remounts it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [market.uuid]);
-
-  // ── Live ticks ────────────────────────────────────────────────────────────
+  // ── Linked crosshair and time across panes ───────────────────────────────
+  // `charts` only changes when an engine mounts or unmounts.
   useEffect(() => {
-    for (const feed of feedsRef.current) {
-      const price = livePrices[feed.source];
-      if (price !== null) feed.pushPrice(price);
-    }
-  }, [livePrices]);
+    const mounted = charts.slice(0, paneCount).filter((c): c is ChartApi => !!c);
+    if (mounted.length < 2) return;
+    const group = createChartGroup(mounted, { crosshair: true, time: true });
+    return () => group.dispose();
+  }, [charts, paneCount]);
 
-  // ── Keyboard shortcuts: 1..6 switch timeframe ────────────────────────────
+  // ── Selection changes for the active pane ────────────────────────────────
+  const setSelection = useCallback(
+    (index: number, patch: Partial<PaneSelection>) => {
+      if (index === 0) {
+        if (patch.interval) onIntervalChange(patch.interval);
+        if (patch.source) onPriceSourceChange(patch.source);
+        return;
+      }
+      setGrid(g => {
+        const extra = [...g.extra];
+        const current = extra[index - 1] ?? { interval, source: priceSource };
+        extra[index - 1] = { ...current, ...patch };
+        return { ...g, extra };
+      });
+    },
+    [onIntervalChange, onPriceSourceChange, interval, priceSource]
+  );
+  const handleIntervalChange = useCallback(
+    (next: PerpsTimeframe) => setSelection(active, { interval: next }),
+    [setSelection, active]
+  );
+  const handleSourceChange = useCallback(
+    (next: PerpsPriceSource) => setSelection(active, { source: next }),
+    [setSelection, active]
+  );
+
+  const handleGridChange = useCallback(
+    (preset: GridPreset) => {
+      setGrid(g => {
+        const panes = GRID_PRESETS[preset].panes;
+        // New panes start as a copy of the active one.
+        const from = (g.active > 0 ? g.extra[g.active - 1] : undefined) ?? {
+          interval,
+          source: priceSource,
+        };
+        const extra = [...g.extra];
+        for (let i = 0; i < panes - 1; i++) extra[i] ??= from;
+        return { preset, active: Math.min(g.active, panes - 1), extra };
+      });
+    },
+    [interval, priceSource]
+  );
+
+  // ── Keyboard shortcuts: 1..6 switch the active pane's timeframe ─────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
-      // Focus inside the widget's shadow root retargets to its host element.
       const target = e.target as HTMLElement | null;
       if (target) {
         const tag = target.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
           return;
         }
-        if (hostRef.current?.contains(target) && target.shadowRoot?.activeElement) {
-          const inner = target.shadowRoot.activeElement as HTMLElement;
-          if (inner.tagName === 'INPUT' || inner.isContentEditable) return;
-        }
       }
-      const tf = TIMEFRAME_SHORTCUTS[e.key];
-      const widget = widgetRef.current;
-      if (!tf || !widget) return;
-      e.preventDefault();
-      const current = widget.inspect().feed;
-      if (current.interval === tf) return;
-      widget.replaceFeed(feedForRef.current(current.id as PerpsPriceSource, tf));
+      const next = TIMEFRAME_SHORTCUTS[e.key];
+      if (next) {
+        e.preventDefault();
+        handleIntervalChange(next);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  }, [handleIntervalChange]);
+
+  // ── Fullscreen ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement === rootRef.current);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+  const handleFullscreen = useCallback((next: boolean) => {
+    const root = rootRef.current;
+    if (!root) return;
+    const request = next ? root.requestFullscreen?.() : document.exitFullscreen?.();
+    request?.catch(() => toast.error('Fullscreen is not available here'));
   }, []);
 
-  // ── Position, SL and TP lines ────────────────────────────────────────────
-  const [pending, setPending] = useState<Pending | null>(null);
-
-  // Hold the new price until the keeper reports it, so the line doesn't jump
-  // back to the old one between the save and the next poll.
-  useEffect(() => {
-    if (!pending || !position) return;
-    const current = pending.kind === 'stop_loss' ? position.stopLoss : position.takeProfit;
-    const settled =
-      pending.price === null
-        ? current === null
-        : current !== null && Math.abs(current - pending.price) < position.tick / 2;
-    if (settled) {
-      setPending(null);
-      return;
-    }
-    const timer = setTimeout(() => setPending(null), PENDING_TIMEOUT_MS);
-    return () => clearTimeout(timer);
-  }, [pending, position]);
-
-  const editable = !!onTriggerChange && !pending;
-
-  const lines: PriceLine[] = [];
-  if (position) {
-    const long = position.side === 'long';
-    const pnlAt = (price: number) =>
-      (price - position.entryPrice) * position.size * (long ? 1 : -1);
-    const legPrice = (kind: TriggerKind) => {
-      if (pending?.kind === kind) return pending.price;
-      return kind === 'stop_loss' ? position.stopLoss : position.takeProfit;
-    };
-    if (position.entryPrice > 0) {
-      const pnl = position.unrealizedPnl;
-      lines.push({
-        id: 'entry',
-        price: position.entryPrice,
-        color: (pnl ?? 0) >= 0 ? '#219e61' : '#d53736',
-        label: `${long ? 'Long' : 'Short'} ${position.size.toLocaleString(undefined, {
-          maximumFractionDigits: 4,
-        })}`,
-        ...(pnl !== null ? { quantity: `${formatSigned(pnl)} ${position.quoteUnit}` } : {}),
-        style: 'solid',
-        // Drag out of the position line to place a TP or SL.
-        ...(editable ? { drag: 'copy' as const } : {}),
-      });
-    }
-    for (const kind of ['take_profit', 'stop_loss'] as const) {
-      const price = legPrice(kind);
-      if (price === null) continue;
-      const saving = pending?.kind === kind;
-      lines.push({
-        id: kind,
-        price,
-        color: kind === 'take_profit' ? '#219e61' : '#d53736',
-        label: saving ? `${LABEL[kind]} saving…` : LABEL[kind],
-        quantity: `${formatSigned(pnlAt(price))} ${position.quoteUnit}`,
-        style: 'dashed',
-        ...(editable ? { drag: 'move' as const, closable: true } : {}),
-      });
-    }
-  }
-  const linesKey = JSON.stringify(lines);
-
-  useEffect(() => {
-    const parsed = JSON.parse(linesKey) as PriceLine[];
-    for (const chart of charts) chart.setPriceLines(parsed);
-  }, [charts, linesKey]);
-
-  // Drag and close events, with the latest position in reach.
-  const positionRef = useRef(position);
-  positionRef.current = position;
-  const onTriggerChangeRef = useRef(onTriggerChange);
-  onTriggerChangeRef.current = onTriggerChange;
-
-  useEffect(() => {
-    // Which leg a price would be: beyond the mark in the position's favour is
-    // a take profit, against it a stop loss.
-    const kindAt = (pos: ChartPosition, price: number): TriggerKind => {
-      const ref = pos.markPrice || pos.entryPrice;
-      const favourable = pos.side === 'long' ? price > ref : price < ref;
-      return favourable ? 'take_profit' : 'stop_loss';
-    };
-    const problemWith = (pos: ChartPosition, kind: TriggerKind, price: number) => {
-      const long = pos.side === 'long';
-      const mark = pos.markPrice;
-      if (!mark) return null;
-      if (kind === 'stop_loss' && (long ? price >= mark : price <= mark)) {
-        return `Stop loss must be ${long ? 'below' : 'above'} the mark price`;
-      }
-      if (kind === 'take_profit' && (long ? price <= mark : price >= mark)) {
-        return `Take profit must be ${long ? 'above' : 'below'} the mark price`;
-      }
-      return null;
-    };
-    const commit = async (kind: TriggerKind, price: number | null) => {
-      const save = onTriggerChangeRef.current;
-      if (!save) return;
-      setPending({ kind, price });
-      let saved = false;
+  // ── Toolbar / rail actions on the active pane ────────────────────────────
+  const run = useCallback(
+    (command: Parameters<ChartApi['execute']>[0]) => {
+      if (!activeChart) return;
       try {
-        saved = await save(kind, price);
-      } finally {
-        if (!saved) setPending(null);
+        activeChart.execute(command);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Chart command failed');
       }
-    };
+    },
+    [activeChart]
+  );
+  const handleAddIndicator = useCallback(
+    (kind: string) => run({ type: 'indicator.add', indicator: { kind } }),
+    [run]
+  );
+  const handleVolume = useCallback(
+    (visible: boolean) => run({ type: 'layer.set', layer: 'volume', visible }),
+    [run]
+  );
+  const handleLog = useCallback(
+    (enabled: boolean) => run({ type: 'priceScale.log', enabled }),
+    [run]
+  );
+  const handleFit = useCallback(() => {
+    run([{ type: 'viewport.reset' }, { type: 'priceScale.reset' }]);
+  }, [run]);
+  const handleSnapshot = useCallback(() => {
+    if (!activeChart) return;
+    try {
+      const link = document.createElement('a');
+      link.href = activeChart.capture();
+      link.download = `${market.symbol}-${activeSelection.interval}-${new Date()
+        .toISOString()
+        .slice(0, 19)}.png`;
+      link.click();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Snapshot failed');
+    }
+  }, [activeChart, market.symbol, activeSelection.interval]);
+  const handleTool = useCallback(
+    (tool: string) => {
+      activeChart?.setTool(tool);
+      const panes = rootRef.current?.querySelectorAll<HTMLElement>('.cf-chart');
+      panes?.[active]?.focus({ preventScroll: true });
+    },
+    [activeChart, active]
+  );
+  const handleUndo = useCallback(() => run({ type: 'history.undo' }), [run]);
+  const handleRedo = useCallback(() => run({ type: 'history.redo' }), [run]);
+  const handleClear = useCallback(() => run({ type: 'drawing.clear' }), [run]);
 
-    const unsubscribers = charts.flatMap(chart => [
-      chart.subscribePriceLineDrag(event => {
-        const pos = positionRef.current;
-        if (!pos) return;
-        const kind =
-          event.mode === 'copy' ? kindAt(pos, event.price) : (event.id as TriggerKind);
-        if (kind !== 'stop_loss' && kind !== 'take_profit') return;
-        const pnl = (event.price - pos.entryPrice) * pos.size * (pos.side === 'long' ? 1 : -1);
-        if (event.phase === 'start' || event.phase === 'move') {
-          const problem = problemWith(pos, kind, event.price);
-          return problem
-            ? `${LABEL[kind]} ✕`
-            : `${LABEL[kind]} ${formatSigned(pnl)} ${pos.quoteUnit}`;
-        }
-        if (event.phase !== 'end') return;
-        const before = kind === 'stop_loss' ? pos.stopLoss : pos.takeProfit;
-        if (before !== null && Math.abs(before - event.price) < pos.tick / 2) return;
-        const problem = problemWith(pos, kind, event.price);
-        if (problem) {
-          toast.error(problem);
-          return;
-        }
-        void commit(kind, Number(event.price.toFixed(decimalsOf(pos.tick))));
-      }),
-      chart.subscribePriceLineAction(event => {
-        if (event.action !== 'close') return;
-        if (event.id === 'stop_loss' || event.id === 'take_profit') void commit(event.id, null);
-      }),
-    ]);
-    return () => unsubscribers.forEach(off => off());
-  }, [charts]);
+  const preset = GRID_PRESETS[grid.preset];
 
-  return <div ref={hostRef} className={cn('relative h-full w-full', className)} />;
+  return (
+    <div
+      ref={rootRef}
+      className={cn('flex h-full w-full flex-col overflow-hidden bg-background', className)}
+    >
+      <ChartToolbar
+        timeInterval={activeSelection.interval}
+        onIntervalChange={handleIntervalChange}
+        priceSource={activeSelection.source}
+        onPriceSourceChange={handleSourceChange}
+        showChartType={false}
+        actions={
+          <ChartActions
+            onAddIndicator={handleAddIndicator}
+            grid={grid.preset}
+            onGridChange={handleGridChange}
+            volume={activeView.volume}
+            onVolumeChange={handleVolume}
+            log={activeView.log}
+            onLogChange={handleLog}
+            onFit={handleFit}
+            onSnapshot={handleSnapshot}
+            fullscreen={fullscreen}
+            onFullscreenChange={handleFullscreen}
+          />
+        }
+      />
+      <div className="flex min-h-0 flex-1">
+        <ChartDrawingRail
+          tool={activeView.tool}
+          onToolChange={handleTool}
+          canUndo={activeView.canUndo}
+          canRedo={activeView.canRedo}
+          hasDrawings={activeView.hasDrawings}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onClear={handleClear}
+        />
+        <div className={cn('grid min-w-0 flex-1 gap-px bg-outline', preset.grid)}>
+          {selections.map((selection, i) => (
+            <div
+              key={i}
+              className={cn('relative grid min-h-0 min-w-0 bg-background', i === 0 && preset.first)}
+            >
+              <ChartPane
+                index={i}
+                market={market}
+                // Pane 1 keeps the pre-grid key, so existing layouts carry over.
+                layoutKey={i === 0 ? market.symbol : `${market.symbol}:${i + 1}`}
+                interval={selection.interval}
+                priceSource={selection.source}
+                livePrices={livePrices}
+                multi={multi}
+                active={i === active}
+                onActivate={handleActivate}
+                onChart={handleChart}
+                onView={handleView}
+                onCandles={i === 0 ? onCandles : undefined}
+                position={position}
+                onTriggerChange={onTriggerChange}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export const CandleFrameChart = memo(CandleFrameChartComponent);

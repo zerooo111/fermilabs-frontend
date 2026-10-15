@@ -136,7 +136,13 @@ export function createFermiFeed(options: FermiFeedOptions): FermiFeed {
   const fetchRange = async (fromIso: string, toIso: string) =>
     toCandles(
       processPerpsCandleData(
-        await fetchPerpsCandles({ marketId, tf: interval, from: fromIso, to: toIso, priceSource: source }),
+        await fetchPerpsCandles({
+          marketId,
+          tf: interval,
+          from: fromIso,
+          to: toIso,
+          priceSource: source,
+        }),
         conversion,
         source
       )

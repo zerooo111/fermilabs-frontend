@@ -3,7 +3,7 @@
  * background, cream text, amber accent and the chart's emerald / crimson ink.
  * Hex only: CandleFrame themes take six-digit colors.
  */
-import { createTheme } from 'candleframe';
+import { createTheme } from 'candleframe/chart';
 
 export const fermiChartTheme = createTheme('evergreen', {
   id: 'fermi',
@@ -33,6 +33,7 @@ export const fermiChartTheme = createTheme('evergreen', {
     annotationFamily: "'Paper Mono', ui-monospace, monospace",
   },
   chart: {
+    watermarkOpacity: 0,
     // --color-buy-chart / --color-sell-chart: bolder than the UI success/danger.
     candleUp: '#219e61',
     candleDown: '#d53736',

@@ -146,19 +146,23 @@ function PerpsChartContainerComponent() {
     [chartPosition, replaceTriggerLegs]
   );
 
-  const handleSelectionChange = useCallback(
-    (nextInterval: PerpsTimeframe, nextSource: PerpsPriceSource) => {
-      setTimeInterval(nextInterval);
-      setPriceSource(nextSource);
-      try {
-        window.localStorage.setItem(TIMEFRAME_STORAGE_KEY, nextInterval);
-        window.localStorage.setItem(PRICE_SOURCE_STORAGE_KEY, nextSource);
-      } catch {
-        // ignore storage write errors
-      }
-    },
-    []
-  );
+  const handleIntervalChange = useCallback((next: PerpsTimeframe) => {
+    setTimeInterval(next);
+    try {
+      window.localStorage.setItem(TIMEFRAME_STORAGE_KEY, next);
+    } catch {
+      // ignore storage write errors
+    }
+  }, []);
+
+  const handlePriceSourceChange = useCallback((next: PerpsPriceSource) => {
+    setPriceSource(next);
+    try {
+      window.localStorage.setItem(PRICE_SOURCE_STORAGE_KEY, next);
+    } catch {
+      // ignore storage write errors
+    }
+  }, []);
 
   // Live ticks for the forming candle, one per price source, so each feed
   // extends its series with the matching stream and live and historical OHLC
@@ -248,8 +252,9 @@ function PerpsChartContainerComponent() {
               key={chartMarket.uuid}
               market={chartMarket}
               interval={timeInterval}
+              onIntervalChange={handleIntervalChange}
               priceSource={priceSource}
-              onSelectionChange={handleSelectionChange}
+              onPriceSourceChange={handlePriceSourceChange}
               livePrices={livePrices}
               onCandles={handleCandles}
               position={chartPosition?.view ?? null}

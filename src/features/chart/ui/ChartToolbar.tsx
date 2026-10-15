@@ -5,7 +5,7 @@
  * set-and-forget. No boxed button groups so the row doesn't compete with the
  * chart for attention.
  */
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { PerpsTimeframe, PerpsPriceSource } from '@/features/chart/lib/perps-chart';
 import { PerpsChartType } from '@/features/chart/ui/PerpsChart';
 import { TabStrip, TabStripItem } from '@/shared/ui/tab-strip';
@@ -58,6 +58,8 @@ interface ChartToolbarProps {
   isRefreshing?: boolean;
   priceSource?: PerpsPriceSource;
   onPriceSourceChange?: (source: PerpsPriceSource) => void;
+  /** Extra controls, right-aligned (the chart's indicator and view actions). */
+  actions?: ReactNode;
 }
 
 function ChartToolbarComponent({
@@ -69,6 +71,7 @@ function ChartToolbarComponent({
   isRefreshing,
   priceSource,
   onPriceSourceChange,
+  actions,
 }: ChartToolbarProps) {
   const currentType = CHART_TYPES.find(t => t.value === chartType) ?? CHART_TYPES[0];
   const TypeIcon = currentType.icon;
@@ -148,6 +151,13 @@ function ChartToolbarComponent({
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+      )}
+
+      {actions && (
+        <>
+          <span className="mx-1.5 h-3.5 w-px bg-outline" aria-hidden />
+          {actions}
+        </>
       )}
 
       {isRefreshing && (
