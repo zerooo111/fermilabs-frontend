@@ -104,6 +104,9 @@ importers:
       bs58:
         specifier: ^6.0.0
         version: 6.0.0
+      candleframe:
+        specifier: file:vendor/candleframe-0.3.0.tgz
+        version: file:vendor/candleframe-0.3.0.tgz
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3981,6 +3984,11 @@ packages:
   camelcase@6.3.0:
     resolution: {integrity: sha512-Gmy6FhYlCY7uOElZUSbxo2UCDH8owEk996gkbrpsgGtrJLM3J7jGxl9Ic7Qwwj4ivOE5AWZWRMecDdF7hqGjFA==}
     engines: {node: '>=10'}
+
+  candleframe@file:vendor/candleframe-0.3.0.tgz:
+    resolution: {integrity: sha512-it5OjPHJaICmgQ+LpAd09GpIiWMUig0VbQySJQFw4Zgpc+C8A2nvBXfwaU1fk48IaO63nTfbR1Dfna6tnm3Ndw==, tarball: file:vendor/candleframe-0.3.0.tgz}
+    version: 0.3.0
+    engines: {node: '>=24'}
 
   caniuse-lite@1.0.30001724:
     resolution: {integrity: sha512-WqJo7p0TbHDOythNTqYujmaJTvtYRZrjpP8TCvH6Vb9CYJerJNKamKzIWOM4BkQatWj9H2lYulpdAQNBe7QhNA==}
@@ -13136,6 +13144,8 @@ snapshots:
   camelcase@5.3.1: {}
 
   camelcase@6.3.0: {}
+
+  candleframe@file:vendor/candleframe-0.3.0.tgz: {}
 
   caniuse-lite@1.0.30001724: {}
 

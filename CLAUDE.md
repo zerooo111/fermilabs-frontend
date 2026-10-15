@@ -59,6 +59,6 @@ Uses **PNPM** - always use `pnpm` commands, not `npm` or `yarn`.
 - Development server runs on port 4000
 - Uses TypeScript strict mode
 - Radix UI components are pre-configured in `src/shared/ui/`
-- Trading charts use Lightweight Charts library
+- The perps chart is CandleFrame (vendored tarball in `vendor/`, built from github.com/adarshzpatel/candleframe); see `src/features/chart/ui/CandleFrameChart.tsx`
 - All Solana wallet adapters are configured in app providers
 - Environment variables should be prefixed with `VITE_`

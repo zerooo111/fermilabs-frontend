@@ -1,26 +1,17 @@
 /**
  * Perps chart container component
- * Handles data fetching and state management for perps charts.
- * Optimized to fetch historical data once and update in real-time from the
- * trades stream (last traded price), matching the historical /v2/candles
- * endpoint which is also trade-derived. See updateCandlesWithLastTradePrice
- * for the rationale (DEX-standard OHLC source).
+ * The market header plus the CandleFrame chart. The chart fetches its own
+ * history (see fermi-feed.ts); this container supplies the market, live ticks
+ * and the open position with its SL/TP legs.
  */
-import { useState, useCallback, memo, useMemo, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { PerpsChart, PerpsChartType } from '@/features/chart/ui/PerpsChart';
+import { useState, useCallback, memo, useMemo, useEffect } from 'react';
+import type { Candle } from 'candleframe/core';
 import { ChartHeader } from '@/features/chart/ui/ChartHeader';
-import { ChartToolbar } from '@/features/chart/ui/ChartToolbar';
+import { CandleFrameChart, type CandleFrameMarket } from '@/features/chart/ui/CandleFrameChart';
 import {
-  fetchPerpsCandles,
-  getPerpsTimeRangeForInterval,
-  getPerpsLoadMoreWindowSeconds,
-  processPerpsCandleData,
   calculatePerpsPriceChange,
-  updateCandlesWithLastTradePrice,
   PerpsTimeframe,
   PerpsPriceSource,
-  ExtendedPerpsOHLCVData,
 } from '@/features/chart/lib/perps-chart';
 import { useSelectedMarket } from '@/entities/market';
 import { usePositions } from '@/shared/hooks/usePositions';
@@ -38,26 +29,12 @@ import { useAtomValue } from 'jotai';
 import { recentMarketTradesAtom, marketMetricsAtom } from '@/shared/api/sse-atoms';
 import { nativeToUiNumber } from '@/shared/lib/harness-market';
 import { QUOTE_DECIMALS } from '@/shared/config/constants';
-import { toast } from 'sonner';
-import { AlertCircle, RefreshCw } from 'lucide-react';
-import { Button } from '@/shared/ui/button';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
 const TIMEFRAME_STORAGE_KEY = 'perps-chart:timeframe';
-const CHART_TYPE_STORAGE_KEY = 'perps-chart:chartType';
 const PRICE_SOURCE_STORAGE_KEY = 'perps-chart:priceSource';
 const VALID_TIMEFRAMES: PerpsTimeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
-const VALID_CHART_TYPES: PerpsChartType[] = ['candlestick', 'line', 'area', 'bar'];
 const VALID_PRICE_SOURCES: PerpsPriceSource[] = ['ltp', 'mark'];
-// Keyboard shortcuts 1..6 → timeframe
-const TIMEFRAME_SHORTCUTS: Record<string, PerpsTimeframe> = {
-  '1': '1m',
-  '2': '5m',
-  '3': '15m',
-  '4': '1h',
-  '5': '4h',
-  '6': '1d',
-};
 
 function loadStoredTimeframe(): PerpsTimeframe {
   if (typeof window === 'undefined') return '1h';
@@ -70,19 +47,6 @@ function loadStoredTimeframe(): PerpsTimeframe {
     // ignore storage access errors (private mode, disabled, etc.)
   }
   return '1h';
-}
-
-function loadStoredChartType(): PerpsChartType {
-  if (typeof window === 'undefined') return 'candlestick';
-  try {
-    const stored = window.localStorage.getItem(CHART_TYPE_STORAGE_KEY);
-    if (stored && (VALID_CHART_TYPES as string[]).includes(stored)) {
-      return stored as PerpsChartType;
-    }
-  } catch {
-    // ignore storage access errors
-  }
-  return 'candlestick';
 }
 
 // Default to 'mark': on a thin new venue the Pyth-index chart is smoother and
@@ -103,10 +67,7 @@ function loadStoredPriceSource(): PerpsPriceSource {
 
 function PerpsChartContainerComponent() {
   const [timeInterval, setTimeInterval] = useState<PerpsTimeframe>(loadStoredTimeframe);
-  const [chartType, setChartType] = useState<PerpsChartType>(loadStoredChartType);
   const [priceSource, setPriceSource] = useState<PerpsPriceSource>(loadStoredPriceSource);
-  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-  const [reachedBeginningOfHistory, setReachedBeginningOfHistory] = useState(false);
   const { selectedMarket, selectMarket } = useSelectedMarket();
   const { publicKey } = useWallet();
 
@@ -185,147 +146,23 @@ function PerpsChartContainerComponent() {
     [chartPosition, replaceTriggerLegs]
   );
 
-  // State to hold candles with real-time updates
-  const [candles, setCandles] = useState<ExtendedPerpsOHLCVData[]>([]);
-  const candlesRef = useRef<ExtendedPerpsOHLCVData[]>([]);
-  const previousLastTradePriceRef = useRef<number | null>(null);
-  const latestLastTradePriceRef = useRef<number | null>(null);
-  // Older candles fetched via scroll-back pagination, kept separate so
-  // background refetches of historicalData don't discard them.
-  const olderCandlesRef = useRef<ExtendedPerpsOHLCVData[]>([]);
-  const loadMoreInFlightRef = useRef(false);
-  const oldestAvailableTimeRef = useRef<number | null>(null);
-
-  // Clear candles when market changes to prevent stale data leaking across markets
-  const previousMarketRef = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (selectedMarket?.uuid !== previousMarketRef.current) {
-      if (previousMarketRef.current !== undefined) {
-        // Market changed — clear all candle state immediately
-        setCandles([]);
-        candlesRef.current = [];
-        olderCandlesRef.current = [];
-        previousLastTradePriceRef.current = null;
-        latestLastTradePriceRef.current = null;
-        oldestAvailableTimeRef.current = null;
-        loadMoreInFlightRef.current = false;
-        setIsLoadingOlder(false);
-        setReachedBeginningOfHistory(false);
+  const handleSelectionChange = useCallback(
+    (nextInterval: PerpsTimeframe, nextSource: PerpsPriceSource) => {
+      setTimeInterval(nextInterval);
+      setPriceSource(nextSource);
+      try {
+        window.localStorage.setItem(TIMEFRAME_STORAGE_KEY, nextInterval);
+        window.localStorage.setItem(PRICE_SOURCE_STORAGE_KEY, nextSource);
+      } catch {
+        // ignore storage write errors
       }
-      previousMarketRef.current = selectedMarket?.uuid;
-    }
-  }, [selectedMarket?.uuid]);
-
-  // Memoize the interval change handler
-  const handleIntervalChange = useCallback((value: PerpsTimeframe) => {
-    // Clear candles immediately to avoid flashing old timeframe data
-    setCandles([]);
-    candlesRef.current = [];
-    olderCandlesRef.current = [];
-    previousLastTradePriceRef.current = null;
-    latestLastTradePriceRef.current = null;
-    oldestAvailableTimeRef.current = null;
-    loadMoreInFlightRef.current = false;
-    setIsLoadingOlder(false);
-    setReachedBeginningOfHistory(false);
-    setTimeInterval(value);
-    try {
-      window.localStorage.setItem(TIMEFRAME_STORAGE_KEY, value);
-    } catch {
-      // ignore storage write errors
-    }
-  }, []);
-
-  const handleChartTypeChange = useCallback((next: PerpsChartType) => {
-    setChartType(next);
-    try {
-      window.localStorage.setItem(CHART_TYPE_STORAGE_KEY, next);
-    } catch {
-      // ignore storage write errors
-    }
-  }, []);
-
-  const handlePriceSourceChange = useCallback((next: PerpsPriceSource) => {
-    setPriceSource(next);
-    try {
-      window.localStorage.setItem(PRICE_SOURCE_STORAGE_KEY, next);
-    } catch {
-      // ignore storage write errors
-    }
-  }, []);
-
-  // Keyboard shortcuts: 1..6 switch timeframe. Ignore when user is typing.
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
-      const target = e.target as HTMLElement | null;
-      if (target) {
-        const tag = target.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
-          return;
-        }
-      }
-      const next = TIMEFRAME_SHORTCUTS[e.key];
-      if (next) {
-        e.preventDefault();
-        handleIntervalChange(next);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [handleIntervalChange]);
-
-  // Fetch historical candle data (only when market/interval changes, no polling)
-  const {
-    data: historicalData,
-    refetch,
-    isLoading,
-    isFetching,
-    isSuccess,
-    error,
-  } = useQuery<ExtendedPerpsOHLCVData[]>({
-    queryKey: ['perps-candlesticks', timeInterval, selectedMarket?.uuid, priceSource],
-    queryFn: async () => {
-      if (!selectedMarket?.uuid) {
-        throw new Error('No market selected');
-      }
-
-      const { startTime, endTime } = getPerpsTimeRangeForInterval(timeInterval);
-
-      // Fetch perps candle data
-      const candleData = await fetchPerpsCandles({
-        marketId: selectedMarket.uuid,
-        tf: timeInterval,
-        from: startTime,
-        to: endTime,
-        priceSource,
-      });
-
-      // Process the data for TradingView charts
-      return processPerpsCandleData(
-        candleData,
-        {
-          base_mint: selectedMarket.base_mint,
-          quote_mint: selectedMarket.quote_mint,
-          base_decimals: selectedMarket.base_decimals,
-          quote_decimals: selectedMarket.quote_decimals,
-          base_lot_size: selectedMarket.base_lot_size,
-          quote_lot_size: selectedMarket.quote_lot_size,
-        },
-        priceSource
-      );
     },
-    // Remove refetchInterval - only fetch when market/interval changes
-    enabled: !!selectedMarket?.uuid,
-    retry: 2,
-    staleTime: 30_000, // Refetch if data is older than 30s (e.g. switching back to a timeframe)
-    placeholderData: undefined, // Don't show stale data from a different queryKey
-  });
+    []
+  );
 
-  // Drive the forming candle from a live stream tick, so we fetch history once
-  // and then extend it in real time (no full refetch per update). The tick
-  // source matches each mode's historical series, keeping live and historical
-  // OHLC consistent:
+  // Live ticks for the forming candle, one per price source, so each feed
+  // extends its series with the matching stream and live and historical OHLC
+  // stay consistent:
   //   • ltp  → last traded price from the trades stream (native → UI scale).
   //            /v2/candles?price=ltp is also trade-derived, so no snap on
   //            refresh and no oracle ghost wicks during quiet periods.
@@ -334,229 +171,68 @@ function PerpsChartContainerComponent() {
   // Both atoms are reset/rescoped by useSSEStream on market change.
   const recentTrades = useAtomValue(recentMarketTradesAtom);
   const liveMetrics = useAtomValue(marketMetricsAtom);
+  const markPrice = useMemo(() => {
+    if (!selectedMarket?.uuid) return null;
+    if (!liveMetrics || liveMetrics.market !== selectedMarket.uuid) return null;
+    const mark = liveMetrics.mark_price_ui;
+    return Number.isFinite(mark) && mark > 0 ? mark : null;
+  }, [liveMetrics, selectedMarket?.uuid]);
   const lastTradePrice = useMemo(() => {
     if (!selectedMarket?.uuid) return null;
-    if (priceSource === 'mark') {
-      // mark_price_ui is already UI-scaled (and currently tracks the on-chain
-      // oracle until the harness publishes a distinct mark — see ChartHeader).
-      if (!liveMetrics || liveMetrics.market !== selectedMarket.uuid) return null;
-      const mark = liveMetrics.mark_price_ui;
-      return Number.isFinite(mark) && mark > 0 ? mark : null;
-    }
     if (!recentTrades || recentTrades.length === 0) return null;
     // recentMarketTradesAtom is sorted desc by timestamp by mergeRecentTrades.
     const latest = recentTrades[0];
     if (!latest || !Number.isFinite(latest.price) || latest.price <= 0) return null;
     const quoteDecimals = selectedMarket.quote_decimals ?? QUOTE_DECIMALS;
     return nativeToUiNumber(latest.price, quoteDecimals);
-  }, [
-    priceSource,
-    recentTrades,
-    liveMetrics,
-    selectedMarket?.uuid,
-    selectedMarket?.quote_decimals,
-  ]);
-
-  // Keep ref in sync inline during render so the historicalData effect always
-  // sees the latest price without an extra effect cycle per tick.
-  latestLastTradePriceRef.current = lastTradePrice;
-
-  // Update candles when historical data is fetched.
-  // Merge the current last trade price synchronously so a background refetch
-  // doesn't briefly show an un-merged last candle on screen, and keep any
-  // older candles fetched via scroll-back pagination. Empty historical
-  // responses are still processed — they represent brand new markets, and
-  // the first trade tick will seed candle 0.
-  useEffect(() => {
-    if (historicalData === undefined) return;
-    const livePrice = latestLastTradePriceRef.current;
-
-    if (historicalData.length === 0) {
-      // No server history. Start from an empty base and let the trades
-      // effect create the first candle when a fill arrives.
-      olderCandlesRef.current = [];
-      const seeded =
-        livePrice !== null && livePrice > 0
-          ? updateCandlesWithLastTradePrice([], livePrice, timeInterval)
-          : [];
-      setCandles(seeded);
-      candlesRef.current = seeded;
-      previousLastTradePriceRef.current = livePrice ?? null;
-      return;
-    }
-
-    const histMinTime = historicalData[0].time;
-    const preservedOlder = olderCandlesRef.current.filter(c => c.time < histMinTime);
-    olderCandlesRef.current = preservedOlder;
-    const combined = [...preservedOlder, ...historicalData];
-    const merged =
-      livePrice !== null && livePrice > 0
-        ? updateCandlesWithLastTradePrice(combined, livePrice, timeInterval)
-        : combined;
-    setCandles(merged);
-    candlesRef.current = merged;
-    previousLastTradePriceRef.current = livePrice ?? null;
-  }, [historicalData, timeInterval]);
-
-  // Update candles in real-time with the last trade price.
-  // Uses candlesRef to avoid circular dependency (effect sets candles,
-  // depends on candles). We intentionally allow this to run when the list
-  // is empty — for markets with no historical candles, the first trade
-  // seeds candle 0. We still wait for the initial fetch to resolve so a
-  // tick doesn't beat the historical payload to the screen.
-  useEffect(() => {
-    if (lastTradePrice === null || lastTradePrice <= 0) return;
-    if (!isSuccess) return;
-
-    // Skip if last trade price hasn't changed (avoid unnecessary updates)
-    if (previousLastTradePriceRef.current === lastTradePrice) return;
-
-    const updatedCandles = updateCandlesWithLastTradePrice(
-      candlesRef.current,
-      lastTradePrice,
-      timeInterval
-    );
-    candlesRef.current = updatedCandles;
-    setCandles(updatedCandles);
-    previousLastTradePriceRef.current = lastTradePrice;
-  }, [lastTradePrice, timeInterval, isSuccess]);
-
-  // Calculate latest price and price change from updated candles
-  const latestPrice = useMemo(() => {
-    return calculatePerpsPriceChange(candles);
-  }, [candles]);
-
-  // Handle loading more historical data (scroll-back pagination).
-  // Fetches candles older than the current earliest and prepends them.
-  const handleLoadMoreData = useCallback(
-    async (earliestLoadedTime: number) => {
-      if (!selectedMarket?.uuid) return;
-      if (loadMoreInFlightRef.current) return;
-      // If we've already hit the beginning of available history, stop.
-      if (
-        oldestAvailableTimeRef.current !== null &&
-        oldestAvailableTimeRef.current >= earliestLoadedTime
-      ) {
-        return;
-      }
-
-      loadMoreInFlightRef.current = true;
-      setIsLoadingOlder(true);
-      try {
-        const windowSeconds = getPerpsLoadMoreWindowSeconds(timeInterval);
-        const toSec = earliestLoadedTime - 1;
-        const fromSec = toSec - windowSeconds;
-
-        const rawCandles = await fetchPerpsCandles({
-          marketId: selectedMarket.uuid,
-          tf: timeInterval,
-          from: new Date(fromSec * 1000).toISOString(),
-          to: new Date(toSec * 1000).toISOString(),
-          priceSource,
-        });
-
-        const processed = processPerpsCandleData(
-          rawCandles,
-          {
-            base_mint: selectedMarket.base_mint,
-            quote_mint: selectedMarket.quote_mint,
-            base_decimals: selectedMarket.base_decimals,
-            quote_decimals: selectedMarket.quote_decimals,
-            base_lot_size: selectedMarket.base_lot_size,
-            quote_lot_size: selectedMarket.quote_lot_size,
-          },
-          priceSource
-        );
-
-        const newOlder = processed
-          .filter(c => c.time < earliestLoadedTime)
-          .sort((a, b) => a.time - b.time);
-
-        if (newOlder.length === 0) {
-          // Server returned nothing older — mark this as the floor so we
-          // don't keep asking.
-          oldestAvailableTimeRef.current = earliestLoadedTime;
-          setReachedBeginningOfHistory(true);
-          return;
-        }
-
-        olderCandlesRef.current = [...newOlder, ...olderCandlesRef.current];
-        const combined = [...newOlder, ...candlesRef.current];
-        const livePrice = latestLastTradePriceRef.current;
-        const merged =
-          livePrice !== null && livePrice > 0
-            ? updateCandlesWithLastTradePrice(combined, livePrice, timeInterval)
-            : combined;
-        candlesRef.current = merged;
-        setCandles(merged);
-      } catch {
-        toast.error('Failed to load historical data. Please try again.');
-      } finally {
-        loadMoreInFlightRef.current = false;
-        setIsLoadingOlder(false);
-      }
-    },
-    [selectedMarket, timeInterval, priceSource]
+  }, [recentTrades, selectedMarket?.uuid, selectedMarket?.quote_decimals]);
+  const livePrices = useMemo(
+    () => ({ ltp: lastTradePrice, mark: markPrice }),
+    [lastTradePrice, markPrice]
   );
 
-  // Refetch errors that happen while we already have data should be
-  // non-blocking: toast once per error instead of covering the chart.
-  const lastToastedErrorRef = useRef<Error | null>(null);
-  useEffect(() => {
-    if (!error) {
-      lastToastedErrorRef.current = null;
-      return;
-    }
-    if (candlesRef.current.length > 0 && lastToastedErrorRef.current !== error) {
-      lastToastedErrorRef.current = error as Error;
-      toast.error(
-        error instanceof Error ? error.message : 'Chart refresh failed. Showing cached data.'
-      );
-    }
-  }, [error]);
+  // The chart's market description; a new one remounts the chart.
+  const chartMarket = useMemo<CandleFrameMarket | null>(() => {
+    if (!selectedMarket?.uuid) return null;
+    const conversion = {
+      base_mint: selectedMarket.base_mint,
+      quote_mint: selectedMarket.quote_mint,
+      base_decimals: selectedMarket.base_decimals,
+      quote_decimals: selectedMarket.quote_decimals,
+      base_lot_size: selectedMarket.base_lot_size,
+      quote_lot_size: selectedMarket.quote_lot_size,
+    };
+    const tickSize = priceLotsToUi(1, {
+      baseDecimals: selectedMarket.base_decimals,
+      quoteDecimals: selectedMarket.quote_decimals ?? QUOTE_DECIMALS,
+      baseLotSize: selectedMarket.base_lot_size,
+      quoteLotSize: selectedMarket.quote_lot_size,
+    });
+    return {
+      uuid: selectedMarket.uuid,
+      symbol: selectedMarket.name || selectedMarket.baseTokenName,
+      base: selectedMarket.baseTokenName,
+      quote: selectedMarket.quoteTokenName || 'USDC',
+      tickSize: Number.isFinite(tickSize) && tickSize > 0 ? tickSize : 0.01,
+      conversion,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMarket?.uuid]);
 
-  // First-load failure (no data + error) shows the full error screen.
-  // Transient refetch errors after we have data are surfaced via toast and
-  // the chart keeps showing cached data.
-  const hasNoCandles = candles.length === 0;
-  if (error && hasNoCandles) {
-    return (
-      <div className="w-full h-full flex flex-col overflow-hidden">
-        <ChartHeader
-          selectedMarketId={selectedMarket?.uuid}
-          onMarketSelect={selectMarket}
-          latestPrice={latestPrice}
-        />
-        <ChartToolbar
-          timeInterval={timeInterval}
-          onIntervalChange={handleIntervalChange}
-          chartType={chartType}
-          onChartTypeChange={handleChartTypeChange}
-          priceSource={priceSource}
-          onPriceSourceChange={handlePriceSourceChange}
-        />
-        <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <AlertCircle className="h-12 w-12 text-danger" />
-          <div className="text-center">
-            <h3 className="text-lg font-medium text-danger mb-1">Failed to fetch chart data</h3>
-            <p className="text-sm text-rock/50 max-w-md mb-4">
-              {error instanceof Error ? error.message : 'Unknown error'}
-            </p>
-          </div>
-          <Button onClick={() => refetch()} className="flex items-center gap-2" variant="outline">
-            <RefreshCw className="h-4 w-4" />
-            Retry
-          </Button>
-        </div>
-      </div>
+  // Price and rolling 24h change for the header, from the chart's candles.
+  // Candles update on every tick; only re-render when the readout changes.
+  const [latestPrice, setLatestPrice] = useState<ReturnType<
+    typeof calculatePerpsPriceChange
+  > | null>(null);
+  const handleCandles = useCallback((candles: readonly Candle[]) => {
+    const next = calculatePerpsPriceChange(
+      candles.map(c => ({ time: c.timeMs / 1000, open: c.open, close: c.close }))
     );
-  }
-
-  // Show the spinner only while we're still waiting on the initial fetch
-  // (query not yet resolved for the current market). Once the server has
-  // responded — even with an empty array — we either have candles or we
-  // wait for the first mark-price tick to seed candle 0.
-  const showChartLoading = hasNoCandles && !error && !isSuccess;
+    setLatestPrice(prev =>
+      prev?.price === next?.price && prev?.percentChange === next?.percentChange ? prev : next
+    );
+  }, []);
+  useEffect(() => setLatestPrice(null), [selectedMarket?.uuid]);
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
@@ -565,35 +241,21 @@ function PerpsChartContainerComponent() {
         onMarketSelect={selectMarket}
         latestPrice={latestPrice}
       />
-      <ChartToolbar
-        timeInterval={timeInterval}
-        onIntervalChange={handleIntervalChange}
-        chartType={chartType}
-        onChartTypeChange={handleChartTypeChange}
-        priceSource={priceSource}
-        onPriceSourceChange={handlePriceSourceChange}
-        isRefreshing={isFetching && !isLoading}
-      />
-
       <div className="flex-1 relative min-h-[200px] overflow-hidden">
         <ErrorBoundary>
-          <PerpsChart
-            key={selectedMarket?.uuid}
-            className="h-full"
-            data={candles}
-            interval={timeInterval}
-            chartType={chartType}
-            onLoadMoreData={handleLoadMoreData}
-            isLoading={showChartLoading}
-            isRefreshing={isFetching && !isLoading && !hasNoCandles}
-            isLoadingOlder={isLoadingOlder}
-            reachedBeginningOfHistory={reachedBeginningOfHistory}
-            error={hasNoCandles ? (error as Error | null) : null}
-            emptyMessage={priceSource === 'mark' ? 'No price data yet' : 'No trades yet'}
-            selectedMarketName={selectedMarket?.name}
-            position={chartPosition?.view ?? null}
-            onTriggerChange={sltpAvailable ? handleTriggerChange : undefined}
-          />
+          {chartMarket ? (
+            <CandleFrameChart
+              key={chartMarket.uuid}
+              market={chartMarket}
+              interval={timeInterval}
+              priceSource={priceSource}
+              onSelectionChange={handleSelectionChange}
+              livePrices={livePrices}
+              onCandles={handleCandles}
+              position={chartPosition?.view ?? null}
+              onTriggerChange={sltpAvailable ? handleTriggerChange : undefined}
+            />
+          ) : null}
         </ErrorBoundary>
       </div>
     </div>
