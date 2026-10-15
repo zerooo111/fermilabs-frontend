@@ -17,6 +17,9 @@ interface ImportMetaEnv {
   readonly VITE_QUOTE_MINT?: string;
   readonly VITE_VAULT_PROGRAM_ID?: string;
   readonly VITE_FERMI_AUTHORITY?: string;
+  readonly VITE_FLP_RPC_URL?: string;
+  readonly VITE_FLP_PROGRAM_ID?: string;
+  readonly VITE_FLP_VAULT?: string;
 }
 
 interface ImportMeta {
