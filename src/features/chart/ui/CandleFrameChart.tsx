@@ -8,7 +8,7 @@
  * Pane 1's interval / source are the container's (persisted there and used by
  * the header); panes 2..4 and the preset are saved by chart-grid.ts.
  */
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createChartGroup, type ChartApi } from 'candleframe/chart';
 import type { Candle } from 'candleframe/core';
 import { toast } from 'sonner';
@@ -18,6 +18,7 @@ import {
   loadGrid,
   saveGrid,
   type GridPreset,
+  type GridSplit,
   type PaneSelection,
   type SavedGrid,
 } from '@/features/chart/lib/chart-grid';
@@ -25,6 +26,7 @@ import type { PerpsPriceSource, PerpsTimeframe } from '@/features/chart/lib/perp
 import { ChartToolbar } from './ChartToolbar';
 import { ChartActions } from './ChartActions';
 import { ChartDrawingRail } from './ChartDrawingRail';
+import { ChartGridDividers } from './ChartGridDividers';
 import { ChartPane, type CandleFrameMarket, type PaneView } from './ChartPane';
 import type { ChartPosition, TriggerKind } from './PositionLines';
 
@@ -78,6 +80,7 @@ function CandleFrameChartComponent({
   className,
 }: CandleFrameChartProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const [grid, setGrid] = useState<SavedGrid>(loadGrid);
   const [charts, setCharts] = useState<(ChartApi | null)[]>([]);
   const [views, setViews] = useState<PaneView[]>([]);
@@ -163,11 +166,15 @@ function CandleFrameChartComponent({
         };
         const extra = [...g.extra];
         for (let i = 0; i < panes - 1; i++) extra[i] ??= from;
-        return { preset, active: Math.min(g.active, panes - 1), extra };
+        return { ...g, preset, active: Math.min(g.active, panes - 1), extra };
       });
     },
     [interval, priceSource]
   );
+
+  const handleSplitChange = useCallback((split: GridSplit) => {
+    setGrid(g => ({ ...g, split }));
+  }, []);
 
   // ── Keyboard shortcuts: 1..6 switch the active pane's timeframe ─────────
   useEffect(() => {
@@ -295,31 +302,65 @@ function CandleFrameChartComponent({
           onRedo={handleRedo}
           onClear={handleClear}
         />
-        <div className={cn('grid min-w-0 flex-1 gap-px bg-outline', preset.grid)}>
-          {selections.map((selection, i) => (
-            <div
-              key={i}
-              className={cn('relative grid min-h-0 min-w-0 bg-background', i === 0 && preset.first)}
-            >
-              <ChartPane
-                index={i}
-                market={market}
-                // Pane 1 keeps the pre-grid key, so existing layouts carry over.
-                layoutKey={i === 0 ? market.symbol : `${market.symbol}:${i + 1}`}
-                interval={selection.interval}
-                priceSource={selection.source}
-                livePrices={livePrices}
-                multi={multi}
-                active={i === active}
-                onActivate={handleActivate}
-                onChart={handleChart}
-                onView={handleView}
-                onCandles={i === 0 ? onCandles : undefined}
-                position={position}
-                onTriggerChange={onTriggerChange}
-              />
-            </div>
-          ))}
+        <div
+          ref={gridRef}
+          className="relative min-w-0 flex-1"
+          style={
+            {
+              '--split-x': grid.split.x,
+              '--split-y': grid.split.y,
+            } as CSSProperties
+          }
+        >
+          <div
+            className="grid h-full w-full gap-px bg-outline"
+            style={{
+              gridTemplateColumns:
+                preset.cols === 2
+                  ? 'minmax(0, calc(var(--split-x) * 100%)) minmax(0, 1fr)'
+                  : 'minmax(0, 1fr)',
+              gridTemplateRows:
+                preset.rows === 2
+                  ? 'minmax(0, calc(var(--split-y) * 100%)) minmax(0, 1fr)'
+                  : 'minmax(0, 1fr)',
+            }}
+          >
+            {selections.map((selection, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'relative grid min-h-0 min-w-0 bg-background',
+                  i === 0 && preset.first
+                )}
+              >
+                <ChartPane
+                  index={i}
+                  market={market}
+                  // Pane 1 keeps the pre-grid key, so existing layouts carry over.
+                  layoutKey={i === 0 ? market.symbol : `${market.symbol}:${i + 1}`}
+                  interval={selection.interval}
+                  priceSource={selection.source}
+                  livePrices={livePrices}
+                  multi={multi}
+                  active={i === active}
+                  onActivate={handleActivate}
+                  onChart={handleChart}
+                  onView={handleView}
+                  onCandles={i === 0 ? onCandles : undefined}
+                  position={position}
+                  onTriggerChange={onTriggerChange}
+                />
+              </div>
+            ))}
+          </div>
+          <ChartGridDividers
+            containerRef={gridRef}
+            split={grid.split}
+            cols={preset.cols}
+            rows={preset.rows}
+            rowSplitRightOnly={preset.rowSplitRightOnly}
+            onSplitChange={handleSplitChange}
+          />
         </div>
       </div>
     </div>

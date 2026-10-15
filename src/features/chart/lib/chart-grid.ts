@@ -10,19 +10,41 @@ export type GridPreset = '1' | '2h' | '2v' | '1+2' | '2x2';
 
 export const GRID_PRESETS: Record<
   GridPreset,
-  { label: string; panes: number; grid: string; first?: string }
+  {
+    label: string;
+    panes: number;
+    cols: 1 | 2;
+    rows: 1 | 2;
+    first?: string;
+    /** The row divider only spans the right column (pane 1 fills the left). */
+    rowSplitRightOnly?: boolean;
+  }
 > = {
-  '1': { label: 'Single chart', panes: 1, grid: 'grid-cols-1 grid-rows-1' },
-  '2h': { label: 'Two, side by side', panes: 2, grid: 'grid-cols-2 grid-rows-1' },
-  '2v': { label: 'Two, stacked', panes: 2, grid: 'grid-cols-1 grid-rows-2' },
+  '1': { label: 'Single chart', panes: 1, cols: 1, rows: 1 },
+  '2h': { label: 'Two, side by side', panes: 2, cols: 2, rows: 1 },
+  '2v': { label: 'Two, stacked', panes: 2, cols: 1, rows: 2 },
   '1+2': {
     label: 'One large, two small',
     panes: 3,
-    grid: 'grid-cols-2 grid-rows-2',
+    cols: 2,
+    rows: 2,
     first: 'row-span-2',
+    rowSplitRightOnly: true,
   },
-  '2x2': { label: 'Four', panes: 4, grid: 'grid-cols-2 grid-rows-2' },
+  '2x2': { label: 'Four', panes: 4, cols: 2, rows: 2 },
 };
+
+/** Divider positions as a share of the grid's width (x) and height (y). */
+export interface GridSplit {
+  x: number;
+  y: number;
+}
+
+export const DEFAULT_SPLIT: GridSplit = { x: 0.5, y: 0.5 };
+export const SPLIT_MIN = 0.15;
+export const SPLIT_MAX = 0.85;
+
+export const clampSplit = (v: number) => Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, v));
 
 export interface PaneSelection {
   interval: PerpsTimeframe;
@@ -34,10 +56,11 @@ export interface SavedGrid {
   active: number;
   /** Panes 2..4. */
   extra: PaneSelection[];
+  split: GridSplit;
 }
 
 const KEY = 'perps-chart:grid';
-const DEFAULT: SavedGrid = { preset: '1', active: 0, extra: [] };
+const DEFAULT: SavedGrid = { preset: '1', active: 0, extra: [], split: DEFAULT_SPLIT };
 
 const isSelection = (p: unknown): p is PaneSelection =>
   !!p &&
@@ -51,7 +74,11 @@ export function loadGrid(): SavedGrid {
     const extra = Array.isArray(raw.extra) ? raw.extra.filter(isSelection).slice(0, 3) : [];
     const panes = GRID_PRESETS[raw.preset].panes;
     const active = Number.isInteger(raw.active) && raw.active < panes ? raw.active : 0;
-    return { preset: raw.preset, active, extra };
+    const split = {
+      x: typeof raw.split?.x === 'number' ? clampSplit(raw.split.x) : DEFAULT_SPLIT.x,
+      y: typeof raw.split?.y === 'number' ? clampSplit(raw.split.y) : DEFAULT_SPLIT.y,
+    };
+    return { preset: raw.preset, active, extra, split };
   } catch {
     return DEFAULT;
   }
