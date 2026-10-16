@@ -74,3 +74,38 @@ export function tone(n: number): string {
   if (n < 0) return 'text-negative-fg';
   return 'text-fg-secondary';
 }
+
+/** Basis points as a percent, 250 becomes "2.5%". */
+export function bps(n: number): string {
+  return `${Number((n / 100).toFixed(2))}%`;
+}
+
+/** "12.3%" for an APR, or a dash while there's under a day of history. */
+export function apr(n: number | null | undefined): string {
+  return n === null || n === undefined ? '—' : pct(n, 2);
+}
+
+export function explorerAddressUrl(address: string, network: 'devnet' | 'mainnet'): string {
+  return `https://explorer.solana.com/address/${address}${network === 'devnet' ? '?cluster=devnet' : ''}`;
+}
+
+export function explorerTxUrl(signature: string, network: 'devnet' | 'mainnet'): string {
+  return `https://explorer.solana.com/tx/${signature}${network === 'devnet' ? '?cluster=devnet' : ''}`;
+}
+
+/** "just now", "4m ago", "3h ago", "2d ago". */
+export function timeAgo(ms: number, now = Date.now()): string {
+  const s = Math.max(0, Math.round((now - ms) / 1000));
+  if (s < 45) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86_400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86_400)}d ago`;
+}
+
+/** Epoch length in words: "60s", "8h", "1d". */
+export function duration(seconds: number): string {
+  if (seconds < 120) return `${seconds}s`;
+  if (seconds < 7200) return `${Math.round(seconds / 60)}m`;
+  if (seconds < 172_800) return `${Math.round(seconds / 3600)}h`;
+  return `${Math.round(seconds / 86_400)}d`;
+}

@@ -34,7 +34,7 @@ export const AppRouter = () => {
           <Route path="/leaderboard" element={<LazyLeaderboardPage />} />
           <Route path="/flp" element={<LazyFlpPage />} />
           <Route path="/vaults" element={<LazyVaultsPage />} />
-          <Route path="/vaults/:id" element={<LazyVaultDetailPage />} />
+          <Route path="/vaults/:network/:address" element={<LazyVaultDetailPage />} />
           <Route path="*" element={<Navigate replace to="/perps" />} />
         </Route>
       </Routes>

@@ -5,7 +5,7 @@
  */
 import { cn } from '@/lib/utils';
 
-import type { Vault } from '../model/types';
+import type { Vault } from '../api/vaultsClient';
 
 function hash(s: string): number {
   let h = 2166136261;
@@ -21,7 +21,7 @@ export function VaultMark({
   size = 'md',
   className,
 }: {
-  vault: Pick<Vault, 'id' | 'kind'>;
+  vault: Pick<Vault, 'address' | 'kind'>;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }) {
@@ -41,7 +41,7 @@ export function VaultMark({
     );
   }
 
-  const h = hash(vault.id);
+  const h = hash(vault.address);
   const cells: boolean[] = [];
   for (let row = 0; row < 5; row++) {
     const half = [0, 1, 2].map(col => ((h >>> (row * 3 + col)) & 1) === 1);

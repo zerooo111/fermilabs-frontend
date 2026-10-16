@@ -86,6 +86,7 @@ export const LazyVaultsPage = () => (
   <ErrorBoundary>
     <Suspense fallback={<TradingSkeleton />}>
       <VaultsPage />
+      <HideBootSplash />
     </Suspense>
   </ErrorBoundary>
 );
@@ -94,6 +95,7 @@ export const LazyVaultDetailPage = () => (
   <ErrorBoundary>
     <Suspense fallback={<TradingSkeleton />}>
       <VaultDetailPage />
+      <HideBootSplash />
     </Suspense>
   </ErrorBoundary>
 );

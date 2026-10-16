@@ -113,6 +113,8 @@ export const API_ROUTES_V2 = {
   stream_trades: '/v2/stream/trades',
   leaderboard: '/v2/leaderboard',
   leaderboard_rank: '/v2/leaderboard/rank/{owner}',
+  vaults: '/v2/vaults',
+  vault: '/v2/vaults/{network}/{address}',
 };
 
 export const API_ROUTES = {

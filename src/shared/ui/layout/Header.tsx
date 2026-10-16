@@ -50,6 +50,15 @@ export function Header() {
             Perps
           </Link>
           <Link
+            to="/vaults"
+            className={cn(
+              NAV_LINK,
+              location.pathname.startsWith('/vaults') ? 'text-rock' : 'text-rock/60'
+            )}
+          >
+            Vaults
+          </Link>
+          <Link
             to="/referrals"
             className={cn(
               NAV_LINK,

@@ -2,14 +2,16 @@
  * Time series chart for vault history, built on the same Lightweight Charts
  * setup as the trading terminal.
  *
- * `area` draws a cream line with a soft fill, for account value and share
- * price. `baseline` splits green and red around zero, for PnL.
+ * `area` draws a cream line with a soft fill, for TVL and share price.
+ * `baseline` splits green and red around zero, for PnL and cumulative return.
+ * `histogram` draws one green/red bar per point, for per-period returns.
  */
 import { useEffect, useRef } from 'react';
 import {
   AreaSeries,
   BaselineSeries,
   ColorType,
+  HistogramSeries,
   createChart,
   type IChartApi,
   type ISeriesApi,
@@ -18,7 +20,7 @@ import {
 
 import { readChartColors, withAlpha } from '@/shared/lib/color-tokens';
 
-export type VaultChartMode = 'area' | 'baseline';
+export type VaultChartMode = 'area' | 'baseline' | 'histogram';
 
 export function VaultChart({
   data,
@@ -37,7 +39,10 @@ export function VaultChart({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Area'> | ISeriesApi<'Baseline'> | null>(null);
+  const seriesRef = useRef<
+    ISeriesApi<'Area'> | ISeriesApi<'Baseline'> | ISeriesApi<'Histogram'> | null
+  >(null);
+  const colorsRef = useRef<{ up: string; down: string } | null>(null);
   const formatRef = useRef(formatValue);
   formatRef.current = formatValue;
 
@@ -54,7 +59,7 @@ export function VaultChart({
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: colors.text,
-        fontFamily: 'Geist Mono, monospace',
+        fontFamily: "'Paper Mono', ui-monospace, monospace",
         fontSize: 11,
         attributionLogo: false,
       },
@@ -89,28 +94,35 @@ export function VaultChart({
       handleScale: !minimal,
     });
 
+    colorsRef.current = { up, down };
     const series =
-      mode === 'baseline'
-        ? chart.addSeries(BaselineSeries, {
-            baseValue: { type: 'price', price: 0 },
-            topLineColor: up,
-            topFillColor1: withAlpha(up, 0.25),
-            topFillColor2: withAlpha(up, 0.02),
-            bottomLineColor: down,
-            bottomFillColor1: withAlpha(down, 0.02),
-            bottomFillColor2: withAlpha(down, 0.25),
-            lineWidth: 2,
+      mode === 'histogram'
+        ? chart.addSeries(HistogramSeries, {
             priceLineVisible: false,
-            lastValueVisible: !minimal,
+            lastValueVisible: false,
+            base: 0,
           })
-        : chart.addSeries(AreaSeries, {
-            lineColor: fg,
-            topColor: withAlpha(fg, 0.18),
-            bottomColor: withAlpha(fg, 0),
-            lineWidth: 2,
-            priceLineVisible: false,
-            lastValueVisible: !minimal,
-          });
+        : mode === 'baseline'
+          ? chart.addSeries(BaselineSeries, {
+              baseValue: { type: 'price', price: 0 },
+              topLineColor: up,
+              topFillColor1: withAlpha(up, 0.25),
+              topFillColor2: withAlpha(up, 0.02),
+              bottomLineColor: down,
+              bottomFillColor1: withAlpha(down, 0.02),
+              bottomFillColor2: withAlpha(down, 0.25),
+              lineWidth: 2,
+              priceLineVisible: false,
+              lastValueVisible: !minimal,
+            })
+          : chart.addSeries(AreaSeries, {
+              lineColor: fg,
+              topColor: withAlpha(fg, 0.18),
+              bottomColor: withAlpha(fg, 0),
+              lineWidth: 2,
+              priceLineVisible: false,
+              lastValueVisible: !minimal,
+            });
 
     chartRef.current = chart;
     seriesRef.current = series;
@@ -124,7 +136,16 @@ export function VaultChart({
 
   useEffect(() => {
     if (!seriesRef.current || !chartRef.current) return;
-    seriesRef.current.setData(data.map(p => ({ time: p.time as UTCTimestamp, value: p.value })));
+    const c = colorsRef.current;
+    seriesRef.current.setData(
+      data.map(p => ({
+        time: p.time as UTCTimestamp,
+        value: p.value,
+        ...(mode === 'histogram' && c
+          ? { color: withAlpha(p.value >= 0 ? c.up : c.down, 0.85) }
+          : {}),
+      }))
+    );
     chartRef.current.timeScale().fitContent();
   }, [data, mode, minimal]);
 

@@ -1,294 +1,317 @@
 /**
- * Every vault in one sortable table. On phones the rows turn into cards.
+ * One section of the listing (protocol or community vaults) as a sortable
+ * table. Rows open the vault. On phones the rows turn into cards. Long lists
+ * page client-side; the gateway already returns every vault.
  */
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowDown, ArrowUp, ChevronRight, Search } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react';
 
-import { Input } from '@/shared/ui/input';
-import { Eyebrow, FOCUS_RING, Panel } from '@/shared/ui/panel';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
-import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { cn } from '@/lib/utils';
+import { Button } from '@/shared/ui/button';
+import { FOCUS_RING } from '@/shared/ui/panel';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 
-import { pct, pctSigned, shortAddress, tone, usd, usdCompact } from '../../model/format';
-import { sliceHistory } from '../../model/range';
-import type { Vault } from '../../model/types';
+import type { Vault, VaultWindow } from '../../api/vaultsClient';
+import { apr, shortAddress, tone, usd, usdCompact } from '../../model/format';
+import { vaultHref } from '../../model/params';
 import { Sparkline } from '../Sparkline';
-import { StatusBadge } from '../VaultBadges';
+import { ModeBadge, NetworkBadge } from '../VaultBadges';
 import { VaultMark } from '../VaultMark';
+import { Bone, DASH, Eyebrow, PanelBar } from '../primitives';
 
-type Filter = 'all' | 'protocol' | 'community' | 'mine';
-const FILTER_LABEL: Record<Filter, string> = {
-  all: 'All',
-  protocol: 'Official',
-  community: 'Community',
-  mine: 'My deposits',
-};
-
-type SortKey = 'apr' | 'tvl' | 'allTime' | 'deposit';
-
-const SORT_LABEL: Record<SortKey, string> = {
-  apr: 'APR',
-  tvl: 'Total deposits',
-  allTime: 'Return',
-  deposit: 'Your deposit',
-};
-
+type SortKey = 'apr' | 'tvl' | 'deposit' | 'age';
 const SORT_VALUE: Record<SortKey, (v: Vault) => number> = {
-  apr: v => v.apr30d,
+  apr: v => v.apr ?? -Infinity,
   tvl: v => v.tvl,
-  allTime: v => v.allTimeReturn,
   deposit: v => v.user?.equity ?? -1,
+  age: v => v.age_days,
 };
+const PAGE_SIZE = 10;
 
-export function VaultsTable({ vaults }: { vaults: Vault[] }) {
+const TH = 'h-9 px-2 sm:px-4';
+const TD = 'px-2 py-2.5 sm:px-4';
+
+export function VaultsTable({
+  title,
+  vaults,
+  window,
+  loading,
+  empty,
+}: {
+  title: string;
+  vaults: Vault[];
+  window: VaultWindow;
+  loading: boolean;
+  empty: { title: string; body: string };
+}) {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<Filter>('all');
-  const [query, setQuery] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'tvl', desc: true });
-
-  const counts = useMemo(
-    () => ({
-      all: vaults.length,
-      protocol: vaults.filter(v => v.kind === 'protocol').length,
-      community: vaults.filter(v => v.kind === 'community').length,
-      mine: vaults.filter(v => v.user).length,
-    }),
-    [vaults]
-  );
+  const [page, setPage] = useState(0);
 
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
     const get = SORT_VALUE[sort.key];
-    return vaults
-      .filter(v => {
-        if (filter === 'protocol' && v.kind !== 'protocol') return false;
-        if (filter === 'community' && v.kind !== 'community') return false;
-        if (filter === 'mine' && !v.user) return false;
-        if (!q) return true;
-        return (
-          v.name.toLowerCase().includes(q) ||
-          v.leader.toLowerCase().includes(q) ||
-          v.id.toLowerCase().includes(q)
-        );
-      })
-      .sort((a, b) => (sort.desc ? get(b) - get(a) : get(a) - get(b)));
-  }, [vaults, filter, query, sort]);
+    // Closed vaults sink below open ones whatever the sort.
+    return [...vaults].sort(
+      (a, b) =>
+        Number(a.mode === 'closed') - Number(b.mode === 'closed') ||
+        (sort.desc ? get(b) - get(a) : get(a) - get(b))
+    );
+  }, [vaults, sort]);
 
-  const toggleSort = (key: SortKey) =>
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const current = Math.min(page, pages - 1);
+  const shown = rows.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
+  const windowLabel = window === 'all' ? 'All' : window.toUpperCase();
+
+  const toggle = (key: SortKey) =>
     setSort(s => (s.key === key ? { key, desc: !s.desc } : { key, desc: true }));
 
   return (
-    <Panel>
-      {/* Controls */}
-      <div className="flex flex-col gap-3 border-b border-line-subtle bg-surface-raised md:flex-row md:items-center md:justify-between md:pr-3">
-        <Tabs value={filter} onValueChange={v => setFilter(v as Filter)}>
-          <TabsList className="h-11 w-full justify-start overflow-x-auto md:w-auto">
-            {(['all', 'community', 'mine'] as const).map(f => (
-              <TabsTrigger key={f} value={f} className="gap-2">
-                {FILTER_LABEL[f]}
-                <span className="font-mono text-[10px] tabular-nums text-fg-tertiary">
-                  {counts[f]}
-                </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+    <section className="flex flex-col border border-outline">
+      <PanelBar title={title} count={loading ? undefined : vaults.length} />
 
-        <div className="flex items-center gap-2 px-3 pb-3 md:p-0">
-          <div className="relative flex-1 md:w-64 md:flex-none">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg-tertiary" />
-            <Input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search vaults"
-              aria-label="Search vaults"
-              className={cn('h-8 pl-8 text-xs', FOCUS_RING)}
-            />
-          </div>
-          <Select value={sort.key} onValueChange={v => setSort({ key: v as SortKey, desc: true })}>
-            <SelectTrigger size="sm" className="md:hidden" aria-label="Sort vaults">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(SORT_LABEL) as SortKey[]).map(k => (
-                <SelectItem key={k} value={k}>
-                  {SORT_LABEL[k]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-1 px-4 py-14 text-center">
-          <span className="text-sm text-fg-primary">
-            {filter === 'mine' ? 'You have no vault deposits yet' : 'No vaults match that search'}
-          </span>
-          <span className="text-xs text-fg-secondary">
-            {filter === 'mine'
-              ? 'Vaults you deposit into will show up here.'
-              : 'Try another vault name.'}
-          </span>
+      {!loading && rows.length === 0 ? (
+        <div className="flex flex-col items-center gap-1.5 px-4 py-12 text-center">
+          <p className="text-sm text-rock/75">{empty.title}</p>
+          <p className="max-w-sm text-xs text-rock/45">{empty.body}</p>
         </div>
       ) : (
         <>
-          {/* Desktop table */}
-          <Table containerClassName="hidden md:block">
+          <Table containerClassName="hidden md:block" className="table-fixed">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="pl-4">
+                <TableHead className={cn(TH, 'w-[34%]')}>
                   <Eyebrow>Vault</Eyebrow>
                 </TableHead>
-                <SortHead k="apr" sort={sort} onSort={toggleSort}>
-                  APR
+                <TableHead className={cn(TH, 'hidden w-[12%] lg:table-cell')}>
+                  <Eyebrow>Leader</Eyebrow>
+                </TableHead>
+                <SortHead k="apr" sort={sort} onSort={toggle}>
+                  APR · {windowLabel}
                 </SortHead>
-                <SortHead k="tvl" sort={sort} onSort={toggleSort}>
-                  Deposits
+                <SortHead k="tvl" sort={sort} onSort={toggle}>
+                  TVL
                 </SortHead>
-                <SortHead k="allTime" sort={sort} onSort={toggleSort}>
-                  Return
-                </SortHead>
-                <SortHead k="deposit" sort={sort} onSort={toggleSort}>
+                <SortHead k="deposit" sort={sort} onSort={toggle}>
                   Your deposit
                 </SortHead>
-                <TableHead className="hidden text-right lg:table-cell">
-                  <Eyebrow>30D</Eyebrow>
+                <SortHead k="age" sort={sort} onSort={toggle} className="hidden xl:table-cell">
+                  Age
+                </SortHead>
+                <TableHead className={cn(TH, 'hidden w-40 text-right lg:table-cell')}>
+                  <Eyebrow>Trend · {windowLabel}</Eyebrow>
                 </TableHead>
-                <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map(v => (
-                <TableRow
-                  key={v.id}
-                  onClick={() => navigate(`/vaults/${v.id}`)}
-                  className="group cursor-pointer"
-                >
-                  <TableCell className="py-2.5 pl-4">
-                    <div className="flex items-center gap-3">
-                      <VaultMark vault={v} />
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <div className="flex items-center gap-2">
-                          <Link
-                            to={`/vaults/${v.id}`}
-                            onClick={e => e.stopPropagation()}
-                            className={cn(
-                              'truncate text-sm font-medium text-fg-primary',
-                              FOCUS_RING
-                            )}
-                          >
-                            {v.name}
-                          </Link>
-                          <StatusBadge status={v.status} />
-                        </div>
-                        <span className="font-mono text-[11px] text-fg-tertiary">
-                          {v.kind === 'protocol'
-                            ? 'Managed by Fermi'
-                            : `Managed by ${shortAddress(v.leader)}`}
-                        </span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span
-                      className={cn('font-mono text-sm font-semibold tabular-nums', tone(v.apr30d))}
+              {loading
+                ? Array.from({ length: 2 }, (_, i) => <SkeletonRow key={i} />)
+                : shown.map(v => (
+                    <TableRow
+                      key={`${v.network}:${v.address}`}
+                      onClick={() => navigate(vaultHref(v))}
+                      className={cn('group cursor-pointer', v.mode === 'closed' && 'opacity-60')}
                     >
-                      {pct(v.apr30d, 1)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className="font-mono text-sm tabular-nums text-fg-primary">
-                      {usdCompact(v.tvl)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className={cn('font-mono text-sm tabular-nums', tone(v.allTimeReturn))}>
-                      {pctSigned(v.allTimeReturn, 1)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {v.user ? (
-                      <span className="font-mono text-sm tabular-nums text-fg-primary">
-                        {usd(v.user.equity)}
-                      </span>
-                    ) : (
-                      <span className="text-fg-disabled">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    <Sparkline
-                      className="ml-auto"
-                      values={sliceHistory(v.history, '30D').map(p => p.sharePrice)}
-                    />
-                  </TableCell>
-                  <TableCell className="pr-3">
-                    <ChevronRight className="size-4 text-fg-disabled transition-colors group-hover:text-fg-primary" />
-                  </TableCell>
-                </TableRow>
-              ))}
+                      <TableCell className={TD}>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <VaultMark vault={v} size="sm" />
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <Link
+                              to={vaultHref(v)}
+                              onClick={e => e.stopPropagation()}
+                              className={cn(
+                                'truncate text-sm text-rock group-hover:text-amber-100',
+                                FOCUS_RING
+                              )}
+                            >
+                              {v.name}
+                            </Link>
+                            <div className="flex items-center gap-1.5">
+                              <NetworkBadge network={v.network} />
+                              <ModeBadge mode={v.mode} />
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className={cn(TD, 'hidden lg:table-cell')}>
+                        <span className="font-mono text-xs text-rock/60" title={v.leader}>
+                          {v.kind === 'protocol' ? 'Fermi' : shortAddress(v.leader)}
+                        </span>
+                      </TableCell>
+                      <TableCell className={cn(TD, 'text-right')}>
+                        <span
+                          className={cn(
+                            'font-mono text-sm tabular-nums',
+                            v.apr === null ? 'text-rock/40' : tone(v.apr)
+                          )}
+                          title={v.apr === null ? 'Needs a day of history' : undefined}
+                        >
+                          {apr(v.apr)}
+                        </span>
+                      </TableCell>
+                      <TableCell className={cn(TD, 'text-right')}>
+                        <span
+                          className="font-mono text-sm tabular-nums text-rock"
+                          title={usd(v.tvl)}
+                        >
+                          {usdCompact(v.tvl)}
+                        </span>
+                      </TableCell>
+                      <TableCell className={cn(TD, 'text-right')}>
+                        {v.user ? (
+                          <span className="font-mono text-sm tabular-nums text-rock">
+                            {usd(v.user.equity)}
+                          </span>
+                        ) : (
+                          DASH
+                        )}
+                      </TableCell>
+                      <TableCell className={cn(TD, 'hidden text-right xl:table-cell')}>
+                        <span className="font-mono text-xs tabular-nums text-rock/60">
+                          {v.age_days}d
+                        </span>
+                      </TableCell>
+                      <TableCell className={cn(TD, 'hidden lg:table-cell')}>
+                        <Sparkline
+                          className="ml-auto"
+                          width={112}
+                          height={28}
+                          values={(v.sparkline ?? []).map(p => p[1])}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
             </TableBody>
           </Table>
 
-          {/* Mobile cards */}
-          <ul className="flex flex-col divide-y divide-line-subtle md:hidden">
-            {rows.map(v => (
-              <li key={v.id}>
-                <Link
-                  to={`/vaults/${v.id}`}
-                  className={cn('flex flex-col gap-3 p-4 active:bg-state-pressed', FOCUS_RING)}
-                >
-                  <div className="flex items-center gap-3">
-                    <VaultMark vault={v} />
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate text-sm font-medium text-fg-primary">{v.name}</span>
-                      <span className="font-mono text-[11px] text-fg-tertiary">
-                        {v.kind === 'protocol'
-                          ? 'Managed by Fermi'
-                          : `Managed by ${shortAddress(v.leader)}`}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <span
-                        className={cn(
-                          'font-mono text-lg font-semibold tabular-nums',
-                          tone(v.apr30d)
-                        )}
-                      >
-                        {pct(v.apr30d, 1)}
-                      </span>
-                      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-tertiary">
-                        APR
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-end justify-between gap-3">
-                    <dl className="grid grid-cols-3 gap-4">
-                      <MiniStat label="Deposits" value={usdCompact(v.tvl)} />
-                      <MiniStat
-                        label="Return"
-                        value={pctSigned(v.allTimeReturn, 1)}
-                        className={tone(v.allTimeReturn)}
-                      />
-                      <MiniStat label="Yours" value={v.user ? usdCompact(v.user.equity) : '-'} />
-                    </dl>
-                    <Sparkline
-                      width={80}
-                      height={28}
-                      values={sliceHistory(v.history, '30D').map(p => p.sharePrice)}
-                    />
-                  </div>
-                  <StatusBadge status={v.status} />
-                </Link>
-              </li>
-            ))}
+          <ul className="flex flex-col divide-y divide-outline md:hidden">
+            {loading
+              ? Array.from({ length: 2 }, (_, i) => (
+                  <li key={i} className="flex items-center gap-3 p-4">
+                    <Bone className="size-7" />
+                    <Bone className="h-4 w-40" />
+                  </li>
+                ))
+              : shown.map(v => <MobileRow key={`${v.network}:${v.address}`} vault={v} />)}
           </ul>
+
+          {pages > 1 && (
+            <div className="flex items-center justify-end gap-3 border-t border-outline px-3 py-2 sm:px-4">
+              <Eyebrow className="tabular-nums">
+                {current * PAGE_SIZE + 1}–{Math.min(rows.length, (current + 1) * PAGE_SIZE)} of{' '}
+                {rows.length}
+              </Eyebrow>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-7"
+                aria-label="Previous page"
+                disabled={current === 0}
+                onClick={() => setPage(current - 1)}
+              >
+                <ChevronLeft />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-7"
+                aria-label="Next page"
+                disabled={current >= pages - 1}
+                onClick={() => setPage(current + 1)}
+              >
+                <ChevronRight />
+              </Button>
+            </div>
+          )}
         </>
       )}
-    </Panel>
+    </section>
+  );
+}
+
+function MobileRow({ vault: v }: { vault: Vault }) {
+  return (
+    <li>
+      <Link
+        to={vaultHref(v)}
+        className={cn(
+          'flex flex-col gap-3 p-4 active:bg-rock/5',
+          v.mode === 'closed' && 'opacity-60',
+          FOCUS_RING
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <VaultMark vault={v} size="sm" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="truncate text-sm text-rock">{v.name}</span>
+            <div className="flex items-center gap-1.5">
+              <NetworkBadge network={v.network} />
+              <ModeBadge mode={v.mode} />
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-0.5">
+            <span
+              className={cn(
+                'font-mono text-base tabular-nums',
+                v.apr === null ? 'text-rock/40' : tone(v.apr)
+              )}
+            >
+              {apr(v.apr)}
+            </span>
+            <Eyebrow className="text-[10px]">APR</Eyebrow>
+          </div>
+        </div>
+        <div className="flex items-end justify-between gap-3">
+          <dl className="grid grid-cols-2 gap-6">
+            <MiniStat label="TVL" value={usdCompact(v.tvl)} />
+            <MiniStat label="Yours" value={v.user ? usdCompact(v.user.equity) : '—'} />
+          </dl>
+          <Sparkline width={88} height={26} values={(v.sparkline ?? []).map(p => p[1])} />
+        </div>
+      </Link>
+    </li>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt>
+        <Eyebrow className="text-[10px]">{label}</Eyebrow>
+      </dt>
+      <dd className="font-mono text-xs tabular-nums text-rock">{value}</dd>
+    </div>
+  );
+}
+
+function SkeletonRow() {
+  return (
+    <TableRow className="hover:bg-transparent">
+      <TableCell className={TD}>
+        <div className="flex items-center gap-3">
+          <Bone className="size-7" />
+          <div className="flex flex-col gap-1.5">
+            <Bone className="h-3.5 w-44" />
+            <Bone className="h-3 w-24" />
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className={cn(TD, 'hidden lg:table-cell')}>
+        <Bone className="h-3 w-14" />
+      </TableCell>
+      {[0, 1, 2].map(i => (
+        <TableCell key={i} className={TD}>
+          <Bone className="ml-auto h-3.5 w-16" />
+        </TableCell>
+      ))}
+      <TableCell className={cn(TD, 'hidden xl:table-cell')}>
+        <Bone className="ml-auto h-3 w-8" />
+      </TableCell>
+      <TableCell className={cn(TD, 'hidden lg:table-cell')}>
+        <Bone className="ml-auto h-7 w-28" />
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -309,7 +332,7 @@ function SortHead({
   const Icon = sort.desc ? ArrowDown : ArrowUp;
   return (
     <TableHead
-      className={cn('text-right', className)}
+      className={cn(TH, 'text-right', className)}
       aria-sort={active ? (sort.desc ? 'descending' : 'ascending') : 'none'}
     >
       <button
@@ -317,7 +340,7 @@ function SortHead({
         onClick={() => onSort(k)}
         className={cn(
           'inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors',
-          active ? 'text-fg-primary' : 'text-fg-tertiary hover:text-fg-primary',
+          active ? 'text-rock/85' : 'text-rock/50 hover:text-rock/85',
           FOCUS_RING
         )}
       >
@@ -325,24 +348,5 @@ function SortHead({
         {children}
       </button>
     </TableHead>
-  );
-}
-
-function MiniStat({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-tertiary">
-        {label}
-      </dt>
-      <dd className={cn('font-mono text-xs tabular-nums text-fg-primary', className)}>{value}</dd>
-    </div>
   );
 }

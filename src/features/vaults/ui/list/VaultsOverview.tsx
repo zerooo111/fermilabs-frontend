@@ -1,70 +1,235 @@
 /**
- * The vaults listing: totals, the FLP spotlight, then every vault in a table.
+ * The vaults listing: headline totals, search + network + window controls,
+ * then protocol and community vaults in separate tables. Everything is read
+ * from the gateway, which syncs the vaults from chain; devnet and mainnet
+ * stay apart in every total.
  */
-import { Eyebrow } from '@/shared/ui/panel';
-import { cn } from '@/lib/utils';
+import { useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
+import axios from 'axios';
 
-import { tone, usd, usdCompact, usdSigned } from '../../model/format';
-import { useVaults } from '../../model/useVaults';
-import { FlpSpotlight } from './FlpSpotlight';
+import { cn } from '@/lib/utils';
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
+import { Segmented } from '@/shared/ui/segmented';
+
+import type { Vault, VaultNetwork } from '../../api/vaultsClient';
+import { timeAgo, tone, usd, usdCompact, usdSigned } from '../../model/format';
+import { useVaults, useWalletAddress } from '../../model/useVaults';
+import { NetworkBadge } from '../VaultBadges';
+import { useWindowParam, WINDOWS } from '../../model/params';
+import { DASH, Tile } from '../primitives';
 import { VaultsTable } from './VaultsTable';
 
-export function VaultsOverview() {
-  // Mock community vaults; FLP is read live by its spotlight instead.
-  const { vaults: all } = useVaults();
-  const vaults = all.filter(v => v.kind !== 'protocol');
+type NetworkFilter = 'all' | VaultNetwork;
 
-  const totalTvl = vaults.reduce((a, v) => a + v.tvl, 0);
-  const mine = vaults.filter(v => v.user);
-  const myEquity = mine.reduce((a, v) => a + (v.user?.equity ?? 0), 0);
-  const myPnl = mine.reduce((a, v) => a + (v.user?.allTimePnl ?? 0), 0);
+export function VaultsOverview() {
+  const { window, setWindow } = useWindowParam();
+  const wallet = useWalletAddress();
+  const list = useVaults(window);
+  const [query, setQuery] = useState('');
+  const [network, setNetwork] = useState<NetworkFilter>('all');
+
+  const all = useMemo(() => list.data?.vaults ?? [], [list.data]);
+  const counts = useMemo(
+    () => ({
+      all: all.length,
+      mainnet: all.filter(v => v.network === 'mainnet').length,
+      devnet: all.filter(v => v.network === 'devnet').length,
+    }),
+    [all]
+  );
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return all.filter(
+      v =>
+        (network === 'all' || v.network === network) &&
+        (!q ||
+          v.name.toLowerCase().includes(q) ||
+          v.address.toLowerCase().includes(q) ||
+          v.leader.toLowerCase().includes(q))
+    );
+  }, [all, network, query]);
+
+  const protocol = filtered.filter(v => v.kind === 'protocol');
+  const community = filtered.filter(v => v.kind === 'community');
+  const loading = list.isPending;
 
   return (
-    <div className="flex flex-col gap-4">
-      <header className="flex flex-col gap-4 px-1 md:flex-row md:items-end md:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="font-display text-3xl leading-none text-fg-primary md:text-4xl">Vaults</h1>
-          <p className="text-sm text-fg-secondary">
-            Deposit USDC into a vault and earn from its trading.
-          </p>
-        </div>
-
-        <dl className="grid grid-cols-3 gap-px border border-line bg-line-subtle">
-          <HeaderStat label="Total deposits" value={usdCompact(totalTvl)} />
-          <HeaderStat label="Your deposits" value={usd(myEquity)} />
-          <HeaderStat label="Your profit" value={usdSigned(myPnl)} valueClassName={tone(myPnl)} />
-        </dl>
+    <div className="flex flex-col gap-5">
+      <header className="flex flex-col gap-2 px-1">
+        <h1 className="font-serif text-4xl font-light leading-none tracking-[-0.02em] text-rock md:text-5xl">
+          Vaults
+        </h1>
+        <p className="max-w-xl text-sm text-rock/60">
+          Deposit USDC into a vault and earn a share of its trading. Fermi runs the protocol vault;
+          anyone can run a community vault.
+        </p>
       </header>
 
-      <FlpSpotlight />
+      <Totals vaults={all} totals={list.data?.totals} loading={loading} wallet={wallet} />
 
-      <VaultsTable vaults={vaults} />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative sm:w-80">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-rock/40" />
+          <Input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by name, vault or leader address"
+            aria-label="Search vaults"
+            className="h-8 pl-8 text-xs"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented<NetworkFilter>
+            aria-label="Network"
+            mono
+            value={network}
+            onChange={setNetwork}
+            className="w-max"
+            options={(['all', 'mainnet', 'devnet'] as const).map(n => ({
+              value: n,
+              label: (
+                <span className="flex items-center gap-1.5">
+                  {n === 'all' ? 'All' : n === 'mainnet' ? 'Mainnet' : 'Devnet'}
+                  <span className="text-rock/40 tabular-nums">{counts[n]}</span>
+                </span>
+              ),
+            }))}
+          />
+          <Segmented
+            aria-label="Return window"
+            mono
+            value={window}
+            onChange={setWindow}
+            className="w-max"
+            options={WINDOWS}
+          />
+        </div>
+      </div>
+
+      {list.isError ? (
+        <ErrorState error={list.error} onRetry={() => list.refetch()} />
+      ) : (
+        <>
+          <VaultsTable
+            title="Protocol vaults"
+            vaults={protocol}
+            window={window}
+            loading={loading}
+            empty={
+              query || network !== 'all'
+                ? { title: 'No protocol vaults match', body: 'Try another search or network.' }
+                : {
+                    title: 'No protocol vaults yet',
+                    body: 'FLP will appear here once it’s deployed.',
+                  }
+            }
+          />
+          <VaultsTable
+            title="Community vaults"
+            vaults={community}
+            window={window}
+            loading={loading}
+            empty={
+              query || network !== 'all'
+                ? { title: 'No community vaults match', body: 'Try another search or network.' }
+                : {
+                    title: 'No community vaults yet',
+                    body: 'Vaults run by traders will be listed here, with their track record.',
+                  }
+            }
+          />
+          {list.data && (
+            <p className="px-1 font-mono text-[11px] text-rock/40">
+              Synced from chain · updated {timeAgo(list.data.updated_at_ms)}
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-function HeaderStat({
-  label,
-  value,
-  valueClassName,
+function Totals({
+  vaults,
+  totals,
+  loading,
+  wallet,
 }: {
-  label: string;
-  value: string;
-  valueClassName?: string;
+  vaults: Vault[];
+  totals?: { network: VaultNetwork; tvl: number; vaults: number }[];
+  loading: boolean;
+  wallet?: string;
 }) {
+  const mine = vaults.filter(v => v.user);
+  const equity = mine.reduce((a, v) => a + (v.user?.equity ?? 0), 0);
+  const pnl = mine.reduce((a, v) => a + (v.user?.all_time_pnl ?? 0), 0);
+  // One TVL tile per network present, mainnet first; never a cross-network sum.
+  const tvl = [...(totals ?? [])].sort((a, b) => a.network.localeCompare(b.network)).reverse();
+
   return (
-    <div className="flex flex-col gap-1 bg-surface-canvas px-4 py-2.5 md:min-w-[9rem]">
-      <dt>
-        <Eyebrow>{label}</Eyebrow>
-      </dt>
-      <dd
-        className={cn(
-          'font-mono text-base font-semibold tabular-nums text-fg-primary',
-          valueClassName
-        )}
-      >
-        {value}
-      </dd>
+    <div
+      className={cn(
+        'grid grid-cols-2 divide-outline border border-outline max-sm:[&>*:nth-child(n+3)]:border-t max-sm:[&>*:nth-child(odd)]:border-r max-sm:[&>*]:border-outline sm:divide-x',
+        tvl.length > 1 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'
+      )}
+    >
+      {loading ? (
+        <Tile label="Total value locked" value="" loading />
+      ) : tvl.length === 0 ? (
+        <Tile label="Total value locked" value={DASH} />
+      ) : (
+        tvl.map(t => (
+          <Tile
+            key={t.network}
+            label={
+              <>
+                TVL <NetworkBadge network={t.network} />
+              </>
+            }
+            value={<span title={usd(t.tvl)}>{usdCompact(t.tvl)}</span>}
+            hint={`${t.vaults} ${t.vaults === 1 ? 'vault' : 'vaults'}`}
+          />
+        ))
+      )}
+      <Tile
+        label="Your deposits"
+        loading={loading && !!wallet}
+        value={
+          !wallet ? (
+            <span className="text-base font-normal text-rock/45">Connect wallet</span>
+          ) : (
+            usd(equity)
+          )
+        }
+        hint={wallet && mine.length ? `in ${mine.length}` : null}
+      />
+      <Tile
+        label="Your all-time PnL"
+        loading={loading && !!wallet}
+        value={!wallet ? DASH : usdSigned(pnl)}
+        valueClassName={wallet ? tone(pnl) : undefined}
+      />
+    </div>
+  );
+}
+
+function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+  return (
+    <div
+      role="alert"
+      className="flex flex-col items-center gap-3 border border-outline px-4 py-14 text-center"
+    >
+      <p className="text-sm text-rock/75">
+        {status === 404 ? 'Vaults aren’t live on this gateway yet' : 'Couldn’t load vaults'}
+      </p>
+      <p className="text-xs text-rock/45">Check your connection and try again.</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        Retry
+      </Button>
     </div>
   );
 }

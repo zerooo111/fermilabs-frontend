@@ -82,8 +82,20 @@ export function FlpVault() {
   );
 }
 
-function ActionForm({ vault, user }: { vault: FlpVaultView; user?: FlpUserView }) {
-  const [action, setAction] = useState<FlpAction>('deposit');
+/** Pre-deposit deposit/withdraw form; also used by the vault page's dialog. */
+export function ActionForm({
+  vault,
+  user,
+  initialAction = 'deposit',
+  onDone,
+}: {
+  vault: FlpVaultView;
+  user?: FlpUserView;
+  initialAction?: FlpAction;
+  /** Called after a confirmed deposit or withdrawal. */
+  onDone?: () => void;
+}) {
+  const [action, setAction] = useState<FlpAction>(initialAction);
   const [input, setInput] = useState('');
   const tx = useFlpActions();
 
@@ -111,6 +123,7 @@ function ActionForm({ vault, user }: { vault: FlpVaultView; user?: FlpUserView }
       {
         onSuccess: ({ signature }) => {
           setInput('');
+          onDone?.();
           toast.success(
             `${deposit ? 'Deposited' : 'Withdrew'} ${formatUnits(amount, decimals)} ${unit}`,
             { action: { label: 'View', onClick: () => window.open(flpExplorerTxUrl(signature)) } }
