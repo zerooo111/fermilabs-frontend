@@ -11,6 +11,8 @@ import {
   LazyReferralsPage,
   LazyLeaderboardPage,
   LazyFlpPage,
+  LazyVaultsPage,
+  LazyVaultDetailPage,
 } from './LazyRoutes';
 import { isAppHost, redirectOffLanding } from './domains';
 
@@ -31,6 +33,8 @@ export const AppRouter = () => {
           <Route path="/referrals" element={<LazyReferralsPage />} />
           <Route path="/leaderboard" element={<LazyLeaderboardPage />} />
           <Route path="/flp" element={<LazyFlpPage />} />
+          <Route path="/vaults" element={<LazyVaultsPage />} />
+          <Route path="/vaults/:id" element={<LazyVaultDetailPage />} />
           <Route path="*" element={<Navigate replace to="/perps" />} />
         </Route>
       </Routes>

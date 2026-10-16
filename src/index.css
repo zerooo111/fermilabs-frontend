@@ -58,6 +58,43 @@
   --color-danger-deep: oklch(62% 0.2 25);
 }
 
+/* Job-named tokens for the vaults pages, mapped onto the terminal palette.
+   `static` emits every variable on :root so shared/lib/color-tokens can read
+   them for the charts. */
+@theme static {
+  --font-display: var(--font-serif);
+  --color-surface-sunken: oklch(14% 0.034 160);
+  --color-surface-canvas: var(--color-background);
+  --color-surface-base: oklch(19% 0.04 160);
+  --color-surface-raised: oklch(21% 0.043 160);
+  --color-surface-overlay: var(--color-surface);
+  --color-surface-brand: var(--color-dark-forest);
+  --color-state-hover: rgba(248, 247, 231, 0.05);
+  --color-state-pressed: rgba(248, 247, 231, 0.09);
+  --color-line-subtle: rgba(248, 247, 231, 0.08);
+  --color-line: var(--color-outline);
+  --color-line-strong: rgba(248, 247, 231, 0.28);
+  --color-line-focus: var(--color-ring);
+  --color-fg-primary: var(--color-rock);
+  --color-fg-secondary: rgba(248, 247, 231, 0.75);
+  --color-fg-tertiary: var(--color-muted-foreground);
+  --color-fg-disabled: rgba(248, 247, 231, 0.3);
+  --color-positive-fg: var(--color-success);
+  --color-positive-solid: var(--color-buy-chart);
+  --color-negative-fg: var(--color-danger);
+  --color-negative-solid: var(--color-sell-chart);
+}
+
+@layer utilities {
+  /* Faint 32px engineering grid for hero surfaces. */
+  .grid-pattern {
+    background-image:
+      linear-gradient(var(--color-state-hover) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-state-hover) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+}
+
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

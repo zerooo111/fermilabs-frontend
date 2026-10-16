@@ -29,6 +29,13 @@ export function toInputString(value: bigint, decimals: number): string {
   return frac ? `${value / base}.${frac}` : `${value / base}`;
 }
 
+export const MODE_LABEL = {
+  'pre-deposit': 'Pre-deposit',
+  live: 'Live',
+  unwind: 'Unwinding',
+  closed: 'Closed',
+} as const;
+
 const FLP_ERRORS = new Map(
   ((FLP_IDL.errors ?? []) as Array<{ code: number; name: string; msg?: string }>).map(e => [
     e.code,

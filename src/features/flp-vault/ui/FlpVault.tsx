@@ -16,16 +16,15 @@ import { shortenAddress } from '@/shared/lib/solana/helpers';
 import { ConnectWallet } from '@/features/wallet-connect';
 
 import { FLP_CLUSTER, FLP_PROGRAM_ID, FLP_VAULT, flpExplorerTxUrl } from '../model/config';
-import { describeFlpError, formatUnits, parseUnits, toInputString } from '../model/format';
+import {
+  describeFlpError,
+  formatUnits,
+  MODE_LABEL,
+  parseUnits,
+  toInputString,
+} from '../model/format';
 import { FlpConfirmationTimeout, useFlpActions, type FlpAction } from '../model/useFlpActions';
 import { useFlpVault, type FlpUserView, type FlpVaultView } from '../model/useFlpVault';
-
-const MODE_LABEL = {
-  'pre-deposit': 'Pre-deposit',
-  live: 'Live',
-  unwind: 'Unwinding',
-  closed: 'Closed',
-} as const;
 
 const PHASE_LABEL = {
   idle: '',
