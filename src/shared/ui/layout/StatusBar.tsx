@@ -4,25 +4,12 @@ import { sseConnectionStateAtom } from '@/shared/api/sse-atoms';
 import { useGatewayLatency } from '@/shared/hooks/useGatewayLatency';
 import { config } from '@/shared/config/constants';
 import { LINKS } from '@/shared/config/links';
-import './status-bar.css';
 
 const CONNECTION = {
-  connected: { dot: 'bg-success', label: 'Connected', band: null },
-  connecting: {
-    dot: 'bg-amber-200 animate-pulse',
-    label: 'Connecting',
-    band: { tint: 'bg-amber-200/30', sweep: 'bg-amber-200/15' },
-  },
-  reconnecting: {
-    dot: 'bg-amber-200 animate-pulse',
-    label: 'Reconnecting',
-    band: { tint: 'bg-amber-200/30', sweep: 'bg-amber-200/15' },
-  },
-  disconnected: {
-    dot: 'bg-danger',
-    label: 'Offline',
-    band: { tint: 'bg-danger/30', sweep: 'bg-danger/15' },
-  },
+  connected: { dot: 'bg-success', label: 'Connected' },
+  connecting: { dot: 'bg-amber-200 animate-pulse', label: 'Connecting' },
+  reconnecting: { dot: 'bg-amber-200 animate-pulse', label: 'Reconnecting' },
+  disconnected: { dot: 'bg-danger', label: 'Offline' },
 } as const;
 
 function getNetwork(rpcUrl: string): { label: string; className: string } {
@@ -53,17 +40,6 @@ export function StatusBar() {
 
   return (
     <footer className="fixed inset-x-0 bottom-0 z-40 flex h-6 items-center justify-between border-t border-outline bg-background px-2 font-mono text-[11px] text-rock/50 md:px-4">
-      {connection.band && (
-        <div
-          aria-hidden
-          className="status-band pointer-events-none absolute inset-0 overflow-hidden"
-        >
-          <div className={cn('status-band__tint absolute inset-0', connection.band.tint)} />
-          <div
-            className={cn('status-band__sweep absolute inset-y-0 left-0', connection.band.sweep)}
-          />
-        </div>
-      )}
       <div className="relative flex items-center divide-x divide-outline">
         <span className="flex items-center gap-1.5 pr-3" title="Market data stream">
           <span className={cn('size-1.5 rounded-full', connection.dot)} />
