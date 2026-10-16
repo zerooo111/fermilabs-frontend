@@ -17,6 +17,7 @@ import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { useSelectedMarket } from '@/entities/market';
 import { useMangoMarginDeposit } from '@/shared/hooks/useMangoMarginDeposit';
 import { useAccessOwner } from '@/features/access-gate';
+import { EmptyState } from '@/shared/ui/empty-state';
 
 interface TokenBalance {
   available: string;
@@ -105,11 +106,7 @@ export function MyAssets() {
   };
 
   if (!publicKey) {
-    return (
-      <div className="flex h-full min-h-24 items-center justify-center p-4 text-xs text-rock/45">
-        Connect a wallet to see this
-      </div>
-    );
+    return <EmptyState>Connect a wallet to see this</EmptyState>;
   }
 
   if (isLoading) {
@@ -146,8 +143,8 @@ export function MyAssets() {
     if (assetEntries.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={5} className="h-24 text-center text-sm text-rock/50">
-            No assets found
+          <TableCell colSpan={5} className="p-0">
+            <EmptyState>No assets found</EmptyState>
           </TableCell>
         </TableRow>
       );

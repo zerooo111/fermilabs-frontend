@@ -25,6 +25,7 @@ import {
 } from '@/features/trigger-orders/model/useTriggerOrders';
 import { legTriggerPrice, toNative } from '@/features/trigger-orders/lib/display';
 import { PositionTriggerEditor } from './PositionTriggerEditor';
+import { EmptyState } from '@/shared/ui/empty-state';
 
 type CloseDraft = {
   positionKey: string;
@@ -141,11 +142,7 @@ export function MyPositions() {
   };
 
   if (!publicKey) {
-    return (
-      <div className="flex h-full min-h-24 items-center justify-center p-4 text-xs text-rock/45">
-        Connect a wallet to see this
-      </div>
-    );
+    return <EmptyState>Connect a wallet to see this</EmptyState>;
   }
 
   if (selectedMarket?.kind !== 'perp') {
@@ -190,8 +187,8 @@ export function MyPositions() {
     if (!positions || positions.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={9} className="h-24 text-center text-sm text-rock/50">
-            No open positions
+          <TableCell colSpan={9} className="p-0">
+            <EmptyState>No open positions</EmptyState>
           </TableCell>
         </TableRow>
       );

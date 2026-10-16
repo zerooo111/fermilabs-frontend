@@ -1,0 +1,97 @@
+/* DitherRidge (dither-ridge.tsx). Position the wrapper from the call site
+   (absolute, with a size); the canvas sits on its bottom-left corner.
+   --ridge-alpha keeps the ridge faint without dimming the amber fills. */
+.dither-ridge {
+  overflow: hidden;
+  pointer-events: none;
+}
+.dither-ridge__canvas {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  image-rendering: pixelated;
+  opacity: var(--ridge-alpha, 0.12);
+}
+
+/* Builds outward from the spread in 3% steps, like the book filling in. */
+.dither-ridge--reveal {
+  animation: dither-ridge-reveal 0.9s steps(16, end) both;
+}
+@keyframes dither-ridge-reveal {
+  from {
+    clip-path: inset(0 50%);
+  }
+  to {
+    clip-path: inset(0 0);
+  }
+}
+
+/* Order fills: single ridge-top pixels flashing amber, as on the boot splash. */
+.dither-ridge__fill {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: var(--color-amber-200);
+  opacity: 0;
+  animation: dither-ridge-fill 2.6s steps(1) infinite;
+}
+@keyframes dither-ridge-fill {
+  0% {
+    opacity: 0.9;
+  }
+  8% {
+    opacity: 0.45;
+  }
+  16%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Pixel loader: amber blocks lighting up in sequence, as on the boot splash. */
+.pixel-loader {
+  display: flex;
+  gap: 6px;
+}
+.pixel-loader i {
+  width: 6px;
+  height: 6px;
+  background: var(--color-amber-200);
+  opacity: 0.15;
+  animation: pixel-loader-step 1.25s steps(1) infinite;
+}
+.pixel-loader i:nth-child(1) {
+  animation-delay: -1s;
+}
+.pixel-loader i:nth-child(2) {
+  animation-delay: -0.75s;
+}
+.pixel-loader i:nth-child(3) {
+  animation-delay: -0.5s;
+}
+.pixel-loader i:nth-child(4) {
+  animation-delay: -0.25s;
+}
+@keyframes pixel-loader-step {
+  0% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0.6;
+  }
+  40%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dither-ridge--reveal,
+  .dither-ridge__fill,
+  .pixel-loader i {
+    animation: none;
+  }
+  .pixel-loader i {
+    opacity: 0.6;
+  }
+}

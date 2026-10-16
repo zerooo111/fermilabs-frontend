@@ -3,6 +3,7 @@
 @import 'tailwindcss';
 @import 'dockview-react/dist/styles/dockview.css';
 @import './features/layout/ui/dockview-theme.css';
+@import './shared/styles/dither.css';
 @plugin 'tailwindcss-animate';
 
 /* Paper Mono and Newsreader are loaded in index.html, for the boot splash. */
@@ -143,23 +144,45 @@ html {
     0 20px 56px -16px rgb(0 0 0 / 0.8);
 }
 
-/* Skeleton shimmer */
-@keyframes skeleton-shimmer {
-  0% {
-    background-position: -400px 0;
+/* Skeleton sweep: a flat bone with a dithered band stepping across it in
+   6px jumps. The band is a 50% Bayer checker (the --dither-50 mask from
+   shared/styles/dither.css) with a brighter core, so it moves as pixels
+   rather than a smooth gradient. No sweep under reduced motion. */
+@keyframes skeleton-sweep {
+  from {
+    background-position: -48px 0;
   }
-  100% {
-    background-position: 400px 0;
+  to {
+    background-position: 192px 0;
   }
 }
 
 .skeleton-bone {
+  position: relative;
+  overflow: hidden;
+  background: rgba(248, 247, 231, 0.04);
+}
+.skeleton-bone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* 48px band on a 240px repeat: 12px edge, 24px core, 12px edge */
   background: linear-gradient(
     90deg,
-    rgba(248, 247, 231, 0.04) 0%,
-    rgba(248, 247, 231, 0.09) 40%,
-    rgba(248, 247, 231, 0.04) 80%
+    rgba(248, 247, 231, 0.07) 0 12px,
+    rgba(248, 247, 231, 0.14) 12px 36px,
+    rgba(248, 247, 231, 0.07) 36px 48px,
+    transparent 48px
   );
-  background-size: 400px 100%;
-  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+  background-size: 240px 100%;
+  background-repeat: repeat-x;
+  mask-image: var(--dither-50);
+  mask-size: 12px 12px;
+  animation: skeleton-sweep 1.6s steps(40) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-bone::after {
+    display: none;
+  }
 }

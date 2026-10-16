@@ -26,6 +26,7 @@ import {
 import { useEffect, useRef, memo, useMemo, useCallback, useState } from 'react';
 import { ExtendedPerpsOHLCVData, PerpsTimeframe } from '@/features/chart/lib/perps-chart';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { ChartLoading } from './ChartLoading';
 import { CHART_CONFIG } from '@/features/chart/lib/chart-constants';
 import { useResizeObserver } from '@/shared/hooks/useResizeObserver';
 import { cn } from '@/lib/utils';
@@ -914,14 +915,7 @@ function PerpsChartComponent({
           <span className="text-sm text-rock/50">{emptyMessage}</span>
         </div>
       )}
-      {showLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="size-6 animate-spin text-rock/50" />
-            <span className="text-sm text-rock/50">Loading chart data...</span>
-          </div>
-        </div>
-      )}
+      {showLoading && <ChartLoading />}
     </div>
   );
 }

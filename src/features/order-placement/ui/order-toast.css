@@ -1,0 +1,33 @@
+/* Order toast entrance: the card resolves out of the shared Bayer masks
+   (src/shared/styles/dither.css), 6% -> 12% -> 25% -> 50% -> solid, in hard
+   steps so it assembles in crisp 3px pixels. It rides on top of sonner's own
+   slide-in. Once the animation ends the mask is gone entirely. */
+@keyframes order-toast-dissolve {
+  0% {
+    mask-image: var(--dither-6);
+  }
+  20% {
+    mask-image: var(--dither-12);
+  }
+  45% {
+    mask-image: var(--dither-25);
+  }
+  70% {
+    mask-image: var(--dither-50);
+  }
+  100% {
+    mask-image: none;
+  }
+}
+
+.order-toast-dissolve {
+  mask-size: 12px 12px;
+  mask-repeat: repeat;
+  animation: order-toast-dissolve 380ms step-end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-toast-dissolve {
+    animation: none;
+  }
+}

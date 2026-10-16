@@ -1,0 +1,84 @@
+/* Ordered-dither masks for the terminal.
+   Generated from a 4x4 Bayer matrix at 3px cells, the same pixel size as the
+   landing's dither PNGs. They are masks, not pictures: the element's own
+   background colour shows through, so every dither stays on the palette.
+
+   Flat tones   .dither-6  .dither-12  .dither-25  .dither-50
+   Edge fades   .dither-fade-r  .dither-fade-l  .dither-fade-b  .dither-fade-t
+                (opaque at the named side's opposite edge, dissolving toward
+                the named side over 8 cells / 24px; tiles along the other axis)
+
+   Usage: <div class="dither-25 bg-rock/40" /> — keep the colour low-contrast and
+   never put a dither under text people need to read. */
+
+:root {
+  --dither-6: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3C/svg%3E");
+  --dither-12: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3C/svg%3E");
+  --dither-25: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3C/svg%3E");
+  --dither-50: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 4 4' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3C/svg%3E");
+  --dither-fade-r: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12' viewBox='0 0 8 4' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='6' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='5' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='6' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3C/svg%3E");
+  --dither-fade-l: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12' viewBox='0 0 8 4' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='5' y='0' width='1' height='1'/%3E%3Crect x='6' y='0' width='1' height='1'/%3E%3Crect x='7' y='0' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='5' y='1' width='1' height='1'/%3E%3Crect x='7' y='1' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='6' y='2' width='1' height='1'/%3E%3Crect x='7' y='2' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='5' y='3' width='1' height='1'/%3E%3Crect x='7' y='3' width='1' height='1'/%3E%3C/svg%3E");
+  --dither-fade-b: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='24' viewBox='0 0 4 8' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='0' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='1' y='5' width='1' height='1'/%3E%3Crect x='2' y='6' width='1' height='1'/%3E%3C/svg%3E");
+  --dither-fade-t: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='24' viewBox='0 0 4 8' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='0' y='4' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='1' y='5' width='1' height='1'/%3E%3Crect x='3' y='5' width='1' height='1'/%3E%3Crect x='0' y='6' width='1' height='1'/%3E%3Crect x='1' y='6' width='1' height='1'/%3E%3Crect x='2' y='6' width='1' height='1'/%3E%3Crect x='3' y='6' width='1' height='1'/%3E%3Crect x='1' y='7' width='1' height='1'/%3E%3Crect x='2' y='7' width='1' height='1'/%3E%3Crect x='3' y='7' width='1' height='1'/%3E%3C/svg%3E");
+}
+
+.dither-6 {
+  mask-image: var(--dither-6);
+  mask-size: 12px 12px;
+  mask-repeat: repeat;
+}
+
+.dither-12 {
+  mask-image: var(--dither-12);
+  mask-size: 12px 12px;
+  mask-repeat: repeat;
+}
+
+.dither-25 {
+  mask-image: var(--dither-25);
+  mask-size: 12px 12px;
+  mask-repeat: repeat;
+}
+
+.dither-50 {
+  mask-image: var(--dither-50);
+  mask-size: 12px 12px;
+  mask-repeat: repeat;
+}
+
+.dither-fade-r {
+  /* The dither strip at the right edge, solid everywhere else. */
+  mask-image: var(--dither-fade-r), linear-gradient(#000 0 0);
+  mask-size:
+    24px 12px,
+    calc(100% - 24px) 100%;
+  mask-position: right, left;
+  mask-repeat: repeat-y, no-repeat;
+}
+.dither-fade-l {
+  /* The dither strip at the left edge, solid everywhere else. */
+  mask-image: var(--dither-fade-l), linear-gradient(#000 0 0);
+  mask-size:
+    24px 12px,
+    calc(100% - 24px) 100%;
+  mask-position: left, right;
+  mask-repeat: repeat-y, no-repeat;
+}
+.dither-fade-b {
+  /* The dither strip at the bottom edge, solid everywhere else. */
+  mask-image: var(--dither-fade-b), linear-gradient(#000 0 0);
+  mask-size:
+    12px 24px,
+    100% calc(100% - 24px);
+  mask-position: bottom, top;
+  mask-repeat: repeat-x, no-repeat;
+}
+.dither-fade-t {
+  /* The dither strip at the top edge, solid everywhere else. */
+  mask-image: var(--dither-fade-t), linear-gradient(#000 0 0);
+  mask-size:
+    12px 24px,
+    100% calc(100% - 24px);
+  mask-position: top, bottom;
+  mask-repeat: repeat-x, no-repeat;
+}

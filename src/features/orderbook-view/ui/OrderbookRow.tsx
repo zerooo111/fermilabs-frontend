@@ -28,11 +28,14 @@ export function OrderbookRow({
 }: OrderbookRowProps) {
   return (
     <div className="relative w-full h-[22px]">
-      {/* Depth indicator */}
+      {/* Depth indicator. Bids anchor right and asks anchor left, so the
+          leading edge (the end pointing into the book) dissolves in 3px dither
+          pixels instead of a hard cut. The mask is sized against the bar, so it
+          follows the width as it changes. */}
       <div
         className={cn(
           'absolute inset-y-0 opacity-[0.14]',
-          side === 'Buy' ? 'bg-success' : 'bg-danger'
+          side === 'Buy' ? 'bg-success dither-fade-l' : 'bg-danger dither-fade-r'
         )}
         style={{
           width: `${depth}%`,

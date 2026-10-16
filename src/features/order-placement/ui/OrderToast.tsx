@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { CheckCircle2, Copy, ExternalLink, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { solanaExplorerTxUrl } from '@/shared/config/constants';
+import './order-toast.css';
 
 type OrderToastProps = {
   toastId: string | number;
@@ -87,7 +88,7 @@ function TxRow({ signature }: { signature: string }) {
 export function OrderToast({ toastId, title, txSignature, acceptedLatencyMs }: OrderToastProps) {
   return (
     <div
-      className="flex flex-col gap-1.5 px-4 py-3 w-full backdrop-blur-2xl"
+      className="order-toast-dissolve flex flex-col gap-1.5 px-4 py-3 w-full backdrop-blur-2xl"
       style={{
         fontFamily: "'Paper Mono', monospace",
         background: 'rgba(255, 255, 255, 0.05)',

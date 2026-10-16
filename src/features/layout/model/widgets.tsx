@@ -18,6 +18,7 @@ import { MyPositions } from '@/features/order-placement/ui/MyPositions';
 import { MyTrades } from '@/features/order-placement/ui/MyTrades';
 import { MyAssets } from '@/features/order-placement/ui/MyAssets';
 import { AccountCard } from '@/shared/ui/account-card';
+import { EmptyState } from '@/shared/ui/empty-state';
 
 export type WidgetId =
   | 'chart'
@@ -40,13 +41,6 @@ export interface WidgetDefinition {
 
 const Pane = ({ children }: { children: React.ReactNode }) => (
   <div className="h-full w-full min-h-0 min-w-0 flex flex-col overflow-hidden bg-background">
-    {children}
-  </div>
-);
-
-/** Quiet, centred one-liner for panes with nothing to show yet. */
-export const EmptyState = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex h-full min-h-24 items-center justify-center p-4 text-xs text-rock/45">
     {children}
   </div>
 );

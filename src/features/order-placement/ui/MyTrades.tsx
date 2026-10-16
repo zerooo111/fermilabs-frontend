@@ -23,6 +23,7 @@ import { shortenAddress } from '@/shared/lib/solana/helpers';
 import type { SSETrade } from '@/shared/api/sse-types';
 import type { Trade } from '@/shared/api/useSequencerApi';
 import { useAccessOwner } from '@/features/access-gate';
+import { EmptyState } from '@/shared/ui/empty-state';
 
 const PAGE_SIZE = 50;
 
@@ -134,11 +135,7 @@ export function MyTrades() {
   }, [liveTrades, historyTrades, selectedMarket]);
 
   if (!publicKey) {
-    return (
-      <div className="flex h-full min-h-24 items-center justify-center p-4 text-xs text-rock/45">
-        Connect a wallet to see this
-      </div>
-    );
+    return <EmptyState>Connect a wallet to see this</EmptyState>;
   }
 
   const renderBody = () => {
@@ -149,7 +146,13 @@ export function MyTrades() {
       return <StatusRow tone="danger">{error}</StatusRow>;
     }
     if (mergedTrades.length === 0) {
-      return <StatusRow>No trades found</StatusRow>;
+      return (
+        <TableRow>
+          <TableCell colSpan={7} className="p-0">
+            <EmptyState>No trades found</EmptyState>
+          </TableCell>
+        </TableRow>
+      );
     }
 
     return mergedTrades.map(trade => {

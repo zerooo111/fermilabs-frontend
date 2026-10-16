@@ -1,0 +1,53 @@
+/* Connection-trouble band for the status bar: a 96px dithered band that walks
+   across the strip in 3px steps while the stream is not connected. The colour
+   comes from the element's background (amber-200 or danger, at low alpha);
+   the dither masks are from shared/styles/dither.css. */
+
+@property --status-band-x {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: -96px;
+}
+
+.status-band {
+  container-type: inline-size;
+}
+
+.status-band__tint {
+  /* Static whisper of the same colour across the whole strip. */
+  mask-image: var(--dither-6);
+  mask-size: 12px 12px;
+  mask-repeat: repeat;
+}
+
+.status-band__sweep {
+  width: 96px;
+  /* Dissolving edges, solid core: fade-l | solid | fade-r. */
+  mask-image: var(--dither-fade-l), linear-gradient(#000 0 0), var(--dither-fade-r);
+  mask-size:
+    24px 12px,
+    48px 100%,
+    24px 12px;
+  mask-position: left, center, right;
+  mask-repeat: repeat-y, no-repeat, repeat-y;
+  /* Snap to the 3px pixel grid so the cells never smear mid-step. */
+  transform: translateX(round(down, var(--status-band-x), 3px));
+  animation: status-band-sweep 10s linear infinite;
+}
+
+@keyframes status-band-sweep {
+  from {
+    --status-band-x: -96px;
+  }
+  to {
+    --status-band-x: 100cqw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The static tint carries the signal on its own. */
+  .status-band__sweep {
+    animation: none;
+    display: none;
+  }
+}

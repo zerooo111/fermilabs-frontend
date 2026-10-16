@@ -82,3 +82,61 @@
 
 /* Locked layouts hide close buttons (DockTab reads the lock atom); the dock
    itself disables drag and drop. */
+
+/* Focus marks: the focused group gets dithered corner marks, like the
+   registration marks on a technical drawing. Four 18px L-shapes (3px cells,
+   a 4x4 Bayer fade along each arm) drawn as mask layers on one pseudo-element
+   over the group, so they cost no layout and never take pointer events. The
+   arms hug the edges, clear of the tab labels and pane text.
+     ###.#.
+     ##....
+     #.....
+     ......
+     #.....                                                                 */
+.dockview-theme-fermi {
+  --dock-corner-tl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 6 6' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM4 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM0 2h1v1h-1zM0 4h1v1h-1z'/%3E%3C/svg%3E");
+  --dock-corner-tr: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 6 6' shape-rendering='crispEdges'%3E%3Cpath d='M5 0h1v1h-1zM4 0h1v1h-1zM3 0h1v1h-1zM1 0h1v1h-1zM5 1h1v1h-1zM4 1h1v1h-1zM5 2h1v1h-1zM5 4h1v1h-1z'/%3E%3C/svg%3E");
+  --dock-corner-bl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 6 6' shape-rendering='crispEdges'%3E%3Cpath d='M0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM4 5h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM0 3h1v1h-1zM0 1h1v1h-1z'/%3E%3C/svg%3E");
+  --dock-corner-br: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 6 6' shape-rendering='crispEdges'%3E%3Cpath d='M5 5h1v1h-1zM4 5h1v1h-1zM3 5h1v1h-1zM1 5h1v1h-1zM5 4h1v1h-1zM4 4h1v1h-1zM5 3h1v1h-1zM5 1h1v1h-1z'/%3E%3C/svg%3E");
+}
+
+.dockview-theme-fermi .dv-groupview {
+  position: relative;
+}
+
+.dockview-theme-fermi .dv-groupview::after,
+.dockview-theme-fermi .dv-drop-target-anchor::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  background-color: var(--color-lichen);
+  mask-image:
+    var(--dock-corner-tl), var(--dock-corner-tr), var(--dock-corner-bl), var(--dock-corner-br);
+  mask-position:
+    left top,
+    right top,
+    left bottom,
+    right bottom;
+  mask-size: 18px 18px;
+  mask-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+.dockview-theme-fermi .dv-groupview.dv-active-group::after {
+  opacity: 0.5;
+}
+
+/* While a pane is dragged the drop preview carries the marks at full strength,
+   so the target reads as a framed slot rather than a tinted box. */
+.dockview-theme-fermi .dv-drop-target-anchor::after {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dockview-theme-fermi .dv-groupview::after {
+    transition: none;
+  }
+}

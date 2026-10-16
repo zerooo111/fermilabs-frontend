@@ -32,6 +32,7 @@ import {
 } from '@/features/trigger-orders/lib/display';
 import { TriggerFacts } from '@/features/trigger-orders/ui/TriggerFacts';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
+import { EmptyState } from '@/shared/ui/empty-state';
 
 const fmtDate = (ms: number) =>
   new Date(ms).toLocaleString(undefined, {
@@ -80,11 +81,7 @@ export function MyOrders() {
   };
 
   if (!publicKey) {
-    return (
-      <div className="flex h-full min-h-24 items-center justify-center p-4 text-xs text-rock/45">
-        Connect a wallet to see this
-      </div>
-    );
+    return <EmptyState>Connect a wallet to see this</EmptyState>;
   }
 
   const handleCancelOrder = async (orderId: string, marketId: string) => {
@@ -192,8 +189,8 @@ export function MyOrders() {
     if (myOrders.length === 0 && myLegs.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={7} className="h-24 text-center text-sm text-rock/40">
-            No active orders
+          <TableCell colSpan={7} className="p-0">
+            <EmptyState>No active orders</EmptyState>
           </TableCell>
         </TableRow>
       );
