@@ -23,7 +23,7 @@ import {
   usdSigned,
 } from '../../model/format';
 import { useVaultActivity, useVaultDepositors, useWalletAddress } from '../../model/useVaults';
-import { Bone, DASH, Eyebrow } from '../primitives';
+import { Bone, DASH, Empty, Eyebrow } from '../primitives';
 
 type Tab = 'depositors' | 'activity' | 'mine';
 const DEPOSITOR_PAGE = 20;
@@ -62,7 +62,7 @@ export function ActivityPanel({ vault }: { vault: Vault }) {
             className="h-9 gap-2"
           >
             Depositors
-            <span className="font-mono text-[11px] tabular-nums text-rock/45">
+            <span className="font-mono text-[11px] tabular-nums text-rock/60">
               {vault.depositors}
             </span>
           </TabStripItem>
@@ -269,7 +269,7 @@ function Activity({ vault, wallet }: { vault: Vault; wallet?: string }) {
                         target="_blank"
                         rel="noreferrer"
                         aria-label="View transaction"
-                        className="inline-flex text-rock/40 hover:text-rock"
+                        className="inline-flex text-rock/55 hover:text-rock"
                       >
                         <ExternalLink className="size-3.5" />
                       </a>
@@ -333,15 +333,6 @@ function Pager({
       >
         <ChevronRight />
       </Button>
-    </div>
-  );
-}
-
-function Empty({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="flex flex-col items-center gap-1.5 px-4 py-12 text-center">
-      <p className="text-sm text-rock/75">{title}</p>
-      <p className="text-xs text-rock/45">{body}</p>
     </div>
   );
 }

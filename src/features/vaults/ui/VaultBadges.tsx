@@ -34,15 +34,22 @@ export function NetworkBadge({
   );
 }
 
-const MODE_CLASS: Record<VaultMode, string> = {
-  'pre-deposit': 'border-amber-200/30 text-amber-200/90',
-  live: 'border-success/40 text-success',
-  unwind: 'border-danger/40 text-danger',
-  closed: 'border-rock/20 text-rock/45',
+/** Phase reads from a coloured dot on a neutral chip, so it never competes
+ * with the network chip next to it. */
+const MODE_DOT: Record<VaultMode, string> = {
+  'pre-deposit': 'bg-amber-200',
+  live: 'bg-success',
+  unwind: 'bg-danger',
+  closed: 'bg-rock/40',
 };
 
 export function ModeBadge({ mode, className }: { mode: VaultMode; className?: string }) {
-  return <span className={cn(CHIP, MODE_CLASS[mode], className)}>{MODE_LABEL[mode]}</span>;
+  return (
+    <span className={cn(CHIP, 'gap-1.5 border-rock/15 text-rock/70', className)}>
+      <span aria-hidden className={cn('size-1.5', MODE_DOT[mode])} />
+      {MODE_LABEL[mode]}
+    </span>
+  );
 }
 
 export function KindBadge({ kind }: { kind: 'protocol' | 'community' }) {

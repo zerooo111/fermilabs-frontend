@@ -5,10 +5,11 @@
  */
 import { useMemo, useState } from 'react';
 
+import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { Segmented } from '@/shared/ui/segmented';
 import { TabStrip, TabStripItem } from '@/shared/ui/tab-strip';
 
-import type { VaultHistoryPoint, VaultNetwork } from '../../api/vaultsClient';
+import type { VaultHistoryPoint, VaultMode, VaultNetwork } from '../../api/vaultsClient';
 import { pctSigned, usdCompact, usdSigned } from '../../model/format';
 import { useVaultHistory } from '../../model/useVaults';
 import { VaultChart, type VaultChartMode } from '../VaultChart';
@@ -66,9 +67,22 @@ const METRICS: {
   },
 ];
 
-export function PerformancePanel({ network, address }: { network: VaultNetwork; address: string }) {
+export function PerformancePanel({
+  network,
+  address,
+  mode,
+}: {
+  network: VaultNetwork;
+  address: string;
+  mode?: VaultMode;
+}) {
   const { window, setWindow } = useWindowParam();
-  const [metric, setMetric] = useState<Metric>('return');
+  // Before launch the share price is pinned at 1, so every return series is
+  // flat zero: chart deposits (TVL) only.
+  const preLaunch = mode === 'pre-deposit';
+  const metrics = preLaunch ? METRICS.filter(x => x.value === 'tvl') : METRICS;
+  const [picked, setMetric] = useState<Metric>('return');
+  const metric = metrics.some(x => x.value === picked) ? picked : metrics[0].value;
   const history = useVaultHistory(network, address, window);
   const m = METRICS.find(x => x.value === metric)!;
 
@@ -88,7 +102,7 @@ export function PerformancePanel({ network, address }: { network: VaultNetwork; 
           className="-mb-1.5 flex overflow-x-auto"
           role="tablist"
         >
-          {METRICS.map(x => (
+          {metrics.map(x => (
             <TabStripItem
               key={x.value}
               value={x.value}
@@ -99,6 +113,11 @@ export function PerformancePanel({ network, address }: { network: VaultNetwork; 
             </TabStripItem>
           ))}
         </TabStrip>
+        {preLaunch && (
+          <span className="mr-auto font-mono text-[10px] uppercase tracking-[0.12em] text-rock/55">
+            Returns chart from launch
+          </span>
+        )}
         <Segmented
           aria-label="Chart window"
           mono
@@ -111,9 +130,13 @@ export function PerformancePanel({ network, address }: { network: VaultNetwork; 
         {history.isPending ? (
           <Bone className="h-full min-h-72 w-full" />
         ) : data.length < 2 ? (
-          <div className="flex h-full min-h-72 flex-col items-center justify-center gap-1.5 text-center">
-            <p className="text-sm text-rock/70">Not enough history yet</p>
-            <p className="max-w-xs text-xs text-rock/45">
+          <div className="relative flex h-full min-h-72 flex-col items-center justify-center gap-1.5 overflow-hidden text-center">
+            <DitherRidge
+              seed={address}
+              className="absolute inset-x-0 bottom-0 h-1/4 max-h-24 text-lichen opacity-60"
+            />
+            <p className="relative text-sm text-rock/75">Not enough history yet</p>
+            <p className="relative max-w-xs text-xs text-rock/60">
               {metric === 'pnl'
                 ? 'PnL is charted from the gateway’s own snapshots, which started recently.'
                 : 'The chart fills in as the vault is synced. Try a longer window.'}

@@ -8,12 +8,14 @@ import axios from 'axios';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
+import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { TabStrip, TabStripItem } from '@/shared/ui/tab-strip';
 
 import type { Vault, VaultNetwork } from '../../api/vaultsClient';
 import {
-  apr,
+  pct,
   bps,
+  capLabel,
   duration,
   formatDate,
   num,
@@ -29,7 +31,9 @@ import { MODE_LABEL, useWindowParam } from '../../model/params';
 import { ModeBadge, NetworkBadge } from '../VaultBadges';
 import { VaultMark } from '../VaultMark';
 import { Bone, DASH, Row, Tile } from '../primitives';
+import { AprValue, CapMeter } from '../VaultMetrics';
 import { ActivityPanel } from './ActivityPanel';
+import { Lifecycle } from './Lifecycle';
 import { PerformancePanel } from './PerformancePanel';
 import { VaultActions } from './VaultActions';
 
@@ -46,7 +50,7 @@ export function VaultDetail({ network, address }: { network: VaultNetwork; addre
       <Stats vault={v} />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         {v ? <OverviewPanel vault={v} /> : <Bone className="min-h-[22rem] w-full" />}
-        <PerformancePanel network={network} address={address} />
+        <PerformancePanel network={network} address={address} mode={v?.mode} />
       </div>
       {v && <ActivityPanel vault={v} />}
     </div>
@@ -63,11 +67,16 @@ function Header({
   address: string;
 }) {
   return (
-    <header className="flex flex-col gap-4 px-1 md:flex-row md:items-end md:justify-between">
-      <div className="flex min-w-0 flex-col gap-3">
+    <header className="relative flex flex-col gap-4 px-1 md:flex-row md:items-end md:justify-between">
+      <DitherRidge
+        seed={address}
+        density={0.35}
+        className="pointer-events-none absolute right-0 bottom-0 hidden h-24 w-2/5 text-lichen opacity-30 [mask-image:linear-gradient(to_right,transparent,black_50%)] md:block"
+      />
+      <div className="relative flex min-w-0 flex-col gap-3">
         <nav
           aria-label="Breadcrumb"
-          className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-rock/45"
+          className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-rock/60"
         >
           <Link to="/vaults" className="hover:text-rock">
             Vaults
@@ -97,7 +106,11 @@ function Header({
           </div>
         </div>
       </div>
-      {v && <VaultActions vault={v} />}
+      {v && (
+        <div className="relative">
+          <VaultActions vault={v} />
+        </div>
+      )}
     </header>
   );
 }
@@ -109,31 +122,33 @@ function Stats({ vault: v }: { vault?: Vault }) {
   const windowTag = v ? (v.window === 'all' ? 'All' : v.window.toUpperCase()) : '';
   return (
     <div className="grid grid-cols-2 divide-outline border border-outline max-sm:[&>*:nth-child(n+3)]:border-t max-sm:[&>*:nth-child(odd)]:border-r max-sm:[&>*]:border-outline sm:grid-cols-4 sm:divide-x">
-      <Tile
-        label={`APR · ${windowTag}`}
-        loading={loading}
-        value={v ? apr(v.apr) : ''}
-        valueClassName={v?.apr != null ? tone(v.apr) : 'text-rock/40'}
-        hint={
-          v?.window_return != null
-            ? `${pctSigned(v.window_return)} return`
-            : v
-              ? 'needs a day of history'
-              : null
-        }
-      />
+      {v?.mode === 'pre-deposit' ? (
+        <Tile
+          label="Deposit cap"
+          value={capLabel(v.tvl, v.tvl_cap)}
+          hint={`${usd(v.tvl, 0)} of ${usd(v.tvl_cap, 0)}`}
+          footer={<CapMeter tvl={v.tvl} cap={v.tvl_cap} bare />}
+        />
+      ) : (
+        <Tile
+          label={`APR · ${windowTag}`}
+          loading={loading}
+          value={v ? <AprValue vault={v} /> : ''}
+          hint={v?.window_return != null ? `${pctSigned(v.window_return)} return` : null}
+        />
+      )}
       <Tile
         label="TVL"
         loading={loading}
         value={v ? usd(v.tvl) : ''}
-        hint={v && v.tvl_cap > 0 ? `${Math.round((v.tvl / v.tvl_cap) * 100)}% of cap` : null}
+        hint={v ? `${v.depositors} ${v.depositors === 1 ? 'depositor' : 'depositors'}` : null}
       />
       <Tile
         label="Your deposit"
         loading={loading && !!wallet}
         value={
           !wallet ? (
-            <span className="text-base font-normal text-rock/45">Connect wallet</span>
+            <span className="text-base font-normal text-rock/60">Connect wallet</span>
           ) : user ? (
             usd(user.equity)
           ) : (
@@ -142,12 +157,22 @@ function Stats({ vault: v }: { vault?: Vault }) {
         }
         hint={user && user.shares > 0 ? `${num(user.shares)} shares` : null}
       />
-      <Tile
-        label="Your all-time PnL"
-        loading={loading && !!wallet}
-        value={!wallet || !user ? DASH : usdSigned(user.all_time_pnl)}
-        valueClassName={user ? tone(user.all_time_pnl) : undefined}
-      />
+      {v?.mode === 'pre-deposit' ? (
+        // Nothing to earn yet; what you own of the vault is the useful number.
+        <Tile
+          label="Your share"
+          loading={loading && !!wallet}
+          value={!wallet || !user || v.tvl <= 0 ? DASH : pct(user.equity / v.tvl, 2)}
+          hint={wallet && user ? 'of the vault' : null}
+        />
+      ) : (
+        <Tile
+          label="Your all-time PnL"
+          loading={loading && !!wallet}
+          value={!wallet || !user ? DASH : usdSigned(user.all_time_pnl)}
+          valueClassName={user ? tone(user.all_time_pnl) : undefined}
+        />
+      )}
     </div>
   );
 }
@@ -156,7 +181,6 @@ type OverviewTab = 'about' | 'parameters';
 
 function OverviewPanel({ vault: v }: { vault: Vault }) {
   const [tab, setTab] = useState<OverviewTab>('about');
-  const capUsed = v.tvl_cap > 0 ? Math.min(1, v.tvl / v.tvl_cap) : 0;
 
   return (
     <section className="flex flex-col border border-outline">
@@ -200,17 +224,12 @@ function OverviewPanel({ vault: v }: { vault: Vault }) {
                 : `${bps(v.fees.management_bps)} mgmt · ${bps(v.fees.performance_bps)} perf`}
             </Row>
           </dl>
-          <div className="mt-auto flex flex-col gap-2 border-t border-outline px-4 py-3">
-            <div className="flex items-baseline justify-between font-mono text-[11px] text-rock/50">
-              <span className="uppercase tracking-[0.12em]">Deposit cap</span>
-              <span className="tabular-nums">
-                {usd(v.tvl, 0)} / {usd(v.tvl_cap, 0)}
-              </span>
+          <Lifecycle vault={v} />
+          {v.mode !== 'pre-deposit' && (
+            <div className="border-t border-outline px-4 py-3">
+              <CapMeter tvl={v.tvl} cap={v.tvl_cap} />
             </div>
-            <div className="h-1 bg-rock/10" aria-hidden>
-              <div className="h-full bg-amber-200/80" style={{ width: `${capUsed * 100}%` }} />
-            </div>
-          </div>
+          )}
         </>
       ) : (
         <dl className="divide-y divide-outline">
@@ -262,7 +281,7 @@ function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void })
       <p className="text-sm text-rock/75">
         {missing ? 'Vault not found' : 'Couldn’t load this vault'}
       </p>
-      <p className="text-xs text-rock/45">
+      <p className="text-xs text-rock/60">
         {missing
           ? 'Check the link, or pick a vault from the list.'
           : 'Check your connection and try again.'}

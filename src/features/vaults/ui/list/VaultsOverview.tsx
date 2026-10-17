@@ -11,6 +11,7 @@ import axios from 'axios';
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
+import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { Segmented } from '@/shared/ui/segmented';
 
 import type { Vault, VaultNetwork } from '../../api/vaultsClient';
@@ -18,7 +19,7 @@ import { timeAgo, tone, usd, usdCompact, usdSigned } from '../../model/format';
 import { useVaults, useWalletAddress } from '../../model/useVaults';
 import { NetworkBadge } from '../VaultBadges';
 import { useWindowParam, WINDOWS } from '../../model/params';
-import { DASH, Tile } from '../primitives';
+import { DASH, Eyebrow, Tile } from '../primitives';
 import { VaultsTable } from './VaultsTable';
 
 type NetworkFilter = 'all' | VaultNetwork;
@@ -58,11 +59,19 @@ export function VaultsOverview() {
 
   return (
     <div className="flex flex-col gap-5">
-      <header className="flex flex-col gap-2 px-1">
-        <h1 className="font-serif text-4xl font-light leading-none tracking-[-0.02em] text-rock md:text-5xl">
+      <header className="relative flex min-h-28 flex-col justify-end gap-2 px-1">
+        {/* Brand texture: a faint dithered depth ridge behind the title, fading out
+            toward the text so it never sits under anything people read. */}
+        <DitherRidge
+          seed="vaults"
+          density={0.35}
+          className="pointer-events-none absolute right-0 bottom-0 hidden h-28 w-1/2 text-lichen opacity-35 [mask-image:linear-gradient(to_right,transparent,black_45%)] md:block"
+        />
+        <Eyebrow className="relative">Earn</Eyebrow>
+        <h1 className="relative font-serif text-4xl font-light leading-none tracking-[-0.02em] text-rock md:text-5xl">
           Vaults
         </h1>
-        <p className="max-w-xl text-sm text-rock/60">
+        <p className="relative max-w-xl text-sm text-rock/70">
           Deposit USDC into a vault and earn a share of its trading. Fermi runs the protocol vault;
           anyone can run a community vault.
         </p>
@@ -72,7 +81,7 @@ export function VaultsOverview() {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative sm:w-80">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-rock/40" />
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-rock/55" />
           <Input
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -93,7 +102,7 @@ export function VaultsOverview() {
               label: (
                 <span className="flex items-center gap-1.5">
                   {n === 'all' ? 'All' : n === 'mainnet' ? 'Mainnet' : 'Devnet'}
-                  <span className="text-rock/40 tabular-nums">{counts[n]}</span>
+                  <span className="text-rock/55 tabular-nums">{counts[n]}</span>
                 </span>
               ),
             }))}
@@ -142,7 +151,7 @@ export function VaultsOverview() {
             }
           />
           {list.data && (
-            <p className="px-1 font-mono text-[11px] text-rock/40">
+            <p className="px-1 font-mono text-[11px] text-rock/55">
               Synced from chain · updated {timeAgo(list.data.updated_at_ms)}
             </p>
           )}
@@ -199,7 +208,7 @@ function Totals({
         loading={loading && !!wallet}
         value={
           !wallet ? (
-            <span className="text-base font-normal text-rock/45">Connect wallet</span>
+            <span className="text-base font-normal text-rock/60">Connect wallet</span>
           ) : (
             usd(equity)
           )
@@ -226,7 +235,7 @@ function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void })
       <p className="text-sm text-rock/75">
         {status === 404 ? 'Vaults aren’t live on this gateway yet' : 'Couldn’t load vaults'}
       </p>
-      <p className="text-xs text-rock/45">Check your connection and try again.</p>
+      <p className="text-xs text-rock/60">Check your connection and try again.</p>
       <Button variant="outline" size="sm" onClick={onRetry}>
         Retry
       </Button>

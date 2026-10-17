@@ -27,7 +27,10 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 
 import type { Vault } from '../../api/vaultsClient';
+import { usd, usdCompact } from '../../model/format';
 import { vaultsKey } from '../../model/useVaults';
+import { ModeBadge, NetworkBadge } from '../VaultBadges';
+import { VaultMark } from '../VaultMark';
 import { Bone } from '../primitives';
 
 function unsupportedReason(v: Vault): string | null {
@@ -76,12 +79,26 @@ export function VaultActions({ vault }: { vault: Vault }) {
       <Dialog open={action !== null} onOpenChange={open => !open && setAction(null)}>
         {action && (
           <DialogContent className="max-w-md gap-0 p-0">
-            <DialogHeader className="border-b border-outline px-4 py-3">
-              <DialogTitle className="text-base font-normal">{vault.name}</DialogTitle>
-              <DialogDescription>
-                Pre-deposit on {vault.network}: settles now, 1 share per USDC.
-              </DialogDescription>
+            <DialogHeader className="flex-row items-center gap-3 border-b border-outline px-4 py-3 text-left">
+              <VaultMark vault={vault} size="sm" />
+              <div className="flex min-w-0 flex-col gap-1">
+                <DialogTitle className="truncate text-base font-normal">
+                  {action === 'deposit' ? 'Deposit into' : 'Withdraw from'} {vault.name}
+                </DialogTitle>
+                <div className="flex items-center gap-1.5">
+                  <NetworkBadge network={vault.network} />
+                  <ModeBadge mode={vault.mode} />
+                </div>
+              </div>
             </DialogHeader>
+            <dl className="grid grid-cols-3 divide-x divide-outline border-b border-outline">
+              <Fact label="TVL" value={usdCompact(vault.tvl)} />
+              <Fact label="Cap left" value={usdCompact(Math.max(0, vault.tvl_cap - vault.tvl))} />
+              <Fact label="Min deposit" value={usd(vault.min_deposit)} />
+            </dl>
+            <DialogDescription className="sr-only">
+              Pre-deposit on {vault.network}: settles now, 1 share per USDC.
+            </DialogDescription>
             <FlpForm action={action} onDone={() => setAction(null)} />
           </DialogContent>
         )}
@@ -122,5 +139,14 @@ function FlpForm({ action, onDone }: { action: FlpAction; onDone: () => void }) 
         onDone();
       }}
     />
+  );
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-1 px-4 py-2.5">
+      <dt className="font-mono text-[10px] uppercase tracking-[0.12em] text-rock/60">{label}</dt>
+      <dd className="font-mono text-sm tabular-nums text-rock">{value}</dd>
+    </div>
   );
 }

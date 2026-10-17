@@ -6,6 +6,7 @@
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
+import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { Eyebrow } from '@/shared/ui/panel';
 
 export { Eyebrow };
@@ -15,7 +16,7 @@ export function Bone({ className }: { className?: string }) {
   return <span className={cn('skeleton-bone block motion-reduce:animate-none!', className)} />;
 }
 
-export const DASH = <span className="text-rock/35">—</span>;
+export const DASH = <span className="text-rock/45">—</span>;
 
 /** One headline number in a ruled strip of tiles. */
 export function Tile({
@@ -23,6 +24,7 @@ export function Tile({
   value,
   hint,
   loading,
+  footer,
   className,
   valueClassName,
 }: {
@@ -30,6 +32,8 @@ export function Tile({
   value: ReactNode;
   hint?: ReactNode;
   loading?: boolean;
+  /** Below the value, e.g. a meter. */
+  footer?: ReactNode;
   className?: string;
   valueClassName?: string;
 }) {
@@ -48,9 +52,10 @@ export function Tile({
           >
             {value}
           </span>
-          {hint && <span className="truncate font-mono text-[11px] text-rock/45">{hint}</span>}
+          {hint && <span className="truncate font-mono text-[11px] text-rock/60">{hint}</span>}
         </div>
       )}
+      {!loading && footer}
     </div>
   );
 }
@@ -77,7 +82,7 @@ export function PanelBar({
       <h2 className="flex items-center gap-2 text-sm text-rock">
         {title}
         {count !== undefined && (
-          <span className="font-mono text-[11px] tabular-nums text-rock/45">{count}</span>
+          <span className="font-mono text-[11px] tabular-nums text-rock/60">{count}</span>
         )}
       </h2>
       {right}
@@ -93,6 +98,33 @@ export function Row({ label, children }: { label: ReactNode; children: ReactNode
       <dd className="min-w-0 truncate text-right font-mono text-xs text-rock/85 tabular-nums">
         {children}
       </dd>
+    </div>
+  );
+}
+
+/** A panel's empty message over a faint dithered ridge (the terminal's empty-pane motif). */
+export function Empty({
+  title,
+  body,
+  className,
+}: {
+  title: string;
+  body?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'relative flex flex-col items-center gap-1.5 overflow-hidden px-4 pt-12 pb-16 text-center',
+        className
+      )}
+    >
+      <DitherRidge
+        seed={title}
+        className="absolute inset-x-0 bottom-0 h-10 text-lichen opacity-60"
+      />
+      <p className="relative text-sm text-rock/75">{title}</p>
+      {body && <p className="relative max-w-sm text-xs text-rock/60">{body}</p>}
     </div>
   );
 }

@@ -109,3 +109,9 @@ export function duration(seconds: number): string {
   if (seconds < 172_800) return `${Math.round(seconds / 3600)}h`;
   return `${Math.round(seconds / 86_400)}d`;
 }
+
+/** Percent of the deposit cap filled, "<1%" for a sliver. */
+export function capLabel(tvl: number, cap: number): string {
+  const used = cap > 0 ? Math.min(1, tvl / cap) : 0;
+  return used > 0 && used < 0.01 ? '<1%' : `${Math.round(used * 100)}%`;
+}

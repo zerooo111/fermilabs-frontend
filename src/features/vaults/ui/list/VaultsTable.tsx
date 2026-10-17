@@ -13,12 +13,12 @@ import { FOCUS_RING } from '@/shared/ui/panel';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 
 import type { Vault, VaultWindow } from '../../api/vaultsClient';
-import { apr, shortAddress, tone, usd, usdCompact } from '../../model/format';
+import { shortAddress, usd, usdCompact } from '../../model/format';
 import { vaultHref } from '../../model/params';
-import { Sparkline } from '../Sparkline';
 import { ModeBadge, NetworkBadge } from '../VaultBadges';
+import { AprValue, TrendCell } from '../VaultMetrics';
 import { VaultMark } from '../VaultMark';
-import { Bone, DASH, Eyebrow, PanelBar } from '../primitives';
+import { Bone, DASH, Empty, Eyebrow, PanelBar } from '../primitives';
 
 type SortKey = 'apr' | 'tvl' | 'deposit' | 'age';
 const SORT_VALUE: Record<SortKey, (v: Vault) => number> = {
@@ -72,10 +72,7 @@ export function VaultsTable({
       <PanelBar title={title} count={loading ? undefined : vaults.length} />
 
       {!loading && rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-1.5 px-4 py-12 text-center">
-          <p className="text-sm text-rock/75">{empty.title}</p>
-          <p className="max-w-sm text-xs text-rock/45">{empty.body}</p>
-        </div>
+        <Empty title={empty.title} body={empty.body} />
       ) : (
         <>
           <Table containerClassName="hidden md:block" className="table-fixed">
@@ -140,15 +137,7 @@ export function VaultsTable({
                         </span>
                       </TableCell>
                       <TableCell className={cn(TD, 'text-right')}>
-                        <span
-                          className={cn(
-                            'font-mono text-sm tabular-nums',
-                            v.apr === null ? 'text-rock/40' : tone(v.apr)
-                          )}
-                          title={v.apr === null ? 'Needs a day of history' : undefined}
-                        >
-                          {apr(v.apr)}
-                        </span>
+                        <AprValue vault={v} className="text-sm" />
                       </TableCell>
                       <TableCell className={cn(TD, 'text-right')}>
                         <span
@@ -173,12 +162,7 @@ export function VaultsTable({
                         </span>
                       </TableCell>
                       <TableCell className={cn(TD, 'hidden lg:table-cell')}>
-                        <Sparkline
-                          className="ml-auto"
-                          width={112}
-                          height={28}
-                          values={(v.sparkline ?? []).map(p => p[1])}
-                        />
+                        <TrendCell vault={v} className="ml-auto" width={112} height={28} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -251,14 +235,7 @@ function MobileRow({ vault: v }: { vault: Vault }) {
             </div>
           </div>
           <div className="flex flex-col items-end gap-0.5">
-            <span
-              className={cn(
-                'font-mono text-base tabular-nums',
-                v.apr === null ? 'text-rock/40' : tone(v.apr)
-              )}
-            >
-              {apr(v.apr)}
-            </span>
+            <AprValue vault={v} className="text-base" />
             <Eyebrow className="text-[10px]">APR</Eyebrow>
           </div>
         </div>
@@ -267,7 +244,7 @@ function MobileRow({ vault: v }: { vault: Vault }) {
             <MiniStat label="TVL" value={usdCompact(v.tvl)} />
             <MiniStat label="Yours" value={v.user ? usdCompact(v.user.equity) : '—'} />
           </dl>
-          <Sparkline width={88} height={26} values={(v.sparkline ?? []).map(p => p[1])} />
+          <TrendCell vault={v} width={88} height={26} />
         </div>
       </Link>
     </li>
