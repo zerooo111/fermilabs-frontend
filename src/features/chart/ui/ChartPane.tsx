@@ -8,7 +8,12 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, type ChartApi } from 'candleframe/chart';
-import { builtInDrawingTools, type Candle } from 'candleframe/core';
+import {
+  builtInDrawingTools,
+  type Candle,
+  type Drawing,
+  type DrawingPatch,
+} from 'candleframe/core';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -26,6 +31,7 @@ import type { PerpsPriceSource, PerpsTimeframe } from '@/features/chart/lib/perp
 import { usePositionPriceLines } from '@/features/chart/model/usePositionPriceLines';
 import { ChartLegend, type LegendIndicator } from './ChartLegend';
 import type { MagnetMode } from './ChartDrawingRail';
+import { DrawingToolbar } from './drawing-editor/DrawingToolbar';
 import type { ChartPosition, TriggerKind } from './PositionLines';
 
 export interface CandleFrameMarket {
@@ -81,8 +87,8 @@ interface ChartPaneProps {
   onTriggerChange?: (kind: TriggerKind, price: number | null) => Promise<boolean>;
 }
 
-/** What each drawing tool asks for, shown while it's active. */
-const TOOL_HINTS = new Map(builtInDrawingTools.map(tool => [tool.type, tool.hint]));
+const TOOLS = new Map(builtInDrawingTools.map(tool => [tool.type, tool]));
+const NO_DRAWINGS: readonly Drawing[] = [];
 
 const statusOf = (s: string): Status['status'] =>
   s === 'live' ? 'live' : s === 'error' ? 'error' : 'loading';
@@ -111,6 +117,9 @@ function ChartPaneComponent({
   const [pricePrecision, setPricePrecision] = useState(2);
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const [toolHint, setToolHint] = useState<string | null>(null);
+  const [drawings, setDrawings] = useState<readonly Drawing[]>(NO_DRAWINGS);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const hovered = useMemo(() => createValueStore<Candle | null>(null), []);
   const latestBar = useMemo(() => createValueStore<Candle | null>(null), []);
   const feedRef = useRef<FermiFeed | null>(null);
@@ -172,14 +181,24 @@ function ChartPaneComponent({
         onHover: bar => hovered.set(bar),
         onToolChange: next => {
           tool = next;
-          setToolHint(next === 'cursor' ? null : (TOOL_HINTS.get(next) ?? null));
+          setToolHint(next === 'cursor' ? null : (TOOLS.get(next)?.hint ?? null));
           report();
         },
         onDrawingChange: state => {
           drawingsHidden = state.options.hidden;
+          // The toolbar edits one drawing; a multi-selection gets none.
+          setSelectedId(state.selection.length === 1 ? (state.selected?.id ?? null) : null);
           report();
         },
-        onDrawingEdit: drawing => setEditing({ id: drawing.id, text: drawing.text }),
+        // Double-click / Enter: text tools edit their text, the rest open settings.
+        onDrawingEdit: drawing => {
+          if (TOOLS.get(drawing.type)?.editableText) {
+            setEditing({ id: drawing.id, text: drawing.text });
+          } else {
+            setSelectedId(drawing.id);
+            setSettingsOpen(true);
+          }
+        },
         onError: error => console.warn('[chart]', error.code, error.message),
       });
     } catch (error) {
@@ -199,6 +218,8 @@ function ChartPaneComponent({
     let lastIndicators = '';
     const unsubscribe = instance.subscribe(state => {
       lastState = state;
+      // Same array until the document changes, so ticks don't re-render.
+      setDrawings(state.document.drawings);
       if (state.candles !== lastCandles) {
         lastCandles = state.candles;
         latestBar.set(state.candles[state.candles.length - 1] ?? null);
@@ -296,6 +317,24 @@ function ChartPaneComponent({
     restoreChartLayout(chart, layoutKey);
   }, [chart, makeFeed, priceSource, interval, layoutKey]);
 
+  const selected = drawings.find(d => d.id === selectedId) ?? null;
+  useEffect(() => {
+    if (!selected) setSettingsOpen(false);
+  }, [selected]);
+  const selectedTool = selected ? TOOLS.get(selected.type) : undefined;
+  const updateSelected = useCallback(
+    (patch: DrawingPatch) => {
+      if (selectedId) run({ type: 'drawing.update', id: selectedId, patch });
+    },
+    [run, selectedId]
+  );
+  const removeSelected = useCallback(() => {
+    if (selectedId) run({ type: 'drawing.remove', id: selectedId });
+  }, [run, selectedId]);
+  const editSelectedText = useCallback(() => {
+    if (selected) setEditing({ id: selected.id, text: selected.text });
+  }, [selected]);
+
   const saveText = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!editing) return;
@@ -354,6 +393,22 @@ function ChartPaneComponent({
               Loading chart data…
             </div>
           )}
+        </div>
+      )}
+
+      {chart && selected && selectedTool && active && !editing && (
+        <div className="absolute bottom-12 left-1/2 z-20 -translate-x-1/2">
+          <DrawingToolbar
+            chart={chart}
+            drawing={selected}
+            tool={selectedTool}
+            update={updateSelected}
+            pricePrecision={pricePrecision}
+            onRemove={removeSelected}
+            onEditText={editSelectedText}
+            settingsOpen={settingsOpen}
+            onSettingsOpenChange={setSettingsOpen}
+          />
         </div>
       )}
 
