@@ -8,7 +8,7 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, type ChartApi } from 'candleframe/chart';
-import type { Candle } from 'candleframe/core';
+import { builtInDrawingTools, type Candle } from 'candleframe/core';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,7 @@ import { createValueStore } from '@/features/chart/lib/value-store';
 import type { PerpsPriceSource, PerpsTimeframe } from '@/features/chart/lib/perps-chart';
 import { usePositionPriceLines } from '@/features/chart/model/usePositionPriceLines';
 import { ChartLegend, type LegendIndicator } from './ChartLegend';
+import type { MagnetMode } from './ChartDrawingRail';
 import type { ChartPosition, TriggerKind } from './PositionLines';
 
 export interface CandleFrameMarket {
@@ -43,7 +44,14 @@ export interface PaneView {
   canUndo: boolean;
   canRedo: boolean;
   hasDrawings: boolean;
+  drawingsHidden: boolean;
   tool: string;
+}
+
+/** Drawing options the rail sets on every pane alike. */
+export interface DrawingPrefs {
+  magnet: MagnetMode;
+  keepDrawing: boolean;
 }
 
 interface Status {
@@ -68,9 +76,13 @@ interface ChartPaneProps {
   onChart: (index: number, chart: ChartApi | null) => void;
   onView: (index: number, view: PaneView) => void;
   onCandles?: (candles: readonly Candle[]) => void;
+  drawingPrefs: DrawingPrefs;
   position: ChartPosition | null;
   onTriggerChange?: (kind: TriggerKind, price: number | null) => Promise<boolean>;
 }
+
+/** What each drawing tool asks for, shown while it's active. */
+const TOOL_HINTS = new Map(builtInDrawingTools.map(tool => [tool.type, tool.hint]));
 
 const statusOf = (s: string): Status['status'] =>
   s === 'live' ? 'live' : s === 'error' ? 'error' : 'loading';
@@ -88,6 +100,7 @@ function ChartPaneComponent({
   onChart,
   onView,
   onCandles,
+  drawingPrefs,
   position,
   onTriggerChange,
 }: ChartPaneProps) {
@@ -97,6 +110,7 @@ function ChartPaneComponent({
   const [indicators, setIndicators] = useState<LegendIndicator[]>([]);
   const [pricePrecision, setPricePrecision] = useState(2);
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+  const [toolHint, setToolHint] = useState<string | null>(null);
   const hovered = useMemo(() => createValueStore<Candle | null>(null), []);
   const latestBar = useMemo(() => createValueStore<Candle | null>(null), []);
   const feedRef = useRef<FermiFeed | null>(null);
@@ -130,6 +144,7 @@ function ChartPaneComponent({
     const host = hostRef.current;
     if (!host) return;
     let tool = 'cursor';
+    let drawingsHidden = false;
     let lastView = '';
     let lastState: Parameters<Parameters<ChartApi['subscribe']>[0]>[0] | null = null;
     const report = () => {
@@ -140,6 +155,7 @@ function ChartPaneComponent({
         canUndo: lastState.history.canUndo,
         canRedo: lastState.history.canRedo,
         hasDrawings: lastState.document.drawings.length > 0,
+        drawingsHidden,
         tool,
       };
       const key = JSON.stringify(view);
@@ -156,6 +172,11 @@ function ChartPaneComponent({
         onHover: bar => hovered.set(bar),
         onToolChange: next => {
           tool = next;
+          setToolHint(next === 'cursor' ? null : (TOOL_HINTS.get(next) ?? null));
+          report();
+        },
+        onDrawingChange: state => {
+          drawingsHidden = state.options.hidden;
           report();
         },
         onDrawingEdit: drawing => setEditing({ id: drawing.id, text: drawing.text }),
@@ -240,6 +261,14 @@ function ChartPaneComponent({
     if (feed && price !== null) feed.pushPrice(price);
   }, [livePrices]);
 
+  // ── Magnet / keep drawing, shared by every pane ─────────────────────────
+  useEffect(() => {
+    chart?.setDrawingOptions({
+      magnet: drawingPrefs.magnet,
+      stayInDrawingMode: drawingPrefs.keepDrawing,
+    });
+  }, [chart, drawingPrefs.magnet, drawingPrefs.keepDrawing]);
+
   usePositionPriceLines(chart, position, onTriggerChange);
 
   // ── Legend / overlays ─────────────────────────────────────────────────────
@@ -267,8 +296,8 @@ function ChartPaneComponent({
     restoreChartLayout(chart, layoutKey);
   }, [chart, makeFeed, priceSource, interval, layoutKey]);
 
-  const saveText = (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveText = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!editing) return;
     run({ type: 'drawing.update', id: editing.id, patch: { text: editing.text } });
     setEditing(null);
@@ -328,19 +357,32 @@ function ChartPaneComponent({
         </div>
       )}
 
+      {toolHint && active && !editing && (
+        <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 border border-outline bg-surface/90 px-2 py-1 text-[11px] text-rock/60">
+          {toolHint}
+        </div>
+      )}
+
       {editing && (
         <form
           onSubmit={saveText}
-          className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 items-center gap-1 border border-outline bg-surface p-1 shadow-lg"
+          className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 items-end gap-1 border border-outline bg-surface p-1 shadow-lg"
         >
-          <input
+          {/* Enter saves, Shift+Enter starts a new line (notes, table rows). */}
+          <textarea
             autoFocus
+            // New drawings start with placeholder text; typing replaces it.
+            onFocus={e => e.currentTarget.select()}
+            rows={Math.min(6, editing.text.split('\n').length)}
             value={editing.text}
             onChange={e => setEditing({ ...editing, text: e.target.value })}
-            onKeyDown={e => e.key === 'Escape' && setEditing(null)}
+            onKeyDown={e => {
+              if (e.key === 'Escape') setEditing(null);
+              else if (e.key === 'Enter' && !e.shiftKey) saveText(e);
+            }}
             placeholder="Text"
             aria-label="Drawing text"
-            className="h-7 w-56 bg-transparent px-2 text-xs text-rock outline-none placeholder:text-rock/30"
+            className="w-56 resize-none bg-transparent px-2 py-1.5 text-xs leading-4 text-rock outline-none placeholder:text-rock/30"
           />
           <Button type="submit" size="sm" className="h-7 text-xs">
             Save

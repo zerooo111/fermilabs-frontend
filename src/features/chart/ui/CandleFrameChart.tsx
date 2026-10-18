@@ -25,9 +25,9 @@ import {
 import type { PerpsPriceSource, PerpsTimeframe } from '@/features/chart/lib/perps-chart';
 import { ChartToolbar } from './ChartToolbar';
 import { ChartActions } from './ChartActions';
-import { ChartDrawingRail } from './ChartDrawingRail';
+import { ChartDrawingRail, type MagnetMode } from './ChartDrawingRail';
 import { ChartGridDividers } from './ChartGridDividers';
-import { ChartPane, type CandleFrameMarket, type PaneView } from './ChartPane';
+import { ChartPane, type CandleFrameMarket, type DrawingPrefs, type PaneView } from './ChartPane';
 import type { ChartPosition, TriggerKind } from './PositionLines';
 
 export type { CandleFrameMarket } from './ChartPane';
@@ -48,8 +48,23 @@ const EMPTY_VIEW: PaneView = {
   canUndo: false,
   canRedo: false,
   hasDrawings: false,
+  drawingsHidden: false,
   tool: 'cursor',
 };
+
+const DRAWING_PREFS_KEY = 'fermi:chart:drawing-prefs';
+
+function loadDrawingPrefs(): DrawingPrefs {
+  const prefs: DrawingPrefs = { magnet: 'off', keepDrawing: false };
+  try {
+    const saved = JSON.parse(localStorage.getItem(DRAWING_PREFS_KEY) ?? '{}');
+    if (['off', 'weak', 'strong'].includes(saved?.magnet)) prefs.magnet = saved.magnet;
+    if (typeof saved?.keepDrawing === 'boolean') prefs.keepDrawing = saved.keepDrawing;
+  } catch {
+    // Defaults.
+  }
+  return prefs;
+}
 
 interface CandleFrameChartProps {
   market: CandleFrameMarket;
@@ -85,12 +100,20 @@ function CandleFrameChartComponent({
   const [charts, setCharts] = useState<(ChartApi | null)[]>([]);
   const [views, setViews] = useState<PaneView[]>([]);
   const [fullscreen, setFullscreen] = useState(false);
+  const [drawingPrefs, setDrawingPrefs] = useState<DrawingPrefs>(loadDrawingPrefs);
 
   const paneCount = GRID_PRESETS[grid.preset].panes;
   const active = Math.min(grid.active, paneCount - 1);
   const multi = paneCount > 1;
 
   useEffect(() => saveGrid(grid), [grid]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAWING_PREFS_KEY, JSON.stringify(drawingPrefs));
+    } catch {
+      // Storage unavailable: kept for this session only.
+    }
+  }, [drawingPrefs]);
 
   // Every pane's selection; pane 1 is the container's.
   const selections: PaneSelection[] = Array.from({ length: paneCount }, (_, i) =>
@@ -258,6 +281,18 @@ function CandleFrameChartComponent({
     },
     [activeChart, active]
   );
+  const handleMagnet = useCallback(
+    (magnet: MagnetMode) => setDrawingPrefs(p => ({ ...p, magnet })),
+    []
+  );
+  const handleKeepDrawing = useCallback(
+    (keepDrawing: boolean) => setDrawingPrefs(p => ({ ...p, keepDrawing })),
+    []
+  );
+  const handleDrawingsHidden = useCallback(
+    (hidden: boolean) => activeChart?.setDrawingOptions({ hidden }),
+    [activeChart]
+  );
   const handleUndo = useCallback(() => run({ type: 'history.undo' }), [run]);
   const handleRedo = useCallback(() => run({ type: 'history.redo' }), [run]);
   const handleClear = useCallback(() => run({ type: 'drawing.clear' }), [run]);
@@ -295,6 +330,12 @@ function CandleFrameChartComponent({
         <ChartDrawingRail
           tool={activeView.tool}
           onToolChange={handleTool}
+          magnet={drawingPrefs.magnet}
+          onMagnetChange={handleMagnet}
+          keepDrawing={drawingPrefs.keepDrawing}
+          onKeepDrawingChange={handleKeepDrawing}
+          drawingsHidden={activeView.drawingsHidden}
+          onDrawingsHiddenChange={handleDrawingsHidden}
           canUndo={activeView.canUndo}
           canRedo={activeView.canRedo}
           hasDrawings={activeView.hasDrawings}
@@ -347,6 +388,7 @@ function CandleFrameChartComponent({
                   onChart={handleChart}
                   onView={handleView}
                   onCandles={i === 0 ? onCandles : undefined}
+                  drawingPrefs={drawingPrefs}
                   position={position}
                   onTriggerChange={onTriggerChange}
                 />

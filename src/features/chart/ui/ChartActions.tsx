@@ -40,14 +40,21 @@ const GRID_ICONS: Record<GridPreset, LucideIcon> = {
   '2x2': Grid2x2,
 };
 
-/** CandleFrame indicator kinds offered in the menu (see builtInIndicators). */
+/**
+ * CandleFrame indicator kinds offered in the menu (see builtInIndicators).
+ * The order-flow ones (cvd, price-delta, big-trades, flow-signals) need taker
+ * buy volume or trades, which our candles don't carry.
+ */
 const INDICATORS: { kind: string; label: string; pane: 'overlay' | 'pane' }[] = [
   { kind: 'sma', label: 'Simple moving average', pane: 'overlay' },
   { kind: 'ema', label: 'Exponential moving average', pane: 'overlay' },
   { kind: 'bb', label: 'Bollinger Bands', pane: 'overlay' },
+  { kind: 'tideline', label: 'Tideline', pane: 'overlay' },
+  { kind: 'regime-band', label: 'Market regime band', pane: 'overlay' },
   { kind: 'vp', label: 'Volume profile', pane: 'overlay' },
   { kind: 'rsi', label: 'Relative strength index', pane: 'pane' },
   { kind: 'macd', label: 'MACD', pane: 'pane' },
+  { kind: 'regime', label: 'Market regime', pane: 'pane' },
 ];
 
 const TRIGGER =

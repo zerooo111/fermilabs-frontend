@@ -48,7 +48,7 @@
     "bn.js": "^5.2.2",
     "borsh": "^2.0.0",
     "bs58": "^6.0.0",
-    "candleframe": "file:vendor/candleframe-0.3.0.tgz",
+    "candleframe": "file:vendor/candleframe-0.3.0-d12f351.tgz",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dockview-react": "^8.4.1",
