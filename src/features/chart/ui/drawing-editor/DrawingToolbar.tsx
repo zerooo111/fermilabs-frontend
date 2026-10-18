@@ -19,6 +19,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { DRAWING_TOOL_ICONS } from '@/features/chart/lib/drawing-tool-icons';
+import { CandleFrameIcon } from '../CandleFrameIcon';
 import { DRAWING_EDITOR_SECTIONS } from './sections';
 import type { DrawingEditorProps } from './types';
 import { ColorPicker } from './ColorPicker';
@@ -109,18 +110,9 @@ function DrawingToolbarComponent(props: DrawingToolbarProps) {
       onPointerDown={e => e.stopPropagation()}
     >
       <span className="flex items-center gap-1.5 border-r border-outline py-1 pl-1.5 pr-2 text-[11px] text-rock/70">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <CandleFrameIcon
+          markup={DRAWING_TOOL_ICONS[tool.type] ?? DRAWING_TOOL_ICONS.trendline}
           className="size-3.5"
-          aria-hidden
-          dangerouslySetInnerHTML={{
-            __html: DRAWING_TOOL_ICONS[tool.type] ?? DRAWING_TOOL_ICONS.trendline,
-          }}
         />
         <span className="max-w-32 truncate">{tool.label}</span>
       </span>

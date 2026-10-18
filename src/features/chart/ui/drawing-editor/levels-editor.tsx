@@ -13,7 +13,6 @@ import { SECTION_HEADING } from '@/features/chart/lib/drawing-settings';
 import {
   LEVEL_MAX,
   LEVEL_MIN,
-  LEVEL_STYLES_UNSUPPORTED,
   MAX_DRAWING_LEVELS,
   drawingLevelColors,
   drawingLevelState,
@@ -69,15 +68,9 @@ function LevelValue({
 
 function DrawingLevelsEditorComponent({ drawing, tool, update }: DrawingEditorProps) {
   const { levels, looks, customised } = drawingLevelState(drawing);
-  const unstyled = LEVEL_STYLES_UNSUPPORTED.has(drawing.type);
-  // Where per-level looks are ignored, swatches show the hue the chart draws.
-  const colors = drawingLevelColors(drawing, tool, levels, unstyled ? [] : looks);
+  const colors = drawingLevelColors(drawing, tool, levels, looks);
   const oneColor = drawingOption<boolean>(drawing, tool, 'levelColors') === false;
-  const styleHint = unstyled
-    ? "CandleFrame doesn't style individual levels on this tool yet"
-    : oneColor
-      ? 'Turn on Colour each level to pick level colours'
-      : undefined;
+  const styleHint = oneColor ? 'Turn on Colour each level to pick level colours' : undefined;
   const [levelFields, labelFields] = useMemo(() => {
     const settings = tool.settings ?? [];
     return [
@@ -118,21 +111,18 @@ function DrawingLevelsEditorComponent({ drawing, tool, update }: DrawingEditorPr
             const shown = look.visible !== false;
             return (
               <div key={i} className="flex min-w-0 items-center gap-1">
-                <span title={unstyled ? styleHint : undefined} className="inline-flex shrink-0">
-                  <input
-                    type="checkbox"
-                    aria-label={`Show level ${i + 1}`}
-                    checked={unstyled || shown}
-                    disabled={unstyled}
-                    onChange={e => {
-                      const next = { ...look };
-                      if (e.target.checked) delete next.visible;
-                      else next.visible = false;
-                      edit(levels, replaced(looks, i, next));
-                    }}
-                    className="size-3.5 accent-[var(--color-primary)] disabled:opacity-30"
-                  />
-                </span>
+                <input
+                  type="checkbox"
+                  aria-label={`Show level ${i + 1}`}
+                  checked={shown}
+                  onChange={e => {
+                    const next = { ...look };
+                    if (e.target.checked) delete next.visible;
+                    else next.visible = false;
+                    edit(levels, replaced(looks, i, next));
+                  }}
+                  className="size-3.5 shrink-0 accent-[var(--color-primary)]"
+                />
                 <LevelValue
                   index={i}
                   value={level}
@@ -142,9 +132,9 @@ function DrawingLevelsEditorComponent({ drawing, tool, update }: DrawingEditorPr
                   <ColorPicker
                     label={`Level ${i + 1} colour`}
                     value={oneColor ? drawing.style.color : colors[i]}
-                    disabled={unstyled || oneColor}
+                    disabled={oneColor}
                     onChange={color => edit(levels, replaced(looks, i, { ...look, color }))}
-                    className={cn(!unstyled && !shown && 'opacity-50')}
+                    className={cn(!shown && 'opacity-50')}
                   />
                 </span>
                 <button

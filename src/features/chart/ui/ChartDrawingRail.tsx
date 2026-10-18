@@ -31,6 +31,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { DRAWING_TOOL_ICONS } from '@/features/chart/lib/drawing-tool-icons';
+import { CandleFrameIcon } from './CandleFrameIcon';
 
 export type MagnetMode = 'off' | 'weak' | 'strong';
 
@@ -83,19 +84,9 @@ function loadLastTools(): Record<string, string> {
 
 function ToolIcon({ tool, className }: { tool: string; className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      className={cn('size-4', className)}
-      // Static markup from drawing-tool-icons.ts.
-      dangerouslySetInnerHTML={{
-        __html: DRAWING_TOOL_ICONS[tool] ?? DRAWING_TOOL_ICONS.trendline,
-      }}
+    <CandleFrameIcon
+      markup={DRAWING_TOOL_ICONS[tool] ?? DRAWING_TOOL_ICONS.trendline}
+      className={className}
     />
   );
 }

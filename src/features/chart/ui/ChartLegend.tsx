@@ -23,6 +23,9 @@ interface ChartLegendProps {
   /** Pane label in a grid, e.g. "5m · Mark". */
   caption?: string;
   indicators: readonly LegendIndicator[];
+  /** Chart settings › Status line. */
+  showOhlc: boolean;
+  showChange: boolean;
   onToggleIndicator: (id: string, visible: boolean) => void;
   onRemoveIndicator: (id: string) => void;
 }
@@ -31,7 +34,9 @@ function Ohlc({
   hovered,
   latest,
   pricePrecision,
-}: Pick<ChartLegendProps, 'hovered' | 'latest' | 'pricePrecision'>) {
+  showOhlc,
+  showChange,
+}: Pick<ChartLegendProps, 'hovered' | 'latest' | 'pricePrecision' | 'showOhlc' | 'showChange'>) {
   const hover = useSyncExternalStore(hovered.subscribe, hovered.get);
   const last = useSyncExternalStore(latest.subscribe, latest.get);
   const bar = hover ?? last;
@@ -46,17 +51,20 @@ function Ohlc({
   const pct = bar.open ? (change / bar.open) * 100 : 0;
   return (
     <div className="flex flex-wrap items-center gap-x-2 font-mono text-[10px] tabular-nums text-rock/45">
-      {(['open', 'high', 'low', 'close'] as const).map(key => (
-        <span key={key}>
-          {key[0].toUpperCase()}{' '}
-          <span className={up ? 'text-success' : 'text-danger'}>{fmt(bar[key])}</span>
+      {showOhlc &&
+        (['open', 'high', 'low', 'close'] as const).map(key => (
+          <span key={key}>
+            {key[0].toUpperCase()}{' '}
+            <span className={up ? 'text-success' : 'text-danger'}>{fmt(bar[key])}</span>
+          </span>
+        ))}
+      {showChange && (
+        <span className={up ? 'text-success' : 'text-danger'}>
+          {change >= 0 ? '+' : '−'}
+          {fmt(Math.abs(change))} ({change >= 0 ? '+' : '−'}
+          {Math.abs(pct).toFixed(2)}%)
         </span>
-      ))}
-      <span className={up ? 'text-success' : 'text-danger'}>
-        {change >= 0 ? '+' : '−'}
-        {fmt(Math.abs(change))} ({change >= 0 ? '+' : '−'}
-        {Math.abs(pct).toFixed(2)}%)
-      </span>
+      )}
     </div>
   );
 }
@@ -67,6 +75,8 @@ function ChartLegendComponent({
   pricePrecision,
   caption,
   indicators,
+  showOhlc,
+  showChange,
   onToggleIndicator,
   onRemoveIndicator,
 }: ChartLegendProps) {
@@ -77,7 +87,15 @@ function ChartLegendComponent({
           {caption}
         </span>
       )}
-      <Ohlc hovered={hovered} latest={latest} pricePrecision={pricePrecision} />
+      {(showOhlc || showChange) && (
+        <Ohlc
+          hovered={hovered}
+          latest={latest}
+          pricePrecision={pricePrecision}
+          showOhlc={showOhlc}
+          showChange={showChange}
+        />
+      )}
       {indicators.map(({ id, name, visible }) => (
         <div
           key={id}

@@ -13,21 +13,6 @@ export const LEVEL_MAX = 1000;
 export const usesDrawingLevels = (type: string): boolean => fibDefaultLevels(type).length > 0;
 
 /**
- * Tools that read `Drawing.levels` but ignore `levelStyles`: CandleFrame's
- * drawing-tools-fib.ts colours their levels by ratio and draws every level.
- * Delete this once CandleFrame honours per-level show and colour there.
- */
-export const LEVEL_STYLES_UNSUPPORTED: ReadonlySet<string> = new Set([
-  'fib-trend-time',
-  'fib-arcs',
-  'fib-circles',
-  'fib-wedge',
-  'pitchfan',
-  'gann-box',
-  'gann-square',
-]);
-
-/**
  * The levels a drawing shows (its own, else the tool's defaults) with one look
  * per level, and whether anything differs from the defaults.
  */

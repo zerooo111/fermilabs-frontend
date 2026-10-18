@@ -1,6 +1,7 @@
 /**
- * Right side of the chart toolbar: the indicators menu, the grid layout, then
- * volume and log toggles, jump-to-live, a PNG snapshot and fullscreen.
+ * The chart toolbar's actions: the indicators menu and grid layout beside the
+ * chart controls, then, at the end of the row, volume and log toggles,
+ * jump-to-live, a PNG snapshot, chart settings and fullscreen.
  */
 import { memo } from 'react';
 import {
@@ -15,6 +16,7 @@ import {
   Maximize2,
   Minimize2,
   Rows2,
+  Settings,
   Square,
   type LucideIcon,
 } from 'lucide-react';
@@ -49,8 +51,6 @@ const INDICATORS: { kind: string; label: string; pane: 'overlay' | 'pane' }[] = 
   { kind: 'sma', label: 'Simple moving average', pane: 'overlay' },
   { kind: 'ema', label: 'Exponential moving average', pane: 'overlay' },
   { kind: 'bb', label: 'Bollinger Bands', pane: 'overlay' },
-  { kind: 'tideline', label: 'Tideline', pane: 'overlay' },
-  { kind: 'regime-band', label: 'Market regime band', pane: 'overlay' },
   { kind: 'vp', label: 'Volume profile', pane: 'overlay' },
   { kind: 'rsi', label: 'Relative strength index', pane: 'pane' },
   { kind: 'macd', label: 'MACD', pane: 'pane' },
@@ -70,6 +70,7 @@ interface ChartActionsProps {
   onLogChange: (enabled: boolean) => void;
   onFit: () => void;
   onSnapshot: () => void;
+  onSettings: () => void;
   fullscreen: boolean;
   onFullscreenChange: (fullscreen: boolean) => void;
 }
@@ -116,12 +117,13 @@ function ChartActionsComponent({
   onLogChange,
   onFit,
   onSnapshot,
+  onSettings,
   fullscreen,
   onFullscreenChange,
 }: ChartActionsProps) {
   const GridIcon = GRID_ICONS[grid];
   return (
-    <div className="flex items-center">
+    <div className="flex min-w-0 flex-1 items-center">
       <DropdownMenu>
         <DropdownMenuTrigger className={TRIGGER} aria-label="Add indicator">
           <Activity className="size-3.5" />
@@ -169,27 +171,31 @@ function ChartActionsComponent({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <span className="mx-1.5 h-3.5 w-px bg-outline" aria-hidden />
-
-      <IconToggle label="Volume" pressed={volume} onClick={() => onVolumeChange(!volume)}>
-        <BarChart3 className="size-3.5" />
-      </IconToggle>
-      <IconToggle label="Log scale" pressed={log} onClick={() => onLogChange(!log)}>
-        <span className="font-mono">log</span>
-      </IconToggle>
-      <IconToggle label="Jump to live" onClick={onFit}>
-        <ChevronsRight className="size-3.5" />
-      </IconToggle>
-      <IconToggle label="Save snapshot" onClick={onSnapshot}>
-        <Camera className="size-3.5" />
-      </IconToggle>
-      <IconToggle
-        label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-        pressed={fullscreen}
-        onClick={() => onFullscreenChange(!fullscreen)}
-      >
-        {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-      </IconToggle>
+      {/* View controls sit at the end of the row. */}
+      <div className="ml-auto flex items-center">
+        <IconToggle label="Volume" pressed={volume} onClick={() => onVolumeChange(!volume)}>
+          <BarChart3 className="size-3.5" />
+        </IconToggle>
+        <IconToggle label="Log scale" pressed={log} onClick={() => onLogChange(!log)}>
+          <span className="font-mono">log</span>
+        </IconToggle>
+        <IconToggle label="Jump to live" onClick={onFit}>
+          <ChevronsRight className="size-3.5" />
+        </IconToggle>
+        <IconToggle label="Save snapshot" onClick={onSnapshot}>
+          <Camera className="size-3.5" />
+        </IconToggle>
+        <IconToggle label="Chart settings" onClick={onSettings}>
+          <Settings className="size-3.5" />
+        </IconToggle>
+        <IconToggle
+          label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          pressed={fullscreen}
+          onClick={() => onFullscreenChange(!fullscreen)}
+        >
+          {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+        </IconToggle>
+      </div>
     </div>
   );
 }

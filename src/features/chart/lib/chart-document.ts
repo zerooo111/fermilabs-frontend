@@ -1,17 +1,18 @@
 /**
- * Per-market chart layout: indicators, drawings, volume and log scale, kept in
- * localStorage. Shared by both price sources and every interval, since mark
- * and last-trade charts sit on the same price scale and drawings are anchored
- * by time and price.
+ * Per-market chart layout: chart type, indicators, drawings and their groups,
+ * volume and log scale, kept in localStorage. Shared by both price sources and
+ * every interval, since mark and last-trade charts sit on the same price scale
+ * and drawings are anchored by time and price.
  */
 import type { ChartApi } from 'candleframe/chart';
+import { isChartType } from 'candleframe/core';
 
 const KEY_PREFIX = 'perps-chart:layout:';
 const SAVE_DELAY_MS = 400;
 
 type SavedLayout = Pick<
   ReturnType<ChartApi['exportDocument']>,
-  'indicators' | 'drawings' | 'layers'
+  'indicators' | 'drawings' | 'drawingGroups' | 'layers' | 'chartType'
 > & { log?: boolean };
 
 function read(symbol: string): SavedLayout | null {
@@ -37,6 +38,8 @@ export function restoreChartLayout(chart: ChartApi, symbol: string): void {
         ...document,
         indicators: saved.indicators ?? document.indicators,
         drawings: saved.drawings ?? document.drawings,
+        drawingGroups: saved.drawingGroups ?? document.drawingGroups,
+        chartType: saved.chartType && isChartType(saved.chartType) ? saved.chartType : undefined,
         layers: { ...document.layers, ...saved.layers },
         priceScale: saved.log ? { mode: 'auto', log: true } : { mode: 'auto' },
       },
@@ -66,8 +69,16 @@ export function autosaveChartLayout(chart: ChartApi, symbol: string): ChartLayou
   let lastRevision = chart.inspect().documentRevision;
   const save = () => {
     timer = undefined;
-    const { indicators, drawings, layers, priceScale } = chart.exportDocument();
-    const layout: SavedLayout = { indicators, drawings, layers, log: !!priceScale.log };
+    const { indicators, drawings, drawingGroups, layers, priceScale, chartType } =
+      chart.exportDocument();
+    const layout: SavedLayout = {
+      indicators,
+      drawings,
+      drawingGroups,
+      layers,
+      chartType,
+      log: !!priceScale.log,
+    };
     try {
       window.localStorage.setItem(KEY_PREFIX + symbol, JSON.stringify(layout));
     } catch {

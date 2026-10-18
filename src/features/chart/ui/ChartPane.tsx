@@ -11,6 +11,7 @@ import { createChart, type ChartApi } from 'candleframe/chart';
 import {
   builtInDrawingTools,
   type Candle,
+  type ChartType,
   type Drawing,
   type DrawingPatch,
 } from 'candleframe/core';
@@ -19,7 +20,11 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
 import type { HarnessMarketConversionParams } from '@/shared/lib/harness-market';
-import { fermiChartTheme } from '@/features/chart/lib/candleframe-theme';
+import {
+  chartTheme,
+  resolveTimeZone,
+  type ChartSettings,
+} from '@/features/chart/lib/chart-settings';
 import { createFermiFeed, type FermiFeed } from '@/features/chart/lib/fermi-feed';
 import {
   autosaveChartLayout,
@@ -52,6 +57,7 @@ export interface PaneView {
   hasDrawings: boolean;
   drawingsHidden: boolean;
   tool: string;
+  chartType: ChartType;
 }
 
 /** Drawing options the rail sets on every pane alike. */
@@ -83,6 +89,8 @@ interface ChartPaneProps {
   onView: (index: number, view: PaneView) => void;
   onCandles?: (candles: readonly Candle[]) => void;
   drawingPrefs: DrawingPrefs;
+  /** Colors, legend, scales and canvas from the chart settings dialog. */
+  settings: ChartSettings;
   position: ChartPosition | null;
   onTriggerChange?: (kind: TriggerKind, price: number | null) => Promise<boolean>;
 }
@@ -107,6 +115,7 @@ function ChartPaneComponent({
   onView,
   onCandles,
   drawingPrefs,
+  settings,
   position,
   onTriggerChange,
 }: ChartPaneProps) {
@@ -126,8 +135,26 @@ function ChartPaneComponent({
   const autosaveRef = useRef<ChartLayoutAutosave | null>(null);
 
   // Latest props for long-lived callbacks.
-  const latest = useRef({ market, livePrices, onCandles, onView, onChart, interval, priceSource });
-  latest.current = { market, livePrices, onCandles, onView, onChart, interval, priceSource };
+  const latest = useRef({
+    market,
+    livePrices,
+    onCandles,
+    onView,
+    onChart,
+    interval,
+    priceSource,
+    settings,
+  });
+  latest.current = {
+    market,
+    livePrices,
+    onCandles,
+    onView,
+    onChart,
+    interval,
+    priceSource,
+    settings,
+  };
 
   const makeFeed = useCallback((source: PerpsPriceSource, tf: PerpsTimeframe) => {
     const m = latest.current.market;
@@ -166,6 +193,7 @@ function ChartPaneComponent({
         hasDrawings: lastState.document.drawings.length > 0,
         drawingsHidden,
         tool,
+        chartType: lastState.document.chartType ?? 'candles',
       };
       const key = JSON.stringify(view);
       if (key === lastView) return;
@@ -177,7 +205,8 @@ function ChartPaneComponent({
     try {
       instance = createChart(host, {
         feed: makeFeed(latest.current.priceSource, latest.current.interval),
-        theme: fermiChartTheme,
+        theme: chartTheme(latest.current.settings),
+        timeZone: resolveTimeZone(latest.current.settings.scales.timeZone),
         onHover: bar => hovered.set(bar),
         onToolChange: next => {
           tool = next;
@@ -268,11 +297,13 @@ function ChartPaneComponent({
     const prev = selectionRef.current;
     if (prev.interval === interval && prev.priceSource === priceSource) return;
     selectionRef.current = { interval, priceSource };
-    // The runtime drops drawings when the source changes; write them first
-    // and put them back after.
-    autosaveRef.current?.flush();
+    // An interval switch keeps the document (drawings, groups, undo). A new
+    // source is a new feed id, which starts a fresh document: write the layout
+    // first and put it back after.
+    const sourceChanged = prev.priceSource !== priceSource;
+    if (sourceChanged) autosaveRef.current?.flush();
     chart.replaceFeed(makeFeed(priceSource, interval));
-    restoreChartLayout(chart, layoutKey);
+    if (sourceChanged) restoreChartLayout(chart, layoutKey);
   }, [chart, interval, priceSource, makeFeed, layoutKey]);
 
   // ── Live ticks ────────────────────────────────────────────────────────────
@@ -289,6 +320,18 @@ function ChartPaneComponent({
       stayInDrawingMode: drawingPrefs.keepDrawing,
     });
   }, [chart, drawingPrefs.magnet, drawingPrefs.keepDrawing]);
+
+  // ── Chart settings: theme overrides and time zone ───────────────────────
+  // Skips the first run per engine: createChart already got these.
+  const appliedSettings = useRef<{ chart: ChartApi; settings: ChartSettings } | null>(null);
+  useEffect(() => {
+    if (!chart) return;
+    const applied = appliedSettings.current;
+    appliedSettings.current = { chart, settings };
+    if (applied?.chart !== chart) return;
+    chart.setTheme(chartTheme(settings));
+    chart.setTimeZone(resolveTimeZone(settings.scales.timeZone));
+  }, [chart, settings]);
 
   usePositionPriceLines(chart, position, onTriggerChange);
 
@@ -361,7 +404,9 @@ function ChartPaneComponent({
         hovered={hovered}
         latest={latestBar}
         pricePrecision={pricePrecision}
-        indicators={indicators}
+        indicators={settings.legend.indicators ? indicators : []}
+        showOhlc={settings.legend.ohlc}
+        showChange={settings.legend.change}
         caption={multi ? `${interval} · ${priceSource === 'mark' ? 'Mark' : 'Last'}` : undefined}
         onToggleIndicator={handleToggleIndicator}
         onRemoveIndicator={handleRemoveIndicator}

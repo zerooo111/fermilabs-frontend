@@ -10,7 +10,7 @@
  */
 import { memo, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createChartGroup, type ChartApi } from 'candleframe/chart';
-import type { Candle } from 'candleframe/core';
+import type { Candle, ChartType } from 'candleframe/core';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
@@ -28,6 +28,12 @@ import { ChartActions } from './ChartActions';
 import { ChartDrawingRail, type MagnetMode } from './ChartDrawingRail';
 import { ChartGridDividers } from './ChartGridDividers';
 import { ChartPane, type CandleFrameMarket, type DrawingPrefs, type PaneView } from './ChartPane';
+import { ChartSettingsDialog } from './ChartSettingsDialog';
+import {
+  loadChartSettings,
+  saveChartSettings,
+  type ChartSettings,
+} from '@/features/chart/lib/chart-settings';
 import type { ChartPosition, TriggerKind } from './PositionLines';
 
 export type { CandleFrameMarket } from './ChartPane';
@@ -50,6 +56,7 @@ const EMPTY_VIEW: PaneView = {
   hasDrawings: false,
   drawingsHidden: false,
   tool: 'cursor',
+  chartType: 'candles',
 };
 
 const DRAWING_PREFS_KEY = 'fermi:chart:drawing-prefs';
@@ -101,12 +108,15 @@ function CandleFrameChartComponent({
   const [views, setViews] = useState<PaneView[]>([]);
   const [fullscreen, setFullscreen] = useState(false);
   const [drawingPrefs, setDrawingPrefs] = useState<DrawingPrefs>(loadDrawingPrefs);
+  const [settings, setSettings] = useState<ChartSettings>(loadChartSettings);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const paneCount = GRID_PRESETS[grid.preset].panes;
   const active = Math.min(grid.active, paneCount - 1);
   const multi = paneCount > 1;
 
   useEffect(() => saveGrid(grid), [grid]);
+  useEffect(() => saveChartSettings(settings), [settings]);
   useEffect(() => {
     try {
       localStorage.setItem(DRAWING_PREFS_KEY, JSON.stringify(drawingPrefs));
@@ -253,6 +263,10 @@ function CandleFrameChartComponent({
     (visible: boolean) => run({ type: 'layer.set', layer: 'volume', visible }),
     [run]
   );
+  const handleChartType = useCallback(
+    (chartType: ChartType) => run({ type: 'chartType.set', chartType }),
+    [run]
+  );
   const handleLog = useCallback(
     (enabled: boolean) => run({ type: 'priceScale.log', enabled }),
     [run]
@@ -309,7 +323,8 @@ function CandleFrameChartComponent({
         onIntervalChange={handleIntervalChange}
         priceSource={activeSelection.source}
         onPriceSourceChange={handleSourceChange}
-        showChartType={false}
+        chartType={activeView.chartType}
+        onChartTypeChange={handleChartType}
         actions={
           <ChartActions
             onAddIndicator={handleAddIndicator}
@@ -321,6 +336,7 @@ function CandleFrameChartComponent({
             onLogChange={handleLog}
             onFit={handleFit}
             onSnapshot={handleSnapshot}
+            onSettings={() => setSettingsOpen(true)}
             fullscreen={fullscreen}
             onFullscreenChange={handleFullscreen}
           />
@@ -389,6 +405,7 @@ function CandleFrameChartComponent({
                   onView={handleView}
                   onCandles={i === 0 ? onCandles : undefined}
                   drawingPrefs={drawingPrefs}
+                  settings={settings}
                   position={position}
                   onTriggerChange={onTriggerChange}
                 />
@@ -405,6 +422,12 @@ function CandleFrameChartComponent({
           />
         </div>
       </div>
+      <ChartSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        settings={settings}
+        onChange={setSettings}
+      />
     </div>
   );
 }

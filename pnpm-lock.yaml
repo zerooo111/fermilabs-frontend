@@ -105,8 +105,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       candleframe:
-        specifier: file:vendor/candleframe-0.3.0-d12f351.tgz
-        version: file:vendor/candleframe-0.3.0-d12f351.tgz
+        specifier: file:vendor/candleframe-0.3.0-e911373.tgz
+        version: file:vendor/candleframe-0.3.0-e911373.tgz
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3985,8 +3985,8 @@ packages:
     resolution: {integrity: sha512-Gmy6FhYlCY7uOElZUSbxo2UCDH8owEk996gkbrpsgGtrJLM3J7jGxl9Ic7Qwwj4ivOE5AWZWRMecDdF7hqGjFA==}
     engines: {node: '>=10'}
 
-  candleframe@file:vendor/candleframe-0.3.0-d12f351.tgz:
-    resolution: {integrity: sha512-g2wlUDw1kAcvE4axYM1Z8A8wIoN8k48oqjzSkpIh94vRRCfBWApYDoK8tCj7HhgenD3B8gqqfFkb9ZipS1M+Iw==, tarball: file:vendor/candleframe-0.3.0-d12f351.tgz}
+  candleframe@file:vendor/candleframe-0.3.0-e911373.tgz:
+    resolution: {integrity: sha512-A13bkXtjGD2iPAdoH8WaE1r1aChImWefpJroYNfQwwDFD4pEq8duljkbwXToDzKO9lq5uFB1lD4XN1ptpWbHIA==, tarball: file:vendor/candleframe-0.3.0-e911373.tgz}
     version: 0.3.0
     engines: {node: '>=24'}
 
@@ -13145,7 +13145,7 @@ snapshots:
 
   camelcase@6.3.0: {}
 
-  candleframe@file:vendor/candleframe-0.3.0-d12f351.tgz: {}
+  candleframe@file:vendor/candleframe-0.3.0-e911373.tgz: {}
 
   caniuse-lite@1.0.30001724: {}
 
