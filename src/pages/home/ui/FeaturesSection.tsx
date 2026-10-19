@@ -32,15 +32,15 @@ const FEATURES = [
 export default function FeaturesSection() {
   return (
     <>
-      <section className="w-full border-b border-rock/15">
-        <div className="frame reg flex flex-col gap-4 px-5 py-8 sm:flex-row sm:items-end sm:justify-between md:px-10 md:py-10">
+      <section className="w-full">
+        <div className="frame border-b border-rock/15 reg flex flex-col gap-4 px-5 py-8 sm:flex-row sm:items-end sm:justify-between md:px-10 md:py-10">
           <h2 className="font-serif text-4xl leading-none font-light tracking-[-0.02em] md:text-5xl">
             Why trade on Fermi
           </h2>
         </div>
       </section>
-      <section className="w-full border-b border-rock/15">
-        <div className="frame sheet-grid grid sm:grid-cols-2">
+      <section className="w-full">
+        <div className="frame border-b border-rock/15 sheet-grid grid sm:grid-cols-2">
           {FEATURES.map(({ title, body, Drawing, link }, i) => (
             <article
               key={title}

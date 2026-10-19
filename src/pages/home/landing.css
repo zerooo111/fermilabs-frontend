@@ -7,18 +7,6 @@
   overflow-x: clip;
   font-family: var(--font-sans);
   font-optical-sizing: auto;
-
-  /* Drawing-sheet margins: a dashed guide in each gutter, 40px outside the
-     1280px frame. Below ~1360px wide they fall off-screen. */
-  --guide: rgb(248 247 231 / 0.14);
-  background-image:
-    repeating-linear-gradient(var(--guide) 0 4px, transparent 4px 10px),
-    repeating-linear-gradient(var(--guide) 0 4px, transparent 4px 10px);
-  background-size: 1px 100%;
-  background-repeat: repeat-y;
-  background-position:
-    calc(50% - 680px) 0,
-    calc(50% + 680px) 0;
 }
 
 /* The hero mark, order book items and registration marks overhang the frame,
@@ -120,16 +108,6 @@ html:has(.landing) body {
 
 .reg::after {
   right: -6px;
-}
-
-/* Static ordered-dither band (pre-rendered Bayer PNG, scaled 3x). Dimmed: on
-   the dark background the full-strength lime reads as a block, not an
-   accent. */
-.dither-band {
-  height: 72px;
-  background: url('/dither/fade-up.png') repeat-x left bottom / 24px 72px;
-  image-rendering: pixelated;
-  opacity: 0.35;
 }
 
 /* Footer link row: the footer dither at half size behind the links, dimmed by
@@ -267,8 +245,8 @@ html:has(.landing) body {
 .blueprint {
   background-color: var(--color-surface-sunken);
   background-image:
-    linear-gradient(rgb(248 247 231 / 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(248 247 231 / 0.06) 1px, transparent 1px);
+    linear-gradient(rgb(248 247 231 / 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(248 247 231 / 0.03) 1px, transparent 1px);
   background-size: 16px 16px;
   background-position: -1px -1px;
 }

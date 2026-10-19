@@ -33,8 +33,8 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <section className="w-full border-b border-rock/15">
-      <div className="frame relative isolate overflow-hidden px-5 pt-16 pb-12 md:px-10 md:pt-24 md:pb-16">
+    <section className="w-full">
+      <div className="frame border-b border-rock/15 relative isolate overflow-hidden px-5 pt-16 pb-12 md:px-10 md:pt-24 md:pb-16">
         <div aria-hidden="true" className="grid-patch absolute inset-y-0 right-0 -z-20 w-2/3" />
         <canvas
           ref={canvasRef}
