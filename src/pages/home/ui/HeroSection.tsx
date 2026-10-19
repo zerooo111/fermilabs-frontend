@@ -35,6 +35,7 @@ export default function HeroSection() {
   return (
     <section className="w-full border-b border-rock/15">
       <div className="frame relative isolate overflow-hidden px-5 pt-16 pb-12 md:px-10 md:pt-24 md:pb-16">
+        <div aria-hidden="true" className="grid-patch absolute inset-y-0 right-0 -z-20 w-2/3" />
         <canvas
           ref={canvasRef}
           width="158"
@@ -59,6 +60,8 @@ export default function HeroSection() {
         <div data-intro className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 md:mt-12">
           <a
             href={LINKS.APP}
+            target="_blank"
+            rel="noreferrer"
             className="cursor-pointer bg-amber-200 px-5 py-3 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100"
           >
             Try the Beta

@@ -23,7 +23,7 @@ export default function LandingHeader() {
           >
             Research
           </a>
-          <a href={LINKS.APP} className={`${CELL} text-amber-200`}>
+          <a href={LINKS.APP} target="_blank" rel="noreferrer" className={`${CELL} text-amber-200`}>
             Try the Beta
           </a>
         </div>
