@@ -100,9 +100,8 @@
         overflow: hidden;
         color: #f8f7e7;
         text-align: center;
-        /* Own background: z-index makes this a stacking context, so the grain's
-           soft-light needs a backdrop inside it or it just darkens. */
-        background: #011812;
+        /* Same as the page, so fading out reveals no seam */
+        background: #001409;
         animation: boot-in 0.15s ease-out 0.15s both;
       }
       /* Both directions are animations: a transition can't start from an
@@ -110,44 +109,14 @@
       .boot-splash.is-done { animation: boot-out 0.28s ease both; pointer-events: none; }
       @keyframes boot-in { from { opacity: 0; } }
       @keyframes boot-out { to { opacity: 0; } }
-      /* An orderbook depth chart as a dithered pixel ridge: bids climb left,
-         asks climb right. 200x84 3-colour PNG (~1 KB) inlined so it paints with
-         the first frame, upscaled nearest-neighbour. The scene keeps the art's
-         aspect ratio so the order fills land on exact art pixels. */
-      .boot-splash__scene {
-        position: absolute;
-        left: 50%;
-        bottom: 0;
-        width: max(100%, 1200px);
-        aspect-ratio: 200 / 84;
-        transform: translateX(-50%);
-      }
-      .boot-splash__ridge {
-        position: absolute;
-        inset: 0;
-        background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAABUAgMAAAC6kpA1AAAACVBMVEUAAAAfXkE/gVCzrE0vAAAAAXRSTlMAQObYZgAAA6dJREFUeNqVl71u2zAQxyXDUyc5QDJkb4Y8hQJQBZKpAXQC1CkFagLVWxTwA3SwgMhTAqREzKfs3ZEiqQ/b1HHJx9F//nz/O0qJyDGS2BAYSZYsiYzycds6eseaVZZFigtVFrAYlSxbQpNR+ifui1fRGMkxXcLCW14XqOSiw0g+sgU0mcJIDvoj+qsWRqXR72m0yn2DkXTdPtZmuahZRSmt32JV7piF9u3jbLa2KrJp4lXuJYZRWcqiVKxKdqeksipxBhA9i2zkzziRlVaehZrm8pai64wKHu8tzmZXyqscdlEDwKlgNH+immbVSKfS7SIGQJ47la2UkTbT6t8Ww6jwl3bBYGvRhSyNfolQIZRKVoFKfsFgToVOJ9FmWUTjy4UsXqWqKrbZ5cqkyAIVDFjy8yhDFqkanV0cx1u5DVm67qzNsCqicSx0PKTRnxdIUmx8oPAqr/npyuS5eNJ9YgIMg6X5OA9zoxQmjlROw6wR5bHzKhgVGe33eZQvWJUKJirUNFOenFB6lbZrWSXCZtj3yqAEKmSAeaPRPVx0IxYgo72fsVm6UrYqqNK2rd190PPPAGSvp6MhoWAVsE1zEibDqkiLAkntD9mJWRr6Y1+VGiOxB0QYvAVP+stXxbC0A5UxTh6oBCyEg03zOTuas+xWO4MxC+DxvAHQaGLSKc5fgNngVMhoWr/Pktw2its+YPE4ezGeAeiv5hiQBCxUG/JZNndD8jDuE3mLpzno3ag0a3tDclX8FlsZHgEP0xtSS18Us6UFhrE4Y6M5D7fEMlQBmmdktGyuUzxKv6WuB0ZLZlSwKjBiweC7Jt2MOoVItkFWUpYlQFgarXc9Cz2n9Sotk2B2OVCxbfM3VLnV2wEJqhT9Tx5nZ8fmOgnmV81FKXANVLhtpHwYzq9qmMIsJZSmOl4l7/2VP3p3lSZGKlyd72FpbgYchoXCwEDnDCD6+fWNXVzbmhSFKMREBXGaoDIrNUlIyj6C6uADejAlLQiUp1hgC9I+bNLbwNUEBXhKCc9jqrMPVWpwIGbQwTQq+WKbPk2vYIZF4HI4DNS/BuAo1sewIpw7qwLbl8yw3GDTwzyLBerdRi8BuO710XZJAaJwebMq8IMfAu4ad6fMqzigElqcm2gv/vIcR+lUnikmn/SLVL6Oa8K5zwFLgFTzdK7ZXJOEeRYoSeV6/n9TFYICvp2BjTVVeR4E0CIV8tf1AMHFjMqlSK43uFxAv9JNujEq/LsNyt38BwE7ejz3C+nWAAAAAElFTkSuQmCC') 0 0 / 100% 100%;
+      /* The UFO scene from the landing page's call to action, drawn by the
+         inline script below so it runs before the app bundle loads: one canvas
+         cell per 3 CSS pixels, upscaled nearest-neighbour. */
+      .boot-splash__ufo {
+        width: 288px;
+        height: 216px;
+        margin-bottom: 20px;
         image-rendering: pixelated;
-        opacity: 0.55;
-      }
-      /* Order fills: single ridge-top pixels flashing amber, like orders filling. */
-      .boot-splash__fills i {
-        position: absolute;
-        width: calc(100% / 200);
-        height: calc(100% / 84);
-        background: #fde68a;
-        opacity: 0;
-        animation: boot-fill 2.6s steps(1) infinite;
-      }
-      @keyframes boot-fill { 0% { opacity: 0.9; } 8% { opacity: 0.45; } 16%, 100% { opacity: 0; } }
-      /* Film grain, same as the landing page's NoiseOverlay. */
-      .boot-splash::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: url('/noise.png') repeat;
-        background-size: 256px;
-        mix-blend-mode: soft-light;
-        pointer-events: none;
       }
       .boot-splash__content {
         position: relative;
@@ -155,9 +124,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        margin-bottom: 12vh;
+        margin-bottom: 6vh;
       }
-      .boot-splash__logo { width: 40px; height: 40px; margin-bottom: 28px; image-rendering: pixelated; }
       .boot-splash__eyebrow {
         margin: 0 0 18px;
         font: 400 12px/1 'Paper Mono', ui-monospace, monospace;
@@ -172,56 +140,143 @@
         font-size: clamp(44px, 7vw, 76px);
         line-height: 1.1;
       }
-      /* Pixel loader: five amber blocks lighting up in sequence. Negative
-         delays put it mid-sequence on its first visible frame. */
-      .boot-splash__pixels { display: flex; gap: 6px; margin-top: 30px; }
-      .boot-splash__pixels i {
-        width: 8px;
-        height: 8px;
-        background: #fde68a;
-        opacity: 0.15;
-        animation: boot-step 1.25s steps(1) infinite;
-      }
-      .boot-splash__pixels i:nth-child(1) { animation-delay: -1s; }
-      .boot-splash__pixels i:nth-child(2) { animation-delay: -0.75s; }
-      .boot-splash__pixels i:nth-child(3) { animation-delay: -0.5s; }
-      .boot-splash__pixels i:nth-child(4) { animation-delay: -0.25s; }
-      @keyframes boot-step { 0% { opacity: 1; } 20% { opacity: 0.6; } 40%, 100% { opacity: 0.15; } }
-      @media (prefers-reduced-motion: reduce) {
-        .boot-splash__fills i, .boot-splash__pixels i { animation: none; }
-        .boot-splash__pixels i { opacity: 0.6; }
-      }
     </style>
   </head>
   <body>
     <div id="root"></div>
     <div id="boot-splash" class="boot-splash" aria-hidden="true">
-      <div class="boot-splash__scene">
-        <div class="boot-splash__ridge"></div>
-        <div class="boot-splash__fills">
-          <i style="left: 3.500%; top: 11.905%; animation-delay: -0.00s"></i>
-          <i style="left: 6.500%; top: 15.476%; animation-delay: -0.37s"></i>
-          <i style="left: 14.000%; top: 29.762%; animation-delay: -0.74s"></i>
-          <i style="left: 20.000%; top: 48.810%; animation-delay: -1.11s"></i>
-          <i style="left: 31.500%; top: 64.286%; animation-delay: -1.48s"></i>
-          <i style="left: 32.500%; top: 66.667%; animation-delay: -1.85s"></i>
-          <i style="left: 54.500%; top: 88.095%; animation-delay: -2.22s"></i>
-          <i style="left: 56.500%; top: 88.095%; animation-delay: -2.59s"></i>
-          <i style="left: 68.500%; top: 65.476%; animation-delay: -0.36s"></i>
-          <i style="left: 69.000%; top: 65.476%; animation-delay: -0.73s"></i>
-          <i style="left: 76.500%; top: 58.333%; animation-delay: -1.10s"></i>
-          <i style="left: 88.500%; top: 22.619%; animation-delay: -1.47s"></i>
-          <i style="left: 92.000%; top: 7.143%; animation-delay: -1.84s"></i>
-          <i style="left: 97.000%; top: 7.143%; animation-delay: -2.21s"></i>
-        </div>
-      </div>
       <div class="boot-splash__content">
-        <img class="boot-splash__logo" src="/logo.svg" alt="" />
+        <canvas id="boot-ufo" class="boot-splash__ufo" width="96" height="72"></canvas>
         <p class="boot-splash__eyebrow">Perpetuals on Solana</p>
         <p class="boot-splash__wordmark">Fermi Trade</p>
-        <div class="boot-splash__pixels"><i></i><i></i><i></i><i></i><i></i></div>
       </div>
     </div>
+    <script>
+      // Boot splash scene: a saucer beams up an alien on a loop. A compact copy
+      // of src/pages/home/lib/alien-field.ts (same sprites and tones), inline so
+      // it plays while the app bundle is still downloading. Stops once
+      // boot-splash.ts removes the splash.
+      (function () {
+        var canvas = document.getElementById('boot-ufo');
+        var ctx = canvas && canvas.getContext('2d');
+        if (!ctx) return;
+        var W = 96, H = 72, GROUND = 64;
+        var LICHEN = [null, [8, 40, 26], [20, 66, 44], [72, 138, 84], [180, 220, 120]];
+        var AMBER = [null, [16, 40, 22], [56, 72, 36], [140, 132, 72], [253, 230, 138]];
+        var STAR = [null, [24, 52, 38], [96, 110, 96], [210, 210, 196]];
+        var ROCK = [248, 247, 231];
+        var BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+        var UFO = ['........AAAAAAA........', '......AAAAAAAAAAA......', '.....AAAAAAAAAAAAA.....',
+          '..LLLLLLLLLLLLLLLLLLL..', 'LLLLLLLLLLLLLLLLLLLLLLL', 'LL.o..o..o..o..o..o..LL',
+          'LLLLLLLLLLLLLLLLLLLLLLL', '...LLLLLLLLLLLLLLLLL...'];
+        var CRAB = [['..#.....#..', '...#...#...', '..#######..', '.##.###.##.', '###########', '#.#######.#', '#.#.....#.#', '...##.##...'],
+          ['..#.....#..', '#..#...#..#', '#.#######.#', '###.###.###', '###########', '.#########.', '..#.....#..', '.#.......#.']];
+        var SQUID = [['...##...', '..####..', '.######.', '##.##.##', '########', '..#..#..', '.#.##.#.', '#.#..#.#'],
+          ['...##...', '..####..', '.######.', '##.##.##', '########', '.#.##.#.', '#......#', '.#....#.']];
+        var STARS = [[6, 6], [20, 14], [33, 4], [70, 8], [86, 18], [12, 30], [80, 34], [90, 4], [4, 46], [91, 50]];
+        var img = ctx.createImageData(W, H);
+        var d = img.data;
+
+        function level(v, n, x, y) {
+          var t = Math.min(1, Math.max(0, v)) * n, lo = Math.floor(t);
+          return Math.min(n, lo + (t - lo > (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16 ? 1 : 0));
+        }
+        function put(x, y, c) {
+          if (!c || x < 0 || y < 0 || x >= W || y >= H) return;
+          var i = (y * W + x) * 4;
+          d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
+        }
+
+        // One loop: walk in, get lifted, a beat of flashing lights
+        var WALK = 80, LIFT = 90, REST = 40, LOOP = WALK + LIFT + REST;
+        function draw(t) {
+          d.fill(0);
+          var cx = 48 + Math.sin(t * 0.012) * 4;
+          var uy = 6 + Math.sin(t * 0.05) * 1.5;
+          var hull = uy + 16;
+          var k = t % LOOP, round = Math.floor(t / LOOP);
+          var sprite = round % 2 ? SQUID : CRAB;
+          var fromLeft = round % 2 === 0;
+          var sw = sprite[0][0].length, sh = sprite[0].length;
+          var x, y, v;
+
+          for (var s = 0; s < STARS.length; s++) {
+            v = 0.5 + 0.5 * Math.sin(s * 1.7 + t * (0.02 + s * 0.004));
+            put(STARS[s][0], STARS[s][1], STAR[Math.round(v * 3)]);
+          }
+          // Halo and beam
+          var lifting = k >= WALK && k < WALK + LIFT;
+          var pulse = 0.85 + 0.15 * Math.sin(t * 0.08) + (lifting ? 0.12 : 0);
+          for (y = Math.max(0, Math.floor(uy - 6)); y <= GROUND; y++) {
+            for (x = 0; x < W; x++) {
+              var hx = (x - cx) / 30, hy = (y - (uy + 8)) / 14;
+              v = 0.3 * Math.max(0, 1 - Math.hypot(hx, hy));
+              if (y > hull) {
+                var f = (y - hull) / (GROUND - hull), half = 7 + f * 12, dd = Math.abs(x - cx) / half;
+                if (dd < 1) {
+                  var scan = (((y - t * 0.4) % 8) + 8) % 8 < 2 ? 0.14 : 0;
+                  v = Math.max(v, (0.5 - 0.28 * f + scan) * Math.min(1, (1 - dd) * 2.2) * pulse);
+                }
+              }
+              if (v > 0) put(x, y, LICHEN[level(v, 3, x, y)]);
+            }
+          }
+          for (x = 0; x < W; x += 2) put(x, GROUND + 1, [44, 70, 56]);
+
+          // The alien: walks to the beam, then rises into the hull
+          if (k < WALK + LIFT) {
+            var startX = fromLeft ? 4 : W - sw - 4, endX = cx - sw / 2;
+            var ax, ay, fade = 1;
+            if (k < WALK) {
+              ax = startX + (endX - startX) * (k / WALK);
+              ay = GROUND - sh;
+            } else {
+              var p = (k - WALK) / LIFT, e = p * p * (3 - 2 * p);
+              ax = endX;
+              ay = GROUND - sh + (hull - (GROUND - sh)) * e;
+              fade = 1 - p * 0.6;
+            }
+            var frame = sprite[Math.floor(t / 14) % 2];
+            for (var r = 0; r < sh; r++)
+              for (var c = 0; c < sw; c++)
+                if (frame[r][c] === '#') {
+                  x = Math.round(ax) + c; y = Math.round(ay) + r;
+                  put(x, y, (round % 3 === 1 ? AMBER : LICHEN)[level(fade, 4, x, y)]);
+                }
+          }
+
+          // Saucer, each sprite pixel as 2x2 dithered cells
+          var ox = Math.round(cx - 23), oy = Math.round(uy);
+          var flash = k >= WALK + LIFT && Math.floor((k - WALK - LIFT) / 6) % 2 === 0;
+          for (var cy = 0; cy < 16; cy++)
+            for (var cc = 0; cc < 46; cc++) {
+              var rr = cy >> 1, col = cc >> 1, ch = UFO[rr][col];
+              if (ch === '.') continue;
+              x = ox + cc; y = oy + cy;
+              if (ch === 'A') put(x, y, AMBER[level(0.55 + 0.35 * (1 - rr / 3) + 0.15 * (col / 23), 4, x, y)]);
+              else if (ch === 'L') put(x, y, LICHEN[level([0, 0, 0, 0.92, 0.82, 0.74, 0.64, 0.5][rr], 4, x, y)]);
+              else {
+                var on = k >= WALK + LIFT ? flash : (Math.floor(t / 8) + Math.floor(col / 3)) % 3 === 0;
+                put(x, y, on ? ROCK : AMBER[2]);
+              }
+            }
+          ctx.putImageData(img, 0, 0);
+        }
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          draw(WALK + 40);
+          return;
+        }
+        var start = 0;
+        function loop(now) {
+          if (!document.getElementById('boot-splash')) return;
+          if (!start) start = now;
+          draw(Math.floor(((now - start) / 1000) * 60));
+          requestAnimationFrame(loop);
+        }
+        requestAnimationFrame(loop);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -9,7 +9,7 @@ import { hideBootSplash } from '@/shared/lib/boot-splash';
 
 // The boot splash (index.html) covers the first load until a route renders.
 // These fallbacks only show on later client-side navigations.
-const LoadingPage = () => <div className="min-h-screen bg-dark-forest" />;
+const LoadingPage = () => <div className="min-h-screen bg-background" />;
 
 // Rendered beside each page inside its Suspense boundary, so it mounts only
 // once the page's chunk has loaded and the page itself has rendered.
