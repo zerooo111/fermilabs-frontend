@@ -2,14 +2,7 @@
  * AppRouter.tsx
  * Main application router configuration with code splitting
  */
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Layout } from '@/shared/ui/layout/Layout';
 import {
   LazyHomePage,
@@ -21,17 +14,10 @@ import {
   LazyVaultDetailPage,
   LazyPointsPage,
   LazyPointsDocsPage,
-  LazyPointsWalletPage,
 } from './LazyRoutes';
 import { isAppHost, redirectOffLanding } from './domains';
 // The format module, not the feature index: keeps the points UI out of the main bundle.
 import { walletPointsPath } from '@/features/points/model/format';
-
-/** /points is the checker; /points?wallet=<address> is that wallet's dashboard. */
-const PointsRoute = () => {
-  const [params] = useSearchParams();
-  return params.has('wallet') ? <LazyPointsWalletPage /> : <LazyPointsPage />;
-};
 
 /** Old /points/<address> links, from before the wallet moved to ?wallet=. */
 const LegacyWalletRedirect = () => {
@@ -50,7 +36,7 @@ export const AppRouter = () => {
         <Route path="/" element={isAppHost ? <Navigate replace to="/perps" /> : <LazyHomePage />} />
 
         {/* Served on fermi.trade with the landing chrome */}
-        <Route path="/points" element={<PointsRoute />} />
+        <Route path="/points" element={<LazyPointsPage />} />
         <Route path="/points/docs" element={<LazyPointsDocsPage />} />
         <Route path="/points/:wallet" element={<LegacyWalletRedirect />} />
 

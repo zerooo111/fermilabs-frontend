@@ -1,5 +1,5 @@
 import bs58 from 'bs58';
-import type { EpochStatus, PointsCategory, PointsEpoch } from '../api/pointsClient';
+import type { PointsCategory, PointsEpoch } from '../api/pointsClient';
 
 export const CATEGORY_LABELS: Record<PointsCategory, string> = {
   flp_vault: 'FLP vault',
@@ -19,14 +19,6 @@ export const CATEGORY_ORDER: PointsCategory[] = [
   'referral',
   'bonus',
 ];
-
-export const STATUS_LABELS: Record<EpochStatus, string> = {
-  upcoming: 'Upcoming',
-  live: 'Estimate',
-  computing: 'Computing',
-  provisional: 'Provisional',
-  final: 'Final',
-};
 
 /** A wallet's points dashboard: the checker page with `?wallet=`. */
 export function walletPointsPath(wallet: string): string {
@@ -52,26 +44,18 @@ const POINTS_SIGNED = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
   signDisplay: 'exceptZero',
 });
-const COUNT = new Intl.NumberFormat('en-US');
 
 /** Points to 2 decimals with thousands separators. */
 export const points = (n: number) => POINTS.format(n);
 /** Points with an explicit sign, for activity rows. */
 export const pointsSigned = (n: number) => POINTS_SIGNED.format(n);
-export const count = (n: number) => COUNT.format(n);
 
-const DATE = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const DATE_YEAR = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
   month: 'short',
   year: 'numeric',
   timeZone: 'UTC',
 });
-
-/** `15 Oct – 1 Nov 2026`, in UTC like the epoch boundaries. */
-export function epochRange(e: Pick<PointsEpoch, 'starts_at_ms' | 'ends_at_ms'>): string {
-  return `${DATE.format(e.starts_at_ms)} – ${DATE_YEAR.format(e.ends_at_ms)}`;
-}
 
 export const dateUtc = (ms: number) => DATE_YEAR.format(ms);
 
@@ -88,16 +72,4 @@ export function countdown(ms: number): string {
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
-}
-
-/** `details` values as short display strings; nested objects are skipped. */
-export function detailPairs(details: Record<string, unknown>): [string, string][] {
-  return Object.entries(details)
-    .filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v))
-    .map(([k, v]) => [
-      k.replace(/_/g, ' '),
-      typeof v === 'number'
-        ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(v)
-        : String(v),
-    ]);
 }

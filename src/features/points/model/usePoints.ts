@@ -8,7 +8,6 @@ import axios from 'axios';
 
 import {
   fetchPointsAccount,
-  fetchPointsAccountEpochs,
   fetchPointsActivity,
   fetchPointsEpochs,
   fetchPointsLeaderboard,
@@ -54,17 +53,6 @@ export function usePointsAccount(wallet: string | undefined) {
     enabled: !!wallet,
     staleTime: STALE_MS,
     placeholderData: keepPreviousData,
-    retry,
-  });
-}
-
-export function usePointsAccountEpochs(wallet: string | undefined) {
-  return useQuery({
-    queryKey: [...pointsKey, 'account-epochs', wallet],
-    queryFn: ({ signal }) => fetchPointsAccountEpochs(wallet!, signal),
-    select: data => data.epochs,
-    enabled: !!wallet,
-    staleTime: STALE_MS,
     retry,
   });
 }
