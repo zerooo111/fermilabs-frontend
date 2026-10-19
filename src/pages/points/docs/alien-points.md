@@ -16,7 +16,7 @@ This page tells you:
 
 All rules and parameters on this page are fixed before the season starts. An open-source scorer applies them to on-chain data. Anyone can use the same data to calculate the points of any account.
 
-> **Status: Draft.** The values on this page can change before the season starts. Fermi publishes all changes in advance. Refer to [Changes to the rules](#changes-to-the-rules).
+> **Status:** Draft. The values on this page can change before the season starts. Fermi publishes all changes in advance. Refer to [Changes to the rules](#changes-to-the-rules).
 
 ## Terms
 
@@ -65,7 +65,7 @@ You do not have to claim points. Fermi adds them to your account automatically.
 
 Each epoch has two sources of points: the floor and the curve.
 
-![Weekly points emitted in three growth paths. The floor decreases from 500k to 200k points. The curve adds points as qualified volume increases.](images/alien-weekly-emissions.png)
+![Weekly points emitted in three growth paths. The floor decreases from 500k to 200k points. The curve adds points as qualified volume increases.](images/alien-weekly-emissions.webp)
 
 _Figure 1. Weekly points in three illustrative growth paths. These paths are examples, not forecasts._
 
@@ -104,7 +104,7 @@ The curve has these properties:
 - The rate decreases by 50% for each $22.2B of cumulative qualified volume.
 - Fermi publishes the current rate in each epoch. Thus you know the rate before you trade.
 
-![The curve rate decreases from 3,125 points per $1M. It decreases by 50% for each $22.2B of cumulative qualified volume.](images/alien-curve-rate.png)
+![The curve rate decreases from 3,125 points per $1M. It decreases by 50% for each $22.2B of cumulative qualified volume.](images/alien-curve-rate.webp)
 
 _Figure 2. The curve rate for each $1M of qualified volume. Early activity gets more points for each dollar._
 
@@ -120,12 +120,12 @@ Fermi keeps a reserve of 5,000,000 points or less. Fermi uses the reserve only f
 
 Season 1 cannot release more than 124,200,000 points.
 
-| Source                |  Maximum points |
-| --------------------- | --------------: |
-| Floor                 |      18,200,000 |
-| Curve                 |     100,000,000 |
-| Pre-deposit pool      |       1,000,000 |
-| Discretionary reserve |       5,000,000 |
+| Source                | Maximum points  |
+| --------------------- | --------------- |
+| Floor                 | 18,200,000      |
+| Curve                 | 100,000,000     |
+| Pre-deposit pool      | 1,000,000       |
+| Discretionary reserve | 5,000,000       |
 | **Total**             | **124,200,000** |
 
 ## How Fermi divides each epoch
@@ -133,11 +133,11 @@ Season 1 cannot release more than 124,200,000 points.
 ### Division between categories
 
 | Category                                | Share of the floor | Share of the curve |
-| --------------------------------------- | -----------------: | -----------------: |
-| Liquidity (FLP vault and resting depth) |               100% |                20% |
-| Volume                                  |                 0% |              37.5% |
-| Open interest                           |                 0% |              37.5% |
-| Referrals                               |                 0% |                 5% |
+| --------------------------------------- | ------------------ | ------------------ |
+| Liquidity (FLP vault and resting depth) | 100%               | 20%                |
+| Volume                                  | 0%                 | 37.5%              |
+| Open interest                           | 0%                 | 37.5%              |
+| Referrals                               | 0%                 | 5%                 |
 
 ### Division of liquidity points
 
@@ -149,29 +149,29 @@ Resting depth share(w) = 100% − FLP vault share(w)
 ```
 
 | Epoch | FLP vault | Resting depth |
-| ----: | --------: | ------------: |
-|     1 |     70.0% |         30.0% |
-|    13 |     59.4% |         40.6% |
-|    26 |     47.9% |         52.1% |
-|    39 |     36.5% |         63.5% |
-|    52 |     25.0% |         75.0% |
+| ----- | --------- | ------------- |
+| 1     | 70.0%     | 30.0%         |
+| 13    | 59.4%     | 40.6%         |
+| 26    | 47.9%     | 52.1%         |
+| 39    | 36.5%     | 63.5%         |
+| 52    | 25.0%     | 75.0%         |
 
 ### Change of the mix over time
 
 The floor decreases. The curve increases when qualified volume increases. Thus the mix moves from liquidity to trading as Fermi grows.
 
-![Stacked area chart of weekly points by category in the Base growth path. FLP vault and resting depth are largest at the start. Volume and open interest become largest after epoch 13.](images/alien-category-mix.png)
+![Stacked area chart of weekly points by category in the Base growth path. FLP vault and resting depth are largest at the start. Volume and open interest become largest after epoch 13.](images/alien-category-mix.webp)
 
 _Figure 3. Points by category in the illustrative Base growth path._
 
 In the Base growth path, the mix is:
 
 | Epoch | FLP vault | Resting depth | Volume | Open interest | Referrals |
-| ----: | --------: | ------------: | -----: | ------------: | --------: |
-|     1 |     58.0% |         24.8% |   8.1% |          8.1% |      1.1% |
-|     8 |     43.4% |         24.6% |  15.0% |         15.0% |      2.0% |
-|    26 |     14.3% |         15.5% |  32.9% |         32.9% |      4.4% |
-|    52 |      7.9% |         23.8% |  32.0% |         32.0% |      4.3% |
+| ----- | --------- | ------------- | ------ | ------------- | --------- |
+| 1     | 58.0%     | 24.8%         | 8.1%   | 8.1%          | 1.1%      |
+| 8     | 43.4%     | 24.6%         | 15.0%  | 15.0%         | 2.0%      |
+| 26    | 14.3%     | 15.5%         | 32.9%  | 32.9%         | 4.4%      |
+| 52    | 7.9%      | 23.8%         | 32.0%  | 32.0%         | 4.3%      |
 
 The real mix depends on real qualified volume.
 
@@ -179,58 +179,51 @@ The real mix depends on real qualified volume.
 
 ### FLP vault
 
-- Fermi multiplies your USD deposit by the number of seconds you hold it in the epoch. This value is your score.
-- If you withdraw a deposit in 7 days or less after you made it, you lose the points from that deposit.
+1. Fermi multiplies your USD deposit by the number of seconds you hold it in the epoch. This value is your score.
+2. If you withdraw a deposit in 7 days or less after you made it, you lose the points from that deposit.
 
 ### Resting depth
 
 Fermi measures resting depth with snapshots of the order book.
 
-**Snapshot times.** Fermi takes approximately 1,440 snapshots each day. The snapshot times come from a seed that Fermi publishes after the epoch closes. Thus makers cannot know the snapshot times in advance.
+- **Snapshot times.** Fermi takes approximately 1,440 snapshots each day. The snapshot times come from a seed that Fermi publishes after the epoch closes. Thus makers cannot know the snapshot times in advance.
+- **Minimum age.** An order counts only if it was on the book for 5 seconds or more before the snapshot.
+- **Distance from the mid price.** Fermi multiplies the notional of each order by a weight. The weight depends on the distance of the order from the mid price.
 
-**Minimum age.** An order counts only if it was on the book for 5 seconds or more before the snapshot.
+  | Distance from mid (BTC, ETH, SOL) | Distance from mid (other markets) | Weight |
+  | --------------------------------- | --------------------------------- | ------ |
+  | 2 bps or less                     | 4 bps or less                     | 1.00   |
+  | 5 bps or less                     | 10 bps or less                    | 0.50   |
+  | 10 bps or less                    | 20 bps or less                    | 0.25   |
+  | 25 bps or less                    | 50 bps or less                    | 0.10   |
 
-**Distance from the mid price.** Fermi multiplies the notional of each order by a weight. The weight depends on the distance of the order from the mid price.
-
-| Distance from mid (BTC, ETH, SOL) | Distance from mid (other markets) | Weight |
-| --------------------------------- | --------------------------------- | -----: |
-| 2 bps or less                     | 4 bps or less                     |   1.00 |
-| 5 bps or less                     | 10 bps or less                    |   0.50 |
-| 10 bps or less                    | 20 bps or less                    |   0.25 |
-| 25 bps or less                    | 50 bps or less                    |   0.10 |
-
-**Cap.** Fermi counts a maximum notional for each account, side and distance band: $250,000 on BTC, ETH and SOL, and $50,000 on other markets.
-
-**Two sides.** Each snapshot score is `2 × Bid × Ask / (Bid + Ask)`. Bid and Ask are the weighted notional on each side. If one side has no orders, the snapshot score is zero.
-
-**Epoch score.** Your epoch score is `average snapshot score × uptime^1.5 × (1 − fade ratio)`.
-
-- Uptime is the percentage of snapshots in which you had orders on the two sides.
-- Fade ratio is the percentage of your top-of-book orders that you cancelled 500 ms or less before an opposite order arrived.
-
-**Markets.** BTC, ETH and SOL get 60% of the resting depth pool. Fermi divides the remaining 40% with a market weight table. Fermi publishes this table before each epoch.
-
-**Exclusion.** Market makers with a direct liquidity agreement with Fermi do not get resting depth points. Their agreement pays them.
+- **Cap.** Fermi counts a maximum notional for each account, side and distance band: $250,000 on BTC, ETH and SOL, and $50,000 on other markets.
+- **Two sides.** Each snapshot score is `2 × Bid × Ask / (Bid + Ask)`. Bid and Ask are the weighted notional on each side. If one side has no orders, the snapshot score is zero.
+- **Epoch score.** Your epoch score is `average snapshot score × uptime^1.5 × (1 − fade ratio)`.
+  - Uptime is the percentage of snapshots in which you had orders on the two sides.
+  - Fade ratio is the percentage of your top-of-book orders that you cancelled 500 ms or less before an opposite order arrived.
+- **Markets.** BTC, ETH and SOL get 60% of the resting depth pool. Fermi divides the remaining 40% with a market weight table. Fermi publishes this table before each epoch.
+- **Exclusion.** Market makers with a direct liquidity agreement with Fermi do not get resting depth points. Their agreement pays them.
 
 ### Volume
 
-- Fermi calculates your qualified volume: `taker notional × 1.0 + maker notional × 0.5`.
-- Fermi applies a size multiplier. The multiplier depends on your average daily qualified volume over the last 30 days.
+1. Fermi calculates your qualified volume: taker notional × 1.0 + maker notional × 0.5.
+2. Fermi applies a size multiplier. The multiplier depends on your average daily qualified volume over the last 30 days.
 
 | Average daily qualified volume (30 days) | Multiplier |
-| ---------------------------------------- | ---------: |
-| Less than $10M                           |       1.00 |
-| $10M or more                             |       1.10 |
-| $100M or more                            |       1.25 |
+| ---------------------------------------- | ---------- |
+| Less than $10M                           | 1.00       |
+| $10M or more                             | 1.10       |
+| $100M or more                            | 1.25       |
 
 The multiplier changes your share of the volume pool. It does not increase the volume pool.
 
 ### Open interest
 
-- Each hour, Fermi measures your absolute net position in each market. Fermi adds all wallets of one owner together.
-- Fermi adds these hourly values for the epoch. This sum is your score.
-- Fermi does not count positions that are open for less than 1 hour.
-- Fermi does not count open interest above 5 times your account equity.
+1. Each hour, Fermi measures your absolute net position in each market. Fermi adds all wallets of one owner together.
+2. Fermi adds these hourly values for the epoch. This sum is your score.
+3. Fermi does not count positions that are open for less than 1 hour.
+4. Fermi does not count open interest above 5 times your account equity.
 
 A long position and a short position of the same owner cancel each other.
 
@@ -251,8 +244,7 @@ A long position and a short position of the same owner cancel each other.
 3. In 48 hours or less, Fermi publishes provisional points, the curve rate and the pool sizes.
 4. For 14 days, the points stay provisional. In this period, Fermi can review them and you can appeal.
 5. After 14 days, the points become final.
-
-Fermi adds removed points to the pools of the next epoch. All participants share them.
+6. Fermi adds removed points to the pools of the next epoch. All participants share them.
 
 ## Fair-play rules
 
@@ -300,7 +292,7 @@ The result is the same as the published balance. Excluded accounts are the only 
 2. Connect your Solana wallet.
 3. Deposit USDC in the FLP vault. Deposits made from 15 October 2026 share the pre-deposit pool.
 4. From 1 November 2026, trade or place resting orders to get points in the other categories.
-5. Monitor your points on the [points page](/points) after each epoch closes.
+5. Monitor your points on the points page after each epoch closes.
 
 ## Parameter reference
 
@@ -338,18 +330,14 @@ Fermi can change the parameters on this page. If Fermi changes a parameter:
 
 ## Questions
 
-### Can I change ALIEN points to a token?
-
+**Can I change ALIEN points to a token?**
 Fermi has not announced a token or a conversion. ALIEN points record your contribution to Fermi.
 
-### Can I lose points?
-
+**Can I lose points?**
 You can lose provisional points if they come from activity that breaks the fair-play rules. You can appeal in the 14-day provisional period. Final points do not change.
 
-### Why do I get fewer points for each dollar over time?
-
+**Why do I get fewer points for each dollar over time?**
 The curve rate decreases when cumulative qualified volume increases. Thus early activity gets more points. Also, total points stay in proportion to the size of Fermi.
 
-### Do I get points if I trade through a market maker agreement?
-
+**Do I get points if I trade through a market maker agreement?**
 Market makers with a direct liquidity agreement do not get resting depth points. They can get points in the other categories.
