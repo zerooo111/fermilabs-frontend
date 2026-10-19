@@ -385,3 +385,56 @@ export function ContinuumDrawing() {
     </Blueprint>
   );
 }
+
+export function LatencyDrawing() {
+  return (
+    <Blueprint label="Deterministic FIFO ordering makes a trade certain as fast as a centralized exchange; batch ordering waits for the batch to close">
+      <line x1="40" y1="140" x2="296" y2="140" className="soft" />
+      <text x="296" y="154" textAnchor="end">
+        time to certainty
+      </text>
+
+      <text x="20" y="37">
+        cex
+      </text>
+      <circle cx="62" cy="34" r="3" className="fill-rock" />
+      <g className="a-confirm-now">
+        <rect x="72" y="26" width="16" height="16" />
+        <path d="M76 34 l3 3 l6 -6" />
+        <text x="96" y="37">
+          certain
+        </text>
+      </g>
+
+      <text x="20" y="75">
+        fifo
+      </text>
+      <circle cx="62" cy="72" r="3" className="fill-rock" />
+      <g className="a-confirm-now">
+        <rect x="72" y="64" width="16" height="16" className="accent" />
+        <path d="M76 72 l3 3 l6 -6" className="accent" />
+        <text x="96" y="75" className="hi">
+          certain
+        </text>
+      </g>
+
+      <text x="20" y="113">
+        batch
+      </text>
+      <circle cx="62" cy="110" r="3" className="fill-rock" />
+      <line x1="66" y1="110" x2="230" y2="110" className="soft a-wait" />
+      <line x1="240" y1="96" x2="240" y2="124" className="soft" />
+      <g className="a-confirm-late">
+        <rect x="232" y="102" width="16" height="16" />
+        <path d="M236 110 l3 3 l6 -6" />
+        <text x="254" y="113">
+          closes
+        </text>
+      </g>
+
+      <g className="a-playhead">
+        <line x1="62" y1="18" x2="62" y2="140" className="amber" />
+      </g>
+    </Blueprint>
+  );
+}

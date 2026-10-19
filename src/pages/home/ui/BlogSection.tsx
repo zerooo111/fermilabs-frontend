@@ -2,6 +2,7 @@ import { LINKS } from '../constants';
 import {
   ContinuumDrawing,
   FifoPerpsDrawing,
+  LatencyDrawing,
   MarketShareDrawing,
   ProofOfSequenceDrawing,
   RoadmapDrawing,
@@ -9,6 +10,14 @@ import {
 
 // Newest first; the first post is featured across the full width
 const BLOG_POSTS = [
+  {
+    title: 'Latency in Decentralized Systems',
+    description:
+      'Why deterministic, forward-in-time ordering lets a decentralized exchange match centralized latency.',
+    date: 'Oct 17, 2026',
+    url: 'https://seldonfromfermi.substack.com/p/latency-in-decentralized-systems',
+    Drawing: LatencyDrawing,
+  },
   {
     title: 'Fermi v1: Designing a FIFO perps exchange on Solana',
     description:
@@ -66,7 +75,8 @@ function Arrow() {
 }
 
 export default function BlogSection() {
-  const [featured, ...rest] = BLOG_POSTS;
+  // Featured plus a 2x2 grid; older posts live on Substack
+  const [featured, ...rest] = BLOG_POSTS.slice(0, 5);
 
   return (
     <>
