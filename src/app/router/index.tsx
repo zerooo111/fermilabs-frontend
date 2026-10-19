@@ -13,6 +13,8 @@ import {
   LazyFlpPage,
   LazyVaultsPage,
   LazyVaultDetailPage,
+  LazyPointsPage,
+  LazyPointsDocsPage,
 } from './LazyRoutes';
 import { isAppHost, redirectOffLanding } from './domains';
 
@@ -25,6 +27,10 @@ export const AppRouter = () => {
       <Routes>
         {/* app.fermi.trade has no landing page */}
         <Route path="/" element={isAppHost ? <Navigate replace to="/perps" /> : <LazyHomePage />} />
+
+        {/* Served on fermi.trade with the landing chrome */}
+        <Route path="/points" element={<LazyPointsPage />} />
+        <Route path="/points/docs" element={<LazyPointsDocsPage />} />
 
         <Route element={<Layout />}>
           <Route path="/perps" element={<LazyPerpsPage />} />

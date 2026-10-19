@@ -16,11 +16,15 @@ const host = typeof window !== 'undefined' ? window.location.hostname : '';
 export const isLandingHost = LANDING_HOSTS.includes(host);
 export const isAppHost = APP_HOSTS.includes(host);
 
-/** On the landing domain, anything but `/` belongs to the app. */
+/** Paths the landing domain serves itself: the landing page and the points pages. */
+const isLandingPath = (pathname: string) =>
+  pathname === '/' || pathname === '/points' || pathname.startsWith('/points/');
+
+/** On the landing domain, anything but the landing paths belongs to the app. */
 export function redirectOffLanding(): boolean {
   if (!isLandingHost) return false;
   const { pathname, search, hash } = window.location;
-  if (pathname === '/') return false;
+  if (isLandingPath(pathname)) return false;
   window.location.replace(`${APP_ORIGIN}${pathname}${search}${hash}`);
   return true;
 }

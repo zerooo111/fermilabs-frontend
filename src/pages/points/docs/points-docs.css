@@ -1,0 +1,206 @@
+/* Prose for Markdown docs on the landing frame: serif display headings, Archivo
+   body, ruled tables like the drawing-sheet layout. */
+
+.points-doc {
+  max-width: 46rem;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: rgb(248 247 231 / 0.8);
+}
+
+.points-doc > :first-child {
+  margin-top: 0;
+}
+
+.points-doc h1,
+.points-doc h2,
+.points-doc h3,
+.points-doc h4 {
+  scroll-margin-top: 5rem;
+  color: var(--color-rock);
+  line-height: 1.2;
+}
+
+.points-doc h1 {
+  margin-bottom: 1.25rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 5vw, 3rem);
+  font-weight: 400;
+}
+
+.points-doc h2 {
+  margin-top: 3.5rem;
+  margin-bottom: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgb(248 247 231 / 0.15);
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 400;
+}
+
+.points-doc h3 {
+  margin-top: 2.25rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.points-doc h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.points-doc .heading-anchor {
+  color: inherit;
+}
+
+@media (hover: hover) {
+  .points-doc .heading-anchor:hover {
+    color: var(--color-amber-100);
+  }
+}
+
+.points-doc p,
+.points-doc ul,
+.points-doc ol,
+.points-doc blockquote,
+.points-doc pre,
+.points-doc .table-scroll {
+  margin-block: 1rem;
+}
+
+.points-doc ul,
+.points-doc ol {
+  padding-left: 1.25rem;
+}
+
+.points-doc ul {
+  list-style: square;
+}
+
+.points-doc ol {
+  list-style: decimal;
+}
+
+.points-doc li + li {
+  margin-top: 0.25rem;
+}
+
+.points-doc li::marker {
+  color: rgb(248 247 231 / 0.4);
+}
+
+.points-doc strong {
+  color: var(--color-rock);
+  font-weight: 600;
+}
+
+.points-doc em {
+  color: rgb(248 247 231 / 0.55);
+  font-size: 0.875rem;
+}
+
+.points-doc a:not(.heading-anchor) {
+  color: var(--color-amber-200);
+  text-decoration: underline;
+  text-decoration-color: rgb(248 247 231 / 0.3);
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color 150ms;
+}
+
+@media (hover: hover) {
+  .points-doc a:not(.heading-anchor):hover {
+    text-decoration-color: var(--color-amber-200);
+  }
+}
+
+.points-doc blockquote {
+  padding: 0.75rem 1rem;
+  border-left: 2px solid var(--color-amber-200);
+  background: rgb(248 247 231 / 0.04);
+}
+
+.points-doc blockquote > * {
+  margin-block: 0;
+}
+
+.points-doc code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--color-rock);
+}
+
+.points-doc :not(pre) > code {
+  padding: 0.1em 0.35em;
+  background: rgb(248 247 231 / 0.08);
+}
+
+.points-doc pre {
+  overflow-x: auto;
+  padding: 1rem 1.25rem;
+  border: 1px solid rgb(248 247 231 / 0.15);
+  background: rgb(0 0 0 / 0.18);
+  line-height: 1.6;
+}
+
+.points-doc .table-scroll {
+  overflow-x: auto;
+  border: 1px solid rgb(248 247 231 / 0.15);
+}
+
+.points-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.points-doc th {
+  padding: 0.5rem 0.875rem;
+  border-bottom: 1px solid rgb(248 247 231 / 0.15);
+  background: rgb(248 247 231 / 0.04);
+  color: rgb(248 247 231 / 0.6);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.points-doc td {
+  padding: 0.5rem 0.875rem;
+  vertical-align: top;
+}
+
+.points-doc tr + tr td {
+  border-top: 1px solid rgb(248 247 231 / 0.08);
+}
+
+.points-doc img,
+.points-doc .figure-missing {
+  display: block;
+  width: 100%;
+  margin-top: 1.5rem;
+}
+
+.points-doc img {
+  border: 1px solid rgb(248 247 231 / 0.15);
+}
+
+/* Placeholder until the figure PNG is added under public/points/docs/images */
+.points-doc .figure-missing {
+  padding: 2.5rem 1.5rem;
+  border: 1px dashed rgb(248 247 231 / 0.25);
+  color: rgb(248 247 231 / 0.5);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Figure captions are an italic paragraph right after the image */
+.points-doc p:has(> img, > .figure-missing) + p > em:only-child {
+  display: block;
+  margin-top: -0.25rem;
+}

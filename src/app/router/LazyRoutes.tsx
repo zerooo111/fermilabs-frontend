@@ -26,6 +26,8 @@ export const LeaderboardPage = lazy(() => import('@/pages/leaderboard'));
 export const FlpPage = lazy(() => import('@/pages/flp'));
 export const VaultsPage = lazy(() => import('@/pages/vaults'));
 export const VaultDetailPage = lazy(() => import('@/pages/vault-detail'));
+export const PointsPage = lazy(() => import('@/pages/points'));
+export const PointsDocsPage = lazy(() => import('@/pages/points/docs'));
 
 // Wrapper components with Suspense and ErrorBoundary
 export const LazyHomePage = () => (
@@ -95,6 +97,24 @@ export const LazyVaultDetailPage = () => (
   <ErrorBoundary>
     <Suspense fallback={<TradingSkeleton />}>
       <VaultDetailPage />
+      <HideBootSplash />
+    </Suspense>
+  </ErrorBoundary>
+);
+
+export const LazyPointsPage = () => (
+  <ErrorBoundary>
+    <Suspense fallback={<LoadingPage />}>
+      <PointsPage />
+      <HideBootSplash />
+    </Suspense>
+  </ErrorBoundary>
+);
+
+export const LazyPointsDocsPage = () => (
+  <ErrorBoundary>
+    <Suspense fallback={<LoadingPage />}>
+      <PointsDocsPage />
       <HideBootSplash />
     </Suspense>
   </ErrorBoundary>
