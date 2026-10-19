@@ -10,7 +10,7 @@ export const SEASON_START_MS = Date.UTC(2026, 10, 1);
 
 /**
  * When the FLP vault opens for points. The rules put the pre-deposit period at
- * 15 Oct, but the vault isn't live yet (19 Oct 2026), so it counts down to the
+ * 20 Oct, but the vault isn't live yet (19 Oct 2026), so it counts down to the
  * season start like the rest. Set the launch date here once there is one.
  */
 export const FLP_OPENS_MS = SEASON_START_MS;
@@ -31,7 +31,7 @@ export const EARN_WAYS: EarnWay[] = [
   {
     category: 'flp_vault',
     action: 'Deposit in the FLP vault',
-    pitch: 'Early depositors split a 1,000,000-point pool.',
+    pitch: 'Early depositors split a 250,000-point pool.',
     startsAtMs: FLP_OPENS_MS,
     href: '/flp',
     cta: 'Deposit',
