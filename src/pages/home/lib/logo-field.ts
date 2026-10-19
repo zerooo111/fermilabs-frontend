@@ -1,6 +1,7 @@
-// Dithered Fermi Trade mark in the hero background. The mark is a 7x4 pixel
-// glyph; every glyph pixel becomes a block of cells lit by a soft light from
-// the top right and ordered-dithered into forest, lichen and amber tones.
+// Dithered Fermi Trade mark behind the closing call to action. The mark is a
+// 7x4 pixel glyph; every glyph pixel becomes a block of cells lit by a soft
+// light from the top right and ordered-dithered into forest, lichen and amber
+// tones.
 // Every lit cell is a particle that the pointer pushes away and a spring
 // pulls back home.
 

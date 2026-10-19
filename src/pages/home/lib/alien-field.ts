@@ -1,4 +1,4 @@
-// Dithered UFO scene beside the closing call to action. A pixel saucer bobs
+// Dithered UFO scene beside the hero headline. A pixel saucer bobs
 // over the empty side of the section, its tractor beam sweeping the ground;
 // space-invader aliens walk along a dotted ground line, and any that wanders
 // under the beam is lifted into the saucer while a new one walks in. Same

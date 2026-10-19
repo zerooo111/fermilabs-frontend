@@ -7,19 +7,19 @@ import { whenNear } from '../lib/useInView';
 export default function CTASection() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // The UFO scene loads when the section comes near, like the order book field
+  // The dithered mark loads when the section comes near, like the order book field
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     let cleanup: (() => void) | undefined;
     let cancelled = false;
     const stopWatching = whenNear(canvas, () => {
-      import('../lib/alien-field')
-        .then(({ initAlienField }) => {
+      import('../lib/logo-field')
+        .then(({ initLogoField }) => {
           if (!cancelled)
-            cleanup = initAlienField(canvas, { reducedMotion: prefersReducedMotion() });
+            cleanup = initLogoField(canvas, { reducedMotion: prefersReducedMotion() });
         })
-        .catch(error => console.error('Failed to load alien field:', error));
+        .catch(error => console.error('Failed to load logo field:', error));
     });
     return () => {
       cancelled = true;
@@ -32,11 +32,13 @@ export default function CTASection() {
     <>
       <section className="w-full">
         <div className="frame reg relative isolate overflow-hidden px-5 py-16 md:px-10 md:py-24">
-          {/* Hidden on phones, where the text spans the full width */}
+          <div aria-hidden="true" className="grid-patch absolute inset-y-0 right-0 -z-20 w-2/3" />
           <canvas
             ref={canvasRef}
+            width="158"
+            height="104"
             aria-hidden="true"
-            className="pixelated pointer-events-none absolute right-6 bottom-0 -z-10 hidden aspect-[150/110] w-[min(44%,520px)] md:block"
+            className="pixelated pointer-events-none absolute -right-24 -bottom-20 -z-10 aspect-[158/104] w-[26rem] opacity-25 md:-right-4 md:-bottom-14 md:w-[42rem] md:opacity-50"
           />
           <h2 className="max-w-3xl font-serif text-[clamp(2.25rem,5vw,4.5rem)] leading-[1.1] font-light tracking-[-0.03em]">
             Ready to experience the fastest DEX?

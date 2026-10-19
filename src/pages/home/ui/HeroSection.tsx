@@ -3,8 +3,8 @@ import { useEffect, useRef } from 'react';
 import { LINKS } from '../constants';
 import { prefersReducedMotion } from '../lib/dither';
 
-// Load the dithered mark once the browser is idle so it never competes with
-// first paint
+// Load the UFO scene once the browser is idle so it never competes with first
+// paint
 const whenIdle = (fn: () => void) =>
   'requestIdleCallback' in window
     ? window.requestIdleCallback(fn, { timeout: 2000 })
@@ -22,11 +22,11 @@ export default function HeroSection() {
     let cancelled = false;
     const reducedMotion = prefersReducedMotion();
     whenIdle(() => {
-      import('../lib/logo-field')
-        .then(({ initLogoField }) => {
-          if (!cancelled) cleanups.push(initLogoField(canvas, { reducedMotion }));
+      import('../lib/alien-field')
+        .then(({ initAlienField }) => {
+          if (!cancelled) cleanups.push(initAlienField(canvas, { reducedMotion }));
         })
-        .catch(error => console.error('Failed to load logo field:', error));
+        .catch(error => console.error('Failed to load alien field:', error));
       import('../lib/star-field')
         .then(({ initStarField }) => {
           if (!cancelled) cleanups.push(initStarField(stars, { reducedMotion }));
@@ -47,13 +47,11 @@ export default function HeroSection() {
           aria-hidden="true"
           className="pixelated pointer-events-none absolute inset-0 -z-30 h-full w-full"
         />
-        <div aria-hidden="true" className="grid-patch absolute inset-y-0 right-0 -z-20 w-2/3" />
+        {/* Hidden on phones, where the text spans the full width */}
         <canvas
           ref={canvasRef}
-          width="158"
-          height="104"
           aria-hidden="true"
-          className="pixelated pointer-events-none absolute -right-24 -bottom-20 -z-10 aspect-[158/104] w-[26rem] opacity-25 md:-right-4 md:-bottom-14 md:w-[42rem] md:opacity-50"
+          className="pixelated pointer-events-none absolute right-6 bottom-0 -z-10 hidden aspect-[150/110] w-[min(44%,520px)] md:block"
         />
         <p data-intro className="mb-6 text-xs tracking-[0.2em] text-rock/60 uppercase md:mb-8">
           Perpetuals on Solana
