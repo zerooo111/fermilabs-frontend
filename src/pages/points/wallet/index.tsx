@@ -1,10 +1,10 @@
 /**
  * One wallet's points dashboard: balance and rank, category breakdown, epoch
- * history and activity. Public: the address comes from the URL, so a link to
- * this page shows the same numbers to anyone.
+ * history and activity. Public: the address comes from the URL
+ * (/points?wallet=), so a link to this page shows the same numbers to anyone.
  */
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Check, Copy } from 'lucide-react';
 import axios from 'axios';
 import {
@@ -87,7 +87,8 @@ function WalletBody({ wallet }: { wallet: string }) {
 }
 
 function PointsWalletPage() {
-  const { wallet = '' } = useParams();
+  const [params] = useSearchParams();
+  const wallet = params.get('wallet')?.trim() ?? '';
   const valid = isValidAddress(wallet);
 
   useEffect(() => {

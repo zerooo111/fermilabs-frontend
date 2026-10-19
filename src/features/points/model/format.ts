@@ -28,6 +28,11 @@ export const STATUS_LABELS: Record<EpochStatus, string> = {
   final: 'Final',
 };
 
+/** A wallet's points dashboard: the checker page with `?wallet=`. */
+export function walletPointsPath(wallet: string): string {
+  return `/points?wallet=${encodeURIComponent(wallet)}`;
+}
+
 /** A Solana address: base58 that decodes to 32 bytes. */
 export function isValidAddress(s: string): boolean {
   if (s.length < 32 || s.length > 44) return false;

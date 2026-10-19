@@ -3,7 +3,7 @@
  * wallet's points.
  */
 import { Link } from 'react-router-dom';
-import { points, shortAddress } from '../model/format';
+import { points, shortAddress, walletPointsPath } from '../model/format';
 import { usePointsLeaderboard } from '../model/usePoints';
 import { Bone, Notice } from './primitives';
 
@@ -31,7 +31,7 @@ export function TopWallets({ limit = 10 }: { limit?: number }) {
       {data.rows.map(r => (
         <li key={r.wallet}>
           <Link
-            to={`/points/${r.wallet}`}
+            to={walletPointsPath(r.wallet)}
             className="flex items-center gap-4 py-3 transition-colors duration-150 hover:bg-white/5"
           >
             <span className="w-10 shrink-0 pl-2 font-mono text-sm tabular-nums text-rock/50">

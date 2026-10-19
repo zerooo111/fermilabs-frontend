@@ -6,5 +6,5 @@ export { EpochHistory } from './ui/EpochHistory';
 export { ActivityList } from './ui/ActivityList';
 export { Band, Bone, Eyebrow, Notice } from './ui/primitives';
 export { usePointsAccount } from './model/usePoints';
-export { isValidAddress, shortAddress } from './model/format';
+export { isValidAddress, shortAddress, walletPointsPath } from './model/format';
 export type { PointsAccount, PointsCategory, PointsEntry } from './api/pointsClient';

@@ -1,12 +1,12 @@
 /**
- * Address input that opens /points/:wallet. Anyone can check any address;
+ * Address input that opens /points?wallet=. Anyone can check any address;
  * a connected wallet gets a one-click shortcut.
  */
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { cn } from '@/shared/lib/utils';
-import { isValidAddress, shortAddress } from '../model/format';
+import { isValidAddress, shortAddress, walletPointsPath } from '../model/format';
 
 export function AddressChecker({
   initial = '',
@@ -20,7 +20,7 @@ export function AddressChecker({
   const [value, setValue] = useState(initial);
   const [error, setError] = useState<string | null>(null);
 
-  const open = (address: string) => navigate(`/points/${address}`);
+  const open = (address: string) => navigate(walletPointsPath(address));
 
   const submit = (e: FormEvent) => {
     e.preventDefault();

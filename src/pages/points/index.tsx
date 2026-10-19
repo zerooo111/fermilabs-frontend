@@ -1,7 +1,7 @@
 /**
  * Points home: a public checker for any address, the season schedule and the
- * top of the ranking. A wallet's own dashboard lives at /points/:wallet; the
- * rules live at /points/docs.
+ * top of the ranking. With ?wallet= the route shows that wallet's dashboard
+ * instead (see the router); the rules live at /points/docs.
  */
 import { Link } from 'react-router-dom';
 import { AddressChecker, Eyebrow, SeasonOverview, TopWallets } from '@/features/points';
