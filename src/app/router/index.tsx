@@ -16,6 +16,7 @@ import {
   LazyPointsDocsPage,
 } from './LazyRoutes';
 import { isAppHost, redirectOffLanding } from './domains';
+import { showUnlaunched } from '@/shared/lib/domains';
 // The format module, not the feature index: keeps the points UI out of the main bundle.
 import { walletPointsPath } from '@/features/points/model/format';
 
@@ -36,18 +37,26 @@ export const AppRouter = () => {
         <Route path="/" element={isAppHost ? <Navigate replace to="/perps" /> : <LazyHomePage />} />
 
         {/* Served on fermi.trade with the landing chrome */}
-        <Route path="/points" element={<LazyPointsPage />} />
-        <Route path="/points/docs" element={<LazyPointsDocsPage />} />
-        <Route path="/points/:wallet" element={<LegacyWalletRedirect />} />
+        {showUnlaunched && (
+          <>
+            <Route path="/points" element={<LazyPointsPage />} />
+            <Route path="/points/docs" element={<LazyPointsDocsPage />} />
+            <Route path="/points/:wallet" element={<LegacyWalletRedirect />} />
+          </>
+        )}
 
         <Route element={<Layout />}>
           <Route path="/perps" element={<LazyPerpsPage />} />
           <Route path="/perps/:id" element={<LazyPerpsPage />} />
           <Route path="/vault" element={<LazyVaultPage />} />
           <Route path="/referrals" element={<LazyReferralsPage />} />
-          <Route path="/flp" element={<LazyFlpPage />} />
-          <Route path="/vaults" element={<LazyVaultsPage />} />
-          <Route path="/vaults/:network/:address" element={<LazyVaultDetailPage />} />
+          {showUnlaunched && (
+            <>
+              <Route path="/flp" element={<LazyFlpPage />} />
+              <Route path="/vaults" element={<LazyVaultsPage />} />
+              <Route path="/vaults/:network/:address" element={<LazyVaultDetailPage />} />
+            </>
+          )}
           <Route path="*" element={<Navigate replace to="/perps" />} />
         </Route>
       </Routes>
