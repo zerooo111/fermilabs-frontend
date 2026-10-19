@@ -110,7 +110,7 @@ export function ConnectWallet() {
 
   if (!connected || !publicKey) {
     return (
-      <Button variant="secondary" size="sm" onClick={handleConnectClick}>
+      <Button variant="light" size="sm" className={OPTICAL_INSET} onClick={handleConnectClick}>
         {connecting ? LABELS['connecting'] : LABELS['connect']}
       </Button>
     );
