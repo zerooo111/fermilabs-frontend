@@ -676,7 +676,7 @@ export function TradeTicket({ fluid = false }: { fluid?: boolean } = {}) {
         <button
           type="button"
           onClick={f.openConnect}
-          className="h-10 bg-amber-200 text-sm font-semibold text-dark-forest transition-colors hover:bg-amber-100"
+          className="h-10 bg-rock/10 text-sm font-semibold text-rock transition-colors hover:bg-rock/15"
         >
           Connect wallet
         </button>
