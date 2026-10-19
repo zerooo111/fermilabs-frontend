@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#185038" />
+    <meta name="theme-color" content="#001409" />
     <title>Fermi Trade</title>
     <meta
       name="description"
@@ -74,13 +74,7 @@
     <!-- Boot splash: shown until the first route has rendered (see
          src/shared/lib/boot-splash.ts), so a cold load (e.g. right after a
          deploy) isn't a blank page. Colors are inline
-         because index.css hasn't loaded yet. The landing page (/ off the app
-         host) is forest green like its own splash; the app is --color-background. -->
-    <script>
-      if (location.pathname !== '/' || location.hostname === 'app.fermi.trade') {
-        document.documentElement.dataset.boot = 'app';
-      }
-    </script>
+         because index.css hasn't loaded yet; every page is --color-background. -->
     <style>
       /* Paper Mono (OFL 1.1, https://github.com/paper-design/paper-mono).
          Declared here, not in index.css, so the boot splash can use it. */
@@ -91,8 +85,7 @@
         font-style: normal;
         font-display: swap;
       }
-      html { background: #185038; }
-      html[data-boot='app'] { background: #001409; }
+      html { background: #001409; }
       /* Sits outside #root so React mounting can't cut it off; src/shared/lib/
          boot-splash.ts removes it once the first route has rendered.
          Timing: invisible for 150ms, then everything appears at once, so a warm
@@ -109,10 +102,9 @@
         text-align: center;
         /* Own background: z-index makes this a stacking context, so the grain's
            soft-light needs a backdrop inside it or it just darkens. */
-        background: #185038;
+        background: #011812;
         animation: boot-in 0.15s ease-out 0.15s both;
       }
-      html[data-boot='app'] .boot-splash { background: #011812; }
       /* Both directions are animations: a transition can't start from an
          animated value, so it would snap instead of fading. */
       .boot-splash.is-done { animation: boot-out 0.28s ease both; pointer-events: none; }

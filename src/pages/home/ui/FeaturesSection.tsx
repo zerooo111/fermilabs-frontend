@@ -1,6 +1,3 @@
-import { useEffect, useRef } from 'react';
-
-import { prefersReducedMotion } from '../lib/dither';
 import {
   FairQueueDrawing,
   FinalityDrawing,
@@ -33,26 +30,6 @@ const FEATURES = [
 ];
 
 export default function FeaturesSection() {
-  const gridRef = useRef<HTMLDivElement>(null);
-
-  // Live dithered glow behind a card on hover; the static dithered corner
-  // in CSS covers touch screens and reduced motion
-  useEffect(() => {
-    const grid = gridRef.current;
-    if (!grid || prefersReducedMotion() || !window.matchMedia('(hover: hover)').matches) return;
-    let cleanup: (() => void) | undefined;
-    let cancelled = false;
-    import('../lib/dither-hover')
-      .then(({ initDitherHover }) => {
-        if (!cancelled) cleanup = initDitherHover(grid, '.dither-corner');
-      })
-      .catch(error => console.error('Failed to load dither hover:', error));
-    return () => {
-      cancelled = true;
-      cleanup?.();
-    };
-  }, []);
-
   return (
     <>
       <section className="w-full border-b border-rock/15">
@@ -63,11 +40,13 @@ export default function FeaturesSection() {
         </div>
       </section>
       <section className="w-full border-b border-rock/15">
-        <div ref={gridRef} className="frame grid gap-px bg-rock/15 sm:grid-cols-2">
-          {FEATURES.map(({ title, body, Drawing, link }) => (
+        <div className="frame sheet-grid grid sm:grid-cols-2">
+          {FEATURES.map(({ title, body, Drawing, link }, i) => (
             <article
               key={title}
-              className="dither-corner flex flex-col gap-6 bg-dark-forest px-5 py-8 md:px-10 md:py-10"
+              data-col={i % 2 === 0 ? 'left' : 'right'}
+              data-row={i >= FEATURES.length - 2 ? 'last' : undefined}
+              className="sheet-card flex flex-col gap-6 bg-background px-5 py-8 md:px-10 md:py-10"
             >
               <Drawing />
               <h3 className="font-serif text-2xl tracking-[-0.01em] md:text-3xl">{title}</h3>

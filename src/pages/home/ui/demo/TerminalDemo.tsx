@@ -274,11 +274,11 @@ export default function TerminalDemo() {
       <div
         ref={stageRef}
         aria-hidden="true"
-        className="demo-stage absolute top-0 left-0 flex origin-top-left flex-col overflow-hidden border border-[#436f59] bg-dark-forest font-sans text-rock shadow-[0_40px_120px_-30px_rgb(0_0_0/0.55)] select-none"
+        className="demo-stage absolute top-0 left-0 flex origin-top-left flex-col overflow-hidden border border-line-strong bg-background font-sans text-rock shadow-[0_40px_120px_-30px_rgb(0_0_0/0.55)] select-none"
         style={{ width: design.w, height: design.h, transform: `scale(${scale})` }}
       >
         {/* Window chrome */}
-        <div className="flex h-8 shrink-0 items-center gap-2 border-b border-[#35654e] bg-[rgb(21_70_49)] px-3">
+        <div className="flex h-8 shrink-0 items-center gap-2 border-b border-outline bg-surface px-3">
           <span className="size-2.5 rounded-full bg-rock/15" />
           <span className="size-2.5 rounded-full bg-rock/15" />
           <span className="size-2.5 rounded-full bg-rock/15" />
@@ -288,7 +288,7 @@ export default function TerminalDemo() {
         </div>
 
         {/* App header */}
-        <div className="flex h-12 shrink-0 items-center gap-6 border-b border-[#35654e] px-5">
+        <div className="flex h-12 shrink-0 items-center gap-6 border-b border-outline px-5">
           <div className="flex items-center gap-2">
             <img src="/logo.svg" alt="" className="h-3 w-auto" />
             <span className="text-[19px]">Fermi Trade</span>
@@ -303,13 +303,13 @@ export default function TerminalDemo() {
           </span>
           <div className="ml-auto flex items-center gap-3 font-mono text-xs">
             {!compact && <span className="text-rock/50">1,250.00 USDC</span>}
-            <span className="border border-[#35654e] bg-rock/5 px-2.5 py-1.5">7xKq…9fQa</span>
+            <span className="border border-outline bg-rock/5 px-2.5 py-1.5">7xKq…9fQa</span>
           </div>
         </div>
 
         {/* Market bar */}
-        <div className="flex h-[52px] shrink-0 items-stretch border-b border-[#35654e] text-xs">
-          <div className="flex w-44 items-center justify-between border-r border-[#35654e] px-3 text-sm">
+        <div className="flex h-[52px] shrink-0 items-stretch border-b border-outline text-xs">
+          <div className="flex w-44 items-center justify-between border-r border-outline px-3 text-sm">
             SOL-PERP <span className="text-rock/50">⌄</span>
           </div>
           {[
@@ -328,10 +328,7 @@ export default function TerminalDemo() {
                   ['24h Volume', '$6.42M', 'text-rock'],
                 ]),
           ].map(([label, value, tone]) => (
-            <div
-              key={label}
-              className="flex flex-col justify-center border-r border-[#35654e] px-3"
-            >
+            <div key={label} className="flex flex-col justify-center border-r border-outline px-3">
               <span className="text-rock/55">{label}</span>
               <span className={`font-mono text-[15px] tabular-nums ${tone}`}>{value}</span>
             </div>
@@ -339,7 +336,7 @@ export default function TerminalDemo() {
         </div>
 
         {/* Main */}
-        <div className="flex h-[380px] shrink-0 border-b border-[#35654e]">
+        <div className="flex h-[380px] shrink-0 border-b border-outline">
           {!compact && <ChartPanel candles={candles} price={price} up={up} />}
           <BookPanel book={book} price={price} up={up} wide={compact} />
           <TradePanel
@@ -368,7 +365,7 @@ export default function TerminalDemo() {
         {toast && (
           <div
             key={toast.id}
-            className="demo-toast absolute right-4 bottom-4 flex w-[340px] flex-col gap-1.5 border border-[#436f59] bg-dark-forest/80 px-4 py-3 font-mono shadow-[0_12px_40px_-12px_rgb(0_0_0/0.5)] backdrop-blur-xl"
+            className="demo-toast absolute right-4 bottom-4 flex w-[340px] flex-col gap-1.5 border border-line-strong bg-background/80 px-4 py-3 font-mono shadow-[0_12px_40px_-12px_rgb(0_0_0/0.5)] backdrop-blur-xl"
           >
             <div className="flex items-center gap-2 text-[13px]">
               <svg
@@ -415,7 +412,7 @@ export default function TerminalDemo() {
           <path
             d="M2 1.5v18l5-4.6 3.2 7 3-1.4-3.1-6.8H17z"
             fill="#fff"
-            stroke="#185038"
+            stroke="#001409"
             strokeWidth="1.3"
             strokeLinejoin="round"
           />

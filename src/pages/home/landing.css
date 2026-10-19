@@ -1,11 +1,24 @@
-/* Landing page: drawing-sheet layout, ordered-dither textures and blueprint
-   illustrations. Shares its visual language with fermilabs.xyz. */
+/* Landing page (and the points pages, which share its chrome): drawing-sheet
+   layout, ordered-dither accents and blueprint illustrations, on the trading
+   app's background so secondary text keeps AA contrast. */
 
 .landing {
   /* Registration marks overhang the frame when it spans the full width */
   overflow-x: clip;
   font-family: var(--font-sans);
   font-optical-sizing: auto;
+
+  /* Drawing-sheet margins: a dashed guide in each gutter, 40px outside the
+     1280px frame. Below ~1360px wide they fall off-screen. */
+  --guide: rgb(248 247 231 / 0.14);
+  background-image:
+    repeating-linear-gradient(var(--guide) 0 4px, transparent 4px 10px),
+    repeating-linear-gradient(var(--guide) 0 4px, transparent 4px 10px);
+  background-size: 1px 100%;
+  background-repeat: repeat-y;
+  background-position:
+    calc(50% - 680px) 0,
+    calc(50% + 680px) 0;
 }
 
 /* The hero mark, order book items and registration marks overhang the frame,
@@ -26,7 +39,7 @@ html:has(.landing) body {
 
 .landing ::selection {
   background: var(--color-amber-200);
-  color: var(--color-dark-forest);
+  color: var(--color-background);
 }
 
 .landing :focus-visible {
@@ -55,35 +68,19 @@ html:has(.landing) body {
   image-rendering: pixelated;
 }
 
-/* Frosted header: the page blurs through, with a fine ordered-dither grain
-   that thins out toward the bottom edge. It sits under the page's noise
-   overlay (z-10) so it takes the same texture as everything else. */
+/* Frosted header: the page blurs through a tint of the page background */
 .glass-nav {
-  isolation: isolate;
-  background: rgb(24 80 56 / 0.55);
+  background: color-mix(in oklab, var(--color-background) 60%, transparent);
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   box-shadow: inset 0 1px 0 rgb(248 247 231 / 0.06);
-}
-
-.glass-nav::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    repeating-conic-gradient(rgb(248 247 231 / 0.07) 0 25%, transparent 0 50%) 0 0 / 2px 2px,
-    repeating-conic-gradient(rgb(180 220 120 / 0.05) 0 25%, transparent 0 50%) 1px 1px / 4px 4px;
-  mask-image: linear-gradient(to bottom, #000, rgb(0 0 0 / 0.25));
-  image-rendering: pixelated;
-  pointer-events: none;
 }
 
 /* Phones re-blur the page under the header on every scrolled frame, so there
    it's near-solid instead */
 @media (max-width: 767px) {
   .glass-nav {
-    background: rgb(24 80 56 / 0.95);
+    background: color-mix(in oklab, var(--color-background) 95%, transparent);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -125,69 +122,104 @@ html:has(.landing) body {
   right: -6px;
 }
 
-/* Static ordered-dither bands (pre-rendered Bayer PNGs, scaled 3x) */
+/* Static ordered-dither band (pre-rendered Bayer PNG, scaled 3x). Dimmed: on
+   the dark background the full-strength lime reads as a block, not an
+   accent. */
 .dither-band {
   height: 72px;
   background: url('/dither/fade-up.png') repeat-x left bottom / 24px 72px;
   image-rendering: pixelated;
+  opacity: 0.35;
 }
 
-.dither-band-down {
-  height: 72px;
-  background: url('/dither/fade-down.png') repeat-x left top / 24px 72px;
-  image-rendering: pixelated;
-}
-
+/* Footer link row: the footer dither at half size behind the links, dimmed by
+   a scrim of the page background so they keep their contrast */
 .dither-footer {
-  height: 144px;
-  background: url('/dither/footer.png') repeat-x left bottom / 24px 144px;
+  --scrim: color-mix(in oklab, var(--color-background) 78%, transparent);
+  background-image: linear-gradient(var(--scrim), var(--scrim)), url('/dither/footer.png');
+  background-repeat: no-repeat, repeat-x;
+  background-position:
+    0 0,
+    left bottom;
+  background-size:
+    100% 100%,
+    12px 72px;
   image-rendering: pixelated;
 }
 
-/* Dithered corner that fades in when a cell is hovered or focused */
-.dither-corner {
+/* Cards: on hover the card lifts a step and a patch of grid paper fades in
+   from the bottom-right corner */
+.sheet-card {
   position: relative;
   isolation: isolate;
+  cursor: pointer;
+  transition: background-color 200ms ease-out;
 }
 
-.dither-corner::after {
+.sheet-card::after {
   content: '';
   position: absolute;
   right: 0;
   bottom: 0;
   z-index: -1;
-  width: 192px;
-  height: 120px;
-  background: url('/dither/corner.png') no-repeat right bottom / 192px 120px;
-  image-rendering: pixelated;
+  width: 60%;
+  height: 70%;
+  background-image:
+    linear-gradient(rgb(248 247 231 / 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(248 247 231 / 0.08) 1px, transparent 1px);
+  background-size: 12px 12px;
+  background-position: right -1px bottom -1px;
+  mask-image: linear-gradient(to top left, #000, transparent 70%);
   opacity: 0;
   transition: opacity 200ms ease-out;
+  pointer-events: none;
 }
 
-.dither-corner:focus-visible::after {
+.sheet-card:focus-visible::after {
   opacity: 1;
 }
 
 /* Touch browsers keep :hover stuck after a tap, so only real hovers count */
 @media (hover: hover) {
-  .dither-corner:hover::after {
+  .sheet-card:hover {
+    background-color: var(--color-surface-base);
+  }
+
+  .sheet-card:hover::after {
     opacity: 1;
   }
 }
 
-/* With JS, hover gets a live pulsating dither canvas instead of the corner */
-.dither-hover-canvas {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  width: 100%;
-  height: 100%;
-  image-rendering: pixelated;
-  pointer-events: none;
+/* Card grids: dashed rules between cells, while the frame stays solid */
+.sheet-grid > * {
+  border: 0 dashed rgb(248 247 231 / 0.2);
 }
 
-.has-dither-canvas:hover::after {
-  opacity: 0;
+.sheet-grid > :not(:last-child) {
+  border-bottom-width: 1px;
+}
+
+@media (min-width: 640px) {
+  .sheet-grid > [data-col='left'] {
+    border-right-width: 1px;
+  }
+
+  .sheet-grid > [data-row='last'] {
+    border-bottom-width: 0;
+  }
+}
+
+/* Grid-paper patch that fades out diagonally from one corner, for hero
+   backgrounds. Position it with utilities; --patch-from sets the corner. */
+.grid-patch {
+  --patch-from: to bottom left;
+  background-image:
+    linear-gradient(rgb(248 247 231 / 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(248 247 231 / 0.06) 1px, transparent 1px);
+  background-size: 16px 16px;
+  background-position: right -1px top -1px;
+  mask-image: linear-gradient(var(--patch-from), #000, transparent 65%);
+  pointer-events: none;
 }
 
 /* Open arrow on linked cards: springs in on hover, then nudges toward where
@@ -230,10 +262,10 @@ html:has(.landing) body {
   }
 }
 
-/* Blueprint graph paper behind illustrations. Solid (the card colour with 12%
-   black) so hover effects behind the card never show through the drawing. */
+/* Blueprint graph paper behind illustrations. Solid (a step below the card
+   colour) so hover effects behind the card never show through the drawing. */
 .blueprint {
-  background-color: rgb(21 70 49);
+  background-color: var(--color-surface-sunken);
   background-image:
     linear-gradient(rgb(248 247 231 / 0.06) 1px, transparent 1px),
     linear-gradient(90deg, rgb(248 247 231 / 0.06) 1px, transparent 1px);
@@ -724,5 +756,5 @@ html:has(.landing) body {
   background: url('/dither/fade-up.png') repeat-x left bottom / 24px 72px;
   image-rendering: pixelated;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 100%, #000, transparent);
-  opacity: 0.9;
+  opacity: 0.4;
 }

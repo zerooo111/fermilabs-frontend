@@ -96,12 +96,12 @@ export default function BlogSection() {
         </div>
       </section>
       <section className="w-full border-b border-rock/15">
-        <div className="frame grid gap-px bg-rock/15 sm:grid-cols-2">
+        <div className="frame sheet-grid grid sm:grid-cols-2">
           <a
             href={featured.url}
             target="_blank"
             rel="noreferrer"
-            className="dither-corner group grid gap-6 bg-dark-forest px-5 py-8 sm:col-span-2 md:grid-cols-2 md:gap-10 md:px-10 md:py-10"
+            className="sheet-card group grid gap-6 bg-background px-5 py-8 sm:col-span-2 md:grid-cols-2 md:gap-10 md:px-10 md:py-10"
           >
             <featured.Drawing />
             <div className="flex flex-col justify-between gap-6">
@@ -115,13 +115,15 @@ export default function BlogSection() {
               <Arrow />
             </div>
           </a>
-          {rest.map(({ title, description, date, url, Drawing }) => (
+          {rest.map(({ title, description, date, url, Drawing }, i) => (
             <a
               key={url}
               href={url}
               target="_blank"
               rel="noreferrer"
-              className="dither-corner group flex flex-col gap-6 bg-dark-forest px-5 py-8 md:px-10 md:py-10"
+              data-col={i % 2 === 0 ? 'left' : 'right'}
+              data-row={i >= rest.length - 2 ? 'last' : undefined}
+              className="sheet-card group flex flex-col gap-6 bg-background px-5 py-8 md:px-10 md:py-10"
             >
               <Drawing />
               <div className="flex items-center justify-between gap-6">

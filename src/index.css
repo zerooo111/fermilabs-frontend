@@ -22,8 +22,8 @@
      every step differs only in lightness, with cream (rock) tints for rules
      and surfaces so chrome reads warm rather than grey. All text/surface
      pairs clear WCAG AA (body text clears AAA); see the contrast table in the
-     commit that introduced these. Keep --color-background in sync with
-     html[data-boot='app'] in index.html (#001409). */
+     commit that introduced these. Keep --color-background in sync with the
+     html background in index.html (#001409). */
   --color-background: oklch(17% 0.038 160);
   --color-surface: oklch(24% 0.046 160); /* raised: popovers, menus, window chrome */
   --color-outline: rgba(248, 247, 231, 0.16);
@@ -135,12 +135,8 @@ html {
 }
 
 @layer base {
+  /* Matches the boot splash in index.html, so there's no flash on load */
   html {
-    @apply !bg-dark-forest;
-  }
-  /* App routes are dark. data-boot is set in index.html before first paint,
-     so this matches the boot splash instead of flashing forest green. */
-  html[data-boot='app'] {
     @apply !bg-background;
   }
 }

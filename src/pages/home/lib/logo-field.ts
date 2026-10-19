@@ -9,16 +9,11 @@ import { createClock, ditherLevel, packColor, type RGB } from './dither';
 // Same glyph as public/logo.svg, row by row
 const GLYPH = ['...#...', '..###..', '.##..#.', '##.####'];
 
-// Darkest first; level 0 is left empty so the page shows through
-const BODY: (RGB | null)[] = [
-  null,
-  [32, 104, 72],
-  [46, 138, 104],
-  [104, 184, 132],
-  [180, 220, 120],
-];
+// Darkest first; level 0 is left empty so the page shows through. The low
+// tones sit just above the page background (#001409).
+const BODY: (RGB | null)[] = [null, [10, 46, 32], [22, 76, 54], [72, 150, 104], [180, 220, 120]];
 // The peak of the mark catches the light
-const CAP: (RGB | null)[] = [null, [96, 112, 58], [196, 170, 84], [254, 230, 133], [248, 247, 231]];
+const CAP: (RGB | null)[] = [null, [52, 60, 30], [150, 130, 64], [254, 230, 133], [248, 247, 231]];
 const BODY_PX = BODY.map(packColor);
 const CAP_PX = CAP.map(packColor);
 

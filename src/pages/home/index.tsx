@@ -4,7 +4,6 @@ import LandingHeader from './ui/LandingHeader';
 import HeroSection from './ui/HeroSection';
 import OrderbookField from './ui/OrderbookField';
 import { LandingFooter } from './ui/LandingFooter';
-import NoiseOverlay from './ui/NoiseOverlay';
 
 const FeaturesSection = lazy(() => import('./ui/FeaturesSection'));
 const ExchangeSection = lazy(() => import('./ui/ExchangeSection'));
@@ -13,7 +12,7 @@ const CTASection = lazy(() => import('./ui/CTASection'));
 
 export default function HomePage() {
   return (
-    <div className="landing flex min-h-screen w-full flex-col bg-dark-forest text-rock">
+    <div className="landing flex min-h-screen w-full flex-col bg-background text-rock">
       <LandingHeader />
       <main>
         <HeroSection />
@@ -26,7 +25,6 @@ export default function HomePage() {
         </Suspense>
       </main>
       <LandingFooter />
-      <NoiseOverlay />
     </div>
   );
 }

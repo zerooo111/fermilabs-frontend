@@ -34,8 +34,8 @@ export function ChartPanel({
   const py = y(price);
 
   return (
-    <div className="flex w-[600px] shrink-0 flex-col border-r border-[#35654e]">
-      <div className="flex h-8 shrink-0 items-center gap-1 border-b border-[#35654e] px-2 text-xs text-rock/50">
+    <div className="flex w-[600px] shrink-0 flex-col border-r border-outline">
+      <div className="flex h-8 shrink-0 items-center gap-1 border-b border-outline px-2 text-xs text-rock/50">
         {['1m', '5m', '15m', '1h', '4h', '1d'].map(t => (
           <span key={t} className={`px-2 py-1 ${t === '15m' ? 'bg-rock/10 text-rock' : ''}`}>
             {t}
@@ -124,12 +124,12 @@ export function BookPanel({
 
   return (
     <div
-      className={`flex shrink-0 flex-col border-r border-[#35654e] ${wide ? 'w-[320px]' : 'w-[300px]'}`}
+      className={`flex shrink-0 flex-col border-r border-outline ${wide ? 'w-[320px]' : 'w-[300px]'}`}
     >
-      <div className="flex h-9 shrink-0 items-center justify-center border-b border-[#35654e] text-sm">
+      <div className="flex h-9 shrink-0 items-center justify-center border-b border-outline text-sm">
         Orderbook
       </div>
-      <div className="flex h-[26px] shrink-0 items-center justify-between border-b border-[#35654e] px-4 font-mono text-[11px] text-rock/50">
+      <div className="flex h-[26px] shrink-0 items-center justify-between border-b border-outline px-4 font-mono text-[11px] text-rock/50">
         <span className="w-16">Price</span>
         <span className="w-14 text-right">Size</span>
         <span className="w-20 text-right">Total</span>
@@ -137,7 +137,7 @@ export function BookPanel({
       <div className="flex flex-col py-1">
         {book.asks.map((l, i) => row(l, askCum[i], 'ask')).reverse()}
       </div>
-      <div className="flex h-6 shrink-0 items-center justify-between border-y border-[#35654e] bg-rock/[0.03] px-4 font-mono text-xs">
+      <div className="flex h-6 shrink-0 items-center justify-between border-y border-outline bg-rock/[0.03] px-4 font-mono text-xs">
         <span className={up ? 'text-success' : 'text-danger'}>{fmt(price)}</span>
         <span className="text-rock/50">Spread {fmt(spread)}</span>
       </div>
@@ -191,7 +191,7 @@ export function TradePanel({
 
   return (
     <div className={`flex shrink-0 flex-col ${wide ? 'w-[320px]' : 'w-[300px]'}`}>
-      <div className="grid h-11 shrink-0 grid-cols-2 border-b border-[#35654e] text-sm">
+      <div className="grid h-11 shrink-0 grid-cols-2 border-b border-outline text-sm">
         <span className="flex items-center justify-center text-rock/50">Limit</span>
         <span className="flex items-center justify-center border-b-2 border-rock">Market</span>
       </div>
@@ -201,7 +201,7 @@ export function TradePanel({
           <div
             ref={sizeRef}
             className={`flex h-9 items-center justify-between border px-3 font-mono transition-colors duration-150 ${
-              focused ? 'border-[#a3b89c] bg-rock/[0.04]' : 'border-[#436f59]'
+              focused ? 'border-[#a3b89c] bg-rock/[0.04]' : 'border-line-strong'
             }`}
           >
             <span className={size ? 'text-rock' : 'text-rock/40'}>
@@ -219,7 +219,7 @@ export function TradePanel({
         </div>
         <div className="relative h-1 bg-rock/10">
           <span className="absolute inset-y-0 left-0 w-1/4 bg-rock" />
-          <span className="absolute top-1/2 left-1/4 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dark-forest bg-rock" />
+          <span className="absolute top-1/2 left-1/4 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-rock" />
         </div>
         <div className="mt-1 grid grid-cols-2 gap-2">
           {(['buy', 'sell'] as const).map(side => (
@@ -246,7 +246,7 @@ export function TradePanel({
             </button>
           ))}
         </div>
-        <div className="flex flex-col gap-2 border border-[#35654e] p-3 text-xs">
+        <div className="flex flex-col gap-2 border border-outline p-3 text-xs">
           {summary.map(([k, v]) => (
             <div key={k} className="flex justify-between">
               <span className="text-rock/70">{k}</span>
@@ -287,13 +287,13 @@ export function PositionsPanel({
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-10 shrink-0 items-center gap-6 border-b border-[#35654e] px-4 text-sm">
+        <div className="flex h-10 shrink-0 items-center gap-6 border-b border-outline px-4 text-sm">
           <span className="border-b-2 border-rock py-2.5">Positions ({position ? 1 : 0})</span>
           <span className="text-rock/50">Open Orders</span>
           {!compact && <span className="text-rock/50">Trade History</span>}
         </div>
         <div
-          className={`grid ${grid} h-8 shrink-0 items-center border-b border-[#35654e] px-4 text-xs text-rock/50`}
+          className={`grid ${grid} h-8 shrink-0 items-center border-b border-outline px-4 text-xs text-rock/50`}
         >
           {cols.map((c, i) => (
             <span key={c || i} className={i > 1 ? 'text-right' : ''}>
@@ -303,7 +303,7 @@ export function PositionsPanel({
         </div>
         {position ? (
           <div
-            className={`demo-row-in grid ${grid} h-10 items-center border-b border-[#35654e] px-4 font-mono text-xs tabular-nums`}
+            className={`demo-row-in grid ${grid} h-10 items-center border-b border-outline px-4 font-mono text-xs tabular-nums`}
           >
             <span>
               <span
@@ -328,7 +328,7 @@ export function PositionsPanel({
                 ref={closeRef}
                 type="button"
                 tabIndex={-1}
-                className={`border border-[#436f59] px-2.5 py-1 font-sans text-xs transition-transform duration-100 ${
+                className={`border border-line-strong px-2.5 py-1 font-sans text-xs transition-transform duration-100 ${
                   pressed ? 'scale-95 bg-rock/15' : ''
                 }`}
               >
@@ -343,7 +343,7 @@ export function PositionsPanel({
         )}
       </div>
       {!compact && (
-        <div className="flex w-[300px] shrink-0 flex-col gap-2.5 border-l border-[#35654e] p-4 text-xs">
+        <div className="flex w-[300px] shrink-0 flex-col gap-2.5 border-l border-outline p-4 text-xs">
           <span className="mb-1 text-sm">Account</span>
           {(
             [

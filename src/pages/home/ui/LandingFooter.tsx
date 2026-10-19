@@ -6,8 +6,7 @@ export function LandingFooter() {
   return (
     <footer className="w-full">
       <div className="frame reg border-t border-rock/15">
-        <div className="dither-footer" aria-hidden="true" />
-        <div className="flex flex-col gap-4 border-t border-rock/15 px-5 py-6 text-sm text-rock/60 sm:flex-row sm:items-center sm:justify-between md:px-10">
+        <div className="dither-footer flex flex-col gap-4 px-5 py-6 text-sm text-rock/60 sm:flex-row sm:items-center sm:justify-between md:px-10">
           <p>
             &copy; {new Date().getFullYear()} Fermi Trade. Built by{' '}
             <a href={LINKS.LABS} target="_blank" rel="noreferrer" className="link">

@@ -31,9 +31,11 @@ type Order = {
   age: number;
 };
 
-// Tones, darkest first. Level 0 is left empty so the page shows through.
-const BID: (RGB | null)[] = [null, [30, 94, 64], [48, 122, 78], [104, 168, 96], [180, 220, 120]];
-const ASK: (RGB | null)[] = [null, [36, 92, 60], [92, 118, 64], [168, 160, 92], [253, 230, 138]];
+// Tones, darkest first. Level 0 is left empty so the page shows through. The
+// low tones sit just above the page background (#001409) so the depth reads as
+// a glow; only the top tone carries the full lichen / amber.
+const BID: (RGB | null)[] = [null, [8, 40, 26], [20, 66, 44], [72, 138, 84], [180, 220, 120]];
+const ASK: (RGB | null)[] = [null, [16, 40, 22], [56, 72, 36], [140, 132, 72], [253, 230, 138]];
 const BID_PX = BID.map(packColor);
 const ASK_PX = ASK.map(packColor);
 
