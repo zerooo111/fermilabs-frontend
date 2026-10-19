@@ -3,7 +3,7 @@
  * keyed by address, so anyone can check any wallet. Timestamps are unix ms.
  */
 import axios from 'axios';
-import { API_ROUTES_V2 } from '@/shared/config/constants';
+import { API_ROUTES_V2, config } from '@/shared/config/constants';
 
 export type PointsCategory =
   | 'flp_vault'
@@ -75,17 +75,13 @@ export interface PointsLeaderboard {
   rows: { rank: number; wallet: string; points: number }[];
 }
 
-// Points are only deployed on the staging gateway for now, so they're read
-// from there regardless of VITE_GATEWAY_URL. Drop this override once the
-// gateway ships to prod.
-const STAGING_GATEWAY_URL = 'https://v1.fermi.trade/staging';
-const GATEWAY = () => import.meta.env.VITE_POINTS_GATEWAY_URL || STAGING_GATEWAY_URL;
+const baseUrl = (): string => config.devnet.gatewayUrl;
 
 const accountPath = (wallet: string) =>
   API_ROUTES_V2.points_account.replace('{wallet}', encodeURIComponent(wallet));
 
 async function get<T>(path: string, params: object, signal?: AbortSignal): Promise<T> {
-  const res = await axios.get<T>(`${GATEWAY()}${path}`, { params, signal });
+  const res = await axios.get<T>(`${baseUrl()}${path}`, { params, signal });
   return res.data;
 }
 
