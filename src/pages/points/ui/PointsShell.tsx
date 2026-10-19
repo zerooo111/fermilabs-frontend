@@ -7,7 +7,6 @@ import type { ReactNode } from 'react';
 import '@/pages/home/landing.css';
 import LandingHeader from '@/pages/home/ui/LandingHeader';
 import { LandingFooter } from '@/pages/home/ui/LandingFooter';
-import { CursorSparkles } from '@/pages/home/ui/CursorSparkles';
 
 export function PointsShell({ children }: { children: ReactNode }) {
   return (
@@ -15,7 +14,6 @@ export function PointsShell({ children }: { children: ReactNode }) {
       <LandingHeader />
       <main className="frame flex-1">{children}</main>
       <LandingFooter />
-      <CursorSparkles />
     </div>
   );
 }

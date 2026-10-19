@@ -12,29 +12,41 @@ const whenIdle = (fn: () => void) =>
 
 export default function HeroSection() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const starsRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    let cleanup: (() => void) | undefined;
+    const stars = starsRef.current;
+    if (!canvas || !stars) return;
+    const cleanups: (() => void)[] = [];
     let cancelled = false;
+    const reducedMotion = prefersReducedMotion();
     whenIdle(() => {
       import('../lib/logo-field')
         .then(({ initLogoField }) => {
-          if (!cancelled)
-            cleanup = initLogoField(canvas, { reducedMotion: prefersReducedMotion() });
+          if (!cancelled) cleanups.push(initLogoField(canvas, { reducedMotion }));
         })
         .catch(error => console.error('Failed to load logo field:', error));
+      import('../lib/star-field')
+        .then(({ initStarField }) => {
+          if (!cancelled) cleanups.push(initStarField(stars, { reducedMotion }));
+        })
+        .catch(error => console.error('Failed to load star field:', error));
     });
     return () => {
       cancelled = true;
-      cleanup?.();
+      cleanups.forEach(fn => fn());
     };
   }, []);
 
   return (
     <section className="w-full">
       <div className="frame border-b border-rock/15 relative isolate overflow-hidden px-5 pt-16 pb-12 md:px-10 md:pt-24 md:pb-16">
+        <canvas
+          ref={starsRef}
+          aria-hidden="true"
+          className="pixelated pointer-events-none absolute inset-0 -z-30 h-full w-full"
+        />
         <div aria-hidden="true" className="grid-patch absolute inset-y-0 right-0 -z-20 w-2/3" />
         <canvas
           ref={canvasRef}
