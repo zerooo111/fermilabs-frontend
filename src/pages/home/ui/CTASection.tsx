@@ -1,13 +1,43 @@
+import { useEffect, useRef } from 'react';
+
 import { LINKS } from '../constants';
+import { prefersReducedMotion } from '../lib/dither';
+import { whenNear } from '../lib/useInView';
 
 export default function CTASection() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // The UFO scene loads when the section comes near, like the order book field
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+    const stopWatching = whenNear(canvas, () => {
+      import('../lib/alien-field')
+        .then(({ initAlienField }) => {
+          if (!cancelled)
+            cleanup = initAlienField(canvas, { reducedMotion: prefersReducedMotion() });
+        })
+        .catch(error => console.error('Failed to load alien field:', error));
+    });
+    return () => {
+      cancelled = true;
+      stopWatching();
+      cleanup?.();
+    };
+  }, []);
+
   return (
     <>
-      <div className="w-full border-b border-rock/15">
-        <div className="frame dither-band" aria-hidden="true" />
-      </div>
       <section className="w-full">
-        <div className="frame reg px-5 py-16 md:px-10 md:py-24">
+        <div className="frame reg relative isolate overflow-hidden px-5 py-16 md:px-10 md:py-24">
+          {/* Hidden on phones, where the text spans the full width */}
+          <canvas
+            ref={canvasRef}
+            aria-hidden="true"
+            className="pixelated pointer-events-none absolute right-6 bottom-0 -z-10 hidden aspect-[150/110] w-[min(44%,520px)] md:block"
+          />
           <h2 className="max-w-3xl font-serif text-[clamp(2.25rem,5vw,4.5rem)] leading-[1.1] font-light tracking-[-0.03em]">
             Ready to experience the fastest DEX?
           </h2>
