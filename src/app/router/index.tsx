@@ -9,7 +9,6 @@ import {
   LazyPerpsPage,
   LazyVaultPage,
   LazyReferralsPage,
-  LazyLeaderboardPage,
   LazyFlpPage,
   LazyVaultsPage,
   LazyVaultDetailPage,
@@ -37,7 +36,6 @@ export const AppRouter = () => {
           <Route path="/perps/:id" element={<LazyPerpsPage />} />
           <Route path="/vault" element={<LazyVaultPage />} />
           <Route path="/referrals" element={<LazyReferralsPage />} />
-          <Route path="/leaderboard" element={<LazyLeaderboardPage />} />
           <Route path="/flp" element={<LazyFlpPage />} />
           <Route path="/vaults" element={<LazyVaultsPage />} />
           <Route path="/vaults/:network/:address" element={<LazyVaultDetailPage />} />

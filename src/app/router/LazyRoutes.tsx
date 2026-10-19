@@ -22,7 +22,6 @@ export const HomePage = lazy(() => import('@/pages/home'));
 export const PerpsPage = lazy(() => import('@/pages/perps'));
 export const VaultPage = lazy(() => import('@/pages/vault'));
 export const ReferralsPage = lazy(() => import('@/pages/referrals'));
-export const LeaderboardPage = lazy(() => import('@/pages/leaderboard'));
 export const FlpPage = lazy(() => import('@/pages/flp'));
 export const VaultsPage = lazy(() => import('@/pages/vaults'));
 export const VaultDetailPage = lazy(() => import('@/pages/vault-detail'));
@@ -61,15 +60,6 @@ export const LazyReferralsPage = () => (
   <ErrorBoundary>
     <Suspense fallback={<TradingSkeleton />}>
       <ReferralsPage />
-      <HideBootSplash />
-    </Suspense>
-  </ErrorBoundary>
-);
-
-export const LazyLeaderboardPage = () => (
-  <ErrorBoundary>
-    <Suspense fallback={<LoadingPage />}>
-      <LeaderboardPage />
       <HideBootSplash />
     </Suspense>
   </ErrorBoundary>

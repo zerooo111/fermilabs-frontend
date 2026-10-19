@@ -67,15 +67,6 @@ export function Header() {
           >
             Referrals
           </Link>
-          <Link
-            to="/leaderboard"
-            className={cn(
-              NAV_LINK,
-              location.pathname === '/leaderboard' ? 'text-rock' : 'text-rock/60'
-            )}
-          >
-            Leaderboard
-          </Link>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <LayoutMenu />
