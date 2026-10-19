@@ -1,5 +1,5 @@
 export { AddressChecker } from './ui/AddressChecker';
-export { SeasonStrip } from './ui/SeasonStrip';
+export { SeasonBanner } from './ui/SeasonBanner';
 export { EarnMore } from './ui/EarnMore';
 export { PointsChart } from './ui/PointsChart';
 export { PixelAlien } from './ui/PixelAlien';
