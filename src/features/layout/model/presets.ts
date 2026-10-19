@@ -6,7 +6,7 @@
 import type { DockviewApi } from 'dockview-react';
 import { WIDGET_BY_ID, type WidgetId } from './widgets';
 
-export type LayoutPresetId = 'default' | 'chart-focus' | 'orderbook-focus';
+export type LayoutPresetId = 'classic' | 'chart-focus' | 'orderbook-focus';
 
 export interface LayoutPreset {
   id: LayoutPresetId;
@@ -38,34 +38,32 @@ function size(api: DockviewApi, id: WidgetId, dims: { width?: number; height?: n
 }
 
 /**
- * Mirrors the original CSS-grid layout:
+ * The default. Mirrors the original CSS-grid layout and its sizes (520px chart
+ * row, 360px orderbook, 320px ticket column):
  *   [ chart | orderbook ] [ ticket  ]
  *   [ portfolio tabs    ] [ account ]
  */
-function applyDefault(api: DockviewApi) {
+function applyClassic(api: DockviewApi) {
   api.clear();
-  add(api, 'chart');
-  add(api, 'positions', {
-    position: { referencePanel: 'chart', direction: 'below' },
-    initialHeight: 280,
-  });
+  add(api, 'chart', { initialHeight: 520 });
+  add(api, 'positions', { position: { referencePanel: 'chart', direction: 'below' } });
   add(api, 'orders', { position: { referencePanel: 'positions', direction: 'within' } });
   add(api, 'my-trades', { position: { referencePanel: 'positions', direction: 'within' } });
   add(api, 'assets', { position: { referencePanel: 'positions', direction: 'within' } });
   add(api, 'orderbook', {
     position: { referencePanel: 'chart', direction: 'right' },
-    initialWidth: 340,
+    initialWidth: 360,
   });
   add(api, 'trades', { position: { referencePanel: 'orderbook', direction: 'within' } });
   // Absolute position: a full-height column on the right edge of the whole dock.
-  add(api, 'ticket', { position: { direction: 'right' }, initialWidth: 340 });
+  add(api, 'ticket', { position: { direction: 'right' }, initialWidth: 320 });
   add(api, 'account', {
     position: { referencePanel: 'ticket', direction: 'below' },
     initialHeight: 260,
   });
-  size(api, 'ticket', { width: 340 });
-  size(api, 'orderbook', { width: 340 });
-  size(api, 'positions', { height: 280 });
+  size(api, 'ticket', { width: 320 });
+  size(api, 'orderbook', { width: 360 });
+  size(api, 'chart', { height: 520 });
   size(api, 'account', { height: 260 });
   api.getPanel('positions')?.api.setActive();
   api.getPanel('orderbook')?.api.setActive();
@@ -128,7 +126,7 @@ function applyOrderbookFocus(api: DockviewApi) {
 }
 
 export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
-  { id: 'default', label: 'Default', apply: applyDefault },
+  { id: 'classic', label: 'Classic', apply: applyClassic },
   { id: 'chart-focus', label: 'Chart focus', apply: applyChartFocus },
   { id: 'orderbook-focus', label: 'Orderbook focus', apply: applyOrderbookFocus },
 ];

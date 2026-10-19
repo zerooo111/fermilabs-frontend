@@ -31,14 +31,6 @@ export const layoutLockedAtom = atomWithStorage<boolean>('perps:layout:locked', 
   getOnInit: true,
 });
 
-/** Escape hatch back to the fixed CSS-grid layout. */
-export const useClassicLayoutAtom = atomWithStorage<boolean>(
-  'perps:layout:classic',
-  false,
-  undefined,
-  { getOnInit: true }
-);
-
 /** A stored layout is usable only if its version matches and every panel maps to a known widget. */
 export function isUsableStoredLayout(stored: StoredLayout | null): stored is StoredLayout {
   if (!stored || stored.version !== LAYOUT_SCHEMA_VERSION) return false;

@@ -20,7 +20,7 @@ import { useAtomValue } from 'jotai';
 import { useSSEStream } from '@/shared/hooks/useSSEStream';
 import { useOrderbookStream } from '@/shared/hooks/useOrderbookStream';
 import { useMediaQuery } from '@/shared/hooks/useMediaQuery';
-import { TerminalDock, useClassicLayoutAtom } from '@/features/layout';
+import { TerminalDock } from '@/features/layout';
 
 // Memoize static components that don't depend on frequently changing props
 const MemoizedOrderbook = memo(Orderbook);
@@ -40,7 +40,6 @@ function PerpsPage() {
   const markets = useAtomValue(marketsAtom);
   // Dockable layout is desktop-only; phones keep the stacked flow below.
   const isDesktop = useMediaQuery('(min-width: 1024px)');
-  const useClassicLayout = useAtomValue(useClassicLayoutAtom);
   const marketsRef = useRef(markets);
   marketsRef.current = markets;
 
@@ -94,7 +93,7 @@ function PerpsPage() {
     return <TradingSkeleton />;
   }
 
-  if (isDesktop && !useClassicLayout) {
+  if (isDesktop) {
     return (
       <div className="mx-4 h-[calc(100vh-84px)] border-x border-outline overflow-hidden">
         <TerminalDock />
@@ -102,9 +101,8 @@ function PerpsPage() {
     );
   }
 
-  // Mobile stacks chart, orderbook, ticket, portfolio. On desktop (classic
-  // layout) the ticket is its own full-height column, so the chart row keeps a
-  // fixed height instead of stretching to the ticket.
+  // Below the desktop breakpoint there is no dock: chart, orderbook, ticket
+  // and portfolio stack.
   return (
     <div className="mx-2 md:mx-4 flex flex-col min-h-[calc(100vh-84px)] border-x border-outline overflow-hidden lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:grid-rows-[520px_1fr]">
       {/* Chart + orderbook */}

@@ -1,6 +1,6 @@
 /**
  * Compact layout control for the app header: open closed widgets, switch
- * presets, enter/leave edit mode, reset, or fall back to the classic grid.
+ * presets, enter/leave edit mode, or reset to the default (classic) preset.
  * Renders nothing when no dock is mounted (mobile, other routes).
  */
 import { useEffect, useState } from 'react';
@@ -19,11 +19,7 @@ import {
 } from '@/shared/ui/dropdown-menu';
 import { WIDGETS } from '../model/widgets';
 import { DEFAULT_PRESET, LAYOUT_PRESETS, openWidget } from '../model/presets';
-import {
-  layoutLockedAtom,
-  terminalLayoutAtom,
-  useClassicLayoutAtom,
-} from '../model/layout-storage';
+import { layoutLockedAtom, terminalLayoutAtom } from '../model/layout-storage';
 import { dockApiAtom } from '../model/dock-api';
 
 /** Re-render whenever panels are added or removed so the widget list stays accurate. */
@@ -46,7 +42,6 @@ function useOpenWidgetIds(api: DockviewApi | null): Set<string> {
 export function LayoutMenu({ className }: { className?: string }) {
   const api = useAtomValue(dockApiAtom);
   const [locked, setLocked] = useAtom(layoutLockedAtom);
-  const setClassic = useSetAtom(useClassicLayoutAtom);
   const setStored = useSetAtom(terminalLayoutAtom);
   const open = useOpenWidgetIds(api);
   if (!api) return null;
@@ -100,7 +95,6 @@ export function LayoutMenu({ className }: { className?: string }) {
         >
           Reset to default
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setClassic(true)}>Use classic layout</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
