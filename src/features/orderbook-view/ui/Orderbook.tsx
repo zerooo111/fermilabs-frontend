@@ -176,6 +176,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
                     key={order.price}
                     price={order.price}
                     size={order.quantity}
+                    levelSize={order.levelQuantity}
                     total={order.total}
                     depth={order.depth}
                     side="Sell"
@@ -204,6 +205,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
                     key={order.price}
                     price={order.price}
                     size={order.quantity}
+                    levelSize={order.levelQuantity}
                     total={order.total}
                     depth={order.depth}
                     side="Buy"

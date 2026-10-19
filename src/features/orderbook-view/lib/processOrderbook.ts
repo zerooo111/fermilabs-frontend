@@ -177,6 +177,8 @@ export type AggregatedOrder = {
    * or the size resting from the best price down to this level in `cumulative` mode.
    */
   quantity: number;
+  /** The row's own size (scaled integer) in either mode; drives the change flash. */
+  levelQuantity: number;
   /** Notional (price_raw * quantity_raw) matching `quantity` — per level or cumulative. */
   total: BN;
   /** The visual depth percentage (0-100) of `quantity` relative to the largest visible one. */
@@ -223,6 +225,7 @@ const buildSide = (
     levels.push({
       price,
       quantity: cumulative ? cumulativeQuantity : bucketQuantity,
+      levelQuantity: bucketQuantity,
       total: cumulative ? runningNotional : bucketNotional,
       depth: 0,
     });

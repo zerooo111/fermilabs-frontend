@@ -11,6 +11,8 @@ import './row-flash.css';
 type OrderbookRowProps = {
   price: number;
   size: number;
+  /** The row's own size, cumulative mode included; the flash keys off this. */
+  levelSize: number;
   /** Notional (price_raw * qty_raw) for this row — per level or cumulative. */
   total: BN;
   depth: number;
@@ -22,6 +24,7 @@ type OrderbookRowProps = {
 export function OrderbookRow({
   price,
   size,
+  levelSize,
   total,
   depth,
   side,
@@ -30,14 +33,16 @@ export function OrderbookRow({
 }: OrderbookRowProps) {
   // Bump a key whenever the size at this price changes so the flash layer
   // remounts and its animation replays. Skipped on mount, so a fresh book or
-  // a newly appearing level does not flash. The layer is dropped once it
+  // a newly appearing level does not flash. Keyed off the level's own size:
+  // in cumulative mode a change near the spread shifts every running total
+  // below it, which would flash the whole side. The layer is dropped once it
   // finishes: dockview detaches hidden panes and re-attaching restarts CSS
   // animations, which would replay the last flash on every tab switch.
-  const [prevSize, setPrevSize] = useState(size);
+  const [prevSize, setPrevSize] = useState(levelSize);
   const [flashKey, setFlashKey] = useState(0);
   const [flashing, setFlashing] = useState(false);
-  if (size !== prevSize) {
-    setPrevSize(size);
+  if (levelSize !== prevSize) {
+    setPrevSize(levelSize);
     setFlashKey(k => k + 1);
     setFlashing(true);
   }
