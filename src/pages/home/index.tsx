@@ -4,6 +4,7 @@ import LandingHeader from './ui/LandingHeader';
 import HeroSection from './ui/HeroSection';
 import OrderbookField from './ui/OrderbookField';
 import { LandingFooter } from './ui/LandingFooter';
+import { CursorSparkles } from './ui/CursorSparkles';
 
 const FeaturesSection = lazy(() => import('./ui/FeaturesSection'));
 const ExchangeSection = lazy(() => import('./ui/ExchangeSection'));
@@ -25,6 +26,7 @@ export default function HomePage() {
         </Suspense>
       </main>
       <LandingFooter />
+      <CursorSparkles />
     </div>
   );
 }
