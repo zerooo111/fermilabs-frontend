@@ -111,6 +111,9 @@ export const API_ROUTES_V2 = {
   snapshot_and_stream: '/v2/events/snapshot-and-stream/{marketId}',
   stream_frontend: '/v2/stream/frontend/{marketId}',
   stream_trades: '/v2/stream/trades',
+  points_epochs: '/v2/points/epochs',
+  points_leaderboard: '/v2/points/leaderboard',
+  points_account: '/v2/points/accounts/{wallet}',
   vaults: '/v2/vaults',
   vault: '/v2/vaults/{network}/{address}',
 };
