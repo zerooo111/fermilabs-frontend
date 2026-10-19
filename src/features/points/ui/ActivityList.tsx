@@ -27,7 +27,7 @@ function EntryRow({ e }: { e: PointsEntry }) {
           <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
             {details.map(([k, v]) => (
               <div key={k} className="flex gap-1.5">
-                <dt className="text-rock/45">{k}</dt>
+                <dt className="text-rock/55">{k}</dt>
                 <dd className="font-mono text-rock/75">{v}</dd>
               </div>
             ))}

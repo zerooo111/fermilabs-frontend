@@ -53,22 +53,22 @@ export function SeasonOverview() {
     <div className="grid gap-6">
       {current && (
         <div className="grid gap-px border border-rock/15 bg-rock/15 sm:grid-cols-3">
-          <div className="bg-dark-forest p-5">
+          <div className="bg-background p-5">
             <Eyebrow>{isLive ? 'Accruing now' : 'Next up'}</Eyebrow>
             <p className="mt-2 font-serif text-3xl font-light">{epochLabel(current)}</p>
             <p className="mt-1 text-sm text-rock/60">{epochRange(current)}</p>
           </div>
-          <div className="bg-dark-forest p-5">
+          <div className="bg-background p-5">
             <Eyebrow>{isLive ? 'Closes in' : 'Starts in'}</Eyebrow>
             <p className="mt-2 font-serif text-3xl font-light tabular-nums">
               {ends ? countdown(ends - now) : '—'}
             </p>
             <p className="mt-1 text-sm text-rock/60">Epochs close Sunday 00:00 UTC</p>
           </div>
-          <div className="bg-dark-forest p-5">
+          <div className="bg-background p-5">
             <Eyebrow>Final epochs</Eyebrow>
             <p className="mt-2 font-serif text-3xl font-light tabular-nums">
-              {finals} <span className="text-rock/40">/ {epochs.length}</span>
+              {finals} <span className="text-rock/55">/ {epochs.length}</span>
             </p>
             <p className="mt-1 text-sm text-rock/60">Points are final 14 days after close</p>
           </div>

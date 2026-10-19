@@ -40,7 +40,7 @@ export function WalletSummary({ account }: { account: PointsAccount }) {
             <div key={s.key} className="flex items-baseline justify-between gap-4 py-3">
               <dt>
                 <span className="text-rock">{s.label}</span>
-                <span className="ml-2 text-xs text-rock/45">{s.hint}</span>
+                <span className="ml-2 text-xs text-rock/55">{s.hint}</span>
               </dt>
               <dd className="font-mono text-sm tabular-nums">{points(account.by_status[s.key])}</dd>
             </div>

@@ -52,7 +52,7 @@ export function AddressChecker({
           aria-invalid={!!error}
           aria-describedby={error ? 'points-address-error' : undefined}
           className={cn(
-            'h-11 w-full min-w-0 border sm:flex-1 bg-black/15 px-3 font-mono text-sm text-rock placeholder:text-rock/35 focus:outline-none focus-visible:border-amber-200',
+            'h-11 w-full min-w-0 border sm:flex-1 bg-surface-sunken px-3 font-mono text-sm text-rock placeholder:text-rock/45 focus:outline-none focus-visible:border-amber-200',
             error ? 'border-danger' : 'border-rock/25'
           )}
         />

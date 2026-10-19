@@ -88,7 +88,7 @@
 }
 
 .points-doc li::marker {
-  color: rgb(248 247 231 / 0.4);
+  color: rgb(248 247 231 / 0.55);
 }
 
 .points-doc strong {
