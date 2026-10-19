@@ -16,9 +16,9 @@ export function ActivityList({ entries }: { entries: PointsEntry[] }) {
 
   return (
     <div>
-      <ul className="grid gap-1">
+      <ul className="divide-y divide-dashed divide-rock/20 border-y border-dashed border-rock/20">
         {shown.map(e => (
-          <li key={e.id} className="flex items-center gap-4 rounded-lg px-3 py-2.5 hover:bg-rock/5">
+          <li key={e.id} className="flex items-center gap-4 py-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-rock">{e.description ?? CATEGORY_LABELS[e.category]}</p>
               <p className="text-xs text-rock/50">
@@ -27,9 +27,7 @@ export function ActivityList({ entries }: { entries: PointsEntry[] }) {
                 {e.reason && <> for {e.reason.replace(/_/g, ' ')}</>}
               </p>
             </div>
-            <span
-              className={cn('tabular-nums text-lg', e.points < 0 ? 'text-danger' : 'text-lichen')}
-            >
+            <span className={cn('font-mono text-lg', e.points < 0 ? 'text-danger' : 'text-lichen')}>
               {pointsSigned(e.points)}
             </span>
           </li>
@@ -39,7 +37,7 @@ export function ActivityList({ entries }: { entries: PointsEntry[] }) {
         <button
           type="button"
           onClick={() => setAll(v => !v)}
-          className="link mt-3 px-3 text-sm text-rock/70"
+          className="link mt-4 text-sm text-rock/70"
         >
           {all ? 'Show less' : `Show all ${sorted.length}`}
         </button>

@@ -6,12 +6,7 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 
-import {
-  fetchPointsAccount,
-  fetchPointsActivity,
-  fetchPointsEpochs,
-  fetchPointsLeaderboard,
-} from '../api/pointsClient';
+import { fetchPointsAccount, fetchPointsActivity, fetchPointsEpochs } from '../api/pointsClient';
 
 const STALE_MS = 60_000;
 export const ACTIVITY_PAGE = 25;
@@ -32,15 +27,6 @@ export function usePointsEpochs() {
     queryKey: [...pointsKey, 'epochs'],
     queryFn: ({ signal }) => fetchPointsEpochs(signal),
     select: data => data.epochs,
-    staleTime: STALE_MS,
-    retry,
-  });
-}
-
-export function usePointsLeaderboard(limit: number) {
-  return useQuery({
-    queryKey: [...pointsKey, 'leaderboard', limit],
-    queryFn: ({ signal }) => fetchPointsLeaderboard({ limit }, signal),
     staleTime: STALE_MS,
     retry,
   });

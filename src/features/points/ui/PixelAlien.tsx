@@ -12,8 +12,9 @@ const W = 11;
 const H = 8;
 const HALF = 6; // columns 0..5; column 5 is the middle
 
-/** Hues sit in the landing palette: lichen, amber, cream, and two between. */
-const TONES = ['#b4dc78', '#fde68a', '#8fd3a6', '#f3c98b', '#d9e8a2'];
+/** The landing's alien colors: mostly lichen, about a third amber, as in its UFO scene. */
+const LICHEN = '#b4dc78';
+const AMBER = '#fde68a';
 
 function seedBytes(wallet: string): Uint8Array {
   try {
@@ -54,7 +55,7 @@ function alienSprite(wallet: string): { cells: boolean[][]; color: string } {
   const cells = Array.from({ length: H }, (_, y) =>
     Array.from({ length: W }, (_, x) => cell(y, x < HALF ? x : W - 1 - x))
   );
-  return { cells, color: TONES[bytes[bytes.length - 1] % TONES.length] };
+  return { cells, color: bytes[bytes.length - 1] % 3 === 0 ? AMBER : LICHEN };
 }
 
 export function PixelAlien({

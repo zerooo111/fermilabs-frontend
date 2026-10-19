@@ -37,7 +37,18 @@ export function ScoreCount({ value, className }: { value: number; className?: st
   const text = shown === value ? points(value) : points(Math.round(shown));
   return (
     <span className={className} aria-label={points(value)}>
-      <span aria-hidden>{text}</span>
+      <span aria-hidden>
+        {/* In a mono face the separators take a full cell; pull them in. */}
+        {text.split(/([,.])/).map((part, i) =>
+          part === ',' || part === '.' ? (
+            <span key={i} className="-mx-[0.22em]">
+              {part}
+            </span>
+          ) : (
+            part
+          )
+        )}
+      </span>
     </span>
   );
 }

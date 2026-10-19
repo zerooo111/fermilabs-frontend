@@ -1,41 +1,15 @@
-/* Points page: a quiet pixel sky behind the hero, and the wallet's alien
-   beaming in over a tractor beam. The one motion moment on the page. */
-
-.points-sky {
-  background-image:
-    radial-gradient(1px 1px at 12% 22%, rgb(248 247 231 / 0.35), transparent 60%),
-    radial-gradient(1px 1px at 38% 70%, rgb(248 247 231 / 0.2), transparent 60%),
-    radial-gradient(1px 1px at 63% 14%, rgb(248 247 231 / 0.3), transparent 60%),
-    radial-gradient(1px 1px at 82% 48%, rgb(180 220 120 / 0.35), transparent 60%),
-    radial-gradient(1px 1px at 91% 82%, rgb(248 247 231 / 0.2), transparent 60%),
-    radial-gradient(1px 1px at 52% 40%, rgb(253 230 138 / 0.25), transparent 60%);
-}
+/* Points page: a checked wallet's alien beams in beside its score. */
 
 .points-alien {
-  position: relative;
-  z-index: 1;
-  filter: drop-shadow(0 0 18px rgb(180 220 120 / 0.25));
   animation:
     points-beam-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both,
     points-bob 3.2s ease-in-out 700ms infinite;
 }
 
-.points-beam {
-  position: absolute;
-  left: 50%;
-  top: 60%;
-  width: 70%;
-  height: 120%;
-  transform: translateX(-50%);
-  clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
-  background: linear-gradient(to bottom, rgb(253 230 138 / 0.22), rgb(253 230 138 / 0));
-  pointer-events: none;
-}
-
 @keyframes points-beam-in {
   from {
     opacity: 0;
-    transform: translateY(48px) scale(0.6);
+    transform: translateY(-48px) scale(0.6);
   }
   to {
     opacity: 1;
@@ -45,7 +19,7 @@
 
 @keyframes points-bob {
   50% {
-    transform: translateY(-8px);
+    transform: translateY(-6px);
   }
 }
 

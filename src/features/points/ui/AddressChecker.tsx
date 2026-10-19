@@ -35,14 +35,7 @@ export function AddressChecker({
 
   return (
     <div className={className}>
-      <form
-        onSubmit={submit}
-        className={cn(
-          'flex w-full max-w-2xl items-center gap-2 rounded-2xl border bg-surface-sunken p-1.5 transition-[border-color,box-shadow] duration-150',
-          'focus-within:shadow-[0_0_0_4px_rgb(180_220_120/0.14),0_0_32px_rgb(180_220_120/0.12)]',
-          error ? 'border-danger' : 'border-rock/15 focus-within:border-lichen/70'
-        )}
-      >
+      <form onSubmit={submit} className="flex w-full max-w-2xl flex-col gap-2 sm:flex-row">
         <label htmlFor="points-address" className="sr-only">
           Wallet address
         </label>
@@ -58,19 +51,22 @@ export function AddressChecker({
           spellCheck={false}
           aria-invalid={!!error}
           aria-describedby={error ? 'points-address-error' : undefined}
-          className="h-11 w-full min-w-0 flex-1 bg-transparent px-3 font-mono text-sm text-rock caret-lichen placeholder:font-sans placeholder:text-rock/40"
-          // The form glows on focus, so the field drops the page's focus outline
-          // (inline, to win over `.landing :focus-visible`).
+          className={cn(
+            'h-12 w-full min-w-0 border bg-surface-sunken px-4 font-mono text-sm text-rock caret-amber-200 transition-colors duration-150 placeholder:font-sans placeholder:text-rock/40 sm:flex-1',
+            error ? 'border-danger' : 'border-rock/25 hover:border-rock/40 focus:border-amber-200'
+          )}
+          // The amber border is the focus state, so the field drops the page's
+          // offset outline (inline, to win over `.landing :focus-visible`).
           style={{ outline: 'none' }}
         />
         <button
           type="submit"
-          className="h-11 shrink-0 rounded-xl bg-amber-200 px-5 text-sm font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100"
+          className="h-12 shrink-0 bg-amber-200 px-5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100"
         >
           Check points
         </button>
       </form>
-      <div className="mt-2 min-h-5 px-1 text-sm">
+      <div className="mt-2 min-h-5 text-sm">
         {error ? (
           <p id="points-address-error" className="text-danger">
             {error}

@@ -7,6 +7,7 @@
  */
 
 export const APP_ORIGIN = 'https://app.fermi.trade';
+export const LANDING_ORIGIN = 'https://fermi.trade';
 
 const LANDING_HOSTS = ['fermi.trade', 'www.fermi.trade'];
 const APP_HOSTS = ['app.fermi.trade'];
@@ -22,4 +23,12 @@ export const isAppHost = APP_HOSTS.includes(host);
  */
 export function appHref(path: string): string {
   return isLandingHost ? `${APP_ORIGIN}${path}` : path;
+}
+
+/**
+ * A link to a landing route (`/points`, …): on the app domain it points at
+ * fermi.trade, everywhere else it stays on the current host.
+ */
+export function landingHref(path: string): string {
+  return isAppHost ? `${LANDING_ORIGIN}${path}` : path;
 }

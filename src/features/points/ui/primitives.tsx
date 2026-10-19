@@ -1,8 +1,16 @@
 /**
- * Loading and empty states shared by the points page.
+ * Small pieces shared by the points page, in the landing's drawing-sheet
+ * style: square corners, hairline rules, spaced uppercase labels.
  */
 import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/utils';
+
+/** A label over a block of content, like the landing hero's kicker. */
+export function Label({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <p className={cn('text-xs tracking-[0.2em] text-rock/60 uppercase', className)}>{children}</p>
+  );
+}
 
 export function Bone({ className }: { className?: string }) {
   return <span aria-hidden className={cn('block animate-pulse bg-rock/10', className)} />;

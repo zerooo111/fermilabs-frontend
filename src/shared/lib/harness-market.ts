@@ -65,8 +65,8 @@ export function lotsBaseToUiWithMarket(
 ): number {
   const params = resolveMarketConversionParams(market);
   return baseLotsToUi(baseLots, {
-    baseDecimals: params.base_decimals,
-    baseLotSize: params.base_lot_size,
+    baseDecimals: Number(params.base_decimals),
+    baseLotSize: Number(params.base_lot_size),
   });
 }
 

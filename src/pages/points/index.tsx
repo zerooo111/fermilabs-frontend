@@ -1,26 +1,25 @@
 /**
- * Points page: check any wallet, see where the season is, how to earn and
- * who leads. With ?wallet= that wallet's points, and its alien, show under
- * the checker. The rules live at /points/docs.
+ * Points page, in the landing's drawing-sheet layout: a hero with the UFO
+ * scene and the checker, then (with ?wallet=) that wallet's points, then the
+ * ways to earn. The rules live at /points/docs.
  */
 import { useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   AddressChecker,
+  Countdown,
   EarnMore,
-  PixelAlien,
+  Label,
+  SEASON_START_MS,
   SeasonStrip,
-  TopWallets,
   isValidAddress,
   usePointsAccount,
   useNow,
 } from '@/features/points';
+import { SkyScene } from '@/pages/home/ui/SkyScene';
 import { PointsShell } from './ui/PointsShell';
 import { WalletResults } from './ui/WalletResults';
 import './points.css';
-
-/** Seed for the hero's alien; a checked wallet's own alien shows by its score. */
-const HERO_ALIEN = 'ALiENpointsSeason1xxxxxxxxxxxxxxxxxxxxxxxx';
 
 function PointsPage() {
   const [params] = useSearchParams();
@@ -29,9 +28,8 @@ function PointsPage() {
   const now = useNow();
   const { data: account } = usePointsAccount(valid ? wallet : undefined);
 
-  // Checking a wallet from the page (the checker, or a top wallet further
-  // down) scrolls to its results. A link that opens the page with ?wallet=
-  // starts at the top.
+  // Checking a wallet from the page scrolls to its results. A link that opens
+  // the page with ?wallet= starts at the top.
   const resultsRef = useRef<HTMLDivElement>(null);
   const shown = useRef(wallet);
   useEffect(() => {
@@ -42,51 +40,53 @@ function PointsPage() {
 
   return (
     <PointsShell>
-      <section className="points-sky w-full border-b border-rock/10">
-        <div className="grid items-center gap-10 px-5 pt-14 pb-12 md:grid-cols-[minmax(0,1fr)_auto] md:px-10 md:pt-20 md:pb-16">
-          <div className="flex flex-col gap-6">
-            <h1 className="max-w-2xl font-serif text-5xl leading-[1.02] font-light tracking-[-0.02em] md:text-7xl">
-              How many points has your wallet earned?
-            </h1>
-            <p className="max-w-lg text-lg text-rock/70">
-              Paste any Solana address to see its ALIEN points, its rank and how to earn more.
-            </p>
-            {/* key: a new address in the URL resets the field to it */}
-            <AddressChecker key={wallet ?? ''} initial={wallet ?? ''} />
-            <div className="max-w-2xl">
-              <SeasonStrip now={now} />
-            </div>
-          </div>
-          <div className="relative mx-auto hidden w-56 md:block lg:w-72" aria-hidden>
-            <div className="points-alien">
-              <PixelAlien wallet={HERO_ALIEN} className="w-full" />
-            </div>
-            <div className="points-beam" />
+      <section className="relative isolate overflow-hidden border-b border-rock/15 px-5 pt-16 pb-12 md:px-10 md:pt-24 md:pb-16">
+        {/* The landing hero's sky and UFO; the UFO hides on phones */}
+        <SkyScene ufoClassName="right-6 bottom-0 hidden w-[min(42%,500px)] md:block" />
+        <div className="flex flex-col md:max-w-[56%]">
+          <Label className="mb-6 md:mb-8">ALIEN points, season 1</Label>
+          <h1 className="font-serif text-[clamp(2.5rem,5.5vw,4.75rem)] leading-[1.1] font-light tracking-[-0.03em]">
+            How many points has your wallet earned?
+          </h1>
+          <p className="mt-6 max-w-xl text-lg text-rock/70">
+            Paste any Solana address to see its points, its rank and how to earn more.
+          </p>
+          {/* key: a new address in the URL resets the field to it */}
+          <AddressChecker key={wallet ?? ''} initial={wallet ?? ''} className="mt-8" />
+          <div className="mt-4 max-w-2xl">
+            <SeasonStrip now={now} />
           </div>
         </div>
       </section>
 
       {wallet && (
-        <div ref={resultsRef} className="scroll-mt-12 border-b border-rock/10 px-5 py-10 md:px-10">
+        <div ref={resultsRef} className="scroll-mt-14">
           <WalletResults wallet={wallet} />
         </div>
       )}
 
-      <div className="grid gap-10 px-5 py-10 md:px-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-        <section>
-          <h2 className="mb-4 font-serif text-3xl font-light">
+      <section className="reg flex flex-col gap-6 border-b border-rock/15 px-5 py-8 sm:flex-row sm:items-end sm:justify-between md:px-10 md:py-10">
+        <div className="flex flex-col gap-4">
+          <h2 className="font-serif text-4xl leading-none font-light tracking-[-0.02em] md:text-5xl">
             {account && account.total > 0 ? 'Earn more' : 'How to earn'}
           </h2>
-          <EarnMore account={account} now={now} />
-          <Link to="/points/docs" className="link mt-4 inline-block text-sm text-rock/70">
+          <Link to="/points/docs" className="link self-start text-rock/85">
             Read the full rules
           </Link>
-        </section>
-        <section>
-          <h2 className="mb-4 font-serif text-3xl font-light">Leaderboard</h2>
-          <TopWallets limit={10} current={valid ? wallet : undefined} />
-        </section>
-      </div>
+        </div>
+        {now < SEASON_START_MS && (
+          <div className="flex flex-col gap-2 sm:items-end">
+            <Label>Earning opens in</Label>
+            <Countdown
+              to={SEASON_START_MS}
+              className="font-mono text-3xl leading-none tracking-tight text-amber-200 md:text-4xl"
+            />
+          </div>
+        )}
+      </section>
+      <section>
+        <EarnMore account={account} now={now} />
+      </section>
     </PointsShell>
   );
 }

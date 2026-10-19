@@ -1,24 +1,16 @@
 /**
- * Where the program is right now, in one line: the period that is earning,
- * how long it has left, and a bar for how much of it has passed.
+ * Where the program is, in one line: how long until Season 1 starts earning,
+ * and a bar for how much of the wait since the pre-deposit date has passed.
+ * Once the season is on, it says so.
  */
-import type { PointsEpoch } from '../api/pointsClient';
-import { countdown, epochLabel } from '../model/format';
-import { usePointsEpochs } from '../model/usePoints';
+import { countdown } from '../model/format';
+import { SEASON_START_MS } from '../model/program';
 
-/** The live epoch; otherwise the next upcoming one. */
-function currentEpoch(epochs: PointsEpoch[]): PointsEpoch | undefined {
-  return epochs.find(e => e.status === 'live') ?? epochs.find(e => e.status === 'upcoming');
-}
+const WAIT_FROM_MS = Date.UTC(2026, 9, 15);
 
 export function SeasonStrip({ now }: { now: number }) {
-  const { data: epochs } = usePointsEpochs();
-  const current = epochs && currentEpoch(epochs);
-  if (!current) return null;
-
-  const live = current.status === 'live';
-  const span = current.ends_at_ms - current.starts_at_ms;
-  const done = live ? Math.min(1, Math.max(0, (now - current.starts_at_ms) / span)) : 0;
+  const started = now >= SEASON_START_MS;
+  const done = Math.min(1, Math.max(0, (now - WAIT_FROM_MS) / (SEASON_START_MS - WAIT_FROM_MS)));
 
   return (
     <div className="flex flex-col gap-2">
@@ -26,22 +18,25 @@ export function SeasonStrip({ now }: { now: number }) {
         <span className="text-rock">
           <span
             className={
-              live
-                ? 'mr-2 inline-block size-2 animate-pulse rounded-full bg-lichen motion-reduce:animate-none'
-                : 'mr-2 inline-block size-2 rounded-full bg-rock/40'
+              started
+                ? 'mr-2 inline-block size-1.5 rounded-full bg-lichen'
+                : 'mr-2 inline-block size-1.5 rounded-full bg-amber-200'
             }
             aria-hidden
           />
-          {epochLabel(current)} {live ? 'is earning now' : 'is next'}
+          {started ? 'Season 1 is earning now' : 'Season 1 starts 1 Nov'}
         </span>
-        <span className="tabular-nums text-rock/60">
-          {live
-            ? `${countdown(current.ends_at_ms - now)} left`
-            : `Starts in ${countdown(current.starts_at_ms - now)}`}
-        </span>
+        {!started && (
+          <span className="text-rock/60">
+            <span className="font-mono">{countdown(SEASON_START_MS - now)}</span> to go
+          </span>
+        )}
       </p>
-      <div className="h-1.5 overflow-hidden rounded-full bg-rock/10">
-        <div className="h-full rounded-full bg-lichen" style={{ width: `${done * 100}%` }} />
+      <div className="h-1 bg-rock/10">
+        <div
+          className={started ? 'h-full bg-lichen' : 'h-full bg-amber-200'}
+          style={{ width: `${done * 100}%` }}
+        />
       </div>
     </div>
   );

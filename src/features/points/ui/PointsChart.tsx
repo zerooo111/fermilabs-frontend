@@ -1,48 +1,93 @@
 /**
- * A wallet's points over time: the running total as a step line, from the
- * start of the program to now. Hover (or touch) shows the total on that day.
+ * A wallet's points over time: the running total as a smooth curve, from the
+ * start of the program to now. The curve is monotone, so it never dips below
+ * a total or overshoots the next one. Hover (or touch) snaps to the nearest
+ * data point and shows its date and total.
  */
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import type { PointsEntry } from '../api/pointsClient';
 import { dateUtc, points } from '../model/format';
 
-const HEIGHT = 168;
+/** Used until the container is measured, and as the floor. */
+const MIN_HEIGHT = 200;
 const PAD = { top: 16, right: 8, bottom: 24, left: 8 };
 
-interface Step {
+interface Point {
   t: number;
   total: number;
 }
 
-function useWidth() {
+function useSize() {
   const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  const [size, setSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setWidth(Math.round(e.contentRect.width)));
+    const ro = new ResizeObserver(([e]) =>
+      setSize({
+        width: Math.round(e.contentRect.width),
+        height: Math.round(e.contentRect.height),
+      })
+    );
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  return [ref, width] as const;
+  return [ref, size] as const;
+}
+
+/**
+ * Monotone cubic path through pixel points with increasing x (Fritsch-Carlson
+ * tangents, as d3's curveMonotoneX): smooth, and flat wherever the data is.
+ */
+function monotonePath(p: [number, number][]): string {
+  const n = p.length;
+  if (n === 0) return '';
+  if (n === 2) return `M${p[0][0]},${p[0][1]}L${p[1][0]},${p[1][1]}`;
+  if (n === 1) return `M${p[0][0]},${p[0][1]}`;
+  const slope = (i: number) => (p[i + 1][1] - p[i][1]) / (p[i + 1][0] - p[i][0] || 1);
+  const m = new Array<number>(n);
+  for (let i = 1; i < n - 1; i++) {
+    const s0 = slope(i - 1);
+    const s1 = slope(i);
+    const h0 = p[i][0] - p[i - 1][0];
+    const h1 = p[i + 1][0] - p[i][0];
+    const mid = (s0 * h1 + s1 * h0) / (h0 + h1);
+    m[i] =
+      (Math.sign(s0) + Math.sign(s1)) * Math.min(Math.abs(s0), Math.abs(s1), 0.5 * Math.abs(mid));
+  }
+  // End tangents from the neighbouring one, so the ends don't overshoot either.
+  m[0] = (3 * slope(0) - m[1]) / 2;
+  m[n - 1] = (3 * slope(n - 2) - m[n - 2]) / 2;
+  let d = `M${p[0][0]},${p[0][1]}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = (p[i + 1][0] - p[i][0]) / 3;
+    d += `C${p[i][0] + h},${p[i][1] + h * m[i]} ${p[i + 1][0] - h},${p[i + 1][1] - h * m[i + 1]} ${p[i + 1][0]},${p[i + 1][1]}`;
+  }
+  return d;
 }
 
 export function PointsChart({ entries, startMs }: { entries: PointsEntry[]; startMs: number }) {
-  const [ref, width] = useWidth();
+  const [ref, { width, height }] = useSize();
+  // Fills its container's height, so it lines up with whatever sits beside it.
+  const HEIGHT = Math.max(MIN_HEIGHT, height);
   const [hover, setHover] = useState<number | null>(null);
 
-  const { steps, from, to, max } = useMemo(() => {
+  // The total after each entry, from 0 at the start to the total now.
+  const { data, from, to, max } = useMemo(() => {
     const sorted = [...entries].sort((a, b) => a.occurred_at_ms - b.occurred_at_ms);
     const from = Math.min(startMs, sorted[0]?.occurred_at_ms ?? startMs);
     const to = Math.max(Date.now(), sorted.at(-1)?.occurred_at_ms ?? from + 1);
     let total = 0;
-    const steps: Step[] = [{ t: from, total: 0 }];
+    const data: Point[] = [{ t: from, total: 0 }];
     for (const e of sorted) {
       total += e.points;
-      steps.push({ t: e.occurred_at_ms, total });
+      // Entries at the same moment collapse into one point.
+      if (data.at(-1)!.t === e.occurred_at_ms) data.at(-1)!.total = total;
+      else data.push({ t: e.occurred_at_ms, total });
     }
-    const max = Math.max(1, ...steps.map(s => s.total));
-    return { steps, from, to, max };
+    if (data.at(-1)!.t < to) data.push({ t: to, total });
+    const max = Math.max(1, ...data.map(s => s.total));
+    return { data, from, to, max };
   }, [entries, startMs]);
 
   const plotW = Math.max(1, width - PAD.left - PAD.right);
@@ -50,31 +95,24 @@ export function PointsChart({ entries, startMs }: { entries: PointsEntry[]; star
   const x = (t: number) => PAD.left + ((t - from) / (to - from)) * plotW;
   const y = (v: number) => PAD.top + plotH - (Math.max(0, v) / max) * plotH;
 
-  // Step-after path: flat until each entry, then up (or down) to the new total.
-  let line = `M${x(steps[0].t)},${y(0)}`;
-  for (let i = 1; i < steps.length; i++) {
-    line += `H${x(steps[i].t)}V${y(steps[i].total)}`;
-  }
-  line += `H${x(to)}`;
+  const line = monotonePath(data.map(d => [x(d.t), y(d.total)]));
   const area = `${line}V${y(0)}H${x(from)}Z`;
 
-  const totalAt = (t: number) => {
-    let v = 0;
-    for (const s of steps) if (s.t <= t) v = s.total;
-    return v;
-  };
-
   const onMove = (e: PointerEvent<SVGSVGElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const px = Math.min(PAD.left + plotW, Math.max(PAD.left, e.clientX - rect.left));
-    setHover(from + ((px - PAD.left) / plotW) * (to - from));
+    const px = e.clientX - e.currentTarget.getBoundingClientRect().left;
+    let nearest = 0;
+    data.forEach((d, i) => {
+      if (Math.abs(x(d.t) - px) < Math.abs(x(data[nearest].t) - px)) nearest = i;
+    });
+    setHover(nearest);
   };
 
-  const hx = hover !== null ? x(hover) : null;
-  const hv = hover !== null ? totalAt(hover) : null;
+  const h = hover !== null ? data[hover] : null;
+  const tipBelow = h !== null && y(h.total) < 44;
+  const last = data.at(-1)!;
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative h-full min-h-[200px]">
       {width > 0 && (
         <svg
           width={width}
@@ -84,14 +122,8 @@ export function PointsChart({ entries, startMs }: { entries: PointsEntry[]; star
           onPointerDown={onMove}
           onPointerLeave={() => setHover(null)}
           role="img"
-          aria-label={`Points over time, now ${points(steps.at(-1)!.total)}`}
+          aria-label={`Points over time, now ${points(last.total)}`}
         >
-          <defs>
-            <linearGradient id="points-area" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0" stopColor="var(--color-lichen)" stopOpacity="0.28" />
-              <stop offset="1" stopColor="var(--color-lichen)" stopOpacity="0" />
-            </linearGradient>
-          </defs>
           <line
             x1={PAD.left}
             x2={PAD.left + plotW}
@@ -100,17 +132,22 @@ export function PointsChart({ entries, startMs }: { entries: PointsEntry[]; star
             stroke="var(--color-rock)"
             strokeOpacity="0.15"
           />
-          <path d={area} fill="url(#points-area)" />
-          <path
-            d={line}
-            fill="none"
-            stroke="var(--color-lichen)"
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
+          <path d={area} fill="var(--color-lichen)" fillOpacity="0.12" />
+          <path d={line} fill="none" stroke="var(--color-lichen)" strokeWidth="2" />
+          {h && (
+            <line
+              x1={x(h.t)}
+              x2={x(h.t)}
+              y1={PAD.top}
+              y2={PAD.top + plotH}
+              stroke="var(--color-rock)"
+              strokeOpacity="0.35"
+              strokeDasharray="2 3"
+            />
+          )}
           <circle
-            cx={x(to)}
-            cy={y(steps.at(-1)!.total)}
+            cx={x((h ?? last).t)}
+            cy={y((h ?? last).total)}
             r="4"
             fill="var(--color-lichen)"
             stroke="var(--color-background)"
@@ -127,26 +164,21 @@ export function PointsChart({ entries, startMs }: { entries: PointsEntry[]; star
           >
             Today
           </text>
-          {hx !== null && (
-            <line
-              x1={hx}
-              x2={hx}
-              y1={PAD.top}
-              y2={PAD.top + plotH}
-              stroke="var(--color-rock)"
-              strokeOpacity="0.35"
-              strokeDasharray="2 3"
-            />
-          )}
         </svg>
       )}
-      {hx !== null && hv !== null && hover !== null && (
+      {h && (
         <div
-          className="pointer-events-none absolute top-0 -translate-x-1/2 border border-rock/15 bg-surface px-2.5 py-1.5 text-xs whitespace-nowrap"
-          style={{ left: Math.min(width - 60, Math.max(60, hx)) }}
+          className={`pointer-events-none absolute -translate-x-1/2 border border-rock/15 bg-surface px-2.5 py-1.5 text-xs whitespace-nowrap ${tipBelow ? '' : '-translate-y-full'}`}
+          style={{
+            left: Math.min(width - 70, Math.max(70, x(h.t))),
+            // Above the point, or below it when there's no room above.
+            top: tipBelow ? y(h.total) + 10 : y(h.total) - 10,
+          }}
         >
-          <span className="text-rock/60">{dateUtc(hover)}</span>
-          <span className="ml-2 tabular-nums text-rock">{points(hv)} pts</span>
+          <span className="text-rock/60">{h.t === last.t ? 'Today' : dateUtc(h.t)}</span>
+          <span className="ml-2 text-rock">
+            <span className="font-mono">{points(h.total)}</span> pts
+          </span>
         </div>
       )}
     </div>

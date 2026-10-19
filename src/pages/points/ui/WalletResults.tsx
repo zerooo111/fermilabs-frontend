@@ -1,21 +1,21 @@
 /**
  * One wallet's points, shown on the points page under the checker when the
- * URL has ?wallet=: the score and rank, points over time, where they came
- * from and the latest activity. Public: the address comes from the URL, so a
- * link shows the same numbers to anyone.
+ * URL has ?wallet=: two ruled rows, the score beside points over time, then
+ * where they came from beside the latest activity. Public: the address comes
+ * from the URL, so a link shows the same numbers to anyone.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Check, Copy } from 'lucide-react';
 import axios from 'axios';
 import {
   ActivityList,
   Bone,
-  CATEGORY_LABELS,
-  CATEGORY_ORDER,
+  Label,
   Notice,
   PixelAlien,
   PointsChart,
   ScoreCount,
+  SkillGraph,
   isValidAddress,
   points,
   shortAddress,
@@ -23,7 +23,6 @@ import {
   usePointsActivity,
   usePointsEpochs,
 } from '@/features/points';
-import type { PointsAccount } from '@/features/points';
 
 function CopyAddress({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
@@ -53,38 +52,22 @@ function topShare(rank: number, ranked: number): string {
   return `${Math.max(1, Math.ceil((rank / ranked) * 100))}%`;
 }
 
-function Breakdown({ account }: { account: PointsAccount }) {
-  const rows = CATEGORY_ORDER.map(c => ({ c, v: account.by_category[c] ?? 0 })).filter(
-    r => r.v > 0
-  );
-  const max = Math.max(1, ...rows.map(r => r.v));
+const PAD = 'px-5 py-8 md:px-10 md:py-10';
+
+/** A full-width band; on large screens its two cells sit side by side. */
+function Row({ children }: { children: ReactNode }) {
   return (
-    <ul className="grid gap-4">
-      {rows.map(({ c, v }) => (
-        <li key={c}>
-          <p className="flex items-baseline justify-between gap-3 text-sm">
-            <span className="text-rock/80">{CATEGORY_LABELS[c]}</span>
-            <span className="tabular-nums text-rock">{points(v)}</span>
-          </p>
-          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-rock/10">
-            <div
-              className="h-full rounded-full bg-lichen"
-              style={{ width: `${(v / max) * 100}%` }}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
+    <section className="reg border-b border-rock/15">
+      <div className="grid divide-y divide-dashed divide-rock/20 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:divide-x lg:divide-y-0">
+        {children}
+      </div>
+    </section>
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-rock/10 bg-surface-base/60 p-5 md:p-6">
-      <h3 className="mb-4 text-sm text-rock/60">{title}</h3>
-      {children}
-    </section>
-  );
+/** A single band, for loading and error states. */
+function Band({ children }: { children: ReactNode }) {
+  return <section className={`reg border-b border-rock/15 ${PAD}`}>{children}</section>;
 }
 
 function Results({ wallet }: { wallet: string }) {
@@ -99,18 +82,22 @@ function Results({ wallet }: { wallet: string }) {
 
   if (account.isPending) {
     return (
-      <div className="grid gap-4">
-        <Bone className="h-24 w-72 rounded-xl" />
-        <Bone className="h-48 rounded-2xl" />
-      </div>
+      <Band>
+        <div className="grid gap-4">
+          <Bone className="h-24 w-72" />
+          <Bone className="h-48" />
+        </div>
+      </Band>
     );
   }
   if (account.isError) {
     const notDeployed = axios.isAxiosError(account.error) && account.error.response?.status === 404;
     return (
-      <Notice title={notDeployed ? 'Points are not live yet.' : "Couldn't load points."}>
-        Try again in a minute.
-      </Notice>
+      <Band>
+        <Notice title={notDeployed ? 'Points are not live yet.' : "Couldn't load points."}>
+          Try again in a minute.
+        </Notice>
+      </Band>
     );
   }
 
@@ -121,72 +108,106 @@ function Results({ wallet }: { wallet: string }) {
 
   // The wallet's alien beams in beside the score; key replays it per wallet.
   const alien = (
-    <div key={wallet} className="points-alien w-24 shrink-0 md:w-32" aria-hidden>
+    <div key={wallet} className="points-alien w-14 shrink-0" aria-hidden>
       <PixelAlien wallet={wallet} className="w-full" />
     </div>
   );
 
   if (a.total === 0 && entries.length === 0) {
     return (
-      <div className="flex items-center gap-6">
-        {alien}
-        <div className="flex flex-col gap-1">
-          <CopyAddress address={wallet} />
-          <p className="font-serif text-6xl leading-none font-light text-rock md:text-7xl">0</p>
-          <p className="mt-2 text-rock/70">
-            No points here yet. Pick a way to earn below to get on the board.
-          </p>
+      <Band>
+        <div className="flex items-center gap-6">
+          {alien}
+          <div className="flex flex-col gap-1">
+            <CopyAddress address={wallet} />
+            <p className="font-serif text-6xl leading-none font-light md:text-7xl">0</p>
+            <p className="mt-2 text-rock/70">
+              No points here yet. Pick a way to earn below to get on the board.
+            </p>
+          </div>
         </div>
-      </div>
+      </Band>
     );
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-      <div className="flex items-center gap-6 py-2">
-        {alien}
-        <div className="flex min-w-0 flex-col gap-1">
-          <CopyAddress address={wallet} />
-          <p className="flex flex-wrap items-baseline gap-x-3">
+    <>
+      <Row>
+        <div className={`flex flex-col gap-7 ${PAD}`}>
+          {/* Who: the wallet's alien and address */}
+          <div className="flex items-center gap-4">
+            {alien}
+            <div className="flex min-w-0 flex-col gap-1">
+              <Label>Wallet</Label>
+              <CopyAddress address={wallet} />
+            </div>
+          </div>
+
+          {/* How much: the number this page is for */}
+          <div>
+            <Label className="mb-3">Total points</Label>
             <ScoreCount
               value={a.total}
-              className="font-serif text-7xl leading-none font-light tracking-[-0.02em] text-rock tabular-nums md:text-8xl"
+              className="block font-mono text-[clamp(3.5rem,7vw,5.75rem)] leading-[0.9] font-normal tracking-[-0.06em] tabular-nums"
             />
-            <span className="text-xl text-rock/60">points</span>
-          </p>
+          </div>
+
+          {/* Where it stands */}
           {a.rank !== null && (
-            <p className="mt-3 flex flex-wrap items-center gap-2 text-rock/80">
-              <span className="rounded-full bg-amber-200 px-3 py-1 text-sm font-medium text-dark-forest">
-                Rank {a.rank}
-              </span>
-              <span>
-                of {a.ranked} wallets, top {topShare(a.rank, a.ranked)}
-              </span>
-            </p>
+            <dl className="grid grid-cols-2 divide-x divide-rock/15 border border-rock/15">
+              <div className="px-4 py-3">
+                <dt className="text-sm text-rock/55">Rank</dt>
+                <dd className="mt-1 text-sm text-rock/55">
+                  <span className="mr-1.5 font-mono text-3xl leading-none tracking-tight text-rock">
+                    #{a.rank}
+                  </span>
+                  of <span className="font-mono">{a.ranked}</span>
+                </dd>
+              </div>
+              <div className="px-4 py-3">
+                <dt className="text-sm text-rock/55">Standing</dt>
+                <dd className="mt-1 text-sm text-rock/55">
+                  Top
+                  <span className="ml-1.5 font-mono text-3xl leading-none tracking-tight text-amber-200">
+                    {topShare(a.rank, a.ranked)}
+                  </span>
+                </dd>
+              </div>
+            </dl>
           )}
+
           {settling > 0 && (
-            <p className="mt-2 text-sm text-rock/50">
-              {settling === a.total ? 'All' : points(settling)} still an estimate. Points become
-              final 14 days after the period closes.
+            <p className="-mt-2 flex items-start gap-2 text-sm text-rock/55">
+              <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-200" aria-hidden />
+              {settling === a.total ? 'An estimate' : `${points(settling)} still an estimate`} until
+              14 days after the period closes.
             </p>
           )}
         </div>
-      </div>
+        <div className={`flex flex-col ${PAD}`}>
+          <Label className="mb-4">Points over time</Label>
+          {/* Grows to the row's height, which the score beside it sets. */}
+          <div className="min-h-0 flex-1">
+            <PointsChart entries={entries} startMs={startMs} />
+          </div>
+        </div>
+      </Row>
 
-      <Card title="Points over time">
-        <PointsChart entries={entries} startMs={startMs} />
-      </Card>
-
-      <Card title="Where they came from">
-        <Breakdown account={a} />
-      </Card>
-
-      {entries.length > 0 && (
-        <Card title="Latest activity">
-          <ActivityList entries={entries} />
-        </Card>
-      )}
-    </div>
+      <Row>
+        <div className={PAD}>
+          <Label className="mb-2">Where they came from</Label>
+          <SkillGraph account={a} />
+        </div>
+        <div className={PAD}>
+          <Label className="mb-4">Latest activity</Label>
+          {entries.length > 0 ? (
+            <ActivityList entries={entries} />
+          ) : (
+            <p className="text-rock/60">Nothing yet.</p>
+          )}
+        </div>
+      </Row>
+    </>
   );
 }
 
@@ -203,7 +224,11 @@ export function WalletResults({ wallet }: { wallet: string }) {
 
   if (!valid) {
     return (
-      <Notice title="That isn't a Solana wallet address.">Check the address and try again.</Notice>
+      <Band>
+        <Notice title="That isn't a Solana wallet address.">
+          Check the address and try again.
+        </Notice>
+      </Band>
     );
   }
   return <Results wallet={wallet} />;
