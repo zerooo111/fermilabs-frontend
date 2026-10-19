@@ -12,7 +12,7 @@ import { getTokenDecimals } from '@/shared/lib/token-decimals';
 import { recentMarketTradesAtom } from '@/shared/api/sse-atoms';
 import { sseConnectionStateAtom } from '@/shared/api/sse-atoms';
 import type { RecentTrade } from '@/shared/api/sse-atom-bridge';
-import './trade-dissolve.css';
+import './row-flash.css';
 
 const ROW_HEIGHT_CLASS = 'h-[22px]';
 
@@ -95,8 +95,10 @@ function TradeRow({
 }: TradeRowProps) {
   const { price: rawPrice, quantity: rawQuantity, buyer_owner, seller_owner, timestamp } = trade;
   // Latched at mount: rows keep their element across renders (keyed by trade
-  // id), so the dissolve plays once and later renders never restart it.
-  const [dissolve] = useState(isNew);
+  // id), so the flash plays once and later renders never restart it. The
+  // layer is dropped once it finishes: dockview detaches hidden panes and
+  // re-attaching restarts CSS animations, which would replay every flash.
+  const [flash, setFlash] = useState(isNew);
 
   const price = rawPrice / Math.pow(10, quoteDecimals);
   const quantity = rawQuantity / Math.pow(10, baseDecimals);
@@ -113,18 +115,18 @@ function TradeRow({
 
   return (
     <div className={`relative w-full select-none hover:bg-rock/3 ${ROW_HEIGHT_CLASS}`}>
-      {/* New-trade flash: a dither layer behind the text that thins out
-          50 -> 25 -> 12 -> 6 -> gone (see trade-dissolve.css) */}
-      {dissolve && (
+      {/* New-trade flash (see row-flash.css) */}
+      {flash && (
         <div
           aria-hidden
+          onAnimationEnd={() => setFlash(false)}
           className={cn(
-            'trade-dissolve absolute inset-0 pointer-events-none',
+            'row-flash absolute inset-0 pointer-events-none',
             direction === 'up'
-              ? 'bg-success/35'
+              ? 'bg-success/20'
               : direction === 'down'
-                ? 'bg-danger/35'
-                : 'bg-rock/20'
+                ? 'bg-danger-deep/20'
+                : 'bg-rock/15'
           )}
         />
       )}
@@ -185,7 +187,7 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
   const baseDecimals =
     selectedMarket?.baseDecimals ?? getTokenDecimals(selectedMarket?.baseTokenName);
 
-  // Only trades that land above the previous newest trade dissolve in. The
+  // Only trades that land above the previous newest trade flash. The
   // initial snapshot, a market switch and history backfilled at the bottom
   // all render without flashes.
   const marketKey = selectedMarket?.name ?? '';
@@ -223,7 +225,7 @@ export function Trades({ rows, fullView = false }: { rows: number; fullView?: bo
                 direction = t.price > next.price ? 'up' : t.price < next.price ? 'down' : 'flat';
               }
               // Key by trade id so rows keep their element as the list shifts
-              // (the dissolve must not replay); suffix the rare duplicate id.
+              // (the flash must not replay); suffix the rare duplicate id.
               const dupes = list.slice(0, i).filter(o => o.id === t.id).length;
               return (
                 <TradeRow

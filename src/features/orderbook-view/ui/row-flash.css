@@ -1,0 +1,23 @@
+/* Flash for orderbook size changes and new trades. A tinted layer behind the
+   row text that fades out once; callers re-key it to replay and drop it on
+   animationend. Opacity only: no layout, no paint outside the row. */
+@keyframes row-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.row-flash {
+  opacity: 0;
+  animation: row-flash 450ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-flash {
+    display: none;
+    animation: none;
+  }
+}

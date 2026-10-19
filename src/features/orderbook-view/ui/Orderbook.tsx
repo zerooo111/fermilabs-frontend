@@ -173,7 +173,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
               {processedOrderbook.sells.map((order, i) =>
                 order ? (
                   <OrderbookRow
-                    key={`${order.price}-${i}`}
+                    key={order.price}
                     price={order.price}
                     size={order.quantity}
                     total={order.total}
@@ -201,7 +201,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
               {processedOrderbook.buys.map((order, i) =>
                 order ? (
                   <OrderbookRow
-                    key={`${order.price}-${i}`}
+                    key={order.price}
                     price={order.price}
                     size={order.quantity}
                     total={order.total}
