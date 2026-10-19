@@ -59,6 +59,17 @@ export function lotsPriceToUiWithMarket(
   });
 }
 
+export function lotsBaseToUiWithMarket(
+  baseLots: string | number,
+  market?: HarnessMarketConversionParams | null
+): number {
+  const params = resolveMarketConversionParams(market);
+  return baseLotsToUi(baseLots, {
+    baseDecimals: params.base_decimals,
+    baseLotSize: params.base_lot_size,
+  });
+}
+
 export function lotsPriceToNative(
   priceLots: string | number,
   market?: HarnessMarketConversionParams | null

@@ -1,12 +1,11 @@
 /**
  * The chart toolbar's actions: the indicators menu and grid layout beside the
- * chart controls, then, at the end of the row, volume and log toggles,
- * jump-to-live, a PNG snapshot, chart settings and fullscreen.
+ * chart controls, then, at the end of the row, the log toggle, jump-to-live,
+ * a PNG snapshot, chart settings and fullscreen.
  */
 import { memo } from 'react';
 import {
   Activity,
-  BarChart3,
   Camera,
   ChevronDown,
   ChevronsRight,
@@ -43,15 +42,17 @@ const GRID_ICONS: Record<GridPreset, LucideIcon> = {
 };
 
 /**
- * CandleFrame indicator kinds offered in the menu (see builtInIndicators).
+ * CandleFrame indicator kinds offered in the menu (see builtInIndicators;
+ * `volume` is ours, lib/volume-indicator.ts).
  * The order-flow ones (cvd, price-delta, big-trades, flow-signals) need taker
- * buy volume or trades, which our candles don't carry.
+ * buy volume or trades, which our candles don't carry. Volume profile is left
+ * out too: a new venue doesn't trade enough for it to mean much.
  */
 const INDICATORS: { kind: string; label: string; pane: 'overlay' | 'pane' }[] = [
   { kind: 'sma', label: 'Simple moving average', pane: 'overlay' },
   { kind: 'ema', label: 'Exponential moving average', pane: 'overlay' },
   { kind: 'bb', label: 'Bollinger Bands', pane: 'overlay' },
-  { kind: 'vp', label: 'Volume profile', pane: 'overlay' },
+  { kind: 'volume', label: 'Volume', pane: 'pane' },
   { kind: 'rsi', label: 'Relative strength index', pane: 'pane' },
   { kind: 'macd', label: 'MACD', pane: 'pane' },
   { kind: 'regime', label: 'Market regime', pane: 'pane' },
@@ -64,8 +65,6 @@ interface ChartActionsProps {
   onAddIndicator: (kind: string) => void;
   grid: GridPreset;
   onGridChange: (preset: GridPreset) => void;
-  volume: boolean;
-  onVolumeChange: (visible: boolean) => void;
   log: boolean;
   onLogChange: (enabled: boolean) => void;
   onFit: () => void;
@@ -111,8 +110,6 @@ function ChartActionsComponent({
   onAddIndicator,
   grid,
   onGridChange,
-  volume,
-  onVolumeChange,
   log,
   onLogChange,
   onFit,
@@ -173,9 +170,6 @@ function ChartActionsComponent({
 
       {/* View controls sit at the end of the row. */}
       <div className="ml-auto flex items-center">
-        <IconToggle label="Volume" pressed={volume} onClick={() => onVolumeChange(!volume)}>
-          <BarChart3 className="size-3.5" />
-        </IconToggle>
         <IconToggle label="Log scale" pressed={log} onClick={() => onLogChange(!log)}>
           <span className="font-mono">log</span>
         </IconToggle>

@@ -50,10 +50,17 @@ interface ToolFamily {
   tools: DrawingToolDefinition[];
 }
 
+/**
+ * Tools left out of the rail. The fixed-range volume profile needs more
+ * traded volume than a new venue has to say anything useful.
+ */
+const HIDDEN_TOOLS = new Set(['fixed-range-volume-profile']);
+
 /** builtInDrawingTools grouped by family, then section, in catalog order. */
 const FAMILIES: ToolFamily[] = (() => {
   const families = new Map<string, ToolFamily>();
   for (const tool of builtInDrawingTools) {
+    if (HIDDEN_TOOLS.has(tool.type)) continue;
     let family = families.get(tool.group);
     if (!family) {
       family = { name: tool.group, sections: [], tools: [] };
@@ -243,7 +250,7 @@ function ChartDrawingRailComponent({
           key={family.name}
           family={family}
           tool={tool}
-          lastTool={TOOLS.get(lastTools[family.name]) ?? family.tools[0]}
+          lastTool={family.tools.find(t => t.type === lastTools[family.name]) ?? family.tools[0]}
           onToolChange={onToolChange}
         />
       ))}

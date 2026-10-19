@@ -1,11 +1,12 @@
 /**
  * Per-market chart layout: chart type, indicators, drawings and their groups,
- * volume and log scale, kept in localStorage. Shared by both price sources and
+ * and log scale, kept in localStorage. Shared by both price sources and
  * every interval, since mark and last-trade charts sit on the same price scale
  * and drawings are anchored by time and price.
  */
 import type { ChartApi } from 'candleframe/chart';
 import { isChartType } from 'candleframe/core';
+import { VOLUME_KIND } from './volume-indicator';
 
 const KEY_PREFIX = 'perps-chart:layout:';
 const SAVE_DELAY_MS = 400;
@@ -27,21 +28,32 @@ function read(symbol: string): SavedLayout | null {
 /**
  * Applies the saved layout onto the chart's current document, keeping its
  * feed, viewport and automatic price range. Not undoable.
+ *
+ * Volume is an indicator in its own pane (volume-indicator.ts), not
+ * CandleFrame's volume layer, so the layer is always off. New layouts, and
+ * saved ones that still showed the layer, get the indicator once; removing it
+ * then sticks, since the layer is saved off.
  */
 export function restoreChartLayout(chart: ChartApi, symbol: string): void {
   const saved = read(symbol);
-  if (!saved) return;
   const { document, documentRevision } = chart.inspect();
+  // Volume profile was dropped from the menu (too little volume to read);
+  // drop it from saved layouts too.
+  const indicators = (saved?.indicators ?? document.indicators).filter(i => i.kind !== 'vp');
+  const addVolume =
+    saved?.layers?.volume !== false && !indicators.some(i => i.kind === VOLUME_KIND);
   try {
     chart.restoreDocument(
       {
         ...document,
-        indicators: saved.indicators ?? document.indicators,
-        drawings: saved.drawings ?? document.drawings,
-        drawingGroups: saved.drawingGroups ?? document.drawingGroups,
-        chartType: saved.chartType && isChartType(saved.chartType) ? saved.chartType : undefined,
-        layers: { ...document.layers, ...saved.layers },
-        priceScale: saved.log ? { mode: 'auto', log: true } : { mode: 'auto' },
+        indicators: addVolume
+          ? [{ id: VOLUME_KIND, kind: VOLUME_KIND, inputs: {}, visible: true }, ...indicators]
+          : indicators,
+        drawings: saved?.drawings ?? document.drawings,
+        drawingGroups: saved?.drawingGroups ?? document.drawingGroups,
+        chartType: saved?.chartType && isChartType(saved.chartType) ? saved.chartType : undefined,
+        layers: { ...document.layers, ...saved?.layers, volume: false },
+        priceScale: saved?.log ? { mode: 'auto', log: true } : { mode: 'auto' },
       },
       documentRevision,
       { undoable: false }

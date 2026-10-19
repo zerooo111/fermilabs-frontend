@@ -41,5 +41,13 @@ export const fermiChartTheme = createTheme('evergreen', {
     wickDown: '#d53736',
     volumeUp: '#219e61',
     volumeDown: '#d53736',
+    // Volume is an indicator in its own pane (volume-indicator.ts); the layer
+    // is always off, so don't reserve its strip under the price plot.
+    volumeHeight: 0,
+    // Breathing room above each indicator pane, so axis labels and the pane
+    // title don't crowd the divider. ChartPaneOverlays draws the one divider.
+    volumeGap: 6,
+    // The drawing rail already separates the plot from the edge.
+    plotLeft: 4,
   },
 });

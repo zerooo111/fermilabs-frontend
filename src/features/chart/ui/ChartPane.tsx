@@ -26,6 +26,8 @@ import {
   type ChartSettings,
 } from '@/features/chart/lib/chart-settings';
 import { createFermiFeed, type FermiFeed } from '@/features/chart/lib/fermi-feed';
+import { volumeIndicator } from '@/features/chart/lib/volume-indicator';
+import { priceAxisWidth, priceDigits } from '@/features/chart/lib/price-axis';
 import {
   autosaveChartLayout,
   restoreChartLayout,
@@ -35,6 +37,7 @@ import { createValueStore } from '@/features/chart/lib/value-store';
 import type { PerpsPriceSource, PerpsTimeframe } from '@/features/chart/lib/perps-chart';
 import { usePositionPriceLines } from '@/features/chart/model/usePositionPriceLines';
 import { ChartLegend, type LegendIndicator } from './ChartLegend';
+import { ChartPaneOverlays } from './ChartPaneOverlays';
 import type { MagnetMode } from './ChartDrawingRail';
 import { DrawingToolbar } from './drawing-editor/DrawingToolbar';
 import type { ChartPosition, TriggerKind } from './PositionLines';
@@ -50,7 +53,6 @@ export interface CandleFrameMarket {
 
 /** The slice of a pane's chart state the toolbar and rail render. */
 export interface PaneView {
-  volume: boolean;
   log: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -186,7 +188,6 @@ function ChartPaneComponent({
     const report = () => {
       if (!lastState) return;
       const view: PaneView = {
-        volume: lastState.document.layers.volume,
         log: !!lastState.document.priceScale.log,
         canUndo: lastState.history.canUndo,
         canRedo: lastState.history.canRedo,
@@ -206,6 +207,7 @@ function ChartPaneComponent({
       instance = createChart(host, {
         feed: makeFeed(latest.current.priceSource, latest.current.interval),
         theme: chartTheme(latest.current.settings),
+        indicatorDefinitions: [volumeIndicator(() => latest.current.settings.candles)],
         timeZone: resolveTimeZone(latest.current.settings.scales.timeZone),
         onHover: bar => hovered.set(bar),
         onToolChange: next => {
@@ -265,6 +267,7 @@ function ChartPaneComponent({
         id: plugin.id,
         name: plugin.name,
         visible,
+        pane: plugin.pane ?? 'price',
       }));
       const indicatorsKey = JSON.stringify(nextIndicators);
       if (indicatorsKey !== lastIndicators) {
@@ -322,16 +325,33 @@ function ChartPaneComponent({
   }, [chart, drawingPrefs.magnet, drawingPrefs.keepDrawing]);
 
   // ── Chart settings: theme overrides and time zone ───────────────────────
-  // Skips the first run per engine: createChart already got these.
-  const appliedSettings = useRef<{ chart: ChartApi; settings: ChartSettings } | null>(null);
+  // Collapsed indicator panes need room above the time axis (ChartPaneOverlays).
+  const paneStrip = indicators.some(i => i.pane === 'separate' && !i.visible);
+  // The price axis fits the market's labels; it changes only with the digit count.
+  const digits = priceDigits(livePrices[priceSource]);
+  const axisWidth = useMemo(
+    () => (digits === null ? undefined : priceAxisWidth(digits, pricePrecision)),
+    [digits, pricePrecision]
+  );
+  const theme = useMemo(
+    () => chartTheme(settings, paneStrip, axisWidth),
+    [settings, paneStrip, axisWidth]
+  );
+  // Also runs once per new engine: createChart got the settings, but not the
+  // fitted axis or the collapsed-pane strip.
+  useEffect(() => {
+    chart?.setTheme(theme);
+  }, [chart, theme]);
+  // Skips the first run per engine: createChart already got the time zone.
+  const appliedZone = useRef<{ chart: ChartApi; zone: string } | null>(null);
   useEffect(() => {
     if (!chart) return;
-    const applied = appliedSettings.current;
-    appliedSettings.current = { chart, settings };
-    if (applied?.chart !== chart) return;
-    chart.setTheme(chartTheme(settings));
-    chart.setTimeZone(resolveTimeZone(settings.scales.timeZone));
-  }, [chart, settings]);
+    const zone = settings.scales.timeZone;
+    const applied = appliedZone.current;
+    appliedZone.current = { chart, zone };
+    if (applied?.chart !== chart || applied.zone === zone) return;
+    chart.setTimeZone(resolveTimeZone(zone));
+  }, [chart, settings.scales.timeZone]);
 
   usePositionPriceLines(chart, position, onTriggerChange);
 
@@ -405,11 +425,18 @@ function ChartPaneComponent({
         latest={latestBar}
         pricePrecision={pricePrecision}
         indicators={settings.legend.indicators ? indicators : []}
-        showOhlc={settings.legend.ohlc}
+        showOhlc={settings.legend.ohlcValues}
         showChange={settings.legend.change}
         caption={multi ? `${interval} · ${priceSource === 'mark' ? 'Mark' : 'Last'}` : undefined}
         onToggleIndicator={handleToggleIndicator}
         onRemoveIndicator={handleRemoveIndicator}
+      />
+      <ChartPaneOverlays
+        host={hostRef}
+        theme={theme}
+        indicators={indicators}
+        onToggle={handleToggleIndicator}
+        onRemove={handleRemoveIndicator}
       />
 
       {status.status === 'error' && (

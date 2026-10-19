@@ -49,7 +49,6 @@ const TIMEFRAME_SHORTCUTS: Record<string, PerpsTimeframe> = {
 };
 
 const EMPTY_VIEW: PaneView = {
-  volume: true,
   log: false,
   canUndo: false,
   canRedo: false,
@@ -259,10 +258,6 @@ function CandleFrameChartComponent({
     (kind: string) => run({ type: 'indicator.add', indicator: { kind } }),
     [run]
   );
-  const handleVolume = useCallback(
-    (visible: boolean) => run({ type: 'layer.set', layer: 'volume', visible }),
-    [run]
-  );
   const handleChartType = useCallback(
     (chartType: ChartType) => run({ type: 'chartType.set', chartType }),
     [run]
@@ -330,8 +325,6 @@ function CandleFrameChartComponent({
             onAddIndicator={handleAddIndicator}
             grid={grid.preset}
             onGridChange={handleGridChange}
-            volume={activeView.volume}
-            onVolumeChange={handleVolume}
             log={activeView.log}
             onLogChange={handleLog}
             onFit={handleFit}

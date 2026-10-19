@@ -225,8 +225,8 @@ function LegendTab({ settings, patch }: { settings: ChartSettings; patch: Patch 
     <Section title="Legend">
       <Check
         label="OHLC values"
-        checked={legend.ohlc}
-        onChange={ohlc => patch('legend', { ohlc })}
+        checked={legend.ohlcValues}
+        onChange={ohlcValues => patch('legend', { ohlcValues })}
       />
       <Check
         label="Bar change"

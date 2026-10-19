@@ -14,6 +14,8 @@ export interface LegendIndicator {
   id: string;
   name: string;
   visible: boolean;
+  /** CandleFrame's IndicatorPane: `separate` ones get their own pane. */
+  pane: 'price' | 'separate' | 'profile';
 }
 
 interface ChartLegendProps {
@@ -99,7 +101,7 @@ function ChartLegendComponent({
       {indicators.map(({ id, name, visible }) => (
         <div
           key={id}
-          className="group pointer-events-auto flex h-5 items-center gap-1 border border-transparent pl-1 pr-0.5 text-[10px] text-rock/60 hover:border-outline hover:bg-background/80"
+          className="group pointer-events-auto flex h-5 items-center gap-1 border border-transparent bg-background/75 pl-1 pr-0.5 text-[10px] text-rock/60 hover:border-outline hover:bg-background/90"
         >
           <span className={cn(!visible && 'text-rock/30 line-through')}>{name}</span>
           <button

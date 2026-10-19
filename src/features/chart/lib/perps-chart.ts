@@ -8,6 +8,7 @@ import axios from 'axios';
 import { config, API_ROUTES_V2 } from '@/shared/config/constants';
 import {
   HarnessMarketConversionParams,
+  lotsBaseToUiWithMarket,
   lotsPriceToUiWithMarket,
 } from '@/shared/lib/harness-market';
 
@@ -191,9 +192,9 @@ export function processPerpsCandleData(
         high: toUi(high),
         low: toUi(low),
         close: toUi(close),
-        // Pyth mark candles have no volume — leave it undefined so the chart's
-        // volume histogram draws nothing instead of a flat zero baseline.
-        volume: priceSource === 'mark' ? undefined : volume,
+        // Base lots for both sources (the gateway fills mark candles with our
+        // own traded volume, since the mark index has none), shown in base units.
+        volume: lotsBaseToUiWithMarket(volume, market),
       };
     } catch {
       return { time: Math.floor(Date.now() / 1000) };

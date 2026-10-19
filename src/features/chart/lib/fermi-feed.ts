@@ -83,7 +83,7 @@ function toCandle(bar: ExtendedPerpsOHLCVData): Candle | null {
     high: Math.max(high, open, close),
     low: Math.min(low, open, close),
     close,
-    // Pyth mark candles carry no volume; CandleFrame needs a finite number.
+    // CandleFrame needs a finite number.
     volume: Number.isFinite(bar.volume) && bar.volume! >= 0 ? bar.volume! : 0,
   };
 }

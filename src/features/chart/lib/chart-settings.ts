@@ -3,7 +3,7 @@
  * line colors, the legend, scales and the canvas. One set for every pane and
  * market, kept in localStorage and applied as overrides on the Fermi theme.
  */
-import { createTheme, themeColor, type ChartTheme } from 'candleframe/chart';
+import { createTheme, themeColor, type ResolvedChartTheme } from 'candleframe/chart';
 import { fermiChartTheme } from './candleframe-theme';
 
 export type LineDash = 'solid' | 'dashed' | 'dotted';
@@ -27,7 +27,11 @@ export interface ChartSettings {
     baselineDown: string;
   };
   legend: {
-    ohlc: boolean;
+    /**
+     * Off by default. Renamed from `ohlc`, which every saved settings blob
+     * has as true, so the new default reaches existing users too.
+     */
+    ohlcValues: boolean;
     change: boolean;
     indicators: boolean;
   };
@@ -68,7 +72,7 @@ export const DEFAULT_CHART_SETTINGS: ChartSettings = {
     baselineUp: hex(chart.baselineUp),
     baselineDown: hex(chart.baselineDown),
   },
-  legend: { ohlc: true, change: true, indicators: true },
+  legend: { ohlcValues: false, change: true, indicators: true },
   scales: {
     timeZone: 'UTC',
     lastPriceLine: true,
@@ -110,8 +114,19 @@ const DASHES: Record<LineDash, readonly number[]> = {
   dotted: [1, 3],
 };
 
-/** The Fermi theme with the user's settings applied. */
-export function chartTheme(settings: ChartSettings): ChartTheme {
+/** Height of the strip collapsed indicator panes sit in, above the time axis. */
+export const PANE_STRIP_HEIGHT = 18;
+
+/**
+ * The Fermi theme with the user's settings applied. `paneStrip` widens the
+ * gap above the time axis to make room for the collapsed-pane strip;
+ * `priceAxisWidth` (lib/price-axis.ts) fits the axis to the market's labels.
+ */
+export function chartTheme(
+  settings: ChartSettings,
+  paneStrip = false,
+  priceAxisWidth: number = chart.priceAxisWidth
+): ResolvedChartTheme {
   const { candles, line, scales, canvas } = settings;
   return createTheme(fermiChartTheme, {
     palette: { background: canvas.background, grid: canvas.gridColor },
@@ -136,6 +151,8 @@ export function chartTheme(settings: ChartSettings): ChartTheme {
       crosshairColor: canvas.crosshairColor,
       crosshairDash: DASHES[canvas.crosshairStyle],
       lastPriceOpacity: scales.lastPriceLine ? chart.lastPriceOpacity : 0,
+      axisGap: paneStrip ? chart.axisGap + PANE_STRIP_HEIGHT : chart.axisGap,
+      priceAxisWidth,
     },
   });
 }
@@ -150,6 +167,11 @@ export function loadChartSettings(): ChartSettings {
         merged[group] = { ...DEFAULT_CHART_SETTINGS[group], ...saved[group] } as never;
       }
     }
+    // Drop the retired key so it isn't saved back.
+    const { ohlc: _retired, ...legend } = merged.legend as ChartSettings['legend'] & {
+      ohlc?: boolean;
+    };
+    merged.legend = legend;
     return merged;
   } catch {
     return DEFAULT_CHART_SETTINGS;
