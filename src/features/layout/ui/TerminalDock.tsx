@@ -109,7 +109,6 @@ export function TerminalDock() {
           components={DOCK_COMPONENTS}
           defaultTabComponent={DockTab}
           onReady={onReady}
-          singleTabMode="fullwidth"
           floatingGroupBounds="boundedWithinViewport"
           dndEdges={false}
         />

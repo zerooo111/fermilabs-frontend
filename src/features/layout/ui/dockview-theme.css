@@ -117,3 +117,161 @@
   mask-size: 18px 18px;
   mask-repeat: no-repeat;
 }
+
+/* Edit mode: the dock reads as a workbench. Panes pull in so the gaps
+   between them show a darker board underneath, and their frames turn
+   dashed: nothing is fixed until the layout is locked again. Only leaf views
+   (the ones holding a group) are inset, branch views nest and would double
+   the gap. The separator hairlines give way to the gaps. */
+.terminal-dock {
+  --dock-gap: 6px;
+  --dock-dash: rgba(248, 247, 231, 0.32);
+  --dock-ease: 180ms cubic-bezier(0.2, 0, 0, 1);
+  transition: padding var(--dock-ease);
+}
+.terminal-dock .dv-view:has(> .dv-groupview) {
+  transition: padding var(--dock-ease);
+}
+.terminal-dock:not([data-locked]) {
+  padding: var(--dock-gap);
+  background-color: color-mix(in oklab, var(--color-surface-sunken) 82%, black);
+}
+.terminal-dock:not([data-locked]) .dockview-theme-fermi {
+  --dv-separator-border: transparent;
+}
+.terminal-dock:not([data-locked]) .dv-dockview {
+  background-color: transparent;
+}
+.terminal-dock:not([data-locked]) .dv-view:has(> .dv-groupview) {
+  padding: var(--dock-gap);
+}
+.terminal-dock:not([data-locked]) .dv-groupview {
+  position: relative;
+}
+/* Dashed frame: four repeating gradients rather than `border-style: dashed`,
+   which renders uneven dashes and would eat into the pane's box. */
+.terminal-dock:not([data-locked]) .dv-groupview::after {
+  --dash: var(--dock-dash);
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--dash) 6px, transparent 6px) left top / 10px 1px repeat-x,
+    linear-gradient(90deg, var(--dash) 6px, transparent 6px) left bottom / 10px 1px repeat-x,
+    linear-gradient(var(--dash) 6px, transparent 6px) left top / 1px 10px repeat-y,
+    linear-gradient(var(--dash) 6px, transparent 6px) right top / 1px 10px repeat-y;
+  animation: dock-dash-in var(--dock-ease) both;
+}
+/* The pane under the cursor picks up the accent and its dashes start to
+   march, the cue that its strip can be grabbed. */
+.terminal-dock:not([data-locked]) .dv-groupview:hover::after {
+  --dash: rgba(180, 220, 120, 0.7);
+  animation: dock-dash-march 0.6s linear infinite;
+}
+/* Resize handles: dockview centres a 4px sash on each boundary; in edit mode
+   it widens to fill the gutter and always shows a guide line with a grip in
+   the middle, so every edge that can be dragged is visible up front. */
+.terminal-dock:not([data-locked]) .dv-dockview .dv-sash:not(.dv-disabled) {
+  --sash-line: rgba(180, 220, 120, 0.45);
+  --sash-grip: rgba(180, 220, 120, 0.9);
+  background-color: transparent;
+}
+.terminal-dock:not([data-locked])
+  .dv-dockview
+  .dv-split-view-container.dv-horizontal
+  > .dv-sash-container
+  > .dv-sash:not(.dv-disabled) {
+  width: calc(var(--dock-gap) * 2);
+  margin-left: calc(2px - var(--dock-gap));
+}
+.terminal-dock:not([data-locked])
+  .dv-dockview
+  .dv-split-view-container.dv-vertical
+  > .dv-sash-container
+  > .dv-sash:not(.dv-disabled) {
+  height: calc(var(--dock-gap) * 2);
+  margin-top: calc(2px - var(--dock-gap));
+}
+.terminal-dock:not([data-locked]) .dv-dockview .dv-sash:not(.dv-disabled)::before,
+.terminal-dock:not([data-locked]) .dv-dockview .dv-sash:not(.dv-disabled)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  pointer-events: none;
+  transition: background-color 120ms;
+}
+.terminal-dock:not([data-locked]) .dv-dockview .dv-sash:not(.dv-disabled)::before {
+  background-color: var(--sash-line);
+}
+.terminal-dock:not([data-locked]) .dv-dockview .dv-sash:not(.dv-disabled)::after {
+  background-color: var(--sash-grip);
+}
+.terminal-dock:not([data-locked])
+  .dv-dockview
+  .dv-horizontal
+  > .dv-sash-container
+  > .dv-sash::before {
+  width: 1px;
+}
+.terminal-dock:not([data-locked])
+  .dv-dockview
+  .dv-horizontal
+  > .dv-sash-container
+  > .dv-sash::after {
+  width: 4px;
+  height: 28px;
+}
+.terminal-dock:not([data-locked])
+  .dv-dockview
+  .dv-vertical
+  > .dv-sash-container
+  > .dv-sash::before {
+  height: 1px;
+}
+.terminal-dock:not([data-locked]) .dv-dockview .dv-vertical > .dv-sash-container > .dv-sash::after {
+  width: 28px;
+  height: 4px;
+}
+.terminal-dock:not([data-locked]) .dv-dockview .dv-sash:not(.dv-disabled):hover,
+.terminal-dock:not([data-locked]) .dv-dockview .dv-sash:not(.dv-disabled):active {
+  --sash-line: var(--color-lichen);
+  --sash-grip: var(--color-rock);
+  background-color: rgba(180, 220, 120, 0.08);
+  transition-delay: 0s;
+}
+
+.terminal-dock:not([data-locked]) .dv-tab {
+  cursor: grab;
+}
+.terminal-dock:not([data-locked]) .dv-tab:active {
+  cursor: grabbing;
+}
+
+@keyframes dock-dash-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dock-dash-march {
+  to {
+    background-position:
+      10px top,
+      -10px bottom,
+      left -10px,
+      right 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-dock,
+  .terminal-dock .dv-view:has(> .dv-groupview) {
+    transition: none;
+  }
+  .terminal-dock:not([data-locked]) .dv-groupview::after,
+  .terminal-dock:not([data-locked]) .dv-groupview:hover::after {
+    animation: none;
+  }
+}
