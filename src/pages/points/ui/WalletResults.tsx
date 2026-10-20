@@ -10,7 +10,6 @@ import axios from 'axios';
 import {
   ActivityList,
   Bone,
-  ClaimPanel,
   Label,
   Notice,
   PixelAlien,
@@ -20,6 +19,7 @@ import {
   isValidAddress,
   points,
   shortAddress,
+  useAllEntries,
   usePointsAccount,
   usePointsActivity,
   usePointsEpochs,
@@ -75,11 +75,8 @@ function Results({ wallet }: { wallet: string }) {
   const account = usePointsAccount(wallet);
   const activity = usePointsActivity(wallet);
   const { data: epochs } = usePointsEpochs();
-
   // The chart needs every entry, so page through the activity.
-  useEffect(() => {
-    if (activity.hasNextPage && !activity.isFetchingNextPage) void activity.fetchNextPage();
-  }, [activity]);
+  const entries = useAllEntries(activity);
 
   if (account.isPending) {
     return (
@@ -103,7 +100,6 @@ function Results({ wallet }: { wallet: string }) {
   }
 
   const a = account.data;
-  const entries = activity.data?.pages.flatMap(p => p.entries) ?? [];
   // The total counts claimed points only, so the chart does too.
   const claimed = entries.filter(e => e.claim_status === 'claimed');
   const settling = a.total - a.by_status.final;
@@ -135,7 +131,6 @@ function Results({ wallet }: { wallet: string }) {
 
   return (
     <>
-      <ClaimPanel wallet={wallet} account={a} entries={entries} />
       <Row>
         <div className={`flex flex-col gap-7 ${PAD}`}>
           {/* Who: the wallet's alien and address */}

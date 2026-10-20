@@ -1,9 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowUpRight } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
 import { cn } from '@/lib/utils';
-import { landingHref, showUnlaunched } from '@/shared/lib/domains';
+import { showUnlaunched } from '@/shared/lib/domains';
 import { ConnectWallet } from '../../../features/wallet-connect/ui/ConnectWallet';
 import { FeeCreditDialog } from '@/features/fee-credit';
 import { ApiKeysPanel } from '@/features/api-keys';
@@ -71,21 +70,16 @@ export function Header() {
           >
             Referrals
           </Link>
-          {/* Points live on the landing site; open them beside the trading app,
-              on the connected wallet when there is one. */}
           {showUnlaunched && (
-            <a
-              href={landingHref(
-                walletKey ? `/points?wallet=${encodeURIComponent(walletKey)}` : '/points'
+            <Link
+              to="/dashboard/points"
+              className={cn(
+                NAV_LINK,
+                location.pathname === '/dashboard/points' ? 'text-rock' : 'text-rock/60'
               )}
-              target="_blank"
-              rel="noreferrer"
-              className={cn(NAV_LINK, 'gap-1 text-rock/60')}
             >
               Points
-              <ArrowUpRight className="size-3.5" aria-hidden />
-              <span className="sr-only">(opens in a new tab)</span>
-            </a>
+            </Link>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">

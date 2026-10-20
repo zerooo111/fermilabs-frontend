@@ -14,6 +14,7 @@ import {
   LazyVaultDetailPage,
   LazyPointsPage,
   LazyPointsDocsPage,
+  LazyPointsDashboardPage,
 } from './LazyRoutes';
 import { isAppHost, redirectOffLanding } from './domains';
 import { showUnlaunched } from '@/shared/lib/domains';
@@ -55,6 +56,7 @@ export const AppRouter = () => {
               <Route path="/flp" element={<LazyFlpPage />} />
               <Route path="/vaults" element={<LazyVaultsPage />} />
               <Route path="/vaults/:network/:address" element={<LazyVaultDetailPage />} />
+              <Route path="/dashboard/points" element={<LazyPointsDashboardPage />} />
             </>
           )}
           <Route path="*" element={<Navigate replace to="/perps" />} />

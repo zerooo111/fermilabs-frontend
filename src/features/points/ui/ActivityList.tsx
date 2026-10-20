@@ -6,14 +6,14 @@
 import { useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import type { ClaimStatus, PointsEntry } from '../api/pointsClient';
-import { CATEGORY_LABELS, dateUtc, pointsSigned } from '../model/format';
+import { CATEGORY_LABELS, CLAIM_LABELS, dateUtc, pointsSigned } from '../model/format';
 
 const FIRST = 5;
 
-const CLAIM_TAG: Record<Exclude<ClaimStatus, 'claimed'>, { label: string; className: string }> = {
-  claimable: { label: 'Ready to claim', className: 'border-amber-200/50 text-amber-200' },
-  granted: { label: 'Pending', className: 'border-rock/25 text-rock/55' },
-  expired: { label: 'Expired', className: 'border-rock/20 text-rock/40' },
+const CLAIM_TAG: Record<Exclude<ClaimStatus, 'claimed'>, string> = {
+  claimable: 'border-amber-200/50 text-amber-200',
+  granted: 'border-rock/25 text-rock/55',
+  expired: 'border-rock/20 text-rock/40',
 };
 
 function pointsClass(e: PointsEntry): string {
@@ -41,10 +41,10 @@ export function ActivityList({ entries }: { entries: PointsEntry[] }) {
                   <span
                     className={cn(
                       'shrink-0 border px-1.5 py-px text-[10px] tracking-[0.12em] uppercase',
-                      CLAIM_TAG[e.claim_status].className
+                      CLAIM_TAG[e.claim_status]
                     )}
                   >
-                    {CLAIM_TAG[e.claim_status].label}
+                    {CLAIM_LABELS[e.claim_status]}
                   </span>
                 )}
               </p>

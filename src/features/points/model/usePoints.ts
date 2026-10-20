@@ -18,6 +18,7 @@ import { accessSessionAtom, clearSession, signInSession } from '@/features/acces
 import {
   claimPoints,
   fetchPointsAccount,
+  fetchPointsAccountEpochs,
   fetchPointsActivity,
   fetchPointsEpochs,
 } from '../api/pointsClient';
@@ -57,6 +58,17 @@ export function usePointsAccount(wallet: string | undefined) {
   });
 }
 
+export function usePointsAccountEpochs(wallet: string | undefined) {
+  return useQuery({
+    queryKey: [...pointsKey, 'account-epochs', wallet],
+    queryFn: ({ signal }) => fetchPointsAccountEpochs(wallet!, signal),
+    select: data => data.epochs,
+    enabled: !!wallet,
+    staleTime: STALE_MS,
+    retry,
+  });
+}
+
 export function usePointsActivity(wallet: string | undefined) {
   return useInfiniteQuery({
     queryKey: [...pointsKey, 'activity', wallet],
@@ -71,10 +83,11 @@ export function usePointsActivity(wallet: string | undefined) {
 }
 
 /**
- * Claims the connected wallet's claimable points. Uses its access-gate session,
- * signing a new one first when there is none or the server rejects it, so one
- * click is enough. Fails with `AccessGateError('wallet_not_whitelisted')` for
- * wallets without Fermi access.
+ * Claims the connected wallet's claimable points: all of them, or the entry
+ * ids passed to `mutate`. Uses its access-gate session, signing a new one
+ * first when there is none or the server rejects it, so one click is enough.
+ * Fails with `AccessGateError('wallet_not_whitelisted')` for wallets without
+ * Fermi access.
  */
 export function useClaimPoints() {
   const { publicKey, signMessage } = useWallet();
@@ -83,7 +96,7 @@ export function useClaimPoints() {
   const wallet = publicKey?.toBase58();
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (ids?: number[]) => {
       if (!wallet || !signMessage) throw new Error('wallet_not_connected');
       const signIn = async () => {
         const session = await signInSession(wallet, signMessage);
@@ -94,12 +107,12 @@ export function useClaimPoints() {
       const fresh = cached && cached.expiresAt - 5 * 60 > Date.now() / 1000;
       const token = fresh ? cached.token : await signIn();
       try {
-        return await claimPoints(token);
+        return await claimPoints(token, ids);
       } catch (e) {
         if (!fresh || !axios.isAxiosError(e) || e.response?.status !== 401) throw e;
         // The cached token was revoked or rotated server-side: sign in again.
         clearSession(wallet);
-        return claimPoints(await signIn());
+        return claimPoints(await signIn(), ids);
       }
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: pointsKey }),

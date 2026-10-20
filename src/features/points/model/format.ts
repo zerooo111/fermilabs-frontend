@@ -1,5 +1,5 @@
 import bs58 from 'bs58';
-import type { PointsCategory, PointsEpoch } from '../api/pointsClient';
+import type { ClaimStatus, PointsCategory, PointsEpoch } from '../api/pointsClient';
 
 export const CATEGORY_LABELS: Record<PointsCategory, string> = {
   flp_vault: 'FLP vault',
@@ -21,6 +21,17 @@ export const CATEGORY_ORDER: PointsCategory[] = [
   'bonus',
   'quest',
 ];
+
+export const CLAIM_LABELS: Record<ClaimStatus, string> = {
+  granted: 'Pending',
+  claimable: 'Ready to claim',
+  claimed: 'Claimed',
+  expired: 'Expired',
+};
+
+/** An epoch's display name: its own, else its number. */
+export const epochName = (e: { epoch: number; name: string | null }) =>
+  e.name ?? `Epoch ${e.epoch}`;
 
 /** A wallet's points dashboard: the checker page with `?wallet=`. */
 export function walletPointsPath(wallet: string): string {

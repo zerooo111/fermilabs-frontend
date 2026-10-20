@@ -137,10 +137,12 @@ export interface PointsClaim {
   points: number;
 }
 
-/** Claims every claimable entry of the token's wallet. */
-export async function claimPoints(token: string): Promise<PointsClaim> {
-  const res = await axios.post<PointsClaim>(`${baseUrl()}${API_ROUTES_V2.points_claim}`, null, {
-    headers: { 'x-wallet-auth': token },
-  });
+/** Claims the token's wallet's claimable entries: all of them, or only `ids`. */
+export async function claimPoints(token: string, ids?: number[]): Promise<PointsClaim> {
+  const res = await axios.post<PointsClaim>(
+    `${baseUrl()}${API_ROUTES_V2.points_claim}`,
+    ids ? { ids } : null,
+    { headers: { 'x-wallet-auth': token } }
+  );
   return res.data;
 }
