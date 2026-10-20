@@ -25,9 +25,9 @@ import { ConnectionIndicator } from '@/shared/ui/ConnectionIndicator';
 const TAB_TRIGGER_CLASS = 'flex-1';
 
 const ROW_HEIGHT_PX = 22;
-const TOOLBAR_PX = 33; // depth-mode / size-filter bar (h-8 + border)
-const HEADER_PX = 29; // column headers row (h-7 + border)
-const SPREAD_PX = 30; // spread bar between asks and bids (h-7 + borders)
+const TOOLBAR_PX = 28; // depth-mode / size-filter bar (h-7, border inside)
+const HEADER_PX = 28; // column headers row (h-7, border inside)
+const SPREAD_PX = 28; // spread bar between asks and bids (h-7, borders inside)
 const MIN_ROWS_PER_SIDE = 5;
 const MAX_ROWS_PER_SIDE = 30;
 
@@ -62,11 +62,18 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
     return () => ro.disconnect();
   }, []);
 
-  const orderbookRows = useMemo(() => {
-    if (contentHeight <= 0) return 10;
-    const usable = contentHeight - TOOLBAR_PX - HEADER_PX - SPREAD_PX;
-    const perSide = Math.floor(usable / 2 / ROW_HEIGHT_PX);
-    return Math.max(MIN_ROWS_PER_SIDE, Math.min(MAX_ROWS_PER_SIDE, perSide));
+  // Each side takes half the space below the chrome. Rows are floored to
+  // whole ROW_HEIGHT_PX slots and then stretched over the leftover (under one
+  // row per side), so the bids reach the bottom edge instead of leaving a gap.
+  const { orderbookRows, sideHeight } = useMemo(() => {
+    if (contentHeight <= 0) return { orderbookRows: 10, sideHeight: 10 * ROW_HEIGHT_PX };
+    const half = Math.floor((contentHeight - TOOLBAR_PX - HEADER_PX - SPREAD_PX) / 2);
+    const rows = Math.max(
+      MIN_ROWS_PER_SIDE,
+      Math.min(MAX_ROWS_PER_SIDE, Math.floor(half / ROW_HEIGHT_PX))
+    );
+    const height = Math.max(rows * ROW_HEIGHT_PX, Math.min(half, (rows + 1) * ROW_HEIGHT_PX - 1));
+    return { orderbookRows: rows, sideHeight: height };
   }, [contentHeight]);
 
   const tradesRows = useMemo(() => {
@@ -93,10 +100,6 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
   }, [orderbook, orderbookRows, quantityThreshold, selectedMarket?.baseDecimals]);
 
   const ROW_HEIGHT_CLASS = 'h-[22px]';
-  // Side height = orderbookRows × ROW_HEIGHT_PX, recomputed whenever the
-  // measured container resizes. Keeps bids and asks equally sized and packed
-  // tightly without overflow scrollbars.
-  const SIDE_HEIGHT_PX = orderbookRows * ROW_HEIGHT_PX;
 
   function SkeletonOrderbookRow() {
     return (
@@ -116,6 +119,20 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
               <div className="h-3 w-14 bg-rock/10 animate-pulse ml-auto" />
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  /** Slot past the last level on a side: dashes keep the column rhythm so a
+   * thin book reads as "no orders here" rather than a blank gap. */
+  function EmptyOrderbookRow() {
+    return (
+      <div className={`relative w-full select-none ${ROW_HEIGHT_CLASS}`}>
+        <div className="grid grid-cols-3 gap-4 items-center px-3 h-full font-mono text-xs leading-none text-rock/20">
+          <div className="text-left">—</div>
+          <div className="text-right">—</div>
+          <div className="text-right">—</div>
         </div>
       </div>
     );
@@ -147,7 +164,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
         {isLoading || !processedOrderbook ? (
           <>
             {/* Skeleton Sells (asks) */}
-            <div className="flex flex-col-reverse shrink-0" style={{ height: SIDE_HEIGHT_PX }}>
+            <div className="flex flex-col-reverse shrink-0 *:flex-1" style={{ height: sideHeight }}>
               {Array.from({ length: orderbookRows }).map((_, i) => (
                 <SkeletonOrderbookRow key={`skeleton-sell-${i}`} />
               ))}
@@ -160,7 +177,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
             </div>
 
             {/* Skeleton Buys (bids) */}
-            <div className="flex flex-col shrink-0" style={{ height: SIDE_HEIGHT_PX }}>
+            <div className="flex flex-col shrink-0 *:flex-1" style={{ height: sideHeight }}>
               {Array.from({ length: orderbookRows }).map((_, i) => (
                 <SkeletonOrderbookRow key={`skeleton-buy-${i}`} />
               ))}
@@ -169,7 +186,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
         ) : (
           <>
             {/* Sells (asks) */}
-            <div className="flex flex-col-reverse shrink-0" style={{ height: SIDE_HEIGHT_PX }}>
+            <div className="flex flex-col-reverse shrink-0 *:flex-1" style={{ height: sideHeight }}>
               {processedOrderbook.sells.map((order, i) =>
                 order ? (
                   <OrderbookRow
@@ -184,7 +201,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
                     baseDecimals={selectedMarket.baseDecimals}
                   />
                 ) : (
-                  <div key={`empty-sell-${i}`} className={ROW_HEIGHT_CLASS} />
+                  <EmptyOrderbookRow key={`empty-sell-${i}`} />
                 )
               )}
             </div>
@@ -198,7 +215,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
             </div>
 
             {/* Buys (bids) */}
-            <div className="flex flex-col shrink-0" style={{ height: SIDE_HEIGHT_PX }}>
+            <div className="flex flex-col shrink-0 *:flex-1" style={{ height: sideHeight }}>
               {processedOrderbook.buys.map((order, i) =>
                 order ? (
                   <OrderbookRow
@@ -213,7 +230,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
                     baseDecimals={selectedMarket.baseDecimals}
                   />
                 ) : (
-                  <div key={`empty-buy-${i}`} className={ROW_HEIGHT_CLASS} />
+                  <EmptyOrderbookRow key={`empty-buy-${i}`} />
                 )
               )}
             </div>
