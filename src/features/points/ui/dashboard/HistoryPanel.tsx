@@ -1,10 +1,7 @@
 /**
- * Every entry the wallet has, newest first, filterable by claim status. A row
- * opens to show what the entry was for: its reason and the metrics the scorer
- * recorded in `details`.
+ * Every entry the wallet has, newest first, filterable by claim status.
  */
-import { Fragment, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Panel } from '@/shared/ui/panel';
 import { Segmented } from '@/shared/ui/segmented';
@@ -23,15 +20,6 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'expired', label: 'Expired' },
 ];
 
-const label = (key: string) => key.replace(/_/g, ' ');
-
-/** A `details` value as text: arrays joined, objects as JSON. */
-function show(v: unknown): string {
-  if (Array.isArray(v)) return v.map(show).join(', ');
-  if (v !== null && typeof v === 'object') return JSON.stringify(v);
-  return String(v);
-}
-
 function pointsTone(e: PointsEntry): string {
   if (e.claim_status === 'expired') return 'text-rock/40 line-through';
   if (e.claim_status !== 'claimed') return 'text-rock/60';
@@ -48,7 +36,6 @@ export function HistoryPanel({
   loading: boolean;
 }) {
   const [filter, setFilter] = useState<Filter>('all');
-  const [open, setOpen] = useState<number | null>(null);
   const count = (f: Filter) =>
     f === 'all' ? entries.length : entries.filter(e => e.claim_status === f).length;
   const shown = filter === 'all' ? entries : entries.filter(e => e.claim_status === filter);
@@ -102,81 +89,35 @@ export function HistoryPanel({
             </thead>
             <tbody>
               {shown.map(e => {
-                const isOpen = open === e.id;
-                const details = Object.entries(e.details ?? {});
                 const epoch = epochs.get(e.epoch);
                 return (
-                  <Fragment key={e.id}>
-                    <tr
-                      onClick={() => setOpen(isOpen ? null : e.id)}
+                  <tr key={e.id} className="border-b border-outline/60">
+                    <td className="py-2.5 pr-2 pl-4 font-mono text-xs whitespace-nowrap text-rock/60">
+                      {dateUtc(e.occurred_at_ms)}
+                    </td>
+                    <td className="truncate px-2 py-2.5 text-rock">
+                      {e.description ?? CATEGORY_LABELS[e.category]}
+                      <span className="ml-2 text-xs text-rock/50">
+                        {CATEGORY_LABELS[e.category]}
+                        {e.market && <> · {e.market}</>}
+                        {e.reason && <> · {e.reason.replace(/_/g, ' ')}</>}
+                      </span>
+                    </td>
+                    <td className="truncate px-2 py-2.5 text-xs whitespace-nowrap text-rock/60">
+                      {epoch ? epochName(epoch) : `Epoch ${e.epoch}`}
+                    </td>
+                    <td className="px-2 py-2.5">
+                      <StatusTag status={e.claim_status} />
+                    </td>
+                    <td
                       className={cn(
-                        'cursor-pointer border-b border-outline/60 transition-colors duration-150 hover:bg-rock/[0.03]',
-                        isOpen && 'bg-rock/[0.03]'
+                        'py-2.5 pr-4 pl-2 text-right font-mono tabular-nums whitespace-nowrap',
+                        pointsTone(e)
                       )}
                     >
-                      <td className="py-2.5 pr-2 pl-4 font-mono text-xs whitespace-nowrap text-rock/60">
-                        {dateUtc(e.occurred_at_ms)}
-                      </td>
-                      <td className="px-2 py-2.5">
-                        <button
-                          type="button"
-                          aria-expanded={isOpen}
-                          className="flex w-full min-w-0 items-center gap-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
-                        >
-                          <ChevronRight
-                            className={cn(
-                              'size-3.5 shrink-0 text-rock/40 transition-transform duration-150',
-                              isOpen && 'rotate-90'
-                            )}
-                            aria-hidden
-                          />
-                          <span className="min-w-0 truncate text-rock">
-                            {e.description ?? CATEGORY_LABELS[e.category]}
-                            <span className="ml-2 text-xs text-rock/50">
-                              {CATEGORY_LABELS[e.category]}
-                              {e.market && <> · {e.market}</>}
-                            </span>
-                          </span>
-                        </button>
-                      </td>
-                      <td className="truncate px-2 py-2.5 text-xs whitespace-nowrap text-rock/60">
-                        {epoch ? epochName(epoch) : `Epoch ${e.epoch}`}
-                      </td>
-                      <td className="px-2 py-2.5">
-                        <StatusTag status={e.claim_status} />
-                      </td>
-                      <td
-                        className={cn(
-                          'py-2.5 pr-4 pl-2 text-right font-mono tabular-nums whitespace-nowrap',
-                          pointsTone(e)
-                        )}
-                      >
-                        {pointsSigned(e.points)}
-                      </td>
-                    </tr>
-                    {isOpen && (
-                      <tr className="border-b border-outline/60 bg-rock/[0.03]">
-                        <td colSpan={5} className="px-4 pt-1 pb-3 pl-10">
-                          <dl className="grid gap-x-6 gap-y-1 text-xs sm:grid-cols-[max-content_1fr]">
-                            {e.reason && (
-                              <>
-                                <dt className="text-rock/50">Reason</dt>
-                                <dd className="text-rock/80">{label(e.reason)}</dd>
-                              </>
-                            )}
-                            {details.map(([k, v]) => (
-                              <Fragment key={k}>
-                                <dt className="text-rock/50 capitalize">{label(k)}</dt>
-                                <dd className="font-mono break-all text-rock/80">{show(v)}</dd>
-                              </Fragment>
-                            ))}
-                            <dt className="text-rock/50">Entry</dt>
-                            <dd className="font-mono text-rock/60">#{e.id}</dd>
-                          </dl>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
+                      {pointsSigned(e.points)}
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>

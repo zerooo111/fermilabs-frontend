@@ -1,45 +1,26 @@
 /**
- * The dashboard's right rail: claimed points by category, the wallet's
- * epochs, and how claiming works.
+ * The dashboard's right rail: claimed points by category as the skill graph,
+ * the wallet's epochs, and how claiming works.
  */
-import { cn } from '@/lib/utils';
 import { Panel } from '@/shared/ui/panel';
-import type {
-  PointsAccount,
-  PointsAccountEpoch,
-  PointsCategory,
-  PointsEpoch,
-} from '../../api/pointsClient';
-import { CATEGORY_LABELS, CATEGORY_ORDER, dateUtc, epochName, points } from '../../model/format';
+import type { PointsAccount, PointsAccountEpoch, PointsEpoch } from '../../api/pointsClient';
+import { dateUtc, epochName, points } from '../../model/format';
+import { SkillGraph } from '../SkillGraph';
 import { PanelBar } from './primitives';
 import { Empty } from './Empty';
 
 export function CategoryPanel({ account }: { account: PointsAccount | undefined }) {
-  const rows = CATEGORY_ORDER.map(
-    c => [c, account?.by_category[c] ?? 0] as [PointsCategory, number]
-  );
-  const max = Math.max(1, ...rows.map(([, v]) => v));
   return (
     <Panel>
       <PanelBar title="By category" />
-      <ul className="flex flex-col gap-3 px-4 py-4">
-        {rows.map(([c, v]) => (
-          <li key={c} className="flex flex-col gap-1.5">
-            <div className="flex items-baseline justify-between text-xs">
-              <span className={v > 0 ? 'text-rock/80' : 'text-rock/45'}>{CATEGORY_LABELS[c]}</span>
-              <span className={cn('font-mono tabular-nums', v > 0 ? 'text-rock' : 'text-rock/40')}>
-                {points(v)}
-              </span>
-            </div>
-            <div className="h-1 bg-rock/10">
-              <div
-                className="h-full bg-lichen"
-                style={{ width: `${(Math.max(0, v) / max) * 100}%` }}
-              />
-            </div>
-          </li>
-        ))}
-      </ul>
+      {account ? (
+        // The axis labels sit outside the SVG box, so inset it to keep them in the panel.
+        <div className="px-12 py-6">
+          <SkillGraph account={account} />
+        </div>
+      ) : (
+        <Empty title="Loading…" />
+      )}
     </Panel>
   );
 }

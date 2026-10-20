@@ -173,7 +173,7 @@ function Dashboard({ wallet }: { wallet: string }) {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-4">
           <ClaimablePanel entries={claimable} epochs={epochs} loading={entriesLoading} />
           <HistoryPanel entries={entries} epochs={epochs} loading={entriesLoading} />
