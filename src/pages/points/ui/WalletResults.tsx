@@ -7,6 +7,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Check, Copy } from 'lucide-react';
 import axios from 'axios';
+import { cn } from '@/shared/lib/utils';
 import {
   ActivityList,
   Bone,
@@ -103,6 +104,8 @@ function Results({ wallet }: { wallet: string }) {
   // The total counts claimed points only, so the chart does too.
   const claimed = entries.filter(e => e.claim_status === 'claimed');
   const settling = a.total - a.by_status.final;
+  // `a.total` counts claimed points only; unclaimed ones wait on the wallet.
+  const unclaimed = a.claims.claimable + a.claims.granted;
   const startMs = Math.min(...(epochs ?? []).map(e => e.starts_at_ms), Date.now());
 
   // The wallet's alien beams in beside the score; key replays it per wallet.
@@ -142,13 +145,40 @@ function Results({ wallet }: { wallet: string }) {
             </div>
           </div>
 
-          {/* How much: the number this page is for */}
+          {/* How much: the number this page is for, then how much of it is claimed */}
           <div>
             <Label className="mb-3">Total points</Label>
             <ScoreCount
-              value={a.total}
+              value={a.total + unclaimed}
               className="block font-mono text-[clamp(3.5rem,7vw,5.75rem)] leading-[0.9] font-normal tracking-[-0.06em] tabular-nums"
             />
+          </div>
+
+          <div className="-mt-2 flex flex-col gap-2">
+            <dl className="grid grid-cols-2 divide-x divide-rock/15 border border-rock/15">
+              <div className="px-4 py-3">
+                <dt className="text-sm text-rock/55">Claimed</dt>
+                <dd className="mt-1 font-mono text-2xl leading-none tracking-tight text-rock tabular-nums">
+                  {points(a.total)}
+                </dd>
+              </div>
+              <div className="px-4 py-3">
+                <dt className="text-sm text-rock/55">Unclaimed</dt>
+                <dd
+                  className={cn(
+                    'mt-1 font-mono text-2xl leading-none tracking-tight tabular-nums',
+                    unclaimed > 0 ? 'text-amber-200' : 'text-rock/40'
+                  )}
+                >
+                  {points(unclaimed)}
+                </dd>
+              </div>
+            </dl>
+            {unclaimed > 0 && (
+              <p className="text-sm text-rock/55">
+                Unclaimed points count toward rank once the wallet claims them.
+              </p>
+            )}
           </div>
 
           {/* Where it stands */}
