@@ -7,6 +7,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Check, Copy } from 'lucide-react';
 import axios from 'axios';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { appHref } from '@/shared/lib/domains';
 import { cn } from '@/shared/lib/utils';
 import {
   ActivityList,
@@ -76,6 +78,7 @@ function Results({ wallet }: { wallet: string }) {
   const account = usePointsAccount(wallet);
   const activity = usePointsActivity(wallet);
   const { data: epochs } = usePointsEpochs();
+  const connected = useWallet().publicKey?.toBase58();
   // The chart needs every entry, so page through the activity.
   const entries = useAllEntries(activity);
 
@@ -178,6 +181,15 @@ function Results({ wallet }: { wallet: string }) {
               <p className="text-sm text-rock/55">
                 Unclaimed points count toward rank once the wallet claims them.
               </p>
+            )}
+            {/* This page is read-only; the connected wallet claims its own points on the dashboard. */}
+            {connected === wallet && a.claims.claimable > 0 && (
+              <a
+                href={appHref('/dashboard/points')}
+                className="mt-1 self-start bg-amber-200 px-5 py-2.5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100"
+              >
+                Claim {points(a.claims.claimable)} points in your dashboard
+              </a>
             )}
           </div>
 
