@@ -3,11 +3,10 @@
  */
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Panel } from '@/shared/ui/panel';
 import { Segmented } from '@/shared/ui/segmented';
 import type { ClaimStatus, PointsEntry, PointsEpoch } from '../../api/pointsClient';
 import { CATEGORY_LABELS, dateUtc, epochName, pointsSigned } from '../../model/format';
-import { PanelBar, StatusTag } from './primitives';
+import { StatusTag } from './primitives';
 import { Empty } from './Empty';
 
 type Filter = 'all' | ClaimStatus;
@@ -26,14 +25,12 @@ function pointsTone(e: PointsEntry): string {
   return e.points < 0 ? 'text-danger' : 'text-lichen';
 }
 
-export function HistoryPanel({
+export function HistoryTab({
   entries,
   epochs,
-  loading,
 }: {
   entries: PointsEntry[];
   epochs: Map<number, PointsEpoch>;
-  loading: boolean;
 }) {
   const [filter, setFilter] = useState<Filter>('all');
   const count = (f: Filter) =>
@@ -41,32 +38,26 @@ export function HistoryPanel({
   const shown = filter === 'all' ? entries : entries.filter(e => e.claim_status === filter);
 
   return (
-    <Panel>
-      <PanelBar
-        title="History"
-        count={entries.length}
-        right={
-          <Segmented<Filter>
-            aria-label="Filter by status"
-            mono
-            value={filter}
-            onChange={setFilter}
-            className="w-max max-w-full overflow-x-auto"
-            options={FILTERS.map(f => ({
-              value: f.value,
-              label: (
-                <span className="flex items-center gap-1.5">
-                  {f.label}
-                  <span className="tabular-nums text-rock/55">{count(f.value)}</span>
-                </span>
-              ),
-            }))}
-          />
-        }
-      />
-      {loading ? (
-        <Empty title="Loading…" />
-      ) : shown.length === 0 ? (
+    <div>
+      <div className="flex justify-end border-b border-outline px-4 py-2.5">
+        <Segmented<Filter>
+          aria-label="Filter by status"
+          mono
+          value={filter}
+          onChange={setFilter}
+          className="w-max max-w-full overflow-x-auto"
+          options={FILTERS.map(f => ({
+            value: f.value,
+            label: (
+              <span className="flex items-center gap-1.5">
+                {f.label}
+                <span className="tabular-nums text-rock/55">{count(f.value)}</span>
+              </span>
+            ),
+          }))}
+        />
+      </div>
+      {shown.length === 0 ? (
         <Empty title={entries.length === 0 ? 'No points yet' : 'Nothing here'} />
       ) : (
         <div className="overflow-x-auto">
@@ -124,6 +115,6 @@ export function HistoryPanel({
           </table>
         </div>
       )}
-    </Panel>
+    </div>
   );
 }

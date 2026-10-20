@@ -1,7 +1,6 @@
 /**
  * Layout pieces for the points dashboard, in the trading app's visual
- * language: flat ruled panels, `bg-card` title bars, mono eyebrows and
- * tabular mono numbers.
+ * language: hairline rules, mono eyebrows and tabular mono numbers.
  */
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
@@ -19,16 +18,18 @@ export function Tile({
   value,
   hint,
   loading,
+  className,
   valueClassName,
 }: {
   label: ReactNode;
   value: ReactNode;
   hint?: ReactNode;
   loading?: boolean;
+  className?: string;
   valueClassName?: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2 px-4 py-3.5">
+    <div className={cn('flex min-w-0 flex-col gap-2 px-4 py-3.5', className)}>
       <Eyebrow>{label}</Eyebrow>
       {loading ? (
         <Bone className="h-7 w-28" />
@@ -45,29 +46,6 @@ export function Tile({
           {hint && <span className="truncate font-mono text-[11px] text-rock/60">{hint}</span>}
         </div>
       )}
-    </div>
-  );
-}
-
-/** A panel's title bar with an optional count and right slot. */
-export function PanelBar({
-  title,
-  count,
-  right,
-}: {
-  title: ReactNode;
-  count?: number;
-  right?: ReactNode;
-}) {
-  return (
-    <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-outline bg-card px-3 py-1.5 sm:px-4">
-      <h2 className="flex items-center gap-2 text-sm text-rock">
-        {title}
-        {count !== undefined && (
-          <span className="font-mono text-[11px] tabular-nums text-rock/60">{count}</span>
-        )}
-      </h2>
-      {right}
     </div>
   );
 }

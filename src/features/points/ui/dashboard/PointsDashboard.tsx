@@ -1,17 +1,19 @@
 /**
- * The connected wallet's points dashboard (/dashboard/points): headline
- * numbers, what it can claim (one by one or all at once), its full history and
- * a breakdown by category and epoch. Only a signed-in wallet sees it; the
+ * The connected wallet's points dashboard (/dashboard/points), laid out as one
+ * ruled sheet: a score row, then tabs (claim, history, earn more) beside a
+ * column with the skill graph and epochs. Only a signed-in wallet sees it; the
  * public, read-only checker is /points.
  */
 import { useMemo, useState, type ReactNode } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { Eyebrow, Panel } from '@/shared/ui/panel';
 import { landingHref } from '@/shared/lib/domains';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import {
   AccessGateError,
   accessSessionAtom,
@@ -30,10 +32,12 @@ import {
 import { points, walletPointsPath } from '../../model/format';
 import { useAllEntries } from '../../model/useAllEntries';
 import { PixelAlien } from '../PixelAlien';
-import { ClaimablePanel } from './ClaimablePanel';
-import { EarnPanel, RulesLink } from './EarnPanel';
-import { HistoryPanel } from './HistoryPanel';
-import { CategoryPanel, EpochsPanel, HowClaimingWorks } from './SidePanels';
+import { ScoreCount } from '../ScoreCount';
+import { ClaimTab } from './ClaimTab';
+import { EarnTab, RulesLink } from './EarnTab';
+import { Empty } from './Empty';
+import { HistoryTab } from './HistoryTab';
+import { Rail } from './Rail';
 import { Tile } from './primitives';
 
 function Header({ wallet }: { wallet?: string }) {
@@ -50,7 +54,6 @@ function Header({ wallet }: { wallet?: string }) {
           Your points
         </h1>
         <div className="flex items-center gap-4">
-          <RulesLink />
           {wallet && (
             <a
               href={landingHref(walletPointsPath(wallet))}
@@ -133,12 +136,29 @@ function SignIn({ wallet }: { wallet: string }) {
   );
 }
 
+type Tab = 'claim' | 'history' | 'earn';
+
+/** A count beside a tab label; amber when there is something to do. */
+function Count({ n, hot }: { n: number; hot?: boolean }) {
+  return (
+    <span
+      className={cn(
+        'min-w-4 px-1 font-mono text-[10px] tabular-nums',
+        hot ? 'bg-amber-200 text-dark-forest' : 'text-rock/50'
+      )}
+    >
+      {n}
+    </span>
+  );
+}
+
 function Dashboard({ wallet }: { wallet: string }) {
   const account = usePointsAccount(wallet);
   const accountEpochs = usePointsAccountEpochs(wallet);
   const { data: epochList } = usePointsEpochs();
   const activity = usePointsActivity(wallet);
   const entries = useAllEntries(activity);
+  const [tab, setTab] = useState<Tab | null>(null);
 
   const epochs = useMemo(
     () => new Map<number, PointsEpoch>((epochList ?? []).map(e => [e.epoch, e])),
@@ -147,49 +167,91 @@ function Dashboard({ wallet }: { wallet: string }) {
   const claimable = entries.filter(e => e.claim_status === 'claimable');
   const a = account.data;
   const loading = account.isPending;
-  const entriesLoading = activity.isPending;
+  const unclaimed = a ? a.claims.claimable + a.claims.granted : 0;
+  // Open on what needs doing: claim when there's something to claim.
+  const current: Tab = tab ?? (claimable.length > 0 ? 'claim' : 'history');
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-2 divide-outline border border-outline max-lg:[&>*:nth-child(n+3)]:border-t max-lg:[&>*:nth-child(odd)]:border-r lg:grid-cols-4 lg:divide-x">
-        <Tile label="Total points" loading={loading} value={a ? points(a.total) : '—'} />
+    <section className="border border-outline">
+      {/* Score row: cells sit on a 1px grid gap over the rule colour, so the
+          hairlines hold at any column count. */}
+      <div className="grid grid-cols-2 gap-px border-b border-outline bg-outline lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
+        <div className="col-span-2 flex items-center gap-4 bg-background px-4 py-4 lg:col-span-1">
+          <div className="w-12 shrink-0" aria-hidden>
+            <PixelAlien wallet={wallet} className="w-full" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <Eyebrow>Total points</Eyebrow>
+            <ScoreCount
+              value={a ? a.total + unclaimed : 0}
+              className="font-mono text-4xl leading-none font-semibold tracking-[-0.04em] text-rock tabular-nums"
+            />
+          </div>
+        </div>
         <Tile
+          className="bg-background"
+          label="Claimed"
+          loading={loading}
+          value={a ? points(a.total) : '—'}
+        />
+        <Tile
+          className="bg-background"
+          label="Unclaimed"
+          loading={loading}
+          value={a ? points(unclaimed) : '—'}
+          valueClassName={unclaimed > 0 ? 'text-amber-200' : undefined}
+          hint={a && a.claims.granted > 0 ? `${points(a.claims.granted)} pending` : undefined}
+        />
+        <Tile
+          className="col-span-2 bg-background sm:col-span-1 lg:col-span-1"
           label="Rank"
           loading={loading}
           value={a?.rank ? `#${a.rank}` : '—'}
           hint={
             a?.rank
               ? `of ${a.ranked} · top ${Math.max(1, Math.ceil((a.rank / a.ranked) * 100))}%`
-              : 'claim points to rank'
+              : 'claim to rank'
           }
-        />
-        <Tile
-          label="Ready to claim"
-          loading={loading}
-          value={a ? points(a.claims.claimable) : '—'}
-          valueClassName={a && a.claims.claimable > 0 ? 'text-amber-200' : undefined}
-        />
-        <Tile
-          label="Pending"
-          loading={loading}
-          value={a ? points(a.claims.granted) : '—'}
-          hint={a && a.claims.expired > 0 ? `${points(a.claims.expired)} expired` : undefined}
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <ClaimablePanel entries={claimable} epochs={epochs} loading={entriesLoading} />
-          <HistoryPanel entries={entries} epochs={epochs} loading={entriesLoading} />
-          <EarnPanel account={a} />
-        </div>
-        <div className="flex flex-col gap-4">
-          <CategoryPanel account={a} />
-          <EpochsPanel rows={accountEpochs.data} epochs={epochs} />
-          <HowClaimingWorks />
+      <div className="grid divide-outline lg:grid-cols-[minmax(0,1fr)_22rem] lg:divide-x">
+        <Tabs value={current} onValueChange={v => setTab(v as Tab)} className="min-w-0">
+          <div className="flex h-11 items-stretch justify-between border-b border-outline bg-card pr-4">
+            <TabsList className="h-full">
+              <TabsTrigger value="claim" className="px-4">
+                Claim <Count n={claimable.length} hot={claimable.length > 0} />
+              </TabsTrigger>
+              <TabsTrigger value="history" className="px-4">
+                History <Count n={entries.length} />
+              </TabsTrigger>
+              <TabsTrigger value="earn" className="px-4">
+                Earn more
+              </TabsTrigger>
+            </TabsList>
+            <RulesLink className="max-sm:hidden" />
+          </div>
+          {activity.isPending ? (
+            <Empty title="Loading…" />
+          ) : (
+            <>
+              <TabsContent value="claim">
+                <ClaimTab entries={claimable} epochs={epochs} />
+              </TabsContent>
+              <TabsContent value="history">
+                <HistoryTab entries={entries} epochs={epochs} />
+              </TabsContent>
+            </>
+          )}
+          <TabsContent value="earn">
+            <EarnTab account={a} />
+          </TabsContent>
+        </Tabs>
+        <div className="border-t border-outline lg:border-t-0">
+          <Rail account={a} rows={accountEpochs.data} epochs={epochs} />
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
