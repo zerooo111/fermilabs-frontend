@@ -31,6 +31,7 @@ import { points, walletPointsPath } from '../../model/format';
 import { useAllEntries } from '../../model/useAllEntries';
 import { PixelAlien } from '../PixelAlien';
 import { ClaimablePanel } from './ClaimablePanel';
+import { EarnPanel, RulesLink } from './EarnPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { CategoryPanel, EpochsPanel, HowClaimingWorks } from './SidePanels';
 import { Tile } from './primitives';
@@ -48,18 +49,21 @@ function Header({ wallet }: { wallet?: string }) {
         <h1 className="font-serif text-4xl leading-none font-light tracking-[-0.02em] text-rock md:text-5xl">
           Your points
         </h1>
-        {wallet && (
-          <a
-            href={landingHref(walletPointsPath(wallet))}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1 text-xs text-rock/60 hover:text-rock"
-          >
-            Public page
-            <ArrowUpRight className="size-3.5" aria-hidden />
-            <span className="sr-only">(opens in a new tab)</span>
-          </a>
-        )}
+        <div className="flex items-center gap-4">
+          <RulesLink />
+          {wallet && (
+            <a
+              href={landingHref(walletPointsPath(wallet))}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 text-xs text-rock/60 hover:text-rock"
+            >
+              Public page
+              <ArrowUpRight className="size-3.5" aria-hidden />
+              <span className="sr-only">(opens in a new tab)</span>
+            </a>
+          )}
+        </div>
       </div>
       <p className="relative max-w-xl text-sm text-rock/70">
         Everything your wallet has earned, what's ready to claim, and where it came from.
@@ -177,6 +181,7 @@ function Dashboard({ wallet }: { wallet: string }) {
         <div className="flex min-w-0 flex-col gap-4">
           <ClaimablePanel entries={claimable} epochs={epochs} loading={entriesLoading} />
           <HistoryPanel entries={entries} epochs={epochs} loading={entriesLoading} />
+          <EarnPanel account={a} />
         </div>
         <div className="flex flex-col gap-4">
           <CategoryPanel account={a} />
