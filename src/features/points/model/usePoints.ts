@@ -17,6 +17,7 @@ import axios from 'axios';
 import { accessSessionAtom, clearSession, signInSession } from '@/features/access-gate';
 import {
   claimPoints,
+  skipReadCache,
   fetchPointsAccount,
   fetchPointsAccountEpochs,
   fetchPointsActivity,
@@ -106,14 +107,18 @@ export function useClaimPoints() {
       const cached = sessions[wallet];
       const fresh = cached && cached.expiresAt - 5 * 60 > Date.now() / 1000;
       const token = fresh ? cached.token : await signIn();
+      let result;
       try {
-        return await claimPoints(token, ids);
+        result = await claimPoints(token, ids);
       } catch (e) {
         if (!fresh || !axios.isAxiosError(e) || e.response?.status !== 401) throw e;
         // The cached token was revoked or rotated server-side: sign in again.
         clearSession(wallet);
-        return claimPoints(await signIn(), ids);
+        result = await claimPoints(await signIn(), ids);
       }
+      // The refetch below must not get the browser's cached pre-claim reads.
+      skipReadCache();
+      return result;
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: pointsKey }),
   });

@@ -94,8 +94,23 @@ const baseUrl = (): string => config.devnet.gatewayUrl;
 const accountPath = (wallet: string) =>
   API_ROUTES_V2.points_account.replace('{wallet}', encodeURIComponent(wallet));
 
+/**
+ * The gateway lets browsers cache reads for 15 s. Right after a claim the page
+ * needs the new numbers, so until this time reads add a throwaway `_` param to
+ * skip that cache.
+ */
+let skipCacheUntil = 0;
+
+export function skipReadCache(ms = 30_000) {
+  skipCacheUntil = Date.now() + ms;
+}
+
 async function get<T>(path: string, params: object, signal?: AbortSignal): Promise<T> {
-  const res = await axios.get<T>(`${baseUrl()}${path}`, { params, signal });
+  const fresh = Date.now() < skipCacheUntil ? { _: Date.now() } : {};
+  const res = await axios.get<T>(`${baseUrl()}${path}`, {
+    params: { ...params, ...fresh },
+    signal,
+  });
   return res.data;
 }
 
