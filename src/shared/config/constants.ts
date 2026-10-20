@@ -114,6 +114,7 @@ export const API_ROUTES_V2 = {
   points_epochs: '/v2/points/epochs',
   points_leaderboard: '/v2/points/leaderboard',
   points_account: '/v2/points/accounts/{wallet}',
+  points_claim: '/v2/points/claim',
   vaults: '/v2/vaults',
   vault: '/v2/vaults/{network}/{address}',
 };

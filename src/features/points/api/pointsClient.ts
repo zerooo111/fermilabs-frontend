@@ -1,6 +1,7 @@
 /**
- * REST client for /v2/points/* (ALIEN points). Every route is public and
- * keyed by address, so anyone can check any wallet. Timestamps are unix ms.
+ * REST client for /v2/points/* (ALIEN points). The reads are public and keyed
+ * by address, so anyone can check any wallet. Claiming needs the wallet's
+ * access-gate session token. Timestamps are unix ms.
  */
 import axios from 'axios';
 import { API_ROUTES_V2, config } from '@/shared/config/constants';
@@ -11,13 +12,21 @@ export type PointsCategory =
   | 'volume'
   | 'open_interest'
   | 'referral'
-  | 'bonus';
+  | 'bonus'
+  | 'quest';
 
 /** Only `live` / `provisional` / `final` epochs count toward balances. */
 export type EpochStatus = 'upcoming' | 'live' | 'computing' | 'provisional' | 'final';
 
 /** The statuses the API counts toward balances. */
 export type VisibleStatus = 'live' | 'provisional' | 'final';
+
+/**
+ * An entry's claim lifecycle: `granted` (earned, not claimable yet) →
+ * `claimable` → `claimed`, or `expired`. Only `claimed` points count toward
+ * totals and ranks.
+ */
+export type ClaimStatus = 'granted' | 'claimable' | 'claimed' | 'expired';
 
 export interface PointsEpoch {
   epoch: number;
@@ -36,8 +45,11 @@ export interface PointsAccount {
   rank: number | null;
   /** Wallets with a positive total. */
   ranked: number;
+  /** `total`, `by_status` and `by_category` count claimed points only. */
   by_status: Record<VisibleStatus, number>;
   by_category: Record<PointsCategory, number>;
+  /** Points in each claim status. */
+  claims: Record<ClaimStatus, number>;
 }
 
 export interface PointsAccountEpoch {
@@ -46,6 +58,7 @@ export interface PointsAccountEpoch {
   total: number;
   entries: number;
   by_category: Record<PointsCategory, number>;
+  claims: Record<ClaimStatus, number>;
 }
 
 export interface PointsEntry {
@@ -61,6 +74,7 @@ export interface PointsEntry {
   reason: string | null;
   details: Record<string, unknown>;
   occurred_at_ms: number;
+  claim_status: ClaimStatus;
 }
 
 export interface PointsActivity {
@@ -114,4 +128,19 @@ export function fetchPointsActivity(
   signal?: AbortSignal
 ) {
   return get<PointsActivity>(`${accountPath(wallet)}/activity`, params, signal);
+}
+
+export interface PointsClaim {
+  wallet: string;
+  /** Entries claimed; 0 when nothing was claimable. */
+  claimed: number;
+  points: number;
+}
+
+/** Claims every claimable entry of the token's wallet. */
+export async function claimPoints(token: string): Promise<PointsClaim> {
+  const res = await axios.post<PointsClaim>(`${baseUrl()}${API_ROUTES_V2.points_claim}`, null, {
+    headers: { 'x-wallet-auth': token },
+  });
+  return res.data;
 }

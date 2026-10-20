@@ -10,6 +10,7 @@ import axios from 'axios';
 import {
   ActivityList,
   Bone,
+  ClaimPanel,
   Label,
   Notice,
   PixelAlien,
@@ -103,6 +104,8 @@ function Results({ wallet }: { wallet: string }) {
 
   const a = account.data;
   const entries = activity.data?.pages.flatMap(p => p.entries) ?? [];
+  // The total counts claimed points only, so the chart does too.
+  const claimed = entries.filter(e => e.claim_status === 'claimed');
   const settling = a.total - a.by_status.final;
   const startMs = Math.min(...(epochs ?? []).map(e => e.starts_at_ms), Date.now());
 
@@ -132,6 +135,7 @@ function Results({ wallet }: { wallet: string }) {
 
   return (
     <>
+      <ClaimPanel wallet={wallet} account={a} entries={entries} />
       <Row>
         <div className={`flex flex-col gap-7 ${PAD}`}>
           {/* Who: the wallet's alien and address */}
@@ -188,7 +192,7 @@ function Results({ wallet }: { wallet: string }) {
           <Label className="mb-4">Points over time</Label>
           {/* Grows to the row's height, which the score beside it sets. */}
           <div className="min-h-0 flex-1">
-            <PointsChart entries={entries} startMs={startMs} />
+            <PointsChart entries={claimed} startMs={startMs} />
           </div>
         </div>
       </Row>

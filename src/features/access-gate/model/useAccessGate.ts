@@ -26,7 +26,37 @@ import {
   AccessGateError,
 } from '../api/accessClient';
 import { readSession, writeSession, clearSession } from '../lib/cache';
-import { accessSessionAtom, gateLoadingAtom, gateOpenAtom } from './accessAtoms';
+import {
+  accessSessionAtom,
+  gateLoadingAtom,
+  gateOpenAtom,
+  type AccessSession,
+} from './accessAtoms';
+
+/**
+ * Signs a fresh session challenge with an already-whitelisted wallet and caches
+ * the token. Throws `AccessGateError` (e.g. `wallet_not_whitelisted`). Callers
+ * mirror the result into `accessSessionAtom`.
+ */
+export async function signInSession(
+  wallet: string,
+  signMessage: (message: Uint8Array) => Promise<Uint8Array>
+): Promise<AccessSession> {
+  const challenge = await requestChallenge(wallet, 'session');
+  const sigBytes = await signMessage(new TextEncoder().encode(challenge.message));
+  const granted = await exchangeSession({
+    wallet,
+    nonce: challenge.nonce,
+    signature: bs58.encode(sigBytes),
+  });
+  writeSession({
+    wallet,
+    token: granted.token,
+    expiresAt: granted.expires_at,
+    cachedAt: Date.now(),
+  });
+  return { token: granted.token, expiresAt: granted.expires_at };
+}
 
 export function useAccessGate() {
   const { connected, publicKey, signMessage } = useWallet();
@@ -78,26 +108,10 @@ export function useAccessGate() {
         // Whitelisted but the adapter can't sign — nothing to do silently.
         if (!signMessage) return;
 
-        const challenge = await requestChallenge(wallet, 'session');
-        if (cancelled) return;
-        const sigBytes = await signMessage(new TextEncoder().encode(challenge.message));
-        const granted = await exchangeSession({
-          wallet,
-          nonce: challenge.nonce,
-          signature: bs58.encode(sigBytes),
-        });
+        const granted = await signInSession(wallet, signMessage);
         if (cancelled) return;
 
-        setSession(prev => ({
-          ...prev,
-          [wallet]: { token: granted.token, expiresAt: granted.expires_at },
-        }));
-        writeSession({
-          wallet,
-          token: granted.token,
-          expiresAt: granted.expires_at,
-          cachedAt: Date.now(),
-        });
+        setSession(prev => ({ ...prev, [wallet]: granted }));
         setGateOpen(false);
       } catch (e) {
         if (cancelled) return;

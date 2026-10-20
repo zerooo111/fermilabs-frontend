@@ -8,9 +8,10 @@ export const CATEGORY_LABELS: Record<PointsCategory, string> = {
   open_interest: 'Open interest',
   referral: 'Referrals',
   bonus: 'Bonus',
+  quest: 'Quests',
 };
 
-/** Display order: the five program categories, then reserve grants. */
+/** Display order: the five program categories, then bonuses and quests. */
 export const CATEGORY_ORDER: PointsCategory[] = [
   'flp_vault',
   'resting_depth',
@@ -18,6 +19,7 @@ export const CATEGORY_ORDER: PointsCategory[] = [
   'open_interest',
   'referral',
   'bonus',
+  'quest',
 ];
 
 /** A wallet's points dashboard: the checker page with `?wallet=`. */

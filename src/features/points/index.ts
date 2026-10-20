@@ -8,7 +8,13 @@ export { Countdown } from './ui/Countdown';
 export { SkillGraph } from './ui/SkillGraph';
 export { ActivityList } from './ui/ActivityList';
 export { Bone, Label, Notice } from './ui/primitives';
-export { usePointsAccount, usePointsActivity, usePointsEpochs } from './model/usePoints';
+export { ClaimPanel } from './ui/ClaimPanel';
+export {
+  useClaimPoints,
+  usePointsAccount,
+  usePointsActivity,
+  usePointsEpochs,
+} from './model/usePoints';
 export { useNow } from './model/useNow';
 export { SEASON_START_MS } from './model/program';
 export {
@@ -19,4 +25,4 @@ export {
   shortAddress,
   walletPointsPath,
 } from './model/format';
-export type { PointsAccount, PointsCategory, PointsEntry } from './api/pointsClient';
+export type { ClaimStatus, PointsAccount, PointsCategory, PointsEntry } from './api/pointsClient';

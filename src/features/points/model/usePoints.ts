@@ -3,10 +3,24 @@
  * (weekly), and live estimates refresh a few times an hour, so a minute is
  * plenty.
  */
-import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useAtom } from 'jotai';
 import axios from 'axios';
 
-import { fetchPointsAccount, fetchPointsActivity, fetchPointsEpochs } from '../api/pointsClient';
+import { accessSessionAtom, clearSession, signInSession } from '@/features/access-gate';
+import {
+  claimPoints,
+  fetchPointsAccount,
+  fetchPointsActivity,
+  fetchPointsEpochs,
+} from '../api/pointsClient';
 
 const STALE_MS = 60_000;
 export const ACTIVITY_PAGE = 25;
@@ -53,5 +67,41 @@ export function usePointsActivity(wallet: string | undefined) {
     enabled: !!wallet,
     staleTime: STALE_MS,
     retry,
+  });
+}
+
+/**
+ * Claims the connected wallet's claimable points. Uses its access-gate session,
+ * signing a new one first when there is none or the server rejects it, so one
+ * click is enough. Fails with `AccessGateError('wallet_not_whitelisted')` for
+ * wallets without Fermi access.
+ */
+export function useClaimPoints() {
+  const { publicKey, signMessage } = useWallet();
+  const [sessions, setSessions] = useAtom(accessSessionAtom);
+  const queryClient = useQueryClient();
+  const wallet = publicKey?.toBase58();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!wallet || !signMessage) throw new Error('wallet_not_connected');
+      const signIn = async () => {
+        const session = await signInSession(wallet, signMessage);
+        setSessions(prev => ({ ...prev, [wallet]: session }));
+        return session.token;
+      };
+      const cached = sessions[wallet];
+      const fresh = cached && cached.expiresAt - 5 * 60 > Date.now() / 1000;
+      const token = fresh ? cached.token : await signIn();
+      try {
+        return await claimPoints(token);
+      } catch (e) {
+        if (!fresh || !axios.isAxiosError(e) || e.response?.status !== 401) throw e;
+        // The cached token was revoked or rotated server-side: sign in again.
+        clearSession(wallet);
+        return claimPoints(await signIn());
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: pointsKey }),
   });
 }
