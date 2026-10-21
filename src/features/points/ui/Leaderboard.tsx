@@ -84,7 +84,7 @@ export function Leaderboard({ me }: { me?: string }) {
   const pages = data ? Math.max(1, Math.ceil(data.total / PAGE)) : 1;
   const mine = data?.me?.position ? data.me : null;
   const cols = board.loss
-    ? 'grid-cols-[4.5rem_minmax(0,1fr)_auto_auto] md:grid-cols-[5.5rem_minmax(0,1fr)_8rem_auto]'
+    ? 'grid-cols-[4.5rem_minmax(0,1fr)_auto_4.5rem] md:grid-cols-[5.5rem_minmax(0,1fr)_9rem_7rem]'
     : 'grid-cols-[5.5rem_minmax(0,1fr)_auto]';
 
   const go = (next: { board?: BoardId; page?: number }) => {
@@ -215,7 +215,7 @@ export function Leaderboard({ me }: { me?: string }) {
                     )}
                   </Link>
                   {board.loss && (
-                    <span className="text-right font-mono text-rock/70 tabular-nums">
+                    <span className="text-right font-mono text-danger tabular-nums">
                       {lossUsd(r.details)}
                     </span>
                   )}
