@@ -4,7 +4,7 @@
  * through Privy's modal, plus email/social login with embedded Solana wallets
  * when `embeddedWalletsEnabled` is on.
  */
-import type { PrivyClientConfig } from '@privy-io/react-auth';
+import { getIdentityToken, type PrivyClientConfig } from '@privy-io/react-auth';
 import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 import { createSolanaRpc, createSolanaRpcSubscriptions } from '@solana/kit';
 import { config } from '@/shared/config/constants';
@@ -62,3 +62,18 @@ export const privyProviderProps = {
     },
   } satisfies PrivyClientConfig,
 };
+
+/**
+ * The Privy identity token of the logged-in user, or null (no login, Privy not
+ * configured, or identity tokens turned off for the app). Privy's wallet login
+ * already proved wallet ownership with a signature; the gateway accepts this
+ * token instead of asking the wallet to sign again.
+ */
+export async function privyIdentityToken(): Promise<string | null> {
+  if (!privyAppId) return null;
+  try {
+    return await getIdentityToken();
+  } catch {
+    return null;
+  }
+}

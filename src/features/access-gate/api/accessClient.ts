@@ -85,6 +85,24 @@ export async function redeemInvite(args: {
   }
 }
 
+export interface PrivySessionResp extends AccessGrantedResp {
+  /** Whether the token opens trading, or (false) points claims only. */
+  whitelisted: boolean;
+}
+
+/** A session from a Privy login's identity token: no wallet signature needed. */
+export async function exchangePrivySession(args: {
+  wallet: string;
+  identity_token: string;
+}): Promise<PrivySessionResp> {
+  try {
+    const res = await axios.post<PrivySessionResp>(`${baseUrl()}/v1/access/privy-session`, args);
+    return res.data;
+  } catch (e) {
+    unwrapError(e);
+  }
+}
+
 /** Any wallet, whitelisted or not: the token opens points claims only. */
 export async function exchangePointsSession(args: {
   wallet: string;

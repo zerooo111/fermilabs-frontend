@@ -4,7 +4,11 @@
  * On every wallet connect:
  *   1. Check localStorage for a non-expired session token. If present, hydrate
  *      Jotai and we're done (no network, no modal).
- *   2. Otherwise, ping /v1/access/status to know whether this wallet is
+ *   2. Otherwise trade the Privy login's identity token for a session: Privy's
+ *      login already had the wallet sign, so no second signature. A wallet
+ *      without access gets a points-only session and, in the trading app, the
+ *      InviteCodeModal.
+ *   3. Without an identity token, ping /v1/access/status to know whether this wallet is
  *      whitelisted at all.
  *      - Whitelisted but no token: prompt for one signature ("welcome back"),
  *        exchange via /v1/access/session, store token. No modal needed.
@@ -21,8 +25,10 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { toast } from 'sonner';
 import bs58 from 'bs58';
 
+import { privyIdentityToken } from '@/entities/wallet';
 import {
   exchangePointsSession,
+  exchangePrivySession,
   exchangeSession,
   fetchStatus,
   requestChallenge,
@@ -64,14 +70,41 @@ export async function signInSession(
 }
 
 /**
+ * A session from the Privy login, no signature: `access` for a whitelisted
+ * wallet, `points` otherwise. Null when there's no identity token or the
+ * gateway won't take it; callers then fall back to a signed challenge.
+ */
+async function privySession(
+  wallet: string
+): Promise<{ scope: 'access' | 'points'; session: AccessSession } | null> {
+  const identityToken = await privyIdentityToken();
+  if (!identityToken) return null;
+  try {
+    const granted = await exchangePrivySession({ wallet, identity_token: identityToken });
+    const scope = granted.whitelisted ? 'access' : 'points';
+    writeSession(
+      { wallet, token: granted.token, expiresAt: granted.expires_at, cachedAt: Date.now() },
+      scope
+    );
+    return { scope, session: { token: granted.token, expiresAt: granted.expires_at } };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Signs in to claim points: a whitelisted wallet gets its full access session
- * (so trading works too), any other wallet a points-only session. One
- * signature either way. Callers mirror the result into the atom for `scope`.
+ * (so trading works too), any other wallet a points-only session. Uses the
+ * Privy login when it can, else one signature. Callers mirror the result into
+ * the atom for `scope`.
  */
 export async function signInForPoints(
   wallet: string,
   signMessage: (message: Uint8Array) => Promise<Uint8Array>
 ): Promise<{ scope: 'access' | 'points'; session: AccessSession }> {
+  const viaPrivy = await privySession(wallet);
+  if (viaPrivy) return viaPrivy;
+
   const { whitelisted } = await fetchStatus(wallet);
   if (whitelisted) return { scope: 'access', session: await signInSession(wallet, signMessage) };
 
@@ -137,6 +170,21 @@ export function useAccessGate() {
 
       setLoading(true);
       try {
+        // The Privy login already proved the wallet: no second signature.
+        const viaPrivy = await privySession(wallet);
+        if (cancelled) return;
+        if (viaPrivy?.scope === 'access') {
+          setSession(prev => ({ ...prev, [wallet]: viaPrivy.session }));
+          setGateOpen(false);
+          return;
+        }
+        if (viaPrivy) {
+          setPointsSession(prev => ({ ...prev, [wallet]: viaPrivy.session }));
+          setLoading(false);
+          setNeedsInvite(wallet);
+          return;
+        }
+
         const status = await fetchStatus(wallet);
         if (cancelled) return;
 
