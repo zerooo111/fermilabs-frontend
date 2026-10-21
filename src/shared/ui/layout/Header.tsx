@@ -71,15 +71,18 @@ export function Header() {
           >
             Referrals
           </Link>
+          {/* A connected wallet gets the points chip on the right instead; it's
+              hidden below md, so the link stays there. */}
           {showUnlaunched && (
             <Link
               to="/dashboard/points"
               className={cn(
                 NAV_LINK,
-                location.pathname === '/dashboard/points' ? 'text-rock' : 'text-rock/60'
+                location.pathname === '/dashboard/points' ? 'text-rock' : 'text-rock/60',
+                walletKey && 'md:hidden'
               )}
             >
-              Points
+              ALIEN Points
             </Link>
           )}
         </div>
