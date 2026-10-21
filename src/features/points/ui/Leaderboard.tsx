@@ -7,6 +7,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { Info } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { usePointsLeaderboard } from '../model/usePoints';
 import { points, shortAddress, walletPointsPath } from '../model/format';
@@ -83,8 +84,9 @@ export function Leaderboard({ me }: { me?: string }) {
   const data = query.data;
   const pages = data ? Math.max(1, Math.ceil(data.total / PAGE)) : 1;
   const mine = data?.me?.position ? data.me : null;
+  // On phones a separate loss column squeezes out the wallet, so the loss sits under the points
   const cols = board.loss
-    ? 'grid-cols-[4.5rem_minmax(0,1fr)_auto_4.5rem] md:grid-cols-[5.5rem_minmax(0,1fr)_9rem_7rem]'
+    ? 'grid-cols-[4.5rem_minmax(0,1fr)_auto] md:grid-cols-[5.5rem_minmax(0,1fr)_9rem_7rem]'
     : 'grid-cols-[5.5rem_minmax(0,1fr)_auto]';
 
   const go = (next: { board?: BoardId; page?: number }) => {
@@ -162,6 +164,19 @@ export function Leaderboard({ me }: { me?: string }) {
         )}
       </p>
 
+      {boardId === 'mev' && (
+        <div className="flex gap-3 border border-rock/15 px-4 py-3 text-sm text-rock/70">
+          <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-amber-200" />
+          <p>
+            Points follow the estimated USD each wallet lost to sandwich attacks on Solana, from 20
+            October 2025 to 30 June 2026: 100 points at $5 or less, up to 1,000 at $2,000 or more.{' '}
+            <Link to="/points/docs#mev-victim-points" className="link whitespace-nowrap text-rock">
+              How MEV points work →
+            </Link>
+          </p>
+        </div>
+      )}
+
       {query.isError ? (
         <Notice title="Couldn't load the leaderboard.">Try again in a minute.</Notice>
       ) : !data ? (
@@ -182,8 +197,10 @@ export function Leaderboard({ me }: { me?: string }) {
           >
             <span>Rank</span>
             <span>Wallet</span>
-            {board.loss && <span className="text-right">USD loss</span>}
-            <span className="text-right">Points</span>
+            {board.loss && <span className="text-right max-md:hidden">USD loss</span>}
+            <span className="text-right">
+              Points{board.loss && <span className="md:hidden"> / loss</span>}
+            </span>
           </div>
           <ol>
             {data.rows.map(r => {
@@ -215,12 +232,17 @@ export function Leaderboard({ me }: { me?: string }) {
                     )}
                   </Link>
                   {board.loss && (
-                    <span className="text-right font-mono text-danger tabular-nums">
+                    <span className="text-right font-mono text-danger tabular-nums max-md:hidden">
                       {lossUsd(r.details)}
                     </span>
                   )}
                   <span className="text-right font-mono text-rock tabular-nums">
                     {points(r.points)}
+                    {board.loss && (
+                      <span className="block text-xs text-danger md:hidden">
+                        {lossUsd(r.details)}
+                      </span>
+                    )}
                   </span>
                 </li>
               );
