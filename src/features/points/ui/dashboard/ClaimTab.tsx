@@ -3,10 +3,9 @@
  * all. Claiming keeps points from expiring; the rest of the page refreshes from
  * the gateway once a claim settles.
  */
+import axios from 'axios';
 import { toast } from 'sonner';
-import { useSetAtom } from 'jotai';
 import { Button } from '@/shared/ui/button';
-import { AccessGateError, gateOpenAtom } from '@/features/access-gate';
 import type { PointsEntry, PointsEpoch } from '../../api/pointsClient';
 import { useClaimPoints } from '../../model/usePoints';
 import { CATEGORY_LABELS, dateUtc, epochName, points } from '../../model/format';
@@ -28,7 +27,6 @@ export function ClaimTab({
   epochs: Map<number, PointsEpoch>;
 }) {
   const claim = useClaimPoints();
-  const openGate = useSetAtom(gateOpenAtom);
   const total = entries.reduce((sum, e) => sum + e.points, 0);
   // Which button is busy: undefined claims all, one id claims that entry.
   const busy = claim.isPending ? (claim.variables?.[0] ?? 'all') : null;
@@ -41,10 +39,10 @@ export function ClaimTab({
       },
       onError: e => {
         if (rejected(e)) return;
-        if (e instanceof AccessGateError && e.code === 'wallet_not_whitelisted') {
-          toast.error('This wallet needs Fermi access before it can claim.', {
-            action: { label: 'Get access', onClick: () => openGate(true) },
-          });
+        if (axios.isAxiosError(e) && e.response?.status === 409) {
+          toast.error(
+            'Your claimable points changed while you signed. Check the list and try again.'
+          );
           return;
         }
         toast.error("Couldn't claim. Try again in a minute.");

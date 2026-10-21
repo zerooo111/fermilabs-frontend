@@ -13,6 +13,7 @@ import {
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtom } from 'jotai';
 import axios from 'axios';
+import bs58 from 'bs58';
 
 import {
   accessSessionAtom,
@@ -22,6 +23,7 @@ import {
 } from '@/features/access-gate';
 import {
   claimPoints,
+  prepareClaim,
   skipReadCache,
   fetchPointsAccount,
   fetchPointsAccountEpochs,
@@ -107,9 +109,10 @@ export function usePointsActivity(wallet: string | undefined) {
 
 /**
  * Claims the connected wallet's claimable points: all of them, or the entry
- * ids passed to `mutate`. Uses its access session, or for a wallet without
- * access its points-only session, signing a new one first when there is none
- * or the server rejects it, so one click is enough.
+ * ids passed to `mutate`. The wallet signs the prepared claim, which the
+ * gateway keeps as the claim proof. Uses its access session, or for a wallet
+ * without access its points-only session, signing in first when there is none
+ * or the server rejects it.
  */
 export function useClaimPoints() {
   const { publicKey, signMessage } = useWallet();
@@ -130,16 +133,25 @@ export function useClaimPoints() {
       const live = (s?: { expiresAt: number }) => !!s && s.expiresAt - 5 * 60 > Date.now() / 1000;
       const cached = live(sessions[wallet]) ? sessions[wallet] : pointsSessions[wallet];
       const fresh = live(cached);
-      const token = fresh ? cached.token : await signIn();
-      let result;
+      let token = fresh ? cached.token : await signIn();
+      let prepared;
       try {
-        result = await claimPoints(token, ids);
+        prepared = await prepareClaim(token, ids);
       } catch (e) {
         if (!fresh || !axios.isAxiosError(e) || e.response?.status !== 401) throw e;
         // The cached token was revoked or rotated server-side: sign in again.
         clearSession(wallet);
-        result = await claimPoints(await signIn(), ids);
+        token = await signIn();
+        prepared = await prepareClaim(token, ids);
       }
+      if (!prepared.nonce || !prepared.message) {
+        return { wallet, claimed: 0, points: 0, claim_id: null };
+      }
+      const signature = await signMessage(new TextEncoder().encode(prepared.message));
+      const result = await claimPoints(token, {
+        nonce: prepared.nonce,
+        signature: bs58.encode(signature),
+      });
       // The refetch below must not get the browser's cached pre-claim reads.
       skipReadCache();
       return result;

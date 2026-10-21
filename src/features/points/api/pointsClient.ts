@@ -75,6 +75,8 @@ export interface PointsEntry {
   details: Record<string, unknown>;
   occurred_at_ms: number;
   claim_status: ClaimStatus;
+  /** The signed claim proof that claimed this entry (see `claimProofUrl`). */
+  claim_id: number | null;
 }
 
 export interface PointsActivity {
@@ -164,19 +166,54 @@ export function fetchPointsActivity(
   return get<PointsActivity>(`${accountPath(wallet)}/activity`, params, signal);
 }
 
+/** A claim ready for the wallet to sign; `message` is null with nothing to claim. */
+export interface PreparedClaim {
+  wallet: string;
+  entries: number;
+  points: number;
+  nonce: string | null;
+  message: string | null;
+}
+
+/**
+ * Prepares a claim of the token's wallet's claimable entries (all of them, or
+ * only `ids`): the message to sign names the wallet, the points and the entry
+ * ids. The signed message is kept as the claim proof.
+ */
+export async function prepareClaim(token: string, ids?: number[]): Promise<PreparedClaim> {
+  const res = await axios.post<PreparedClaim>(
+    `${baseUrl()}${API_ROUTES_V2.points_claim_prepare}`,
+    ids ? { ids } : null,
+    { headers: { 'x-wallet-auth': token } }
+  );
+  return res.data;
+}
+
 export interface PointsClaim {
   wallet: string;
   /** Entries claimed; 0 when nothing was claimable. */
   claimed: number;
   points: number;
+  /** The stored proof; null when nothing was claimed. */
+  claim_id: number | null;
 }
 
-/** Claims the token's wallet's claimable entries: all of them, or only `ids`. */
-export async function claimPoints(token: string, ids?: number[]): Promise<PointsClaim> {
-  const res = await axios.post<PointsClaim>(
-    `${baseUrl()}${API_ROUTES_V2.points_claim}`,
-    ids ? { ids } : null,
-    { headers: { 'x-wallet-auth': token } }
-  );
+/**
+ * Sends the wallet's signature over a prepared claim. The gateway verifies it,
+ * stores it as the proof and claims exactly the prepared entries. Fails with
+ * 409 `claim_changed` if one of them stopped being claimable.
+ */
+export async function claimPoints(
+  token: string,
+  claim: { nonce: string; signature: string }
+): Promise<PointsClaim> {
+  const res = await axios.post<PointsClaim>(`${baseUrl()}${API_ROUTES_V2.points_claim}`, claim, {
+    headers: { 'x-wallet-auth': token },
+  });
   return res.data;
+}
+
+/** Public JSON of a claim proof: the signed message, signature and entries. */
+export function claimProofUrl(id: number): string {
+  return `${baseUrl()}${API_ROUTES_V2.points_claim_proof.replace('{id}', String(id))}`;
 }

@@ -4,7 +4,12 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Segmented } from '@/shared/ui/segmented';
-import type { ClaimStatus, PointsEntry, PointsEpoch } from '../../api/pointsClient';
+import {
+  claimProofUrl,
+  type ClaimStatus,
+  type PointsEntry,
+  type PointsEpoch,
+} from '../../api/pointsClient';
 import { CATEGORY_LABELS, dateUtc, epochName, pointsSigned } from '../../model/format';
 import { StatusTag } from './primitives';
 import { Empty } from './Empty';
@@ -97,8 +102,20 @@ export function HistoryTab({
                     <td className="truncate px-2 py-2.5 text-xs whitespace-nowrap text-rock/60">
                       {epoch ? epochName(epoch) : `Epoch ${e.epoch}`}
                     </td>
-                    <td className="px-2 py-2.5">
+                    <td className="px-2 py-2.5 whitespace-nowrap">
                       <StatusTag status={e.claim_status} />
+                      {/* The signed message and signature this entry was claimed with */}
+                      {e.claim_id !== null && (
+                        <a
+                          href={claimProofUrl(e.claim_id)}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="The message your wallet signed to claim this, with its signature"
+                          className="ml-2 text-xs text-rock/50 underline-offset-2 hover:text-rock hover:underline"
+                        >
+                          Proof
+                        </a>
+                      )}
                     </td>
                     <td
                       className={cn(

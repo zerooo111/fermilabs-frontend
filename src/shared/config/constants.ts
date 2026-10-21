@@ -114,7 +114,9 @@ export const API_ROUTES_V2 = {
   points_epochs: '/v2/points/epochs',
   points_leaderboard: '/v2/points/leaderboard',
   points_account: '/v2/points/accounts/{wallet}',
+  points_claim_prepare: '/v2/points/claim/prepare',
   points_claim: '/v2/points/claim',
+  points_claim_proof: '/v2/points/claims/{id}',
   vaults: '/v2/vaults',
   vault: '/v2/vaults/{network}/{address}',
 };
