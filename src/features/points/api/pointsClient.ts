@@ -89,7 +89,11 @@ export interface PointsLeaderboard {
   campaign: string | null;
   /** Ranked wallets on this board. */
   total: number;
-  rows: { rank: number; wallet: string; points: number }[];
+  /**
+   * `details` is the wallet's entry details on a campaign board, when it has
+   * one entry there (an MEV victim's `{loss_usd, sandwiched_txs}`), else null.
+   */
+  rows: { rank: number; wallet: string; points: number; details: Record<string, unknown> | null }[];
   /**
    * The `wallet` param's place on the board. `position` is its 1-based row,
    * for paging to it; both are null when it isn't on the board.

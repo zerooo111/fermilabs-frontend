@@ -17,11 +17,23 @@ const PAGE = 25;
 
 /** Campaigns are `external_id` prefixes on the gateway. */
 const BOARDS = [
-  { id: 'all', label: 'All', campaign: undefined },
-  { id: 'mev', label: 'MEV victims', campaign: 'bonus:mev' },
-  { id: 'testers', label: 'Early testers', campaign: 'bonus:early-beta' },
-  { id: 'signups', label: 'Beta sign-ups', campaign: 'bonus:beta-signup' },
+  { id: 'all', label: 'All', campaign: undefined, loss: false },
+  // Each MEV entry's details carry the USD the wallet lost to sandwiches.
+  { id: 'mev', label: 'MEV victims', campaign: 'bonus:mev', loss: true },
+  { id: 'testers', label: 'Early testers', campaign: 'bonus:early-beta', loss: false },
+  { id: 'signups', label: 'Beta sign-ups', campaign: 'bonus:beta-signup', loss: false },
 ] as const;
+
+const USD = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 2,
+});
+
+function lossUsd(details: Record<string, unknown> | null): string {
+  const v = details?.loss_usd;
+  return typeof v === 'number' ? USD.format(v) : '—';
+}
 
 type BoardId = (typeof BOARDS)[number]['id'];
 
@@ -71,6 +83,9 @@ export function Leaderboard({ me }: { me?: string }) {
   const data = query.data;
   const pages = data ? Math.max(1, Math.ceil(data.total / PAGE)) : 1;
   const mine = data?.me?.position ? data.me : null;
+  const cols = board.loss
+    ? 'grid-cols-[4.5rem_minmax(0,1fr)_auto_auto] md:grid-cols-[5.5rem_minmax(0,1fr)_8rem_auto]'
+    : 'grid-cols-[5.5rem_minmax(0,1fr)_auto]';
 
   const go = (next: { board?: BoardId; page?: number }) => {
     setParams(
@@ -159,9 +174,15 @@ export function Leaderboard({ me }: { me?: string }) {
         <Notice title="No one is on this board yet." />
       ) : (
         <div className={cn('transition-opacity', query.isPlaceholderData && 'opacity-60')}>
-          <div className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto] gap-4 border-b border-rock/15 pb-2 text-xs tracking-[0.2em] text-rock/50 uppercase">
+          <div
+            className={cn(
+              'grid gap-4 border-b border-rock/15 pb-2 text-xs tracking-[0.2em] text-rock/50 uppercase',
+              cols
+            )}
+          >
             <span>Rank</span>
             <span>Wallet</span>
+            {board.loss && <span className="text-right">USD loss</span>}
             <span className="text-right">Points</span>
           </div>
           <ol>
@@ -172,7 +193,8 @@ export function Leaderboard({ me }: { me?: string }) {
                   key={r.wallet}
                   ref={isMe ? myRow : undefined}
                   className={cn(
-                    'grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-dashed border-rock/15 py-2.5',
+                    'grid items-center gap-4 border-b border-dashed border-rock/15 py-2.5',
+                    cols,
                     isMe && 'bg-amber-200/10'
                   )}
                 >
@@ -192,6 +214,11 @@ export function Leaderboard({ me }: { me?: string }) {
                       </span>
                     )}
                   </Link>
+                  {board.loss && (
+                    <span className="text-right font-mono text-rock/70 tabular-nums">
+                      {lossUsd(r.details)}
+                    </span>
+                  )}
                   <span className="text-right font-mono text-rock tabular-nums">
                     {points(r.points)}
                   </span>
