@@ -6,7 +6,7 @@
  * shrink by its height instead of overflowing.
  */
 import { useLayoutEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { ArrowUpRight, X } from 'lucide-react';
 import { landingHref } from '@/shared/lib/domains';
 import { PointsIcon } from './HeaderPoints';
 
@@ -69,8 +69,12 @@ export function AnnouncementBar() {
           </span>
         </p>
         <div className="flex items-center gap-4">
-          <a href={landingHref('/points')} className={`${LINK} font-medium text-amber-200`}>
-            Check your points →
+          <a
+            href={landingHref('/points')}
+            className={`${LINK} inline-flex items-center gap-0.5 font-medium text-amber-200`}
+          >
+            Check your points
+            <ArrowUpRight className="size-3.5" aria-hidden />
           </a>
           <a href={landingHref('/points/docs')} className={`${LINK} text-rock/70 hover:text-rock`}>
             Read the docs

@@ -2,11 +2,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
 import { cn } from '@/lib/utils';
-import { showUnlaunched } from '@/shared/lib/domains';
+import { landingHref, showUnlaunched } from '@/shared/lib/domains';
 import { ConnectWallet } from '../../../features/wallet-connect/ui/ConnectWallet';
 import { FeeCreditDialog } from '@/features/fee-credit';
 import { ApiKeysMenuItem, ApiKeysPanel } from '@/features/api-keys';
-import { PointsChip, PointsIcon } from '@/features/points';
+import { PointsChip, PointsIcon, walletPointsPath } from '@/features/points';
 import { MarginPanel } from '@/features/margin-panel/ui/MarginPanel';
 import { accessSessionAtom } from '@/features/access-gate';
 import FermiLogo3d from './FermiLogo';
@@ -14,6 +14,36 @@ import { LayoutMenu } from '@/features/layout';
 
 const NAV_LINK =
   'flex shrink-0 items-center px-2.5 text-sm transition-colors duration-150 hover:text-rock';
+
+/**
+ * The public points page, opened on the connected wallet's results when there
+ * is one. It's a landing route, so on app.fermi.trade it leaves for fermi.trade.
+ */
+function AlienLink({ walletKey }: { walletKey: string | undefined }) {
+  const location = useLocation();
+  const href = landingHref(walletKey ? walletPointsPath(walletKey) : '/points');
+  const className = cn(
+    NAV_LINK,
+    'gap-1.5',
+    location.pathname === '/points' ? 'text-rock' : 'text-rock/60',
+    walletKey && 'md:hidden'
+  );
+  const content = (
+    <>
+      <PointsIcon className="size-3.5 text-primary" />
+      ALIEN
+    </>
+  );
+  return href.startsWith('http') ? (
+    <a href={href} className={className}>
+      {content}
+    </a>
+  ) : (
+    <Link to={href} className={className}>
+      {content}
+    </Link>
+  );
+}
 
 export function Header() {
   const location = useLocation();
@@ -73,20 +103,7 @@ export function Header() {
           </Link>
           {/* A connected wallet gets the points chip on the right instead; it's
               hidden below md, so the link stays there. */}
-          {showUnlaunched && (
-            <Link
-              to="/dashboard/points"
-              className={cn(
-                NAV_LINK,
-                'gap-1.5',
-                location.pathname === '/dashboard/points' ? 'text-rock' : 'text-rock/60',
-                walletKey && 'md:hidden'
-              )}
-            >
-              <PointsIcon className="size-3.5 text-primary" />
-              ALIEN
-            </Link>
-          )}
+          {showUnlaunched && <AlienLink walletKey={walletKey} />}
         </div>
         {/* Most-glanced first: balances, points, then the account. Fee credit and
             API keys live inside the balances and account menus; their dialogs
