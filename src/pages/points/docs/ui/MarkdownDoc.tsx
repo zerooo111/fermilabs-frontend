@@ -48,7 +48,12 @@ function Figure({ src, alt }: { src?: string; alt?: string }) {
       </span>
     );
   }
-  return <img src={resolved} alt={alt} loading="lazy" onError={() => setFailed(true)} />;
+  // Charts carry small print, so a tap opens the full-size figure (mainly for phones)
+  return (
+    <a href={resolved} target="_blank" rel="noreferrer" className="figure-link">
+      <img src={resolved} alt={alt} loading="lazy" onError={() => setFailed(true)} />
+    </a>
+  );
 }
 
 const components: Components = {

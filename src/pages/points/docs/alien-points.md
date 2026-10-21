@@ -59,7 +59,7 @@ Five categories give points.
 
 Fermi divides each category pool among all wallets. The share of a wallet is equal to its score divided by the total score of all wallets in that category.
 
-You do not have to claim points. Fermi adds them to your wallet automatically.
+You must claim your points in the claim window. The Fermi team sets each claim window and publishes it. If you do not claim points in the claim window, the points can expire.
 
 ## How many points Fermi releases
 
@@ -307,7 +307,7 @@ Fermi can change the parameters on this page. If Fermi changes a parameter:
 Fermi has not announced a token or a conversion. ALIEN points record your contribution to Fermi.
 
 **Can I lose points?**
-You can lose provisional points if they come from activity that breaks the fair-play rules. You can appeal in the 14-day provisional period. Final points do not change.
+You can lose provisional points if they come from activity that breaks the fair-play rules. You can appeal in the 14-day provisional period. Final points do not change. Points that you do not claim in the claim window can expire.
 
 **Why do I get fewer points for each dollar over time?**
 The curve rate decreases when cumulative qualified volume increases. Thus early activity gets more points. Also, total points stay in proportion to the size of Fermi.
@@ -317,3 +317,83 @@ No. Fermi calculates points for each wallet separately.
 
 **Do I get points if I trade through a market maker agreement?**
 Market makers with a direct liquidity agreement do not get resting depth points. They can get points in the other categories.
+
+## MEV victim points
+
+MEV and extractive validator behavior have no place in crypto. Fermi gives a one-time ALIEN points allocation to Solana wallets that were victims of sandwich attacks.
+
+- **Wallets:** 268,276.
+- **Total:** 45,635,994 points.
+- **Data period:** 20 October 2025 to 30 June 2026.
+
+MEV victim points are a one-time allocation. Fermi does not give MEV victim points again for later activity. They are not part of the Season 1 pools on this page.
+
+### Check and claim your points
+
+1. Go to [app.fermi.trade/points](https://app.fermi.trade/points).
+2. Enter or connect your Solana wallet.
+3. If your wallet is eligible, the "MEV victim bonus" entry shows your points and your estimated loss.
+4. Claim the points in the claim window. The Fermi team sets the claim window. If you do not claim the points in the window, they can expire.
+
+### Which wallets are eligible
+
+Fermi used a public dataset of Solana sandwich attacks.
+
+1. **Sandwiches.** Fermi included each sandwich with a WSOL gross bot profit of $25 or more, at the SOL/USD daily close on the attack date. This gives 2,292,537 victim transactions.
+2. **Victim wallet.** For each victim transaction, the victim wallet is the one transaction signer whose token balance changed in the attacked pool. Fermi does not use the fee payer, because relayers and sponsored transactions pay fees for other wallets.
+3. **Transactions that Fermi did not credit.** Fermi did not credit 6,109 transactions with no signer that matched, and 887 transactions with more than one signer that matched.
+4. **Operators.** Fermi removed the 1,962 wallets that are on the dataset's list of known sandwich operators. Each of these wallets executed one or more sandwiches in the data period.
+
+The result is 268,276 eligible wallets with 2,192,157 victim transactions.
+
+### How Fermi estimates the loss
+
+The dataset records the profit of the bot for each sandwich. It does not record the loss of the victim. Fermi uses the profit of the bot as the estimate of the loss:
+
+```
+share(tx, sandwich) = bot profit(sandwich) / number of victims(sandwich)
+loss(wallet)        = sum of share × SOL/USD daily close, for all victim transactions of the wallet
+```
+
+- The estimate is a lower limit. The victim also paid price impact and priority fees that the bot did not keep.
+- If a sandwich has more than one victim, Fermi divides the bot profit equally between the victims.
+- Only sandwiches with a WSOL profit of $25 or more count.
+
+For eligible wallets, the median loss is $8 and the total is $16.4M.
+
+### How Fermi calculates the points
+
+```
+points = round(100 + 900 × √clamp((loss − 5) / 1,995, 0, 1))
+```
+
+- A loss of $5 or less gives 100 points. Thus each eligible wallet gets 100 points or more.
+- A loss of $2,000 or more gives 1,000 points.
+- Between these values, points increase with the square root of the loss. Thus large losses get more points, but a small number of wallets cannot get most of the points.
+
+![MEV victim points by estimated loss. The curve is flat at 100 points to $5, increases with the square root of the loss, and is flat at 1,000 points from $2,000.](images/alien-mev-points-curve.webp)
+
+_Figure 4. Points for each estimated loss. The median wallet lost $8 and gets 135 points._
+
+| Estimated loss | Points |
+| -------------- | ------ |
+| $5 or less     | 100    |
+| $8 (median)    | 135    |
+| $25            | 190    |
+| $100           | 296    |
+| $500           | 548    |
+| $2,000 or more | 1,000  |
+
+![Bar chart of wallets by MEV points. 99,071 wallets get 100 points. 134,787 get 101 to 250. 28,309 get 251 to 500. 3,854 get 501 to 750. 1,214 get 751 to 999. 1,041 get 1,000.](images/alien-mev-points-bands.webp)
+
+_Figure 5. Wallets by MEV points. The top 10% of wallets get 25% of the MEV points._
+
+### Why Fermi gives these points
+
+Losses from MEV are preventable. Fermi uses application-controlled execution:
+
+- Your orders get reliable fills, with no last look.
+- Nobody can front-run your order.
+- Nobody in the supply chain can leak your order before it executes.
+
+Fermi gives fair execution to all users. For more information, read [ALIEN: Fermi's points program](https://seldonfromfermi.substack.com/p/alien-fermis-points-program).

@@ -2,7 +2,7 @@
  * Points docs page — renders alien-points.md. Edit the Markdown to change the
  * page; figures referenced as `images/<name>` load from public/points/docs/images.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { cn } from '@/shared/lib/utils';
 import { PointsShell } from '../ui/PointsShell';
@@ -21,6 +21,8 @@ const READER_INPUT = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const;
 function PointsDocsPage() {
   const { hash } = useLocation();
   const activeId = useActiveHeading(tocIds);
+  const mobileToc = useRef<HTMLDetailsElement>(null);
+  const activeText = doc.toc.find(item => item.id === activeId)?.text;
 
   useEffect(() => {
     const prevTitle = document.title;
@@ -55,7 +57,8 @@ function PointsDocsPage() {
 
   return (
     <PointsShell>
-      <div className="grid lg:grid-cols-[260px_minmax(0,1fr)]">
+      {/* minmax(0,1fr) on mobile too, or wide tables and code size the column past the screen */}
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[260px_minmax(0,1fr)]">
         {/* Full-height rule between contents and doc, like the frame's own sides */}
         <nav aria-label="On this page" className="border-r border-rock/15 max-lg:hidden">
           <div className="sticky top-14 px-8 py-12">
@@ -85,6 +88,44 @@ function PointsDocsPage() {
         </nav>
 
         <div className="px-5 py-12 md:px-10 md:py-16 lg:px-14">
+          {/* Below lg the side contents is hidden; a sticky bar under the header stands in.
+              It sits in the doc column so it stays stuck for the whole page. */}
+          <details
+            ref={mobileToc}
+            className="group sticky top-14 z-[4] -mx-5 -mt-12 mb-10 border-b border-rock/15 bg-background md:-mx-10 md:-mt-16 lg:hidden"
+          >
+            <summary className="flex cursor-pointer list-none items-center gap-4 px-5 py-3 md:px-10 [&::-webkit-details-marker]:hidden">
+              <span className="shrink-0 font-mono text-xs uppercase tracking-[0.15em] text-rock/50">
+                On this page
+              </span>
+              <span className="min-w-0 flex-1 truncate text-right text-sm text-rock/80">
+                {activeText}
+              </span>
+              <span
+                aria-hidden
+                className="shrink-0 font-mono text-xs text-rock/50 transition-transform duration-150 group-open:rotate-180"
+              >
+                ▾
+              </span>
+            </summary>
+            <ul className="max-h-[60vh] overflow-y-auto border-t border-rock/15 px-5 py-2 text-sm md:px-10">
+              {doc.toc.map(item => (
+                <li key={item.id}>
+                  <a
+                    href={`#${item.id}`}
+                    aria-current={item.id === activeId ? 'location' : undefined}
+                    onClick={() => mobileToc.current?.removeAttribute('open')}
+                    className={cn(
+                      'block py-2 leading-snug',
+                      item.id === activeId ? 'text-amber-200' : 'text-rock/70'
+                    )}
+                  >
+                    {item.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </details>
           <MarkdownDoc body={doc.body} />
         </div>
       </div>

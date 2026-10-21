@@ -101,7 +101,7 @@
   font-size: 0.875rem;
 }
 
-.points-doc a:not(.heading-anchor) {
+.points-doc a:not(.heading-anchor, .figure-link) {
   color: var(--color-amber-200);
   text-decoration: underline;
   text-decoration-color: rgb(248 247 231 / 0.3);
@@ -110,7 +110,7 @@
 }
 
 @media (hover: hover) {
-  .points-doc a:not(.heading-anchor):hover {
+  .points-doc a:not(.heading-anchor, .figure-link):hover {
     text-decoration-color: var(--color-amber-200);
   }
 }
@@ -190,6 +190,21 @@
   border: 1px solid rgb(248 247 231 / 0.15);
 }
 
+.points-doc .figure-link {
+  display: block;
+  cursor: zoom-in;
+}
+
+/* Below lg the sticky contents bar sits under the header, so anchors land lower */
+@media (width < 64rem) {
+  .points-doc h1,
+  .points-doc h2,
+  .points-doc h3,
+  .points-doc h4 {
+    scroll-margin-top: 7.5rem;
+  }
+}
+
 /* Placeholder until the figure PNG is added under public/points/docs/images */
 .points-doc .figure-missing {
   padding: 2.5rem 1.5rem;
@@ -200,7 +215,7 @@
 }
 
 /* Figure captions are an italic paragraph right after the image */
-.points-doc p:has(> img, > .figure-missing) + p > em:only-child {
+.points-doc p:has(> .figure-link, > .figure-missing) + p > em:only-child {
   display: block;
   margin-top: -0.25rem;
 }
