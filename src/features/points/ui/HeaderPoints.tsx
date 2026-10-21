@@ -63,7 +63,7 @@ export function PointsChip({ className }: { className?: string }) {
         }`}
       >
         <span className="relative flex items-center">
-          <PointsIcon className="size-3.5" />
+          <PointsIcon className="size-3.5 text-primary" />
           {claimable > 0 && (
             <span className="absolute -right-1 -top-1 size-1.5 rounded-full bg-lichen ring-1 ring-background animate-pulse" />
           )}
