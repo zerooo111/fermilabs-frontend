@@ -6,7 +6,7 @@ import { showUnlaunched } from '@/shared/lib/domains';
 import { ConnectWallet } from '../../../features/wallet-connect/ui/ConnectWallet';
 import { FeeCreditDialog } from '@/features/fee-credit';
 import { ApiKeysMenuItem, ApiKeysPanel } from '@/features/api-keys';
-import { PointsChip, PointsMenuItem } from '@/features/points';
+import { PointsChip } from '@/features/points';
 import { MarginPanel } from '@/features/margin-panel/ui/MarginPanel';
 import { accessSessionAtom } from '@/features/access-gate';
 import FermiLogo3d from './FermiLogo';
@@ -96,16 +96,7 @@ export function Header() {
             </>
           )}
           {showUnlaunched && <PointsChip className="hidden md:inline-flex" />}
-          <ConnectWallet
-            menuItems={
-              (showUnlaunched || hasSession) && (
-                <>
-                  {showUnlaunched && <PointsMenuItem />}
-                  {hasSession && <ApiKeysMenuItem />}
-                </>
-              )
-            }
-          />
+          <ConnectWallet menuItems={hasSession && <ApiKeysMenuItem />} />
         </div>
       </div>
     </nav>
