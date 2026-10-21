@@ -22,6 +22,7 @@ import {
   fetchPointsAccountEpochs,
   fetchPointsActivity,
   fetchPointsEpochs,
+  fetchPointsLeaderboard,
 } from '../api/pointsClient';
 
 const STALE_MS = 60_000;
@@ -44,6 +45,22 @@ export function usePointsEpochs() {
     queryFn: ({ signal }) => fetchPointsEpochs(signal),
     select: data => data.epochs,
     staleTime: STALE_MS,
+    retry,
+  });
+}
+
+/** One page of a leaderboard, with `wallet`'s place on it. Keeps the last page while the next loads. */
+export function usePointsLeaderboard(params: {
+  campaign?: string;
+  wallet?: string;
+  limit: number;
+  offset: number;
+}) {
+  return useQuery({
+    queryKey: [...pointsKey, 'leaderboard', params],
+    queryFn: ({ signal }) => fetchPointsLeaderboard(params, signal),
+    staleTime: STALE_MS,
+    placeholderData: keepPreviousData,
     retry,
   });
 }

@@ -85,8 +85,16 @@ export interface PointsActivity {
 export interface PointsLeaderboard {
   epoch: number | null;
   category: PointsCategory | null;
+  /** An `external_id` prefix such as `bonus:mev`. */
+  campaign: string | null;
+  /** Ranked wallets on this board. */
   total: number;
   rows: { rank: number; wallet: string; points: number }[];
+  /**
+   * The `wallet` param's place on the board. `position` is its 1-based row,
+   * for paging to it; both are null when it isn't on the board.
+   */
+  me: { wallet: string; rank: number | null; position: number | null; points: number } | null;
 }
 
 const baseUrl = (): string => config.devnet.gatewayUrl;
@@ -119,7 +127,14 @@ export function fetchPointsEpochs(signal?: AbortSignal) {
 }
 
 export function fetchPointsLeaderboard(
-  params: { limit: number; offset?: number; epoch?: number; category?: PointsCategory },
+  params: {
+    limit: number;
+    offset?: number;
+    epoch?: number;
+    category?: PointsCategory;
+    campaign?: string;
+    wallet?: string;
+  },
   signal?: AbortSignal
 ) {
   return get<PointsLeaderboard>(API_ROUTES_V2.points_leaderboard, params, signal);
