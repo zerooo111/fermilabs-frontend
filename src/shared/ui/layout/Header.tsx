@@ -90,7 +90,8 @@ export function Header() {
           <LayoutMenu />
           {hasSession && (
             <>
-              <MarginPanel />
+              {/* Margin only matters while trading. */}
+              {location.pathname.startsWith('/perps') && <MarginPanel />}
               <FeeCreditDialog />
               <ApiKeysPanel />
             </>
