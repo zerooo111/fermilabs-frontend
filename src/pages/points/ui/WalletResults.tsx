@@ -5,10 +5,13 @@
  * from the URL, so a link shows the same numbers to anyone.
  */
 import { useEffect, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Check, Copy } from 'lucide-react';
 import axios from 'axios';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { appHref } from '@/shared/lib/domains';
+import { useAtom } from 'jotai';
+import { gateOpenAtom } from '@/features/access-gate';
+import { appHref, isLandingHost } from '@/shared/lib/domains';
 import { cn } from '@/shared/lib/utils';
 import {
   ActivityList,
@@ -56,6 +59,56 @@ function topShare(rank: number, ranked: number): string {
   return `${Math.max(1, Math.ceil((rank / ranked) * 100))}%`;
 }
 
+const DASHBOARD = '/dashboard/points';
+const CTA =
+  'mt-1 self-start bg-amber-200 px-5 py-2.5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100';
+
+/**
+ * Sends the visitor to their points dashboard, where they claim. This page is
+ * read-only. Without a wallet it opens the access gate first and goes on once
+ * the wallet connects. On fermi.trade the dashboard is on app.fermi.trade, where
+ * a connection made here doesn't carry over, so it links there and the
+ * dashboard asks to connect.
+ */
+function ClaimButton({ wallet, claimable }: { wallet: string; claimable: number }) {
+  const navigate = useNavigate();
+  const connected = useWallet().publicKey?.toBase58();
+  const [gateOpen, setGateOpen] = useAtom(gateOpenAtom);
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (!pending) return;
+    if (connected) navigate(DASHBOARD);
+    // Closing the gate without connecting cancels the trip.
+    else if (!gateOpen) setPending(false);
+  }, [pending, connected, gateOpen, navigate]);
+
+  const label =
+    connected === wallet && claimable > 0
+      ? `Claim ${points(claimable)} points`
+      : connected
+        ? 'Go to your points dashboard'
+        : 'Connect wallet to claim';
+
+  if (isLandingHost) {
+    return (
+      <a href={appHref(DASHBOARD)} className={CTA}>
+        {label}
+      </a>
+    );
+  }
+  const open = () => {
+    if (connected) return navigate(DASHBOARD);
+    setPending(true);
+    setGateOpen(true);
+  };
+  return (
+    <button type="button" onClick={open} className={CTA}>
+      {label}
+    </button>
+  );
+}
+
 const PAD = 'px-5 py-8 md:px-10 md:py-10';
 
 /** A full-width band; on large screens its two cells sit side by side. */
@@ -78,7 +131,6 @@ function Results({ wallet }: { wallet: string }) {
   const account = usePointsAccount(wallet);
   const activity = usePointsActivity(wallet);
   const { data: epochs } = usePointsEpochs();
-  const connected = useWallet().publicKey?.toBase58();
   // The chart needs every entry, so page through the activity.
   const entries = useAllEntries(activity);
 
@@ -182,15 +234,7 @@ function Results({ wallet }: { wallet: string }) {
                 Unclaimed points count toward rank once the wallet claims them.
               </p>
             )}
-            {/* This page is read-only; the connected wallet claims its own points on the dashboard. */}
-            {connected === wallet && a.claims.claimable > 0 && (
-              <a
-                href={appHref('/dashboard/points')}
-                className="mt-1 self-start bg-amber-200 px-5 py-2.5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100"
-              >
-                Claim {points(a.claims.claimable)} points in your dashboard
-              </a>
-            )}
+            <ClaimButton wallet={wallet} claimable={a.claims.claimable} />
           </div>
 
           {/* Where it stands */}
