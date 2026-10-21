@@ -7,11 +7,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Copy } from 'lucide-react';
+import { XLogo } from '@phosphor-icons/react';
 import axios from 'axios';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtom } from 'jotai';
 import { gateOpenAtom } from '@/features/access-gate';
-import { appHref, isLandingHost } from '@/shared/lib/domains';
+import { appHref, isLandingHost, landingHref } from '@/shared/lib/domains';
 import { cn } from '@/shared/lib/utils';
 import {
   ActivityList,
@@ -29,6 +30,8 @@ import {
   usePointsAccount,
   usePointsActivity,
   usePointsEpochs,
+  walletPointsPath,
+  type PointsAccount,
 } from '@/features/points';
 
 function CopyAddress({ address }: { address: string }) {
@@ -61,7 +64,9 @@ function topShare(rank: number, ranked: number): string {
 
 const DASHBOARD = '/dashboard/points';
 const CTA =
-  'mt-1 self-start bg-amber-200 px-5 py-2.5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100';
+  'bg-amber-200 px-5 py-2.5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100';
+const CTA_SECONDARY =
+  'inline-flex items-center gap-2 border border-rock/25 px-5 py-2.5 font-medium text-rock transition-colors duration-150 hover:border-rock/50 hover:bg-rock/5';
 
 /**
  * Sends the visitor to their points dashboard, where they claim. This page is
@@ -106,6 +111,29 @@ function ClaimButton({ wallet, claimable }: { wallet: string; claimable: number 
     <button type="button" onClick={open} className={CTA}>
       {label}
     </button>
+  );
+}
+
+/**
+ * Posts the wallet's score to X, linking back to this page for that wallet so
+ * whoever clicks through sees the same numbers. The link always points at the
+ * landing domain, where this page lives.
+ */
+function ShareOnX({ wallet, account }: { wallet: string; account: PointsAccount }) {
+  const href = landingHref(walletPointsPath(wallet));
+  const url = href.startsWith('http') ? href : `${window.location.origin}${href}`;
+  const standing =
+    account.rank !== null
+      ? `, ranked #${account.rank.toLocaleString()} of ${account.ranked.toLocaleString()} (top ${topShare(account.rank, account.ranked)})`
+      : '';
+  const text = `I've got ${points(account.total)} ALIEN Points on @FermiLabs${standing}. Check yours:`;
+  const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+
+  return (
+    <a href={intent} target="_blank" rel="noopener noreferrer" className={CTA_SECONDARY}>
+      <XLogo weight="bold" className="size-4" aria-hidden />
+      Share on X
+    </a>
   );
 }
 
@@ -253,7 +281,10 @@ function Results({ wallet }: { wallet: string }) {
             </dl>
           )}
 
-          <ClaimButton wallet={wallet} claimable={a.claims.claimable} />
+          <div className="mt-1 flex flex-wrap gap-3">
+            <ClaimButton wallet={wallet} claimable={a.claims.claimable} />
+            <ShareOnX wallet={wallet} account={a} />
+          </div>
         </div>
         <div className={`flex flex-col ${PAD}`}>
           <Label className="mb-4">Points over time</Label>
