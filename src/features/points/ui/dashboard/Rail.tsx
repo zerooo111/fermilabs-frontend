@@ -63,7 +63,7 @@ export function Rail({
                       )}
                     </span>
                     <span className="font-mono tabular-nums text-rock">
-                      {points(r.total)} claimed
+                      {points(r.claims.claimed)} claimed
                     </span>
                   </div>
                 </li>

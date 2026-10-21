@@ -156,9 +156,8 @@ function Results({ wallet }: { wallet: string }) {
   }
 
   const a = account.data;
-  // The total counts claimed points only, so the chart does too.
-  const claimed = entries.filter(e => e.claim_status === 'claimed');
-  // `a.total` counts claimed points only; unclaimed ones wait on the wallet.
+  // The total counts every point that hasn't expired, so the chart does too.
+  const counted = entries.filter(e => e.claim_status !== 'expired');
   const unclaimed = a.claims.claimable + a.claims.granted;
   const startMs = Math.min(...(epochs ?? []).map(e => e.starts_at_ms), Date.now());
 
@@ -203,7 +202,7 @@ function Results({ wallet }: { wallet: string }) {
           <div>
             <Label className="mb-3">Total points</Label>
             <ScoreCount
-              value={a.total + unclaimed}
+              value={a.total}
               className="block font-mono text-[clamp(3.5rem,7vw,5.75rem)] leading-[0.9] font-normal tracking-[-0.06em] tabular-nums"
             />
           </div>
@@ -213,7 +212,7 @@ function Results({ wallet }: { wallet: string }) {
               <div className="px-4 py-3">
                 <dt className="text-sm text-rock/55">Claimed</dt>
                 <dd className="mt-1 font-mono text-2xl leading-none tracking-tight text-rock tabular-nums">
-                  {points(a.total)}
+                  {points(a.claims.claimed)}
                 </dd>
               </div>
               <div className="px-4 py-3">
@@ -228,11 +227,6 @@ function Results({ wallet }: { wallet: string }) {
                 </dd>
               </div>
             </dl>
-            {unclaimed > 0 && (
-              <p className="text-sm text-rock/55">
-                Unclaimed points count toward rank once the wallet claims them.
-              </p>
-            )}
           </div>
 
           {/* Where it stands */}
@@ -265,7 +259,7 @@ function Results({ wallet }: { wallet: string }) {
           <Label className="mb-4">Points over time</Label>
           {/* Grows to the row's height, which the score beside it sets. */}
           <div className="min-h-0 flex-1">
-            <PointsChart entries={claimed} startMs={startMs} />
+            <PointsChart entries={counted} startMs={startMs} />
           </div>
         </div>
       </Row>

@@ -1,6 +1,6 @@
 /**
  * The wallet's claimable entries, each with its own claim button, and a claim
- * all. Claimed points move into the total; the rest of the page refreshes from
+ * all. Claiming keeps points from expiring; the rest of the page refreshes from
  * the gateway once a claim settles.
  */
 import { toast } from 'sonner';
@@ -18,7 +18,7 @@ function rejected(e: unknown): boolean {
 
 /** The lifecycle in one line, under the list. */
 const HOW =
-  'Bonuses arrive ready to claim. Trading points stay pending until their epoch closes. Only claimed points count toward your rank, and points left unclaimed can expire.';
+  'Bonuses arrive ready to claim. Trading points stay pending until their epoch closes. Unclaimed points already count toward your rank, but they can expire, so claim them.';
 
 export function ClaimTab({
   entries,

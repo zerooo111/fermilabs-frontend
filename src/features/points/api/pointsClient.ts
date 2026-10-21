@@ -45,7 +45,7 @@ export interface PointsAccount {
   rank: number | null;
   /** Wallets with a positive total. */
   ranked: number;
-  /** `total`, `by_status` and `by_category` count claimed points only. */
+  /** `total`, `by_status` and `by_category` count every point that hasn't expired. */
   by_status: Record<VisibleStatus, number>;
   by_category: Record<PointsCategory, number>;
   /** Points in each claim status. */

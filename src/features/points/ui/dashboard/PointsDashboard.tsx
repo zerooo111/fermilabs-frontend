@@ -183,7 +183,7 @@ function Dashboard({ wallet }: { wallet: string }) {
           <div className="flex min-w-0 flex-col gap-1.5">
             <Eyebrow>Total points</Eyebrow>
             <ScoreCount
-              value={a ? a.total + unclaimed : 0}
+              value={a ? a.total : 0}
               className="font-mono text-4xl leading-none font-semibold tracking-[-0.04em] text-rock tabular-nums"
             />
           </div>
@@ -192,7 +192,7 @@ function Dashboard({ wallet }: { wallet: string }) {
           className="bg-background"
           label="Claimed"
           loading={loading}
-          value={a ? points(a.total) : '—'}
+          value={a ? points(a.claims.claimed) : '—'}
         />
         <Tile
           className="bg-background"
@@ -210,7 +210,7 @@ function Dashboard({ wallet }: { wallet: string }) {
           hint={
             a?.rank
               ? `of ${a.ranked} · top ${Math.max(1, Math.ceil((a.rank / a.ranked) * 100))}%`
-              : 'claim to rank'
+              : 'no points yet'
           }
         />
       </div>
