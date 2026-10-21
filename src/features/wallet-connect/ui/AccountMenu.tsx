@@ -3,7 +3,7 @@
  * Dropdown content for the connected account: who is logged in (email, Google,
  * X, or an external wallet), the trading wallet behind it, and account actions.
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Check, Copy, ExternalLink, KeyRound, LogOut, Repeat } from 'lucide-react';
 import { EnvelopeSimple, GoogleLogo, Wallet, XLogo } from '@phosphor-icons/react';
 import { solscanAccountUrl, type AccountIdentity, type LoginMethod } from '@/entities/wallet';
@@ -54,6 +54,8 @@ interface AccountMenuProps {
   onExportWallet: () => void;
   onSwitchAccount: () => void;
   onLogOut: () => void;
+  /** Extra items (points, settings) shown between the wallet and session sections. */
+  children?: ReactNode;
 }
 
 export function AccountMenuContent({
@@ -62,6 +64,7 @@ export function AccountMenuContent({
   onExportWallet,
   onSwitchAccount,
   onLogOut,
+  children,
 }: AccountMenuProps) {
   const [copied, setCopied] = useState(false);
   const isEmbedded = identity?.isEmbedded ?? false;
@@ -142,6 +145,13 @@ export function AccountMenuContent({
       </div>
 
       <DropdownMenuSeparator className="mx-0 my-0" />
+
+      {children && (
+        <>
+          <div className="flex flex-col p-1">{children}</div>
+          <DropdownMenuSeparator className="mx-0 my-0" />
+        </>
+      )}
 
       {/* ── Session ── */}
       <div className="flex flex-col p-1">

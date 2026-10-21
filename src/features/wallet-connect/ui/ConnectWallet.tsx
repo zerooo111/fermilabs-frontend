@@ -7,7 +7,7 @@
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSetAtom } from 'jotai';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, type ReactNode } from 'react';
 import posthog from 'posthog-js';
 import { useServerConfig } from '@/entities/server';
 import { useAccountIdentity, useActiveWalletInfo } from '@/entities/wallet';
@@ -30,9 +30,10 @@ const LABELS = {
 
 /**
  * Custom wallet connection button component
- * Handles wallet selection and connection state
+ * Handles wallet selection and connection state. `menuItems` adds entries to
+ * the connected account's dropdown.
  */
-export function ConnectWallet() {
+export function ConnectWallet({ menuItems }: { menuItems?: ReactNode }) {
   const { disconnect, connected, connecting, publicKey } = useWallet();
   const { walletName, isEmbedded, exportWallet } = useActiveWalletInfo();
   const identity = useAccountIdentity();
@@ -146,7 +147,9 @@ export function ConnectWallet() {
         onExportWallet={handleExportWallet}
         onSwitchAccount={handleChangeWallet}
         onLogOut={handleDisconnect}
-      />
+      >
+        {menuItems}
+      </AccountMenuContent>
     </DropdownMenu>
   );
 }

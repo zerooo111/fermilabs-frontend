@@ -1,7 +1,22 @@
+/**
+ * Balances menu for the header: trading margin (USDC) and relayer fee credit
+ * (SOL) behind one button. The button shows margin; a dot on its icon flags
+ * fee credit only when it runs low, so the fee balance needs no button of its
+ * own. Also hosts the first-deposit onboarding guide, anchored to the button.
+ */
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, Wallet2, X, ArrowRight } from 'lucide-react';
+import {
+  Loader2,
+  Wallet2,
+  X,
+  ArrowRight,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Coins,
+} from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useSetAtom } from 'jotai';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
 import { Button } from '@/shared/ui/button';
@@ -9,17 +24,32 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import { Popover, PopoverAnchor, PopoverContent } from '@/shared/ui/popover';
 import { useAccount } from '@/shared/hooks/useAccount';
 import { useSequencerApi } from '@/shared/api/useSequencerApi';
 import { useSelectedMarket } from '@/entities/market';
 import { useOnboarding } from '@/features/onboarding/model/useOnboarding';
+import {
+  feeCreditDialogOpenAtom,
+  formatSolFromLamports,
+  useFeeStatus,
+  type FeeHealth,
+} from '@/features/fee-credit';
 import { DepositModal } from './DepositModal';
 import { WithdrawModal } from './WithdrawModal';
+
+const EYEBROW = 'font-mono text-[10px] uppercase tracking-[0.15em] text-rock/55';
+
+const FEE_HEALTH: Record<FeeHealth, { label: string; dot: string; text: string }> = {
+  ok: { label: 'Healthy', dot: 'bg-success', text: 'text-rock/60' },
+  warn: { label: 'Running low', dot: 'bg-amber-200 animate-pulse', text: 'text-amber-200' },
+  danger: { label: 'Top up to trade', dot: 'bg-danger animate-pulse', text: 'text-danger' },
+  unknown: { label: '', dot: 'bg-rock/30', text: 'text-rock/60' },
+};
 
 export function MarginPanel() {
   const { publicKey } = useWallet();
@@ -30,6 +60,10 @@ export function MarginPanel() {
   const [isAirdropping, setIsAirdropping] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const setFeeCreditOpen = useSetAtom(feeCreditDialogOpenAtom);
+  const fee = useFeeStatus();
+  const feeAvailable = fee.data?.fee_account.available_balance_lamports ?? null;
+  const feeAlert = fee.health === 'warn' || fee.health === 'danger';
 
   // Onboarding guide — shown once per wallet, pointing at this button.
   const walletKey = publicKey?.toBase58() ?? null;
@@ -51,6 +85,8 @@ export function MarginPanel() {
   if (!publicKey) return null;
   const quoteDecimals = selectedMarket?.quoteDecimals ?? 2;
   const quoteToken = selectedMarket?.quoteTokenName ?? 'USDC';
+  const margin =
+    freeCollateral !== null ? freeCollateral.toFixed(Math.min(quoteDecimals, 2)) : null;
 
   const handleAirdrop = async () => {
     setIsAirdropping(true);
@@ -132,15 +168,28 @@ export function MarginPanel() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 px-2.5 font-mono tabular-nums">
-                  <Wallet2 className="size-3.5 shrink-0" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 px-2.5 font-mono tabular-nums"
+                  aria-label={`Balances${feeAlert ? `, fee credit ${FEE_HEALTH[fee.health].label.toLowerCase()}` : ''}`}
+                >
+                  <span className="relative flex items-center">
+                    <Wallet2 className="size-3.5 shrink-0" />
+                    {feeAlert && (
+                      <span
+                        className={cn(
+                          'absolute -right-1 -top-1 size-1.5 rounded-full ring-1 ring-background',
+                          FEE_HEALTH[fee.health].dot
+                        )}
+                      />
+                    )}
+                  </span>
                   <span className="flex items-baseline gap-1">
-                    <span className="text-xs text-rock/60 font-sans">Margin</span>
-                    {freeCollateral !== null ? (
+                    <span className="hidden text-xs text-rock/60 font-sans xl:inline">Margin</span>
+                    {margin !== null ? (
                       <>
-                        <span className="text-sm">
-                          {freeCollateral.toFixed(Math.min(quoteDecimals, 2))}
-                        </span>
+                        <span className="text-sm">{margin}</span>
                         <span className="text-[10px] text-rock/50 font-sans">{quoteToken}</span>
                       </>
                     ) : (
@@ -149,34 +198,71 @@ export function MarginPanel() {
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="font-mono tabular-nums">
-                  {freeCollateral !== null
-                    ? `${freeCollateral.toFixed(Math.min(quoteDecimals, 2))} ${quoteToken}`
-                    : '——'}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => {
-                    dismiss();
-                    setDepositOpen(true);
-                  }}
-                >
-                  <Wallet2 className="size-4" />
-                  Deposit Margin
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setWithdrawOpen(true)}>
-                  <Wallet2 className="size-4" />
-                  Withdraw Margin
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleAirdrop}
-                  disabled={isAirdropping}
-                  className="text-rock/60"
-                >
-                  {isAirdropping ? <Loader2 className="size-4 animate-spin" /> : null}
-                  Airdrop Test {quoteToken}
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" sideOffset={6} className="w-64 p-0">
+                {/* ── Trading margin ── */}
+                <div className="flex flex-col gap-1 p-1 pt-2.5">
+                  <div className="flex items-baseline justify-between px-2 pb-1">
+                    <span className={EYEBROW}>Trading margin</span>
+                    <span className="font-mono text-sm tabular-nums text-rock">
+                      {margin ?? '——'}{' '}
+                      <span className="text-[10px] text-rock/50 font-sans">{quoteToken}</span>
+                    </span>
+                  </div>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      dismiss();
+                      setDepositOpen(true);
+                    }}
+                    className="text-xs"
+                  >
+                    <ArrowDownToLine className="size-3.5" />
+                    Deposit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setWithdrawOpen(true)} className="text-xs">
+                    <ArrowUpFromLine className="size-3.5" />
+                    Withdraw
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleAirdrop}
+                    disabled={isAirdropping}
+                    className="text-xs text-rock/60"
+                  >
+                    {isAirdropping ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Wallet2 className="size-3.5" />
+                    )}
+                    Airdrop test {quoteToken}
+                  </DropdownMenuItem>
+                </div>
+
+                <DropdownMenuSeparator className="mx-0 my-0" />
+
+                {/* ── Fee credit ── */}
+                <div className="flex flex-col gap-1 p-1 pt-2.5">
+                  <div className="flex items-baseline justify-between px-2">
+                    <span className={EYEBROW}>Fee credit</span>
+                    <span className="font-mono text-sm tabular-nums text-rock">
+                      {feeAvailable !== null ? formatSolFromLamports(feeAvailable) : '——'}{' '}
+                      <span className="text-[10px] text-rock/50 font-sans">SOL</span>
+                    </span>
+                  </div>
+                  {FEE_HEALTH[fee.health].label && (
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1.5 px-2 pb-1 text-[11px]',
+                        FEE_HEALTH[fee.health].text
+                      )}
+                    >
+                      <span className={cn('size-1.5 rounded-full', FEE_HEALTH[fee.health].dot)} />
+                      {FEE_HEALTH[fee.health].label}
+                    </span>
+                  )}
+                  <DropdownMenuItem onClick={() => setFeeCreditOpen(true)} className="text-xs">
+                    <Coins className="size-3.5" />
+                    {feeAlert ? 'Top up fee credit' : 'Manage fee credit'}
+                  </DropdownMenuItem>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

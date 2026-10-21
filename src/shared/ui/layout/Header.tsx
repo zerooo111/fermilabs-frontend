@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils';
 import { showUnlaunched } from '@/shared/lib/domains';
 import { ConnectWallet } from '../../../features/wallet-connect/ui/ConnectWallet';
 import { FeeCreditDialog } from '@/features/fee-credit';
-import { ApiKeysPanel } from '@/features/api-keys';
+import { ApiKeysMenuItem, ApiKeysPanel } from '@/features/api-keys';
+import { PointsChip, PointsMenuItem } from '@/features/points';
 import { MarginPanel } from '@/features/margin-panel/ui/MarginPanel';
 import { accessSessionAtom } from '@/features/access-gate';
 import FermiLogo3d from './FermiLogo';
@@ -82,6 +83,9 @@ export function Header() {
             </Link>
           )}
         </div>
+        {/* Most-glanced first: balances, points, then the account. Fee credit and
+            API keys live inside the balances and account menus; their dialogs
+            stay mounted here so those menus and the order form can open them. */}
         <div className="flex shrink-0 items-center gap-1.5">
           <LayoutMenu />
           {hasSession && (
@@ -91,7 +95,17 @@ export function Header() {
               <ApiKeysPanel />
             </>
           )}
-          <ConnectWallet />
+          {showUnlaunched && <PointsChip className="hidden md:inline-flex" />}
+          <ConnectWallet
+            menuItems={
+              (showUnlaunched || hasSession) && (
+                <>
+                  {showUnlaunched && <PointsMenuItem />}
+                  {hasSession && <ApiKeysMenuItem />}
+                </>
+              )
+            }
+          />
         </div>
       </div>
     </nav>

@@ -2,11 +2,13 @@
  * API Keys panel — header-mounted dialog (mirrors FeeCreditDialog) that lets a
  * whitelisted wallet list, generate, and revoke its own API keys.
  *
- * Auth reuses the access-gate session token via `useApiKeys`; the trigger only
- * renders alongside the rest of the authenticated header, but the dialog body
- * still fails gently (empty state) if the wallet isn't authorized.
+ * Controlled by `apiKeysDialogOpenAtom`; the account menu opens it. Auth reuses
+ * the access-gate session token via `useApiKeys`; the menu item only renders
+ * with a session, but the dialog body still fails gently (empty state) if the
+ * wallet isn't authorized.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAtom } from 'jotai';
 import { AlertTriangle, Check, Copy, Gauge, KeyRound, Loader2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import posthog from 'posthog-js';
@@ -18,14 +20,13 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 import { useApiKeys } from '../model/useApiKeys';
-import { MAX_ACTIVE_KEYS } from '../model/apiKeysAtoms';
+import { MAX_ACTIVE_KEYS, apiKeysDialogOpenAtom } from '../model/apiKeysAtoms';
 import type { ApiKeyView, CreatedKey } from '../api/keysClient';
 
 // Support channel for limit-increase requests (kept in sync with LINKS.DISCORD).
@@ -54,7 +55,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 export function ApiKeysPanel() {
   const { authorized, keys, loading, error, createKey, revokeKey, refresh } = useApiKeys();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useAtom(apiKeysDialogOpenAtom);
 
   const [label, setLabel] = useState('');
   const [creating, setCreating] = useState(false);
@@ -103,34 +104,24 @@ export function ApiKeysPanel() {
     }
   };
 
+  // Opened from outside (the account menu), so fetch on the open edge here
+  // rather than in onOpenChange, which only fires for the dialog's own close.
+  useEffect(() => {
+    if (open) void refresh();
+  }, [open, refresh]);
+
   return (
     <Dialog
       open={open}
       onOpenChange={next => {
         setOpen(next);
-        if (next) {
-          void refresh();
-        } else {
+        if (!next) {
           setConfirmRevokeId(null);
           // Drop the one-time secret from memory when the dialog closes.
           setCreatedSecret(null);
         }
       }}
     >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2 px-2.5">
-              <KeyRound className="size-3.5" />
-              <span className="font-sans text-xs text-rock/60">API Keys</span>
-            </Button>
-          </DialogTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="font-sans text-xs">
-          Manage API keys for programmatic access
-        </TooltipContent>
-      </Tooltip>
-
       <DialogContent className="max-w-lg gap-5 p-6">
         <DialogHeader className="gap-3">
           <div className="flex items-center gap-3">

@@ -1,4 +1,5 @@
 export { ApiKeysPanel } from './ui/ApiKeysPanel';
+export { ApiKeysMenuItem } from './ui/ApiKeysMenuItem';
 export { useApiKeys } from './model/useApiKeys';
 export { apiKeysDialogOpenAtom, MAX_ACTIVE_KEYS } from './model/apiKeysAtoms';
 export { ApiKeysError } from './api/keysClient';

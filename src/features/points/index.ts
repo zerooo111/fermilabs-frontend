@@ -9,6 +9,7 @@ export { SkillGraph } from './ui/SkillGraph';
 export { ActivityList } from './ui/ActivityList';
 export { Bone, Label, Notice } from './ui/primitives';
 export { PointsDashboard } from './ui/dashboard/PointsDashboard';
+export { PointsChip, PointsMenuItem } from './ui/HeaderPoints';
 export { useAllEntries } from './model/useAllEntries';
 export {
   useClaimPoints,

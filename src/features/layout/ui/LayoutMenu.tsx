@@ -53,16 +53,18 @@ export function LayoutMenu({ className }: { className?: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          'inline-flex h-8 items-center gap-1.5 border px-2 text-xs transition-colors outline-none',
+          'inline-flex h-8 min-w-8 items-center justify-center gap-1.5 border px-2 text-xs transition-colors outline-none',
           editing
             ? 'border-amber-200/60 text-amber-200 hover:bg-amber-200/10'
             : 'border-outline text-rock/70 hover:bg-rock/5 hover:text-rock',
           className
         )}
         title="Layout"
+        aria-label={editing ? 'Layout, editing' : 'Layout'}
       >
         <LayoutGrid className="size-3.5" />
-        {editing ? 'Editing layout' : 'Layout'}
+        {/* Icon-only at rest; the label shows while editing so the mode is obvious. */}
+        {editing && 'Editing layout'}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-44">
         <DropdownMenuCheckboxItem checked={editing} onCheckedChange={v => setLocked(!v)}>
