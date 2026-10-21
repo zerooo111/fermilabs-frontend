@@ -48,9 +48,10 @@ export function useNewVersionToast() {
     };
 
     // A deploy removes the old hashed chunks, so a lazy import from this tab
-    // can 404 before the poll notices. Offer the reload instead of erroring.
-    const onPreloadError = (event: Event) => {
-      event.preventDefault();
+    // can 404 before the poll notices. Offer the reload. Don't preventDefault:
+    // that makes Vite resolve the import with undefined, and the lazy route
+    // then crashes on "reading 'default'" instead of failing to load.
+    const onPreloadError = () => {
       shown = true;
       showNewVersionToast();
     };
