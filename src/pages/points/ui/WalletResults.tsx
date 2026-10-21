@@ -158,7 +158,6 @@ function Results({ wallet }: { wallet: string }) {
   const a = account.data;
   // The total counts claimed points only, so the chart does too.
   const claimed = entries.filter(e => e.claim_status === 'claimed');
-  const settling = a.total - a.by_status.final;
   // `a.total` counts claimed points only; unclaimed ones wait on the wallet.
   const unclaimed = a.claims.claimable + a.claims.granted;
   const startMs = Math.min(...(epochs ?? []).map(e => e.starts_at_ms), Date.now());
@@ -234,7 +233,6 @@ function Results({ wallet }: { wallet: string }) {
                 Unclaimed points count toward rank once the wallet claims them.
               </p>
             )}
-            <ClaimButton wallet={wallet} claimable={a.claims.claimable} />
           </div>
 
           {/* Where it stands */}
@@ -261,13 +259,7 @@ function Results({ wallet }: { wallet: string }) {
             </dl>
           )}
 
-          {settling > 0 && (
-            <p className="-mt-2 flex items-start gap-2 text-sm text-rock/55">
-              <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-200" aria-hidden />
-              {settling === a.total ? 'An estimate' : `${points(settling)} still an estimate`} until
-              14 days after the period closes.
-            </p>
-          )}
+          <ClaimButton wallet={wallet} claimable={a.claims.claimable} />
         </div>
         <div className={`flex flex-col ${PAD}`}>
           <Label className="mb-4">Points over time</Label>
