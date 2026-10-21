@@ -5,7 +5,7 @@
 import { usePrivy, type LinkedAccountWithMetadata } from '@privy-io/react-auth';
 import { useExportWallet } from '@privy-io/react-auth/solana';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { privyWalletAdapter } from './PrivyWalletAdapter';
 import { privyAppId } from './privyConfig';
@@ -53,17 +53,21 @@ export const useWalletWithErrorHandling = () => {
 const usePrivyWalletLogin = () => {
   const { ready, authenticated, login, connectWallet } = usePrivy();
   const { connect } = useWallet();
+  // Read at call time: "change wallet" logs out and opens login in one go,
+  // and a value captured before the logout would skip the login.
+  const authenticatedRef = useRef(authenticated);
+  authenticatedRef.current = authenticated;
 
   const openLogin = useCallback(() => {
     if (!ready) return;
-    if (!authenticated) {
+    if (!authenticatedRef.current) {
       login();
     } else if (privyWalletAdapter.canConnect) {
       connect().catch(err => console.error('Wallet connect failed:', err));
     } else {
       connectWallet();
     }
-  }, [ready, authenticated, login, connectWallet, connect]);
+  }, [ready, login, connectWallet, connect]);
 
   return { openLogin, ready };
 };

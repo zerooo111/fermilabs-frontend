@@ -117,9 +117,10 @@ export function ConnectWallet({ menuItems }: { menuItems?: ReactNode }) {
   }, [publicKey, walletName, isEmbedded, disconnect, setSession, setPointsSession, queryClient]);
 
   // Logging out ends the Privy session, so switching wallets is logout → gate.
+  // Open the next login a tick later, once Privy's logged-out state renders.
   const handleChangeWallet = useCallback(async () => {
     await handleDisconnect();
-    openConnect();
+    setTimeout(openConnect, 0);
   }, [handleDisconnect, openConnect]);
 
   const handleExportWallet = useCallback(() => {
