@@ -118,7 +118,7 @@ function PortfolioSkeleton() {
 
 export function TradingSkeleton() {
   return (
-    <div className="flex flex-col min-h-[calc(100vh-80px)]">
+    <div className="flex flex-col min-h-[calc(100vh_-_80px_-_var(--announce-h,0px))]">
       <div className="flex flex-col lg:flex-row mx-2 md:mx-4 border-x border-outline divide-y lg:divide-y-0 lg:divide-x divide-outline">
         <ChartSkeleton />
         <OrderbookSkeleton />

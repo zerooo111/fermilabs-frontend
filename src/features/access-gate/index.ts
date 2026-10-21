@@ -8,6 +8,7 @@ export {
   gateScopeAtom,
   accessSessionAtom,
   pointsSessionAtom,
+  gateScopeOf,
 } from './model/accessAtoms';
 export { AccessGateError } from './api/accessClient';
 export { clearSession } from './lib/cache';

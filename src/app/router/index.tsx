@@ -2,7 +2,7 @@
  * AppRouter.tsx
  * Main application router configuration with code splitting
  */
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { Layout } from '@/shared/ui/layout/Layout';
 import {
   LazyHomePage,
@@ -18,7 +18,8 @@ import {
 } from './LazyRoutes';
 import { isAppHost, redirectOffLanding } from './domains';
 import { showUnlaunched } from '@/shared/lib/domains';
-import { GateScopeSync } from '@/features/access-gate';
+import { GateScopeSync, gateScopeOf } from '@/features/access-gate';
+import { AnnouncementBar } from '@/features/points/ui/AnnouncementBar';
 // The format module, not the feature index: keeps the points UI out of the main bundle.
 import { walletPointsPath } from '@/features/points/model/format';
 
@@ -28,6 +29,15 @@ const LegacyWalletRedirect = () => {
   return <Navigate replace to={walletPointsPath(wallet)} />;
 };
 
+/**
+ * The ALIEN points announcement, on every page but the points pages. Only where
+ * those pages exist (staging, local), so its links never dead-end.
+ */
+const Announcement = () => {
+  const { pathname } = useLocation();
+  return showUnlaunched && gateScopeOf(pathname) !== 'points' ? <AnnouncementBar /> : null;
+};
+
 export const AppRouter = () => {
   // fermi.trade is landing-only; app routes there go to app.fermi.trade
   if (redirectOffLanding()) return null;
@@ -35,6 +45,7 @@ export const AppRouter = () => {
   return (
     <BrowserRouter>
       <GateScopeSync />
+      <Announcement />
       <Routes>
         {/* app.fermi.trade has no landing page */}
         <Route path="/" element={isAppHost ? <Navigate replace to="/perps" /> : <LazyHomePage />} />
