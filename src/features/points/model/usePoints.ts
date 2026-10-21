@@ -14,7 +14,12 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtom } from 'jotai';
 import axios from 'axios';
 
-import { accessSessionAtom, clearSession, signInSession } from '@/features/access-gate';
+import {
+  accessSessionAtom,
+  clearSession,
+  pointsSessionAtom,
+  signInForPoints,
+} from '@/features/access-gate';
 import {
   claimPoints,
   skipReadCache,
@@ -102,14 +107,14 @@ export function usePointsActivity(wallet: string | undefined) {
 
 /**
  * Claims the connected wallet's claimable points: all of them, or the entry
- * ids passed to `mutate`. Uses its access-gate session, signing a new one
- * first when there is none or the server rejects it, so one click is enough.
- * Fails with `AccessGateError('wallet_not_whitelisted')` for wallets without
- * Fermi access.
+ * ids passed to `mutate`. Uses its access session, or for a wallet without
+ * access its points-only session, signing a new one first when there is none
+ * or the server rejects it, so one click is enough.
  */
 export function useClaimPoints() {
   const { publicKey, signMessage } = useWallet();
   const [sessions, setSessions] = useAtom(accessSessionAtom);
+  const [pointsSessions, setPointsSessions] = useAtom(pointsSessionAtom);
   const queryClient = useQueryClient();
   const wallet = publicKey?.toBase58();
 
@@ -117,12 +122,14 @@ export function useClaimPoints() {
     mutationFn: async (ids?: number[]) => {
       if (!wallet || !signMessage) throw new Error('wallet_not_connected');
       const signIn = async () => {
-        const session = await signInSession(wallet, signMessage);
-        setSessions(prev => ({ ...prev, [wallet]: session }));
+        const { scope, session } = await signInForPoints(wallet, signMessage);
+        const set = scope === 'access' ? setSessions : setPointsSessions;
+        set(prev => ({ ...prev, [wallet]: session }));
         return session.token;
       };
-      const cached = sessions[wallet];
-      const fresh = cached && cached.expiresAt - 5 * 60 > Date.now() / 1000;
+      const live = (s?: { expiresAt: number }) => !!s && s.expiresAt - 5 * 60 > Date.now() / 1000;
+      const cached = live(sessions[wallet]) ? sessions[wallet] : pointsSessions[wallet];
+      const fresh = live(cached);
       const token = fresh ? cached.token : await signIn();
       let result;
       try {

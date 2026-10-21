@@ -6,12 +6,18 @@
 
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { useCallback, useEffect, type ReactNode } from 'react';
 import posthog from 'posthog-js';
 import { useServerConfig } from '@/entities/server';
-import { useAccountIdentity, useActiveWalletInfo } from '@/entities/wallet';
-import { gateOpenAtom, accessSessionAtom, clearSession } from '@/features/access-gate';
+import { useAccountIdentity, useActiveWalletInfo, useWalletLogin } from '@/entities/wallet';
+import {
+  gateOpenAtom,
+  gateScopeAtom,
+  accessSessionAtom,
+  pointsSessionAtom,
+  clearSession,
+} from '@/features/access-gate';
 import { forgetOneClickKey } from '@/features/one-click';
 import { DropdownMenu, DropdownMenuTrigger } from '@/shared/ui/dropdown-menu';
 import { Button } from '@/shared/ui/button';
@@ -39,7 +45,10 @@ export function ConnectWallet({ menuItems }: { menuItems?: ReactNode }) {
   const identity = useAccountIdentity();
   const loginMethod = identity?.method ?? null;
   const setGateOpen = useSetAtom(gateOpenAtom);
+  const gateScope = useAtomValue(gateScopeAtom);
+  const { openLogin } = useWalletLogin();
   const setSession = useSetAtom(accessSessionAtom);
+  const setPointsSession = useSetAtom(pointsSessionAtom);
   const queryClient = useQueryClient();
   useServerConfig();
 
@@ -64,11 +73,17 @@ export function ConnectWallet({ menuItems }: { menuItems?: ReactNode }) {
   }, [connected, publicKey, walletName, isEmbedded, loginMethod]);
 
   // Unconnected click defers to the access gate so wallet selection and
-  // invite-code redemption happen in a single unified modal flow.
+  // invite-code redemption happen in a single unified modal flow. Points pages
+  // need no invite, so there it's the wallet login alone.
+  const openConnect = useCallback(() => {
+    if (gateScope === 'points') openLogin();
+    else setGateOpen(true);
+  }, [gateScope, openLogin, setGateOpen]);
+
   const handleConnectClick = useCallback(() => {
     if (connected || connecting) return;
-    setGateOpen(true);
-  }, [connected, connecting, setGateOpen]);
+    openConnect();
+  }, [connected, connecting, openConnect]);
 
   // Explicit disconnect = full logout: drop the cached session token so a
   // subsequent reconnect re-prompts via the gate instead of silently
@@ -87,23 +102,25 @@ export function ConnectWallet({ menuItems }: { menuItems?: ReactNode }) {
       // The on-chain delegate then points at a key nobody holds.
       void forgetOneClickKey(walletAddress);
       queryClient.removeQueries({ queryKey: ['one-click', 'session-key', walletAddress] });
-      setSession(prev => {
+      const forget = <T,>(prev: Record<string, T>) => {
         const { [walletAddress]: _, ...rest } = prev;
         return rest;
-      });
+      };
+      setSession(forget);
+      setPointsSession(forget);
     }
     try {
       await disconnect();
     } catch (err) {
       console.error('Wallet disconnect failed:', err);
     }
-  }, [publicKey, walletName, isEmbedded, disconnect, setSession, queryClient]);
+  }, [publicKey, walletName, isEmbedded, disconnect, setSession, setPointsSession, queryClient]);
 
   // Logging out ends the Privy session, so switching wallets is logout → gate.
   const handleChangeWallet = useCallback(async () => {
     await handleDisconnect();
-    setGateOpen(true);
-  }, [handleDisconnect, setGateOpen]);
+    openConnect();
+  }, [handleDisconnect, openConnect]);
 
   const handleExportWallet = useCallback(() => {
     exportWallet().catch(err => console.error('Wallet export failed:', err));

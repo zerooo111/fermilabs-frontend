@@ -8,7 +8,14 @@
  * /v1/access/status call is in flight.
  */
 
-const PREFIX = 'fermi.wl.';
+/**
+ * `access` holds whitelisted sessions (trading). `points` holds sessions that
+ * only open points claims, for wallets without access; kept apart so one never
+ * reads as the other.
+ */
+export type SessionScope = 'access' | 'points';
+
+const PREFIX: Record<SessionScope, string> = { access: 'fermi.wl.', points: 'fermi.pts.' };
 
 export interface CachedSession {
   /** base58 wallet pubkey */
@@ -21,13 +28,13 @@ export interface CachedSession {
   cachedAt: number;
 }
 
-function key(wallet: string): string {
-  return `${PREFIX}${wallet}`;
+function key(wallet: string, scope: SessionScope): string {
+  return `${PREFIX[scope]}${wallet}`;
 }
 
-export function readSession(wallet: string): CachedSession | null {
+export function readSession(wallet: string, scope: SessionScope = 'access'): CachedSession | null {
   try {
-    const raw = localStorage.getItem(key(wallet));
+    const raw = localStorage.getItem(key(wallet, scope));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedSession;
     // Sanity check + auto-evict expired tokens (5 min buffer for clock skew).
@@ -39,24 +46,26 @@ export function readSession(wallet: string): CachedSession | null {
     ) {
       return parsed;
     }
-    localStorage.removeItem(key(wallet));
+    localStorage.removeItem(key(wallet, scope));
     return null;
   } catch {
     return null;
   }
 }
 
-export function writeSession(s: CachedSession): void {
+export function writeSession(s: CachedSession, scope: SessionScope = 'access'): void {
   try {
-    localStorage.setItem(key(s.wallet), JSON.stringify(s));
+    localStorage.setItem(key(s.wallet, scope), JSON.stringify(s));
   } catch {
     // localStorage unavailable (private mode, quota) — operate in-memory only.
   }
 }
 
+/** Logs the wallet out of both scopes. */
 export function clearSession(wallet: string): void {
   try {
-    localStorage.removeItem(key(wallet));
+    localStorage.removeItem(key(wallet, 'access'));
+    localStorage.removeItem(key(wallet, 'points'));
   } catch {
     // ignore
   }

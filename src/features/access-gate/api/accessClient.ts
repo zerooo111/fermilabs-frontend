@@ -58,7 +58,7 @@ export async function fetchStatus(wallet: string): Promise<StatusResp> {
 
 export async function requestChallenge(
   wallet: string,
-  purpose: 'redeem' | 'session'
+  purpose: 'redeem' | 'session' | 'points'
 ): Promise<ChallengeResp> {
   try {
     const res = await axios.post<ChallengeResp>(`${baseUrl()}/v1/access/challenge`, {
@@ -79,6 +79,20 @@ export async function redeemInvite(args: {
 }): Promise<AccessGrantedResp> {
   try {
     const res = await axios.post<AccessGrantedResp>(`${baseUrl()}/v1/access/redeem`, args);
+    return res.data;
+  } catch (e) {
+    unwrapError(e);
+  }
+}
+
+/** Any wallet, whitelisted or not: the token opens points claims only. */
+export async function exchangePointsSession(args: {
+  wallet: string;
+  nonce: string;
+  signature: string;
+}): Promise<AccessGrantedResp> {
+  try {
+    const res = await axios.post<AccessGrantedResp>(`${baseUrl()}/v1/access/points-session`, args);
     return res.data;
   } catch (e) {
     unwrapError(e);

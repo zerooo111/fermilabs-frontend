@@ -8,18 +8,21 @@
  *      whitelisted at all.
  *      - Whitelisted but no token: prompt for one signature ("welcome back"),
  *        exchange via /v1/access/session, store token. No modal needed.
- *      - Not whitelisted: open the InviteCodeModal.
+ *      - Not whitelisted: open the InviteCodeModal, except on points pages
+ *        (`gateScopeAtom`), where the wallet can sign in for points only. The
+ *        modal opens once the user moves on to the trading app.
  *
  * The hook is safe to mount once at the app root; it tracks the current
  * publicKey and re-runs only on wallet swaps.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { toast } from 'sonner';
 import bs58 from 'bs58';
 
 import {
+  exchangePointsSession,
   exchangeSession,
   fetchStatus,
   requestChallenge,
@@ -30,6 +33,8 @@ import {
   accessSessionAtom,
   gateLoadingAtom,
   gateOpenAtom,
+  gateScopeAtom,
+  pointsSessionAtom,
   type AccessSession,
 } from './accessAtoms';
 
@@ -58,11 +63,41 @@ export async function signInSession(
   return { token: granted.token, expiresAt: granted.expires_at };
 }
 
+/**
+ * Signs in to claim points: a whitelisted wallet gets its full access session
+ * (so trading works too), any other wallet a points-only session. One
+ * signature either way. Callers mirror the result into the atom for `scope`.
+ */
+export async function signInForPoints(
+  wallet: string,
+  signMessage: (message: Uint8Array) => Promise<Uint8Array>
+): Promise<{ scope: 'access' | 'points'; session: AccessSession }> {
+  const { whitelisted } = await fetchStatus(wallet);
+  if (whitelisted) return { scope: 'access', session: await signInSession(wallet, signMessage) };
+
+  const challenge = await requestChallenge(wallet, 'points');
+  const sigBytes = await signMessage(new TextEncoder().encode(challenge.message));
+  const granted = await exchangePointsSession({
+    wallet,
+    nonce: challenge.nonce,
+    signature: bs58.encode(sigBytes),
+  });
+  writeSession(
+    { wallet, token: granted.token, expiresAt: granted.expires_at, cachedAt: Date.now() },
+    'points'
+  );
+  return { scope: 'points', session: { token: granted.token, expiresAt: granted.expires_at } };
+}
+
 export function useAccessGate() {
   const { connected, publicKey, signMessage } = useWallet();
-  const setSession = useSetAtom(accessSessionAtom);
+  const [sessions, setSession] = useAtom(accessSessionAtom);
+  const setPointsSession = useSetAtom(pointsSessionAtom);
   const setLoading = useSetAtom(gateLoadingAtom);
   const setGateOpen = useSetAtom(gateOpenAtom);
+  const scope = useAtomValue(gateScopeAtom);
+  // The connected wallet when the server said it isn't whitelisted.
+  const [needsInvite, setNeedsInvite] = useState<string | null>(null);
 
   // Guard against React StrictMode double-invocation triggering two
   // server-side challenge inserts for the same connect.
@@ -82,6 +117,14 @@ export function useAccessGate() {
     let cancelled = false;
 
     const run = async () => {
+      const points = readSession(wallet, 'points');
+      if (points) {
+        setPointsSession(prev => ({
+          ...prev,
+          [wallet]: { token: points.token, expiresAt: points.expiresAt },
+        }));
+      }
+
       const cached = readSession(wallet);
       if (cached) {
         setSession(prev => ({
@@ -97,12 +140,12 @@ export function useAccessGate() {
         const status = await fetchStatus(wallet);
         if (cancelled) return;
 
-        // Connected wallet has no access → open the gate so it's prompted for an
-        // invite or referral code. Clear loading first so the modal shows the
-        // code-entry step, not the "approve signature" spinner.
+        // Connected wallet has no access → the effect below opens the gate so
+        // it's prompted for an invite or referral code. Clear loading first so
+        // the modal shows the code-entry step, not the "approve signature" spinner.
         if (!status.whitelisted) {
           setLoading(false);
-          setGateOpen(true);
+          setNeedsInvite(wallet);
           return;
         }
         // Whitelisted but the adapter can't sign — nothing to do silently.
@@ -129,7 +172,16 @@ export function useAccessGate() {
     return () => {
       cancelled = true;
     };
-  }, [connected, publicKey, signMessage, setSession, setLoading, setGateOpen]);
+  }, [connected, publicKey, signMessage, setSession, setPointsSession, setLoading, setGateOpen]);
+
+  // A wallet without access is asked for a code in the trading app, not on
+  // points pages; moving from one to the other opens the gate then.
+  const wallet = publicKey?.toBase58();
+  useEffect(() => {
+    if (scope !== 'trade' || !connected || !wallet || needsInvite !== wallet) return;
+    if (sessions[wallet]) return;
+    setGateOpen(true);
+  }, [scope, connected, wallet, needsInvite, sessions, setGateOpen]);
 
   // Disconnect: reset the per-wallet guard so a reconnect re-runs the status
   // check, and close the gate — the page is view-only without a wallet.
@@ -138,6 +190,7 @@ export function useAccessGate() {
   useEffect(() => {
     if (!connected) {
       lastSeenWallet.current = null;
+      setNeedsInvite(null);
       setGateOpen(false);
     }
   }, [connected, setGateOpen]);

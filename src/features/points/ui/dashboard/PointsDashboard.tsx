@@ -2,12 +2,13 @@
  * The connected wallet's points dashboard (/dashboard/points), laid out as one
  * ruled sheet: a score row, then tabs (claim, history, earn more) beside a
  * column with the skill graph and epochs. Only a signed-in wallet sees it; the
- * public, read-only checker is /points.
+ * public, read-only checker is /points. No invite is needed: a wallet without
+ * access signs in for points only and can claim, but not trade.
  */
 import { useMemo, useState, type ReactNode } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { DitherRidge } from '@/shared/ui/dither-ridge';
@@ -15,11 +16,10 @@ import { Eyebrow, Panel } from '@/shared/ui/panel';
 import { landingHref } from '@/shared/lib/domains';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import {
-  AccessGateError,
   accessSessionAtom,
   gateLoadingAtom,
-  gateOpenAtom,
-  signInSession,
+  pointsSessionAtom,
+  signInForPoints,
 } from '@/features/access-gate';
 import { ConnectWallet } from '@/features/wallet-connect';
 import type { PointsEpoch } from '../../api/pointsClient';
@@ -91,36 +91,28 @@ function Prompt({ title, body, children }: { title: string; body: string; childr
   );
 }
 
-/** Signs the wallet in when it has no session (expired, or the prompt was dismissed). */
+/**
+ * Signs the wallet in when it has no session: a wallet with access gets its
+ * trading session back, any other wallet a points-only one.
+ */
 function SignIn({ wallet }: { wallet: string }) {
   const { signMessage } = useWallet();
-  const [, setSessions] = useAtom(accessSessionAtom);
-  const openGate = useSetAtom(gateOpenAtom);
-  const [state, setState] = useState<'idle' | 'busy' | 'no-access' | 'failed'>('idle');
+  const setSessions = useSetAtom(accessSessionAtom);
+  const setPointsSessions = useSetAtom(pointsSessionAtom);
+  const [state, setState] = useState<'idle' | 'busy' | 'failed'>('idle');
 
   const signIn = async () => {
     if (!signMessage) return;
     setState('busy');
     try {
-      const session = await signInSession(wallet, signMessage);
-      setSessions(prev => ({ ...prev, [wallet]: session }));
-    } catch (e) {
-      setState(
-        e instanceof AccessGateError && e.code === 'wallet_not_whitelisted' ? 'no-access' : 'failed'
-      );
+      const { scope, session } = await signInForPoints(wallet, signMessage);
+      const set = scope === 'access' ? setSessions : setPointsSessions;
+      set(prev => ({ ...prev, [wallet]: session }));
+    } catch {
+      setState('failed');
     }
   };
 
-  if (state === 'no-access') {
-    return (
-      <Prompt
-        title="This wallet doesn't have access yet"
-        body="Redeem an invite to use Fermi, then come back to see and claim your points."
-      >
-        <Button onClick={() => openGate(true)}>Get access</Button>
-      </Prompt>
-    );
-  }
   return (
     <Prompt
       title="Sign in to see your points"
@@ -258,17 +250,19 @@ function Dashboard({ wallet }: { wallet: string }) {
 export function PointsDashboard() {
   const { publicKey, connecting } = useWallet();
   const sessions = useAtomValue(accessSessionAtom);
+  const pointsSessions = useAtomValue(pointsSessionAtom);
   const gateLoading = useAtomValue(gateLoadingAtom);
   const wallet = publicKey?.toBase58();
-  const session = wallet ? sessions[wallet] : undefined;
-  const signedIn = !!session && session.expiresAt - 5 * 60 > Math.floor(Date.now() / 1000);
+  const live = (s?: { expiresAt: number }) =>
+    !!s && s.expiresAt - 5 * 60 > Math.floor(Date.now() / 1000);
+  const signedIn = !!wallet && (live(sessions[wallet]) || live(pointsSessions[wallet]));
 
   let body: ReactNode;
   if (!wallet) {
     body = (
       <Prompt
         title="Connect your wallet"
-        body="Connect the wallet you trade with to see your points, claim bonuses and follow every entry."
+        body="Connect your wallet to see your points, claim them and follow every entry. No invite needed."
       >
         {!connecting && <ConnectWallet />}
       </Prompt>

@@ -18,6 +18,28 @@ export interface AccessSession {
 /** wallet base58 -> session */
 export const accessSessionAtom = atom<Record<string, AccessSession>>({});
 
+/**
+ * wallet base58 -> points-only session, for wallets without access. Opens
+ * points claims, never trading: `useAccessOwner` reads only `accessSessionAtom`.
+ */
+export const pointsSessionAtom = atom<Record<string, AccessSession>>({});
+
+export type GateScope = 'trade' | 'points';
+
+/** `/points…` (checker, docs) and `/dashboard/points` are points pages. */
+export function gateScopeOf(pathname: string): GateScope {
+  return /^\/(dashboard\/)?points(\/|$)/.test(pathname) ? 'points' : 'trade';
+}
+
+/**
+ * Which part of the app is showing. On `points` pages a wallet without access
+ * isn't sent to the invite modal: it can still sign in and claim its points.
+ * Starts from the URL; `GateScopeSync` in the router keeps it current.
+ */
+export const gateScopeAtom = atom<GateScope>(
+  typeof window === 'undefined' ? 'trade' : gateScopeOf(window.location.pathname)
+);
+
 /** Modal visibility */
 export const gateOpenAtom = atom<boolean>(false);
 

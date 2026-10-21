@@ -18,6 +18,7 @@ import {
 } from './LazyRoutes';
 import { isAppHost, redirectOffLanding } from './domains';
 import { showUnlaunched } from '@/shared/lib/domains';
+import { GateScopeSync } from '@/features/access-gate';
 // The format module, not the feature index: keeps the points UI out of the main bundle.
 import { walletPointsPath } from '@/features/points/model/format';
 
@@ -33,6 +34,7 @@ export const AppRouter = () => {
 
   return (
     <BrowserRouter>
+      <GateScopeSync />
       <Routes>
         {/* app.fermi.trade has no landing page */}
         <Route path="/" element={isAppHost ? <Navigate replace to="/perps" /> : <LazyHomePage />} />

@@ -5,13 +5,11 @@
  * from the URL, so a link shows the same numbers to anyone.
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Check, Copy } from 'lucide-react';
 import { XLogo } from '@phosphor-icons/react';
 import axios from 'axios';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useAtom } from 'jotai';
-import { gateOpenAtom } from '@/features/access-gate';
 import { appHref, isLandingHost, landingHref } from '@/shared/lib/domains';
 import { cn } from '@/shared/lib/utils';
 import {
@@ -69,31 +67,16 @@ const CTA_SECONDARY =
   'inline-flex items-center gap-2 border border-rock/25 px-5 py-2.5 font-medium text-rock transition-colors duration-150 hover:border-rock/50 hover:bg-rock/5';
 
 /**
- * Sends the visitor to their points dashboard, where they claim. This page is
- * read-only. Without a wallet it opens the access gate first and goes on once
- * the wallet connects. On fermi.trade the dashboard is on app.fermi.trade, where
- * a connection made here doesn't carry over, so it links there and the
- * dashboard asks to connect.
+ * Sends the visitor to their points dashboard, where they connect, sign in and
+ * claim. This page is read-only. No invite is needed to claim, so there's no
+ * access gate on the way. On fermi.trade the dashboard is on app.fermi.trade.
  */
 function ClaimButton({ wallet, claimable }: { wallet: string; claimable: number }) {
-  const navigate = useNavigate();
   const connected = useWallet().publicKey?.toBase58();
-  const [gateOpen, setGateOpen] = useAtom(gateOpenAtom);
-  const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    if (!pending) return;
-    if (connected) navigate(DASHBOARD);
-    // Closing the gate without connecting cancels the trip.
-    else if (!gateOpen) setPending(false);
-  }, [pending, connected, gateOpen, navigate]);
-
   const label =
-    connected === wallet && claimable > 0
+    claimable > 0 && (!connected || connected === wallet)
       ? `Claim ${points(claimable)} points`
-      : connected
-        ? 'Go to your points dashboard'
-        : 'Connect wallet to claim';
+      : 'Go to your points dashboard';
 
   if (isLandingHost) {
     return (
@@ -102,15 +85,10 @@ function ClaimButton({ wallet, claimable }: { wallet: string; claimable: number 
       </a>
     );
   }
-  const open = () => {
-    if (connected) return navigate(DASHBOARD);
-    setPending(true);
-    setGateOpen(true);
-  };
   return (
-    <button type="button" onClick={open} className={CTA}>
+    <Link to={DASHBOARD} className={CTA}>
       {label}
-    </button>
+    </Link>
   );
 }
 
@@ -126,7 +104,7 @@ function ShareOnX({ wallet, account }: { wallet: string; account: PointsAccount 
     account.rank !== null
       ? `, ranked #${account.rank.toLocaleString()} of ${account.ranked.toLocaleString()} (top ${topShare(account.rank, account.ranked)})`
       : '';
-  const text = `I've got ${points(account.total)} ALIEN Points on @FermiLabs${standing}. Check yours:`;
+  const text = `I've got ${points(account.total)} ALIEN Points on @FermiTrade${standing}. Check yours:`;
   const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
 
   return (

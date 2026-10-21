@@ -1,6 +1,13 @@
 export { AccessGateProvider } from './ui/AccessGateProvider';
-export { getWalletAuthToken, signInSession } from './model/useAccessGate';
+export { getWalletAuthToken, signInForPoints, signInSession } from './model/useAccessGate';
+export { GateScopeSync } from './ui/GateScopeSync';
 export { useAccessOwner } from './model/useAccessOwner';
-export { gateOpenAtom, gateLoadingAtom, accessSessionAtom } from './model/accessAtoms';
+export {
+  gateOpenAtom,
+  gateLoadingAtom,
+  gateScopeAtom,
+  accessSessionAtom,
+  pointsSessionAtom,
+} from './model/accessAtoms';
 export { AccessGateError } from './api/accessClient';
 export { clearSession } from './lib/cache';
