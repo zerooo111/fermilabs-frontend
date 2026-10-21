@@ -6,7 +6,7 @@ import { showUnlaunched } from '@/shared/lib/domains';
 import { ConnectWallet } from '../../../features/wallet-connect/ui/ConnectWallet';
 import { FeeCreditDialog } from '@/features/fee-credit';
 import { ApiKeysMenuItem, ApiKeysPanel } from '@/features/api-keys';
-import { PointsChip } from '@/features/points';
+import { PointsChip, PointsIcon } from '@/features/points';
 import { MarginPanel } from '@/features/margin-panel/ui/MarginPanel';
 import { accessSessionAtom } from '@/features/access-gate';
 import FermiLogo3d from './FermiLogo';
@@ -78,11 +78,13 @@ export function Header() {
               to="/dashboard/points"
               className={cn(
                 NAV_LINK,
+                'gap-1.5',
                 location.pathname === '/dashboard/points' ? 'text-rock' : 'text-rock/60',
                 walletKey && 'md:hidden'
               )}
             >
-              ALIEN Points
+              <PointsIcon className="size-3.5 text-primary" />
+              ALIEN
             </Link>
           )}
         </div>

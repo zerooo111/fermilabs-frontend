@@ -10,7 +10,7 @@ export { ActivityList } from './ui/ActivityList';
 export { Leaderboard } from './ui/Leaderboard';
 export { Bone, Label, Notice } from './ui/primitives';
 export { PointsDashboard } from './ui/dashboard/PointsDashboard';
-export { PointsChip } from './ui/HeaderPoints';
+export { PointsChip, PointsIcon } from './ui/HeaderPoints';
 export { useAllEntries } from './model/useAllEntries';
 export {
   useClaimPoints,

@@ -24,7 +24,7 @@ function usePointsSummary() {
 }
 
 /** The points mark: three strokes fanning down from one point. */
-function PointsIcon({ className }: { className?: string }) {
+export function PointsIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="30 30 180 180" className={className} aria-hidden>
       {/* Non-scaling stroke keeps the lines crisp at icon size, where the
