@@ -21,9 +21,9 @@ export const isAppHost = APP_HOSTS.includes(host);
 const PREVIEW_HOSTS = ['staging.fermi.trade', 'localhost', '127.0.0.1'];
 
 /**
- * Vaults, FLP and points aren't live on mainnet yet: only staging and local
- * dev route to them or link to them. Any other host, production included,
- * hides them.
+ * Vaults and FLP aren't live on mainnet yet: only staging and local dev route
+ * to them or link to them. Any other host, production included, hides them.
+ * (Points launched on 2026-10-21 and are shown everywhere.)
  */
 export const showUnlaunched = PREVIEW_HOSTS.includes(host);
 

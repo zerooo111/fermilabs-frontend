@@ -29,13 +29,10 @@ const LegacyWalletRedirect = () => {
   return <Navigate replace to={walletPointsPath(wallet)} />;
 };
 
-/**
- * The ALIEN points announcement, on every page but the points pages. Only where
- * those pages exist (staging, local), so its links never dead-end.
- */
+/** The ALIEN points announcement, on every page but the points pages. */
 const Announcement = () => {
   const { pathname } = useLocation();
-  return showUnlaunched && gateScopeOf(pathname) !== 'points' ? <AnnouncementBar /> : null;
+  return gateScopeOf(pathname) !== 'points' ? <AnnouncementBar /> : null;
 };
 
 export const AppRouter = () => {
@@ -51,25 +48,21 @@ export const AppRouter = () => {
         <Route path="/" element={isAppHost ? <Navigate replace to="/perps" /> : <LazyHomePage />} />
 
         {/* Served on fermi.trade with the landing chrome */}
-        {showUnlaunched && (
-          <>
-            <Route path="/points" element={<LazyPointsPage />} />
-            <Route path="/points/docs" element={<LazyPointsDocsPage />} />
-            <Route path="/points/:wallet" element={<LegacyWalletRedirect />} />
-          </>
-        )}
+        <Route path="/points" element={<LazyPointsPage />} />
+        <Route path="/points/docs" element={<LazyPointsDocsPage />} />
+        <Route path="/points/:wallet" element={<LegacyWalletRedirect />} />
 
         <Route element={<Layout />}>
           <Route path="/perps" element={<LazyPerpsPage />} />
           <Route path="/perps/:id" element={<LazyPerpsPage />} />
           <Route path="/vault" element={<LazyVaultPage />} />
           <Route path="/referrals" element={<LazyReferralsPage />} />
+          <Route path="/dashboard/points" element={<LazyPointsDashboardPage />} />
           {showUnlaunched && (
             <>
               <Route path="/flp" element={<LazyFlpPage />} />
               <Route path="/vaults" element={<LazyVaultsPage />} />
               <Route path="/vaults/:network/:address" element={<LazyVaultDetailPage />} />
-              <Route path="/dashboard/points" element={<LazyPointsDashboardPage />} />
             </>
           )}
           <Route path="*" element={<Navigate replace to="/perps" />} />

@@ -103,7 +103,7 @@ export function Header() {
           </Link>
           {/* A connected wallet gets the points chip on the right instead; it's
               hidden below md, so the link stays there. */}
-          {showUnlaunched && <AlienLink walletKey={walletKey} />}
+          <AlienLink walletKey={walletKey} />
         </div>
         {/* Most-glanced first: balances, points, then the account. Fee credit and
             API keys live inside the balances and account menus; their dialogs
@@ -118,7 +118,7 @@ export function Header() {
               <ApiKeysPanel />
             </>
           )}
-          {showUnlaunched && <PointsChip className="hidden md:inline-flex" />}
+          <PointsChip className="hidden md:inline-flex" />
           <ConnectWallet menuItems={hasSession && <ApiKeysMenuItem />} />
         </div>
       </div>
