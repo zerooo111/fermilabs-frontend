@@ -10,7 +10,7 @@ import { Check, Copy } from 'lucide-react';
 import { XLogo } from '@phosphor-icons/react';
 import axios from 'axios';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { appHref, isLandingHost, landingHref } from '@/shared/lib/domains';
+import { appHref, isLandingHost } from '@/shared/lib/domains';
 import { cn } from '@/shared/lib/utils';
 import {
   ActivityList,
@@ -20,15 +20,16 @@ import {
   PixelAlien,
   PointsChart,
   ScoreCount,
+  ShareCardDialog,
   SkillGraph,
   isValidAddress,
   points,
   shortAddress,
+  topShare,
   useAllEntries,
   usePointsAccount,
   usePointsActivity,
   usePointsEpochs,
-  walletPointsPath,
   type PointsAccount,
 } from '@/features/points';
 
@@ -53,11 +54,6 @@ function CopyAddress({ address }: { address: string }) {
       <Icon className="size-3.5" aria-hidden />
     </button>
   );
-}
-
-/** "top 2%": the share of ranked wallets at or above this rank, at least 1%. */
-function topShare(rank: number, ranked: number): string {
-  return `${Math.max(1, Math.ceil((rank / ranked) * 100))}%`;
 }
 
 const DASHBOARD = '/dashboard/points';
@@ -92,26 +88,17 @@ function ClaimButton({ wallet, claimable }: { wallet: string; claimable: number 
   );
 }
 
-/**
- * Posts the wallet's score to X, linking back to this page for that wallet so
- * whoever clicks through sees the same numbers. The link always points at the
- * landing domain, where this page lives.
- */
+/** Opens the share dialog: pick an alien card for the post on X. */
 function ShareOnX({ wallet, account }: { wallet: string; account: PointsAccount }) {
-  const href = landingHref(walletPointsPath(wallet));
-  const url = href.startsWith('http') ? href : `${window.location.origin}${href}`;
-  const standing =
-    account.rank !== null
-      ? `, ranked #${account.rank.toLocaleString()} of ${account.ranked.toLocaleString()} (top ${topShare(account.rank, account.ranked)})`
-      : '';
-  const text = `I've got ${points(account.total)} ALIEN Points on @FermiTrade${standing}. Check yours:`;
-  const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-
+  const [open, setOpen] = useState(false);
   return (
-    <a href={intent} target="_blank" rel="noopener noreferrer" className={CTA_SECONDARY}>
-      <XLogo weight="bold" className="size-4" aria-hidden />
-      Share on X
-    </a>
+    <>
+      <button type="button" onClick={() => setOpen(true)} className={CTA_SECONDARY}>
+        <XLogo weight="bold" className="size-4" aria-hidden />
+        Share on X
+      </button>
+      <ShareCardDialog open={open} onOpenChange={setOpen} wallet={wallet} account={account} />
+    </>
   );
 }
 

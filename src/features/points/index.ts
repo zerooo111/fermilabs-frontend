@@ -3,6 +3,7 @@ export { SeasonBanner } from './ui/SeasonBanner';
 export { EarnMore } from './ui/EarnMore';
 export { PointsChart } from './ui/PointsChart';
 export { PixelAlien } from './ui/PixelAlien';
+export { ShareCardDialog } from './ui/share/ShareCardDialog';
 export { ScoreCount } from './ui/ScoreCount';
 export { Countdown } from './ui/Countdown';
 export { SkillGraph } from './ui/SkillGraph';
@@ -26,6 +27,7 @@ export {
   isValidAddress,
   points,
   shortAddress,
+  topShare,
   walletPointsPath,
 } from './model/format';
 export type { ClaimStatus, PointsAccount, PointsCategory, PointsEntry } from './api/pointsClient';

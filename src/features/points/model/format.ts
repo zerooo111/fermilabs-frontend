@@ -38,6 +38,11 @@ export function walletPointsPath(wallet: string): string {
   return `/points?wallet=${encodeURIComponent(wallet)}`;
 }
 
+/** "top 2%": the share of ranked wallets at or above this rank, at least 1%. */
+export function topShare(rank: number, ranked: number): string {
+  return `${Math.max(1, Math.ceil((rank / ranked) * 100))}%`;
+}
+
 /** A Solana address: base58 that decodes to 32 bytes. */
 export function isValidAddress(s: string): boolean {
   if (s.length < 32 || s.length > 44) return false;
