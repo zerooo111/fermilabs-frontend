@@ -68,6 +68,15 @@ export const points = (n: number) => POINTS.format(n);
 /** Points with an explicit sign, for activity rows. */
 export const pointsSigned = (n: number) => POINTS_SIGNED.format(n);
 
+const USD = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 2,
+});
+
+/** Dollars to the cent, for MEV losses. */
+export const usd = (n: number) => USD.format(n);
+
 const DATE_YEAR = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
   month: 'short',

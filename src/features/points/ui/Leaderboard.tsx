@@ -10,7 +10,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Info } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { usePointsLeaderboard } from '../model/usePoints';
-import { points, shortAddress, walletPointsPath } from '../model/format';
+import { points, shortAddress, usd, walletPointsPath } from '../model/format';
 import { PixelAlien } from './PixelAlien';
 import { Bone, Notice } from './primitives';
 
@@ -25,15 +25,9 @@ const BOARDS = [
   { id: 'signups', label: 'Beta sign-ups', campaign: 'bonus:beta-signup', loss: false },
 ] as const;
 
-const USD = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 2,
-});
-
 function lossUsd(details: Record<string, unknown> | null): string {
   const v = details?.loss_usd;
-  return typeof v === 'number' ? USD.format(v) : '—';
+  return typeof v === 'number' ? usd(v) : '—';
 }
 
 type BoardId = (typeof BOARDS)[number]['id'];

@@ -28,6 +28,7 @@ export {
   points,
   shortAddress,
   topShare,
+  usd,
   walletPointsPath,
 } from './model/format';
 export type {
