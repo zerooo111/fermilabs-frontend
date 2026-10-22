@@ -6,7 +6,7 @@
  * to the clipboard to paste into the post that X opens.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Download } from 'lucide-react';
+import { Check, Copy, Download } from 'lucide-react';
 import { XLogo } from '@phosphor-icons/react';
 import posthog from 'posthog-js';
 import { toast } from 'sonner';
@@ -77,11 +77,13 @@ function download(url: string, name: string) {
 
 const FILE_NAME = 'fermi-alien-points.png';
 const PASTE = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘V' : 'Ctrl+V';
+/** Some browsers (older Firefox, in-app webviews) can't put an image on the clipboard. */
+const CAN_COPY_IMAGE = typeof ClipboardItem !== 'undefined' && !!navigator.clipboard?.write;
 
 const CTA =
-  'inline-flex items-center gap-2 bg-amber-200 px-5 py-2.5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:opacity-50';
+  'inline-flex items-center justify-center gap-2 bg-amber-200 px-5 py-2.5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:opacity-50';
 const CTA_SECONDARY =
-  'inline-flex items-center gap-2 border border-rock/25 px-5 py-2.5 font-medium text-rock transition-colors duration-150 hover:border-rock/50 hover:bg-rock/5 disabled:opacity-50';
+  'inline-flex items-center justify-center gap-2 border border-rock/25 px-5 py-2.5 font-medium text-rock transition-colors duration-150 hover:border-rock/50 hover:bg-rock/5 disabled:opacity-50';
 
 function ShareCards({ wallet, account }: { wallet: string; account: PointsAccount }) {
   const [cardId, setCardId] = useState<CardId>(CARDS[0].id);
@@ -94,6 +96,7 @@ function ShareCards({ wallet, account }: { wallet: string; account: PointsAccoun
     hideAddress,
   });
   const card = cards?.[cardId];
+  const [copied, setCopied] = useState(false);
 
   const href = landingHref('/points');
   const url = href.startsWith('http') ? href : `${window.location.origin}${href}`;
@@ -137,6 +140,18 @@ function ShareCards({ wallet, account }: { wallet: string; account: PointsAccoun
       action: opened ? undefined : { label: 'Open X', onClick: openX },
     });
   };
+
+  const copy = async () => {
+    if (!card) return;
+    posthog.capture('points_share_copy', { card: cardId, hide_address: hideAddress });
+    if (!(await copyImage(card.blob))) {
+      toast.error('Could not copy the image. Use Download instead.');
+      return;
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+  const CopyIcon = copied ? Check : Copy;
 
   return (
     <>
@@ -194,7 +209,8 @@ function ShareCards({ wallet, account }: { wallet: string; account: PointsAccoun
           />
           Hide my address
         </label>
-        <div className="flex flex-wrap gap-2">
+        {/* On phones the buttons take the full row and stretch to fill each line they wrap onto. */}
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto [&>button]:grow sm:[&>button]:grow-0">
           <button
             type="button"
             disabled={!card}
@@ -204,6 +220,17 @@ function ShareCards({ wallet, account }: { wallet: string; account: PointsAccoun
             <Download className="size-4" aria-hidden />
             Download
           </button>
+          {CAN_COPY_IMAGE && (
+            <button
+              type="button"
+              disabled={!card}
+              onClick={() => void copy()}
+              className={CTA_SECONDARY}
+            >
+              <CopyIcon className="size-4" aria-hidden />
+              {copied ? 'Copied' : 'Copy image'}
+            </button>
+          )}
           <button type="button" disabled={!card} onClick={() => void post()} className={CTA}>
             <XLogo weight="bold" className="size-4" aria-hidden />
             Post on X
