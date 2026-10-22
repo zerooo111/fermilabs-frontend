@@ -51,6 +51,8 @@ export const AppRouter = () => {
         <Route path="/points" element={<LazyPointsPage />} />
         <Route path="/points/docs" element={<LazyPointsDocsPage />} />
         <Route path="/points/:wallet" element={<LegacyWalletRedirect />} />
+        {/* Share links are answered by a Pages Function (functions/s); if one ever reaches the app, it goes to the points page. */}
+        <Route path="/s/:token" element={<Navigate replace to="/points" />} />
 
         <Route element={<Layout />}>
           <Route path="/perps" element={<LazyPerpsPage />} />

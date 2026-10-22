@@ -9,9 +9,15 @@ import { APP_ORIGIN, isLandingHost } from '@/shared/lib/domains';
 
 export { isAppHost } from '@/shared/lib/domains';
 
-/** Paths the landing domain serves itself: the landing page and the points pages. */
+/**
+ * Paths the landing domain serves itself: the landing page, the points pages
+ * and points share links (`/s/<token>`).
+ */
 const isLandingPath = (pathname: string) =>
-  pathname === '/' || pathname === '/points' || pathname.startsWith('/points/');
+  pathname === '/' ||
+  pathname === '/points' ||
+  pathname.startsWith('/points/') ||
+  pathname.startsWith('/s/');
 
 /** On the landing domain, anything but the landing paths belongs to the app. */
 export function redirectOffLanding(): boolean {
