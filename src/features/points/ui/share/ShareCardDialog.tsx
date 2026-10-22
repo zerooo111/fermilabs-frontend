@@ -149,7 +149,7 @@ function ShareCards({ wallet, account }: { wallet: string; account: PointsAccoun
 
   return (
     <>
-      <div className="aspect-[1200/675] w-full border border-rock/15 bg-rock/5">
+      <div className="aspect-[1200/630] w-full border border-rock/15 bg-rock/5">
         {card ? (
           <img
             src={card.url}
@@ -182,7 +182,7 @@ function ShareCards({ wallet, account }: { wallet: string; account: PointsAccoun
                 selected ? 'border-amber-200' : 'border-rock/15 hover:border-rock/40'
               )}
             >
-              <span className="block aspect-[1200/675] w-full bg-rock/5">
+              <span className="block aspect-[1200/630] w-full bg-rock/5">
                 {thumb ? (
                   <img src={thumb.url} alt="" className="block size-full" draggable={false} />
                 ) : (

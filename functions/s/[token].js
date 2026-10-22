@@ -23,7 +23,8 @@ export function onRequestGet({ params, request }) {
   const image = `${gateway(url.hostname)}/v2/points/share/${token}.png`;
   const page = `${url.origin}/s/${token}`;
   const title = 'ALIEN Points on Fermi Trade';
-  const description = 'How many points has your wallet earned? Check yours.';
+  const description =
+    'How many ALIEN points has your wallet earned on Fermi Trade? Paste any Solana address to see its points, its rank and how to earn more.';
 
   const html = `<!doctype html>
 <html lang="en">
@@ -39,7 +40,7 @@ export function onRequestGet({ params, request }) {
     <meta property="og:image" content="${image}" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="675" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="A wallet's ALIEN points card" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@FermiLabs" />
