@@ -117,6 +117,8 @@ export const API_ROUTES_V2 = {
   points_claim_prepare: '/v2/points/claim/prepare',
   points_claim: '/v2/points/claim',
   points_claim_proof: '/v2/points/claims/{id}',
+  points_share: '/v2/points/share',
+  points_share_card: '/v2/points/share/{token}.png',
   vaults: '/v2/vaults',
   vault: '/v2/vaults/{network}/{address}',
 };

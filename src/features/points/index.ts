@@ -30,4 +30,10 @@ export {
   topShare,
   walletPointsPath,
 } from './model/format';
-export type { ClaimStatus, PointsAccount, PointsCategory, PointsEntry } from './api/pointsClient';
+export type {
+  ClaimStatus,
+  PointsAccount,
+  PointsCategory,
+  PointsEntry,
+  ShareCardStyle,
+} from './api/pointsClient';

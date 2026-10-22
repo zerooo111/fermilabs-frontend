@@ -217,3 +217,29 @@ export async function claimPoints(
 export function claimProofUrl(id: number): string {
   return `${baseUrl()}${API_ROUTES_V2.points_claim_proof.replace('{id}', String(id))}`;
 }
+
+/** The share card styles, in the order the share dialog shows them. */
+export type ShareCardStyle = 'abduction' | 'specimen' | 'homeworld' | 'print';
+
+/**
+ * A share token per card style. Each one seals the wallet, the style and
+ * whether to hide the address, so share links and card URLs never show the
+ * address.
+ */
+export async function createShareTokens(
+  wallet: string,
+  hideAddress: boolean,
+  signal?: AbortSignal
+): Promise<Record<ShareCardStyle, string>> {
+  const res = await axios.post<{ tokens: Record<ShareCardStyle, string> }>(
+    `${baseUrl()}${API_ROUTES_V2.points_share}`,
+    { wallet, hide_address: hideAddress },
+    { signal }
+  );
+  return res.data.tokens;
+}
+
+/** A share card as a PNG, drawn by the gateway from the wallet's live points. */
+export function shareCardUrl(token: string): string {
+  return `${baseUrl()}${API_ROUTES_V2.points_share_card.replace('{token}', token)}`;
+}

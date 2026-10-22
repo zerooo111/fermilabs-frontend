@@ -1,9 +1,10 @@
 /**
  * Share on X with a card: pick one of the alien cards, hide the address if
- * you like, then post. The post links to the points page, never to the
- * wallet. X's tweet link can't carry an image, so on phones the card goes
- * through the share sheet (the X app attaches it), and on desktop it's copied
- * to the clipboard to paste into the post that X opens.
+ * you like, then post. X's tweet link can't carry an image, so the post links
+ * to `/s/<token>` instead: a page that only carries the card as its link
+ * preview and then sends visitors on to /points. The gateway draws the cards
+ * from the wallet's live points; the token hides the address. Copy and
+ * Download are there for anyone who'd rather attach the image itself.
  */
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy, Download } from 'lucide-react';
@@ -19,43 +20,69 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog';
-import type { PointsAccount } from '../../api/pointsClient';
+import {
+  createShareTokens,
+  shareCardUrl,
+  type PointsAccount,
+  type ShareCardStyle,
+} from '../../api/pointsClient';
 import { points, topShare } from '../../model/format';
 import { Bone } from '../primitives';
-import { CARDS, renderCard, type CardData, type CardId } from './cards';
 
-type Rendered = Record<CardId, { blob: Blob; url: string }>;
+const CARDS: { id: ShareCardStyle; name: string }[] = [
+  { id: 'abduction', name: 'Abduction' },
+  { id: 'specimen', name: 'Specimen' },
+  { id: 'homeworld', name: 'Homeworld' },
+  { id: 'print', name: 'Field print' },
+];
 
-const revoke = (cards: Rendered | null) =>
+type Card = { token: string; blob: Blob; url: string };
+type Cards = Record<ShareCardStyle, Card>;
+
+const revoke = (cards: Cards | null) =>
   Object.values(cards ?? {}).forEach(c => URL.revokeObjectURL(c.url));
 
-/** Every card for this data, as PNGs. The last set stays up while the next draws. */
-function useCards({ wallet, total, rank, ranked, hideAddress }: CardData): Rendered | null {
-  const [cards, setCards] = useState<Rendered | null>(null);
+/**
+ * Every card for the wallet, with its share token, fetched as PNGs so they
+ * can be copied and downloaded. The last set stays up while the next loads.
+ */
+function useCards(wallet: string, hideAddress: boolean): { cards: Cards | null; failed: boolean } {
+  const [cards, setCards] = useState<Cards | null>(null);
+  const [failed, setFailed] = useState(false);
   const latest = useRef(cards);
   latest.current = cards;
 
   useEffect(() => {
-    let cancelled = false;
-    const data = { wallet, total, rank, ranked, hideAddress };
-    Promise.all(CARDS.map(c => renderCard(c.id, data)))
-      .then(blobs => {
-        if (cancelled) return;
+    const abort = new AbortController();
+    const { signal } = abort;
+    setFailed(false);
+    createShareTokens(wallet, hideAddress, signal)
+      .then(tokens =>
+        Promise.all(
+          CARDS.map(async c => {
+            const res = await fetch(shareCardUrl(tokens[c.id]), { signal });
+            if (!res.ok) throw new Error(`card ${c.id}: ${res.status}`);
+            const blob = await res.blob();
+            return [c.id, { token: tokens[c.id], blob, url: URL.createObjectURL(blob) }] as const;
+          })
+        )
+      )
+      .then(entries => {
+        const next = Object.fromEntries(entries) as Cards;
+        if (signal.aborted) return revoke(next);
         revoke(latest.current);
-        setCards(
-          Object.fromEntries(
-            CARDS.map((c, i) => [c.id, { blob: blobs[i], url: URL.createObjectURL(blobs[i]) }])
-          ) as Rendered
-        );
+        setCards(next);
       })
-      .catch(error => console.error('Failed to draw share cards:', error));
-    return () => {
-      cancelled = true;
-    };
-  }, [wallet, total, rank, ranked, hideAddress]);
+      .catch(error => {
+        if (signal.aborted) return;
+        console.error('Failed to load share cards:', error);
+        setFailed(true);
+      });
+    return () => abort.abort();
+  }, [wallet, hideAddress]);
 
   useEffect(() => () => revoke(latest.current), []);
-  return cards;
+  return { cards, failed };
 }
 
 async function copyImage(blob: Blob): Promise<boolean> {
@@ -76,7 +103,6 @@ function download(url: string, name: string) {
 }
 
 const FILE_NAME = 'fermi-alien-points.png';
-const PASTE = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘V' : 'Ctrl+V';
 /** Some browsers (older Firefox, in-app webviews) can't put an image on the clipboard. */
 const CAN_COPY_IMAGE = typeof ClipboardItem !== 'undefined' && !!navigator.clipboard?.write;
 
@@ -86,19 +112,15 @@ const CTA_SECONDARY =
   'inline-flex items-center justify-center gap-2 border border-rock/25 px-5 py-2.5 font-medium text-rock transition-colors duration-150 hover:border-rock/50 hover:bg-rock/5 disabled:opacity-50';
 
 function ShareCards({ wallet, account }: { wallet: string; account: PointsAccount }) {
-  const [cardId, setCardId] = useState<CardId>(CARDS[0].id);
+  const [cardId, setCardId] = useState<ShareCardStyle>(CARDS[0].id);
   const [hideAddress, setHideAddress] = useState(false);
-  const cards = useCards({
-    wallet,
-    total: account.total,
-    rank: account.rank,
-    ranked: account.ranked,
-    hideAddress,
-  });
+  const { cards, failed } = useCards(wallet, hideAddress);
   const card = cards?.[cardId];
   const [copied, setCopied] = useState(false);
 
-  const href = landingHref('/points');
+  // The card's own link, whose preview is the card. Without one (the gateway
+  // is down), the post still links to the points page.
+  const href = landingHref(card ? `/s/${card.token}` : '/points');
   const url = href.startsWith('http') ? href : `${window.location.origin}${href}`;
   const standing =
     account.rank !== null
@@ -107,38 +129,10 @@ function ShareCards({ wallet, account }: { wallet: string; account: PointsAccoun
   const text = `I've got ${points(account.total)} ALIEN Points on @FermiTrade${standing}. Check yours:`;
   const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
 
-  const openX = () => {
+  const post = () => {
+    posthog.capture('points_share_x', { card: cardId, hide_address: hideAddress });
     const tab = window.open(intent, '_blank');
     if (tab) tab.opener = null;
-    return !!tab;
-  };
-
-  const post = async () => {
-    if (!card) return;
-    posthog.capture('points_share_x', { card: cardId, hide_address: hideAddress });
-
-    // Phones: the share sheet hands the image and text to the X app together.
-    const file = new File([card.blob], FILE_NAME, { type: card.blob.type });
-    if (window.matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], text: `${text} ${url}` });
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-      }
-    }
-
-    // Desktop: copy the card, then open the post to paste it into.
-    const copied = await copyImage(card.blob);
-    if (!copied) download(card.url, FILE_NAME);
-    const opened = openX();
-    const message = copied
-      ? `Card copied. Press ${PASTE} in your post to attach it.`
-      : 'Card downloaded. Attach it to your post.';
-    toast.success(message, {
-      duration: 8000,
-      action: opened ? undefined : { label: 'Open X', onClick: openX },
-    });
   };
 
   const copy = async () => {
@@ -163,6 +157,10 @@ function ShareCards({ wallet, account }: { wallet: string; account: PointsAccoun
             className="block size-full"
             draggable={false}
           />
+        ) : failed ? (
+          <p className="flex size-full items-center justify-center p-6 text-center text-sm text-rock/60">
+            Couldn&apos;t load the cards. You can still post a link to the points page.
+          </p>
         ) : (
           <Bone className="size-full" />
         )}
@@ -231,7 +229,7 @@ function ShareCards({ wallet, account }: { wallet: string; account: PointsAccoun
               {copied ? 'Copied' : 'Copy image'}
             </button>
           )}
-          <button type="button" disabled={!card} onClick={() => void post()} className={CTA}>
+          <button type="button" disabled={!card && !failed} onClick={post} className={CTA}>
             <XLogo weight="bold" className="size-4" aria-hidden />
             Post on X
           </button>
@@ -258,10 +256,11 @@ export function ShareCardDialog({
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl font-light">Share your points</DialogTitle>
           <DialogDescription className="text-sm">
-            Pick a card for your post. It links to the points page, not your wallet.
+            Pick a card. Your post shows it as the link preview, and the link never shows your
+            address.
           </DialogDescription>
         </DialogHeader>
-        {/* Mounted only while open, so the cards draw when they're needed. */}
+        {/* Mounted only while open, so the cards load when they're needed. */}
         <ShareCards wallet={wallet} account={account} />
       </DialogContent>
     </Dialog>
