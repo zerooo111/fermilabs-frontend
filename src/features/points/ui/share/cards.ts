@@ -1,11 +1,23 @@
 /**
- * Share cards for a wallet's ALIEN points: four alien-themed images, drawn on
- * a canvas at X's large-image size in the landing's pixel style. Each shows
- * the total, the rank and the wallet's own alien; the address can be hidden.
+ * Share cards for a wallet's ALIEN points, at X's large-image size. They're
+ * drawn like the landing: a drawing-sheet frame, a light serif number, and
+ * art on a coarse cell grid, ordered-dithered into the UFO scene's tones (the
+ * first and last cards are a still frame of that scene, from the same
+ * renderer). Each shows the wallet's own alien; the address can be hidden.
  */
-import { BAYER } from '@/shared/lib/dither';
-import { points, shortAddress, topShare } from '../../model/format';
+import {
+  CRAB,
+  NIGHT,
+  SQUID,
+  UFO_H,
+  renderAlienScene,
+  smoothstep,
+  type Alien,
+  type ScenePalette,
+} from '@/shared/lib/alien-scene';
+import { ditherLevel, packColor, type RGB } from '@/shared/lib/dither';
 import { alienSprite } from '../../model/alienSprite';
+import { points, shortAddress, topShare } from '../../model/format';
 
 export const CARD_W = 1200;
 export const CARD_H = 675;
@@ -20,93 +32,64 @@ export type CardData = {
 
 type Ctx = CanvasRenderingContext2D;
 
-const NIGHT = '#001409';
-const LICHEN = '#b4dc78';
-const AMBER = '#fde68a';
-const ROCK = '#f8f7e7';
-const FOREST = '#185038';
-const INK = '#0b2a1c';
-const STAMP = '#b8322a';
+// The art's grid: one cell is 5 px, so the dither still reads once X shrinks
+// the card into a feed.
+const CELL = 5;
+const COLS = CARD_W / CELL;
+const ROWS = CARD_H / CELL;
 
-const MONO = '"Paper Mono", ui-monospace, monospace';
+// The drawing sheet: a hairline frame, the footer band along its bottom.
+const FRAME = 30;
+const FOOT = 555;
+const LEFT = 80;
+const RIGHT = CARD_W - 80;
+const ART = {
+  x0: FRAME / CELL,
+  x1: (CARD_W - FRAME) / CELL,
+  y0: FRAME / CELL,
+  y1: FOOT / CELL,
+};
+
+const NIGHT_BG = '#001409';
+const PAPER_BG = '#f8f7e7';
+
 const SERIF = 'Newsreader, Georgia, serif';
 const SANS = 'Archivo, sans-serif';
+const MONO = '"Paper Mono", ui-monospace, monospace';
 
-// Sprites, as in the landing's UFO scene. Saucer: A dome, L hull, o lights.
-const UFO = [
-  '........AAAAAAA........',
-  '......AAAAAAAAAAA......',
-  '.....AAAAAAAAAAAAA.....',
-  '..LLLLLLLLLLLLLLLLLLL..',
-  'LLLLLLLLLLLLLLLLLLLLLLL',
-  'LLoLLoLLoLLoLLoLLoLLoLL',
-  'LLLLLLLLLLLLLLLLLLLLLLL',
-  '...LLLLLLLLLLLLLLLLL...',
-];
-const CRAB = [
-  '..#.....#..',
-  '...#...#...',
-  '..#######..',
-  '.##.###.##.',
-  '###########',
-  '#.#######.#',
-  '#.#.....#.#',
-  '...##.##...',
-];
-const SQUID = [
-  '...##...',
-  '..####..',
-  '.######.',
-  '##.##.##',
-  '########',
-  '..#..#..',
-  '.#.##.#.',
-  '#.#..#.#',
-];
-const BUNKER = [
-  '..#######..',
-  '.#########.',
-  '###########',
-  '###########',
-  '###########',
-  '####...####',
-  '###.....###',
-  '###.....###',
-];
+/** Colors for the type and rules over the art. */
+type Ink = { fg: string; muted: string; rule: string; mark: string; accent: string };
+
+const NIGHT_INK: Ink = {
+  fg: '#f8f7e7',
+  muted: 'rgba(248, 247, 231, 0.6)',
+  rule: 'rgba(248, 247, 231, 0.14)',
+  mark: 'rgba(253, 230, 138, 0.7)',
+  accent: '#fde68a',
+};
+const PAPER_INK: Ink = {
+  fg: '#0b2a1c',
+  muted: 'rgba(11, 42, 28, 0.62)',
+  rule: 'rgba(11, 42, 28, 0.2)',
+  mark: 'rgba(11, 42, 28, 0.55)',
+  accent: '#8a5a00',
+};
+
+const pack = (tones: (RGB | null)[]) => tones.map(packColor);
+
+/** The UFO scene printed in forest and ochre inks on paper. */
+const PAPER: ScenePalette = {
+  lichen: pack([null, [212, 220, 194], [156, 180, 146], [70, 114, 86], [24, 80, 56]]),
+  amber: pack([null, [234, 220, 176], [208, 178, 108], [164, 118, 30], [116, 78, 6]]),
+  star: pack([null, [216, 216, 198], [152, 162, 142], [62, 82, 68]]),
+  rock: packColor([184, 50, 42]),
+  ground: packColor([160, 168, 148]),
+};
+
 // The Fermi mark, from logo.svg
 const MARK = ['...#...', '..###..', '.##..#.', '##.####'];
 
-// ─── drawing helpers ─────────────────────────────────────────────────
-
-/** A pixel sprite: each character in `palette` is a `cell`-sized square of its color. */
-function sprite(
-  ctx: Ctx,
-  rows: string[],
-  x: number,
-  y: number,
-  cell: number,
-  palette: Record<string, string>
-) {
-  rows.forEach((row, j) => {
-    for (let i = 0; i < row.length; i++) {
-      const color = palette[row[i]];
-      if (!color) continue;
-      ctx.fillStyle = color;
-      ctx.fillRect(x + i * cell, y + j * cell, cell, cell);
-    }
-  });
-}
-
-/** The wallet's alien (11 x 8 cells), in its own color unless one is given. */
-function walletAlien(ctx: Ctx, wallet: string, x: number, y: number, cell: number, color?: string) {
-  const { cells, color: own } = alienSprite(wallet);
-  ctx.fillStyle = color ?? own;
-  cells.forEach((row, j) =>
-    row.forEach((on, i) => {
-      if (on) ctx.fillRect(x + i * cell, y + j * cell, cell, cell);
-    })
-  );
-}
+// ─── helpers ─────────────────────────────────────────────────────────
 
 /** The same random numbers for the same seed, so a wallet's card never changes. */
 function seeded(seed: string): () => number {
@@ -120,32 +103,88 @@ function seeded(seed: string): () => number {
   };
 }
 
+/** A card-sized grid of cells to dither into, then drawn scaled up, unsmoothed. */
+function cells() {
+  const canvas = document.createElement('canvas');
+  canvas.width = COLS;
+  canvas.height = ROWS;
+  const g = canvas.getContext('2d')!;
+  const image = g.createImageData(COLS, ROWS);
+  const px = new Uint32Array(image.data.buffer);
+  return {
+    px,
+    /** Fills cells by level: `v(x, y)` (0..1) picks the tone, dithered. */
+    shade(
+      x0: number,
+      y0: number,
+      x1: number,
+      y1: number,
+      tones: number[],
+      v: (x: number, y: number) => number
+    ) {
+      for (let y = Math.max(0, Math.floor(y0)); y < Math.min(ROWS, y1); y++) {
+        for (let x = Math.max(0, Math.floor(x0)); x < Math.min(COLS, x1); x++) {
+          const tone = tones[ditherLevel(v(x, y), tones.length - 1, x, y)];
+          if (tone) px[y * COLS + x] = tone;
+        }
+      }
+    },
+    /** Keeps the art inside the frame, above the footer. */
+    clip() {
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          if (x < ART.x0 || x >= ART.x1 || y < ART.y0 || y >= ART.y1) px[y * COLS + x] = 0;
+        }
+      }
+    },
+    draw(ctx: Ctx) {
+      g.putImageData(image, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(canvas, 0, 0, CARD_W, CARD_H);
+    },
+  };
+}
+
+/** The wallet's alien as rows of `#` and `.`, and as a two-frame scene sprite. */
+function walletSprite(wallet: string) {
+  const { cells: grid, amber } = alienSprite(wallet);
+  const rows = grid.map(row => row.map(on => (on ? '#' : '.')).join(''));
+  return { rows, sprite: [rows, rows], amber };
+}
+
+function walker(sprite: string[][], x: number, ground: number, amber: boolean): Alien {
+  const y = ground - sprite[0].length;
+  return { sprite, x, y, dir: 1, speed: 0, amber, state: 'walk', lift: 0 };
+}
+
+/** A few stars inside the frame, still (rate 0). */
+function stars(rand: () => number, n: number, maxY: number) {
+  return Array.from({ length: n }, () => ({
+    x: Math.floor(ART.x0 + rand() * (ART.x1 - ART.x0)),
+    y: Math.floor(ART.y0 + rand() * (maxY - ART.y0)),
+    phase: rand() * Math.PI * 2,
+    rate: 0,
+  }));
+}
+
 function spacing(ctx: Ctx, px: number) {
   // Not in every browser yet; the text just sits a little tighter without it.
   if ('letterSpacing' in ctx) ctx.letterSpacing = `${px}px`;
 }
 
-type TextStyle = {
-  font: string;
-  color: string;
-  align?: CanvasTextAlign;
-  tracking?: number;
-  alpha?: number;
-};
+type TextStyle = { font: string; color: string; align?: CanvasTextAlign; tracking?: number };
 
 function text(ctx: Ctx, s: string, x: number, y: number, style: TextStyle) {
   ctx.font = style.font;
   ctx.fillStyle = style.color;
   ctx.textAlign = style.align ?? 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.globalAlpha = style.alpha ?? 1;
   spacing(ctx, style.tracking ?? 0);
   ctx.fillText(s, x, y);
   spacing(ctx, 0);
-  ctx.globalAlpha = 1;
 }
 
-function textWidth(ctx: Ctx, s: string, font: string, tracking = 0): number {
+function width(ctx: Ctx, s: string, font: string, tracking = 0): number {
   ctx.font = font;
   spacing(ctx, tracking);
   const w = ctx.measureText(s).width;
@@ -153,556 +192,298 @@ function textWidth(ctx: Ctx, s: string, font: string, tracking = 0): number {
   return w;
 }
 
-/** The largest size, from `size` down, at which `s` fits in `maxW`. */
-function fit(
-  ctx: Ctx,
-  s: string,
-  maxW: number,
-  size: number,
-  font: (px: number) => string,
-  tracking = 0
-) {
-  while (size > 16 && textWidth(ctx, s, font(size), tracking) > maxW) size -= 2;
-  return size;
-}
+const NUMBER_FONT = (px: number) => `300 ${px}px ${SERIF}`;
 
-/** Fills a region with ordered dither: `level(x, y)` (0..1) sets how many cells light up. */
-function dither(
-  ctx: Ctx,
-  x0: number,
-  y0: number,
-  w: number,
-  h: number,
-  cell: number,
-  color: string,
-  level: (x: number, y: number) => number
-) {
-  ctx.fillStyle = color;
-  for (let cy = 0; cy * cell < h; cy++) {
-    for (let cx = 0; cx * cell < w; cx++) {
-      const x = x0 + cx * cell;
-      const y = y0 + cy * cell;
-      if (level(x + cell / 2, y + cell / 2) > BAYER[(cy & 7) * 8 + (cx & 7)]) {
-        ctx.fillRect(x, y, cell, cell);
-      }
-    }
+/** The hairline frame with registration marks on its corners, and the footer rule. */
+function sheet(ctx: Ctx, ink: Ink, footRule = true) {
+  ctx.strokeStyle = ink.rule;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(FRAME + 0.5, FRAME + 0.5, CARD_W - FRAME * 2 - 1, CARD_H - FRAME * 2 - 1);
+  if (footRule) {
+    ctx.fillStyle = ink.rule;
+    ctx.fillRect(FRAME, FOOT, CARD_W - FRAME * 2, 1);
   }
-}
-
-function stars(ctx: Ctx, rand: () => number, n: number, w: number, h: number) {
-  for (let i = 0; i < n; i++) {
-    const size = rand() < 0.15 ? 4 : 2;
-    ctx.globalAlpha = 0.15 + rand() * 0.55;
-    ctx.fillStyle = rand() < 0.2 ? LICHEN : ROCK;
-    ctx.fillRect(Math.round(rand() * w), Math.round(rand() * h), size, size);
-  }
-  ctx.globalAlpha = 1;
-}
-
-function scanlines(ctx: Ctx, alpha: number) {
-  ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
-  for (let y = 0; y < CARD_H; y += 4) ctx.fillRect(0, y, CARD_W, 1);
-}
-
-const LINK = 'fermi.trade/points';
-const LINK_FONT = `400 22px ${MONO}`;
-
-/** The Fermi mark and the link back, starting at x (or ending there, with `right`). */
-function brand(ctx: Ctx, x: number, baseline: number, color: string, right = false) {
-  const cell = 6;
-  const markW = MARK[0].length * cell;
-  const gap = 16;
-  const w = markW + gap + textWidth(ctx, LINK, LINK_FONT, 1);
-  const left = right ? x - w : x;
-  sprite(ctx, MARK, left, baseline - MARK.length * cell, cell, { '#': color });
-  text(ctx, LINK, left + markW + gap, baseline, { font: LINK_FONT, color, tracking: 1 });
-}
-
-const address = (d: CardData) => (d.hideAddress ? null : shortAddress(d.wallet));
-
-/** Rank as "#12" and "of 4,321". */
-const rankParts = (d: CardData) =>
-  d.rank === null
-    ? null
-    : [`#${d.rank.toLocaleString('en-US')}`, `of ${d.ranked.toLocaleString('en-US')}`];
-
-// ─── the cards ───────────────────────────────────────────────────────
-
-/** A saucer lifting the wallet's alien up its beam; the score on the left. */
-function drawBeam(ctx: Ctx, d: CardData) {
-  const sky = ctx.createLinearGradient(0, 0, 0, CARD_H);
-  sky.addColorStop(0, '#000d06');
-  sky.addColorStop(1, '#08291a');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, CARD_W, CARD_H);
-  stars(ctx, seeded(d.wallet), 110, CARD_W, 560);
-
-  const cx = 900;
-  const ground = 584;
-  const ufoCell = 12;
-  const ufoTop = 64;
-  const beamTop = ufoTop + UFO.length * ufoCell;
-
-  // The beam widens toward the ground and fades as it goes.
-  dither(ctx, cx - 240, beamTop, 480, ground - beamTop, 6, LICHEN, (x, y) => {
-    const t = (y - beamTop) / (ground - beamTop);
-    const dx = Math.abs(x - cx) / (64 + t * 170);
-    return dx > 1 ? 0 : (0.6 - 0.3 * t) * (1 - dx * dx) + 0.06;
-  });
-  sprite(ctx, UFO, cx - (UFO[0].length * ufoCell) / 2, ufoTop, ufoCell, {
-    A: AMBER,
-    L: LICHEN,
-    o: ROCK,
-  });
-
-  // The wallet's alien, mid-abduction, outlined in the night so it stands out
-  // from the beam.
-  const alienCell = 14;
-  const ax = cx - (11 * alienCell) / 2;
-  const ay = 292;
-  for (const [ox, oy] of [
-    [-6, 0],
-    [6, 0],
-    [0, -6],
-    [0, 6],
+  ctx.strokeStyle = ink.mark;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (const [x, y] of [
+    [FRAME, FRAME],
+    [CARD_W - FRAME, FRAME],
+    [FRAME, CARD_H - FRAME],
+    [CARD_W - FRAME, CARD_H - FRAME],
+    [FRAME, FOOT],
+    [CARD_W - FRAME, FOOT],
   ]) {
-    walletAlien(ctx, d.wallet, ax + ox, ay + oy, alienCell, '#03160c');
+    ctx.moveTo(x - 9, y + 0.5);
+    ctx.lineTo(x + 9, y + 0.5);
+    ctx.moveTo(x + 0.5, y - 9);
+    ctx.lineTo(x + 0.5, y + 9);
   }
-  walletAlien(ctx, d.wallet, ax, ay, alienCell);
+  ctx.stroke();
+}
 
-  // Dotted ground with two walkers waiting their turn.
-  ctx.fillStyle = ROCK;
-  ctx.globalAlpha = 0.3;
-  for (let x = 0; x < CARD_W; x += 12) ctx.fillRect(x, ground, 5, 2);
-  ctx.globalAlpha = 0.85;
-  sprite(ctx, CRAB, 640, ground - 36, 4, { '#': AMBER });
-  sprite(ctx, SQUID, 1100, ground - 36, 4, { '#': LICHEN });
-  ctx.globalAlpha = 1;
-
-  const left = 72;
-  text(ctx, 'ALIEN POINTS · SEASON 1', left, 150, {
-    font: `400 20px ${MONO}`,
-    color: AMBER,
-    tracking: 5,
+/** The words: kicker, the number, rank, and the footer with the link back. */
+function copy(ctx: Ctx, d: CardData, ink: Ink, maxW = 560) {
+  text(ctx, 'ALIEN POINTS · SEASON 1', LEFT, 104, {
+    font: `500 15px ${SANS}`,
+    color: ink.muted,
+    tracking: 3.5,
   });
-  const score = points(d.total);
-  const size = fit(ctx, score, 540, 132, px => `400 ${px}px ${MONO}`, -4);
-  text(ctx, score, left - 4, 290, { font: `400 ${size}px ${MONO}`, color: ROCK, tracking: -4 });
-  text(ctx, 'points beamed aboard', left, 350, {
-    font: `300 40px ${SERIF}`,
-    color: ROCK,
-    alpha: 0.75,
-  });
-
-  const rank = rankParts(d);
-  if (rank && d.rank !== null) {
-    const top = 400;
-    const boxW = 250;
-    ctx.strokeStyle = ROCK;
-    ctx.globalAlpha = 0.2;
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(left + 0.5, top + 0.5, boxW, 104);
-    ctx.strokeRect(left + boxW + 0.5, top + 0.5, boxW, 104);
-    ctx.globalAlpha = 1;
-    const label = { font: `400 16px ${MONO}`, color: ROCK, alpha: 0.55, tracking: 3 };
-    text(ctx, 'RANK', left + 22, top + 36, label);
-    text(ctx, 'STANDING', left + boxW + 22, top + 36, label);
-    const valueFont = `400 40px ${MONO}`;
-    text(ctx, rank[0], left + 22, top + 84, { font: valueFont, color: ROCK, tracking: -1 });
-    const rankW = textWidth(ctx, rank[0], valueFont, -1);
-    text(ctx, rank[1], left + 22 + rankW + 10, top + 84, {
-      font: `400 18px ${MONO}`,
-      color: ROCK,
-      alpha: 0.55,
+  if (!d.hideAddress) {
+    text(ctx, shortAddress(d.wallet), RIGHT, 104, {
+      font: `400 16px ${MONO}`,
+      color: ink.muted,
+      align: 'right',
+      tracking: 0.5,
     });
-    text(ctx, `Top ${topShare(d.rank, d.ranked)}`, left + boxW + 22, top + 84, {
-      font: valueFont,
-      color: AMBER,
+  }
+
+  const score = points(d.total);
+  let size = 196;
+  while (size > 60 && width(ctx, score, NUMBER_FONT(size), -size * 0.03) > maxW) size -= 4;
+  text(ctx, score, LEFT - size * 0.04, 290, {
+    font: NUMBER_FONT(size),
+    color: ink.fg,
+    tracking: -size * 0.03,
+  });
+  text(ctx, 'points earned on Fermi Trade', LEFT, 344, {
+    font: `400 26px ${SANS}`,
+    color: ink.muted,
+  });
+
+  if (d.rank !== null) {
+    const big = `300 54px ${SERIF}`;
+    const small = `400 20px ${SANS}`;
+    const rank = `#${d.rank.toLocaleString('en-US')}`;
+    const of = `of ${d.ranked.toLocaleString('en-US')}`;
+    text(ctx, rank, LEFT, 458, { font: big, color: ink.fg, tracking: -1 });
+    let x = LEFT + width(ctx, rank, big, -1) + 12;
+    text(ctx, of, x, 458, { font: small, color: ink.muted });
+    x += width(ctx, of, small) + 28;
+    ctx.fillStyle = ink.rule;
+    ctx.fillRect(x, 418, 1, 48);
+    x += 28;
+    text(ctx, `Top ${topShare(d.rank, d.ranked)}`, x, 458, {
+      font: big,
+      color: ink.accent,
       tracking: -1,
     });
   }
 
-  text(ctx, address(d) ?? 'ADDRESS CLASSIFIED', left, 636, {
-    font: `400 22px ${MONO}`,
-    color: ROCK,
-    alpha: 0.6,
-    tracking: 1,
+  // Footer: the mark and name, the link back on the right
+  const cell = 5;
+  const markY = 612 - MARK.length * cell + 1;
+  ctx.fillStyle = ink.fg;
+  MARK.forEach((row, j) => {
+    for (let i = 0; i < row.length; i++) {
+      if (row[i] === '#') ctx.fillRect(LEFT + i * cell, markY + j * cell, cell, cell);
+    }
   });
-  brand(ctx, CARD_W - left, 636, ROCK, true);
-}
-
-/** An arcade cabinet: the score as the high score, the wallet's alien as the player. */
-function drawArcade(ctx: Ctx, d: CardData) {
-  ctx.fillStyle = '#020a05';
-  ctx.fillRect(0, 0, CARD_W, CARD_H);
-
-  // Scoreboard along the top
-  const label = { font: `400 20px ${MONO}`, color: ROCK, alpha: 0.55, tracking: 4 };
-  const value = `400 30px ${MONO}`;
-  const rank = rankParts(d);
-  text(ctx, 'PLAYER 1', 72, 66, label);
-  text(ctx, address(d) ?? '????????', 72, 106, { font: value, color: LICHEN, tracking: 1 });
-  text(ctx, 'RANK', CARD_W / 2, 66, { ...label, align: 'center' });
-  text(ctx, rank ? `${rank[0]} ${rank[1]}` : '---', CARD_W / 2, 106, {
-    font: value,
-    color: ROCK,
-    align: 'center',
+  text(ctx, 'Fermi Trade', LEFT + MARK[0].length * cell + 14, 612, {
+    font: `500 24px ${SANS}`,
+    color: ink.fg,
   });
-  text(ctx, 'TOP', CARD_W - 72, 66, { ...label, align: 'right' });
-  text(ctx, d.rank !== null ? topShare(d.rank, d.ranked) : '---', CARD_W - 72, 106, {
-    font: value,
-    color: AMBER,
+  text(ctx, 'fermi.trade/points', RIGHT, 612, {
+    font: `400 20px ${SANS}`,
+    color: ink.muted,
     align: 'right',
   });
-
-  // The invading fleet
-  const cols = 11;
-  const step = 72;
-  const startX = (CARD_W - (cols - 1) * step - 44) / 2;
-  ctx.globalAlpha = 0.5;
-  for (let i = 0; i < cols; i++) {
-    sprite(ctx, SQUID, startX + i * step + 6, 150, 4, { '#': AMBER });
-    sprite(ctx, CRAB, startX + i * step, 200, 4, { '#': LICHEN });
-  }
-  ctx.globalAlpha = 1;
-
-  text(ctx, 'ALIEN POINTS', CARD_W / 2, 300, {
-    font: `400 22px ${MONO}`,
-    color: AMBER,
-    align: 'center',
-    tracking: 8,
-  });
-  const score = points(d.total);
-  const size = fit(ctx, score, 1000, 150, px => `400 ${px}px ${MONO}`, -4);
-  ctx.shadowColor = LICHEN;
-  ctx.shadowBlur = 32;
-  text(ctx, score, CARD_W / 2, 420, {
-    font: `400 ${size}px ${MONO}`,
-    color: ROCK,
-    align: 'center',
-    tracking: -4,
-  });
-  ctx.shadowBlur = 0;
-
-  // Bunkers, the player's shot and the player: the wallet's alien
-  for (const x of [130, 360, 752, 982]) sprite(ctx, BUNKER, x, 474, 8, { '#': FOREST });
-  ctx.fillStyle = AMBER;
-  ctx.fillRect(CARD_W / 2 - 2, 470, 4, 22);
-  walletAlien(ctx, d.wallet, CARD_W / 2 - 44, 512, 8);
-  ctx.fillStyle = LICHEN;
-  ctx.globalAlpha = 0.7;
-  ctx.fillRect(0, 592, CARD_W, 3);
-  ctx.globalAlpha = 1;
-
-  text(ctx, 'SEASON 1 · GAME ON', 72, 640, { ...label, font: `400 20px ${MONO}` });
-  brand(ctx, CARD_W - 72, 640, ROCK, true);
-
-  scanlines(ctx, 0.3);
-  const vignette = ctx.createRadialGradient(
-    CARD_W / 2,
-    CARD_H / 2,
-    260,
-    CARD_W / 2,
-    CARD_H / 2,
-    760
-  );
-  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, CARD_W, CARD_H);
 }
 
-/** A radar that just picked up the wallet's alien, with the readout beside it. */
-function drawSignal(ctx: Ctx, d: CardData) {
-  ctx.fillStyle = NIGHT;
+// ─── the cards ───────────────────────────────────────────────────────
+
+/** The landing's UFO scene, caught lifting this wallet's alien up the beam. */
+function abduction(ctx: Ctx, d: CardData, pal: ScenePalette, ink: Ink, bg: string) {
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, CARD_W, CARD_H);
-  const rand = seeded(`signal:${d.wallet}`);
 
-  const cx = 884;
-  const cy = 334;
-  const R = 262;
-  const sweep = -0.7; // the beam's leading edge, radians
-
-  // Sweep: bright at the leading edge, fading behind it.
-  if ('createConicGradient' in ctx) {
-    const span = 1.1;
-    const g = ctx.createConicGradient(sweep - span, cx, cy);
-    g.addColorStop(0, 'rgba(180, 220, 120, 0)');
-    g.addColorStop(span / (2 * Math.PI), 'rgba(180, 220, 120, 0.38)');
-    g.addColorStop(span / (2 * Math.PI) + 0.001, 'rgba(180, 220, 120, 0)');
-    g.addColorStop(1, 'rgba(180, 220, 120, 0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.strokeStyle = LICHEN;
-  ctx.lineWidth = 2;
-  for (const [r, alpha] of [
-    [R, 0.6],
-    [R * 0.75, 0.25],
-    [R * 0.5, 0.25],
-    [R * 0.25, 0.25],
-  ]) {
-    ctx.globalAlpha = alpha;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 0.18;
-  ctx.beginPath();
-  ctx.moveTo(cx - R, cy);
-  ctx.lineTo(cx + R, cy);
-  ctx.moveTo(cx, cy - R);
-  ctx.lineTo(cx, cy + R);
-  ctx.stroke();
-  ctx.globalAlpha = 0.5;
-  ctx.lineWidth = 1.5;
-  for (let deg = 0; deg < 360; deg += 5) {
-    const a = (deg * Math.PI) / 180;
-    const len = deg % 30 === 0 ? 14 : 6;
-    ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
-    ctx.lineTo(cx + Math.cos(a) * (R - len), cy + Math.sin(a) * (R - len));
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  // Stray blips
-  for (let i = 0; i < 6; i++) {
-    const a = rand() * Math.PI * 2;
-    const r = (0.2 + rand() * 0.7) * R;
-    const x = Math.round(cx + Math.cos(a) * r);
-    const y = Math.round(cy + Math.sin(a) * r);
-    ctx.fillStyle = LICHEN;
-    ctx.globalAlpha = 0.2;
-    ctx.fillRect(x - 6, y - 6, 12, 12);
-    ctx.globalAlpha = 0.8;
-    ctx.fillRect(x - 3, y - 3, 6, 6);
-  }
-  ctx.globalAlpha = 1;
-
-  // The contact: the wallet's alien just behind the sweep, locked in brackets.
-  const a = sweep - 0.32;
-  const tx = cx + Math.cos(a) * R * 0.52;
-  const ty = cy + Math.sin(a) * R * 0.52;
-  const cell = 8;
-  const aw = 11 * cell;
-  const ah = 8 * cell;
-  ctx.shadowColor = LICHEN;
-  ctx.shadowBlur = 20;
-  walletAlien(ctx, d.wallet, tx - aw / 2, ty - ah / 2, cell);
-  ctx.shadowBlur = 0;
-  const pad = 16;
-  const bx = tx - aw / 2 - pad;
-  const by = ty - ah / 2 - pad;
-  const bw = aw + pad * 2;
-  const bh = ah + pad * 2;
-  const arm = 16;
-  ctx.strokeStyle = AMBER;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  for (const [x, y, sx, sy] of [
-    [bx, by, 1, 1],
-    [bx + bw, by, -1, 1],
-    [bx, by + bh, 1, -1],
-    [bx + bw, by + bh, -1, -1],
-  ]) {
-    ctx.moveTo(x + sx * arm, y);
-    ctx.lineTo(x, y);
-    ctx.lineTo(x, y + sy * arm);
-  }
-  ctx.stroke();
-  text(ctx, `ID ${address(d) ?? 'UNKNOWN'}`, bx, by + bh + 26, {
-    font: `400 16px ${MONO}`,
-    color: AMBER,
-    tracking: 2,
-  });
-
-  // The readout
-  const left = 72;
-  ctx.fillStyle = AMBER;
-  ctx.fillRect(left, 82, 14, 14);
-  text(ctx, 'INCOMING TRANSMISSION', left + 30, 96, {
-    font: `400 22px ${MONO}`,
-    color: AMBER,
-    tracking: 5,
-  });
-  ctx.fillStyle = ROCK;
-  ctx.globalAlpha = 0.25;
-  for (let x = left; x < 560; x += 10) ctx.fillRect(x, 126, 5, 2);
-  ctx.globalAlpha = 1;
-
-  const row = (label: string, value: string, y: number, color = ROCK) => {
-    text(ctx, `> ${label}`, left, y, { font: `400 22px ${MONO}`, color: ROCK, alpha: 0.5 });
-    text(ctx, value, left + 200, y, { font: `400 22px ${MONO}`, color });
+  const rand = seeded(`abduction:${d.wallet}`);
+  const own = walletSprite(d.wallet);
+  const ground = ART.y1 - 2;
+  const ufoX = 178;
+  const ufoY = 24;
+  // Partway up the beam, eased as in the landing. The scene fades aliens by
+  // how far they've risen; this one is the subject, so it barely fades.
+  const rise = 0.42;
+  const e = rise * rise * (3 - 2 * rise);
+  const from = ground - own.rows.length;
+  const lifted: Alien = {
+    ...walker(own.sprite, ufoX - 5.5, ground, own.amber),
+    state: 'lift',
+    lift: 0.08,
+    y: from + (ufoY + UFO_H - from) * e,
   };
-  row('ORIGIN', address(d) ?? '[REDACTED]', 178);
 
-  text(ctx, 'ALIEN POINTS DETECTED', left, 252, {
-    font: `400 18px ${MONO}`,
-    color: LICHEN,
-    tracking: 5,
-  });
-  const score = points(d.total);
-  const size = fit(ctx, score, 500, 112, px => `400 ${px}px ${MONO}`, -3);
-  text(ctx, score, left - 3, 352, { font: `400 ${size}px ${MONO}`, color: ROCK, tracking: -3 });
-
-  const rank = rankParts(d);
-  if (rank && d.rank !== null) {
-    row('RANK', `${rank[0]} ${rank[1]}`, 424);
-    row('STANDING', `TOP ${topShare(d.rank, d.ranked)}`, 464, AMBER);
-  }
-
-  brand(ctx, left, 620, ROCK);
-  scanlines(ctx, 0.18);
-}
-
-/** A specimen file on paper: the alien under glass, the points as the finding. */
-function drawDossier(ctx: Ctx, d: CardData) {
-  ctx.fillStyle = ROCK;
-  ctx.fillRect(0, 0, CARD_W, CARD_H);
-  const rand = seeded(`dossier:${d.wallet}`);
-
-  // Graph paper and a little grain
-  ctx.fillStyle = INK;
-  ctx.globalAlpha = 0.06;
-  for (let x = 0; x < CARD_W; x += 24) ctx.fillRect(x, 0, 1, CARD_H);
-  for (let y = 0; y < CARD_H; y += 24) ctx.fillRect(0, y, CARD_W, 1);
-  ctx.globalAlpha = 0.05;
-  for (let i = 0; i < 2400; i++) ctx.fillRect(rand() * CARD_W, rand() * CARD_H, 2, 2);
-  ctx.globalAlpha = 1;
-
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(32.5, 32.5, CARD_W - 65, CARD_H - 65);
-
-  const fileNo =
-    d.rank !== null
-      ? String(d.rank).padStart(5, '0')
-      : String(Math.floor(rand() * 1e5)).padStart(5, '0');
-  const kicker = { font: `400 16px ${MONO}`, color: INK, tracking: 5 };
-  text(ctx, 'FERMI RESEARCH DIVISION', 56, 72, kicker);
-  text(ctx, `SPECIMEN FILE No. ${fileNo}`, CARD_W - 56, 72, { ...kicker, align: 'right' });
-  ctx.fillStyle = INK;
-  ctx.fillRect(32, 92, CARD_W - 64, 1.5);
-
-  // The specimen, under glass, with a ruler on two sides
-  const box = { x: 64, y: 124, w: 420, h: 420 };
-  ctx.fillStyle = FOREST;
-  ctx.globalAlpha = 0.07;
-  ctx.fillRect(box.x, box.y, box.w, box.h);
-  ctx.globalAlpha = 0.6;
-  ctx.strokeStyle = INK;
-  ctx.setLineDash([6, 6]);
-  ctx.strokeRect(box.x + 0.5, box.y + 0.5, box.w, box.h);
-  ctx.setLineDash([]);
-  ctx.fillStyle = INK;
-  for (let i = 0; i <= box.w; i += 20) {
-    const len = i % 100 === 0 ? 12 : 6;
-    ctx.fillRect(box.x + i, box.y + box.h - len, 1.5, len);
-    ctx.fillRect(box.x, box.y + i, len, 1.5);
-  }
-  ctx.globalAlpha = 1;
-  const cell = 32;
-  walletAlien(
-    ctx,
-    d.wallet,
-    box.x + (box.w - 11 * cell) / 2,
-    box.y + (box.h - 8 * cell) / 2,
-    cell,
-    FOREST
+  const grid = cells();
+  renderAlienScene(
+    grid.px,
+    COLS,
+    ROWS,
+    {
+      t: 132,
+      ufoX,
+      ufoY,
+      flash: 0,
+      ground,
+      stars: stars(rand, 46, ground - 12),
+      aliens: [walker(CRAB, 132, ground, !own.amber), walker(SQUID, 212, ground, false), lifted],
+    },
+    pal
   );
-  text(ctx, 'FIG. 1 — SPECIMEN, SCALE 32:1', box.x, 576, {
-    font: `400 14px ${MONO}`,
-    color: INK,
-    alpha: 0.65,
-    tracking: 2,
-  });
+  grid.clip();
+  grid.draw(ctx);
 
-  // The findings
-  const left = 528;
-  const right = CARD_W - 64;
-  const label = { font: `400 15px ${MONO}`, color: INK, alpha: 0.6, tracking: 4 };
-  text(ctx, 'SUBJECT', left, 150, label);
-  const addr = address(d);
-  if (addr) {
-    text(ctx, addr, left, 192, { font: `400 30px ${MONO}`, color: INK, tracking: 1 });
-  } else {
-    ctx.fillStyle = INK;
-    ctx.fillRect(left, 166, 190, 32);
-    ctx.fillRect(left + 202, 166, 96, 32);
-  }
-
-  text(ctx, 'ALIEN POINTS RECOVERED', left, 254, label);
-  const score = points(d.total);
-  const size = fit(ctx, score, right - left, 132, px => `300 ${px}px ${SERIF}`, -3);
-  text(ctx, score, left - 4, 360, { font: `300 ${size}px ${SERIF}`, color: INK, tracking: -3 });
-
-  const rank = rankParts(d);
-  const rows: [string, string][] = [
-    ['RANK', rank ? `${rank[0]} ${rank[1]}` : 'Pending'],
-    [
-      'CLASSIFICATION',
-      d.rank !== null ? `Top ${topShare(d.rank, d.ranked)} of wallets` : 'Unranked',
-    ],
-  ];
-  ctx.fillStyle = INK;
-  ctx.globalAlpha = 0.35;
-  ctx.fillRect(left, 404, right - left, 1);
-  ctx.globalAlpha = 1;
-  rows.forEach(([k, v], i) => {
-    const y = 444 + i * 52;
-    text(ctx, k, left, y, label);
-    text(ctx, v, right, y, { font: `400 24px ${MONO}`, color: INK, align: 'right' });
-    ctx.fillStyle = INK;
-    ctx.globalAlpha = 0.35;
-    ctx.fillRect(left, y + 18, right - left, 1);
-    ctx.globalAlpha = 1;
-  });
-
-  brand(ctx, 64, 630, INK);
-  stamp(ctx, d.hideAddress ? 'CLASSIFIED' : 'CONFIRMED ALIEN', 880, 592, rand);
+  // The scene's dotted ground stands in for the footer rule.
+  sheet(ctx, ink, false);
+  copy(ctx, d, ink);
 }
 
-/** A rubber stamp: double border, worn ink, set at an angle. */
-function stamp(ctx: Ctx, label: string, cx: number, cy: number, rand: () => number) {
-  const font = `800 36px ${SANS}`;
-  const w = Math.ceil(textWidth(ctx, label, font, 6)) + 64;
-  const h = 84;
-  const off = document.createElement('canvas');
-  off.width = w;
-  off.height = h;
-  const s = off.getContext('2d');
-  if (!s) return;
-  s.strokeStyle = STAMP;
-  s.lineWidth = 5;
-  s.strokeRect(4, 4, w - 8, h - 8);
-  s.lineWidth = 2;
-  s.strokeRect(14, 14, w - 28, h - 28);
-  text(s, label, w / 2, h / 2 + 13, { font, color: STAMP, align: 'center', tracking: 6 });
-  // Wear: knock specks out of the ink.
-  s.globalCompositeOperation = 'destination-out';
-  for (let i = 0; i < 700; i++) {
-    const size = 1 + rand() * 3;
-    s.globalAlpha = 0.4 + rand() * 0.6;
-    s.fillRect(rand() * w, rand() * h, size, size);
+/** The wallet's alien enlarged into lit, dithered tiles, like the footer's mark. */
+function specimen(ctx: Ctx, d: CardData) {
+  ctx.fillStyle = NIGHT_BG;
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
+
+  const rand = seeded(`specimen:${d.wallet}`);
+  const own = walletSprite(d.wallet);
+  const tile = 8; // cells per sprite pixel
+  const ox = 132;
+  const oy = 30;
+  const grid = cells();
+
+  // A soft pool of light behind the specimen
+  const cx = ox + 44;
+  const cy = oy + 34;
+  grid.shade(
+    cx - 70,
+    cy - 46,
+    cx + 70,
+    cy + 52,
+    NIGHT.lichen,
+    (x, y) => 0.2 * smoothstep(1, 0, Math.hypot((x - cx) / 70, (y - cy) / 46))
+  );
+
+  // The sprite's grid, faint, then its lit tiles
+  const body = own.amber ? NIGHT.amber : NIGHT.lichen;
+  const crown = own.amber ? NIGHT.lichen : NIGHT.amber;
+  own.rows.forEach((row, j) => {
+    for (let i = 0; i < row.length; i++) {
+      const x0 = ox + i * tile;
+      const y0 = oy + j * tile;
+      if (row[i] !== '#') {
+        grid.shade(x0, y0, x0 + tile - 1, y0 + tile - 1, NIGHT.lichen, () => 0.07);
+        continue;
+      }
+      // Lit from the top right, with a bevel: bright top edge, darker base
+      const base = 0.36 + 0.26 * (1 - j / 7) + 0.12 * (i / 10) + (rand() - 0.5) * 0.12;
+      grid.shade(x0, y0, x0 + tile - 1, y0 + tile - 1, j === 0 ? crown : body, (x, y) => {
+        if (y === y0) return base + 0.3;
+        if (x === x0 + tile - 2) return base + 0.08;
+        if (y === y0 + tile - 2) return base - 0.14;
+        return base;
+      });
+    }
+  });
+  grid.clip();
+
+  // A faint 40 px grid behind the art, like the landing's hero surfaces
+  ctx.fillStyle = 'rgba(248, 247, 231, 0.035)';
+  for (let x = 640; x < CARD_W - FRAME; x += 40) ctx.fillRect(x, FRAME, 1, FOOT - FRAME);
+  for (let y = FRAME + 40; y < FOOT; y += 40) ctx.fillRect(640, y, CARD_W - FRAME - 640, 1);
+  grid.draw(ctx);
+
+  const caption = { font: `400 14px ${MONO}`, color: NIGHT_INK.muted, tracking: 2 };
+  const captionY = (oy + 64) * CELL + 40;
+  text(ctx, 'FIG. 01 — SPECIMEN', ox * CELL, captionY, caption);
+  text(ctx, '11 × 8', (ox + 88) * CELL - 8, captionY, { ...caption, align: 'right' });
+
+  sheet(ctx, NIGHT_INK);
+  copy(ctx, d, NIGHT_INK);
+}
+
+/** The alien's homeworld rising over the footer, the alien standing on top. */
+function homeworld(ctx: Ctx, d: CardData) {
+  ctx.fillStyle = NIGHT_BG;
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
+
+  const rand = seeded(`homeworld:${d.wallet}`);
+  const own = walletSprite(d.wallet);
+  const grid = cells();
+  const P = { x: 190, y: 196, r: 128 };
+  // Light from the upper right, away from the words
+  const L = [0.62, -0.62, 0.48];
+  const lambert = (dx: number, dy: number, z: number) =>
+    Math.max(0, dx * L[0] + dy * L[1] + z * L[2]);
+
+  // Craters on the visible cap: darker dishes with a lit far rim
+  const craters = Array.from({ length: 9 }, () => {
+    const a = -Math.PI / 2 + (rand() - 0.5) * 2.2;
+    const r = P.r * (0.25 + rand() * 0.7);
+    return { x: P.x + Math.cos(a) * r, y: P.y + Math.sin(a) * r, r: 3 + rand() * 9 };
+  });
+
+  // Stars first, so the planet covers them
+  for (const s of stars(rand, 52, ART.y1)) {
+    const tone = NIGHT.star[ditherLevel(0.35 + 0.65 * rand(), NIGHT.star.length - 1, s.x, s.y)];
+    if (tone) grid.px[s.y * COLS + s.x] = tone;
   }
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(-0.14);
-  ctx.globalAlpha = 0.85;
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(off, -w / 2, -h / 2);
-  ctx.restore();
+
+  grid.shade(P.x - P.r - 8, P.y - P.r - 8, P.x + P.r + 8, ART.y1, NIGHT.lichen, (x, y) => {
+    const dx = (x - P.x) / P.r;
+    const dy = (y - P.y) / P.r;
+    const d2 = dx * dx + dy * dy;
+    if (d2 > 1) {
+      // Atmosphere: a thin glow, strongest on the lit side
+      const out = (Math.sqrt(d2) - 1) * P.r;
+      return out < 7 ? (0.1 + 0.3 * lambert(dx, dy, 0)) * (1 - out / 7) : 0;
+    }
+    // Capped below the brightest tone, so the planet stays a backdrop
+    let v = 0.05 + 0.6 * lambert(dx, dy, Math.sqrt(1 - d2)) ** 1.4;
+    for (const c of craters) {
+      const k = Math.hypot(x - c.x, y - c.y) / c.r;
+      if (k < 1) v *= 0.7 + 0.25 * k;
+      else if (k < 1.25 && x > c.x && y < c.y) v += 0.08;
+    }
+    return v;
+  });
+
+  // A small amber moon
+  const M = { x: 150, y: 26, r: 7 };
+  grid.shade(M.x - M.r, M.y - M.r, M.x + M.r + 1, M.y + M.r + 1, NIGHT.amber, (x, y) => {
+    const dx = (x - M.x) / M.r;
+    const dy = (y - M.y) / M.r;
+    const d2 = dx * dx + dy * dy;
+    return d2 > 1 ? 0 : 0.15 + 0.85 * lambert(dx, dy, Math.sqrt(1 - d2));
+  });
+
+  // The alien on the summit
+  const top = P.y - P.r - own.rows.length;
+  const ax = P.x - 5;
+  const tone = own.amber ? NIGHT.amber[4] : NIGHT.lichen[4];
+  own.rows.forEach((row, j) => {
+    for (let i = 0; i < row.length; i++) {
+      if (row[i] === '#') grid.px[(top + j) * COLS + ax + i] = tone;
+    }
+  });
+  grid.clip();
+  grid.draw(ctx);
+
+  sheet(ctx, NIGHT_INK);
+  copy(ctx, d, NIGHT_INK);
 }
 
 export const CARDS = [
-  { id: 'beam', name: 'Beamed up', draw: drawBeam },
-  { id: 'arcade', name: 'Invaders', draw: drawArcade },
-  { id: 'signal', name: 'Transmission', draw: drawSignal },
-  { id: 'dossier', name: 'Specimen file', draw: drawDossier },
+  {
+    id: 'abduction',
+    name: 'Abduction',
+    draw: (ctx: Ctx, d: CardData) => abduction(ctx, d, NIGHT, NIGHT_INK, NIGHT_BG),
+  },
+  { id: 'specimen', name: 'Specimen', draw: specimen },
+  { id: 'homeworld', name: 'Homeworld', draw: homeworld },
+  {
+    id: 'print',
+    name: 'Field print',
+    draw: (ctx: Ctx, d: CardData) => abduction(ctx, d, PAPER, PAPER_INK, PAPER_BG),
+  },
 ] as const;
 
 export type CardId = (typeof CARDS)[number]['id'];
@@ -712,8 +493,8 @@ let fonts: Promise<unknown> | null = null;
 /** The page's fonts, which canvas text only uses once they've loaded. */
 function loadFonts() {
   fonts ??= Promise.all(
-    [`400 40px "Paper Mono"`, '300 40px Newsreader', '800 40px Archivo'].map(f =>
-      document.fonts.load(f)
+    ['300 40px Newsreader', '400 40px Archivo', '500 40px Archivo', '400 40px "Paper Mono"'].map(
+      f => document.fonts.load(f)
     )
   ).catch(() => undefined);
   return fonts;

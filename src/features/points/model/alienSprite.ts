@@ -24,7 +24,11 @@ function seedBytes(wallet: string): Uint8Array {
   return Uint8Array.from(wallet, c => c.charCodeAt(0) & 255);
 }
 
-export function alienSprite(wallet: string): { cells: boolean[][]; color: string } {
+export function alienSprite(wallet: string): {
+  cells: boolean[][];
+  color: string;
+  amber: boolean;
+} {
   const bytes = seedBytes(wallet);
   const bit = (i: number) => (bytes[(i >> 3) % bytes.length] >> (i & 7)) & 1;
   const on = (b: number) => bit(b) === 1;
@@ -53,5 +57,6 @@ export function alienSprite(wallet: string): { cells: boolean[][]; color: string
   const cells = Array.from({ length: H }, (_, y) =>
     Array.from({ length: W }, (_, x) => cell(y, x < HALF ? x : W - 1 - x))
   );
-  return { cells, color: bytes[bytes.length - 1] % 3 === 0 ? AMBER : LICHEN };
+  const amber = bytes[bytes.length - 1] % 3 === 0;
+  return { cells, color: amber ? AMBER : LICHEN, amber };
 }
