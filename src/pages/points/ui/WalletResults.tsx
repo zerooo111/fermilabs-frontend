@@ -27,6 +27,7 @@ import {
   shortAddress,
   topShare,
   useAllEntries,
+  usd,
   usePointsAccount,
   usePointsActivity,
   usePointsEpochs,
@@ -152,6 +153,8 @@ function Results({ wallet }: { wallet: string }) {
   // The total counts every point that hasn't expired, so the chart does too.
   const counted = entries.filter(e => e.claim_status !== 'expired');
   const unclaimed = a.claims.claimable + a.claims.granted;
+  // An MEV victim's bonus entry carries what the wallet lost to sandwiches.
+  const mev = entries.find(e => typeof e.details.loss_usd === 'number')?.details;
   const startMs = Math.min(...(epochs ?? []).map(e => e.starts_at_ms), Date.now());
 
   // The wallet's alien beams in beside the score; key replays it per wallet.
@@ -243,6 +246,23 @@ function Results({ wallet }: { wallet: string }) {
                   </span>
                 </dd>
               </div>
+            </dl>
+          )}
+
+          {mev && (
+            <dl className="border border-rock/15 px-4 py-3">
+              <dt className="text-sm text-rock/55">Lost to MEV</dt>
+              <dd className="mt-1 text-sm text-rock/55">
+                <span className="mr-1.5 font-mono text-3xl leading-none tracking-tight text-danger tabular-nums">
+                  {usd(mev.loss_usd as number)}
+                </span>
+                {typeof mev.sandwiched_txs === 'number' && (
+                  <>
+                    in <span className="font-mono">{points(mev.sandwiched_txs)}</span> sandwiched
+                    trades
+                  </>
+                )}
+              </dd>
             </dl>
           )}
 
