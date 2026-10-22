@@ -1,7 +1,7 @@
 import { appHref } from '@/shared/lib/domains';
 
 export const LINKS = {
-  DOCS: 'https://github.com/Fermi-DEX/fermi-trade-documentation',
+  DOCS: 'https://docs.fermi.trade/',
   /** The trading app: app.fermi.trade from the landing domain, same host elsewhere. */
   APP: appHref('/perps'),
   WHITEPAPER: '/research.pdf',
