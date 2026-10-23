@@ -1,0 +1,136 @@
+/**
+ * Values the page derives from one data API response: totals, the reference
+ * share price, epoch timing, and which deposit and withdrawal routes the
+ * wallet has (frontend-guide.md B.2 rules 13 and 19, B.3).
+ */
+import type { FlpEnvelope, FlpPortfolio, FlpTicket, FlpUser, Unknown } from './api';
+import { fixedToNative, sharePrice } from './format';
+
+export type DepositRoute = 'pre-deposit' | 'queued' | 'direct';
+export type WithdrawRoute = 'refund' | 'instant' | 'queued' | 'redeem';
+
+export function portfolioOf(env: FlpEnvelope): FlpPortfolio | null {
+  const p = env.data.portfolio;
+  return p && 'positions' in p ? p : null;
+}
+export function portfolioUnavailable(env: FlpEnvelope): string | null {
+  const p = env.data.portfolio;
+  if (!p) return 'Portfolio not available';
+  return 'positions' in p ? null : (p as Unknown).reason;
+}
+
+export function vaultView(env: FlpEnvelope) {
+  const d = env.data;
+  const seg = d.valuation.segregated;
+  const nav = d.valuation.currentNav.value ? fixedToNative(d.valuation.currentNav.value) : null;
+  const escrow = BigInt(seg.depositEscrowBalance);
+  const supply = BigInt(d.shares.pricingSupply);
+  const last = d.valuation.lastProgramNav;
+  const lastNavMid = BigInt(last.navMid);
+  const params = d.configuration.params;
+  return {
+    mode: d.lifecycle.mode,
+    quoteDecimals: d.units.quoteDecimals,
+    shareDecimals: d.units.shareDecimals,
+    /** Indicative trading NAV; null when the portfolio read failed. */
+    nav,
+    escrow,
+    /** Trading NAV plus the deposit escrow (public principal and queued deposits). */
+    tvl: nav === null ? null : nav + escrow,
+    tvlCap: BigInt(params.tvlCap),
+    supply,
+    /** Quote per share at the last keeper close, scaled by 1e6. */
+    price: sharePrice(lastNavMid, supply),
+    priceSlot: last.slot,
+    priceStale: last.stale,
+    minDeposit: BigInt(params.minDeposit),
+    minWithdrawShares: BigInt(params.minWithdrawShares),
+    params,
+    epoch: {
+      current: BigInt(d.epoch.current),
+      requestTarget: BigInt(d.epoch.requestTarget),
+      scheduledEnd: Number(d.epoch.scheduledEnd),
+      cutoffAt: Number(d.epoch.cutoffAt),
+      duration: params.epochDurationS,
+    },
+    unsettledPnl: d.pnl.unsettledTradingQuoteNative
+      ? fixedToNative(d.pnl.unsettledTradingQuoteNative)
+      : null,
+  };
+}
+export type VaultView = ReturnType<typeof vaultView>;
+
+/** Scheduled end of `epoch` (a past, current or future one). */
+export function epochEnd(v: VaultView, epoch: bigint): number {
+  return v.epoch.scheduledEnd + Number(epoch - v.epoch.current) * v.epoch.duration;
+}
+
+/** Shares are worth this much USDC at the last-close reference price. */
+export function sharesValue(v: VaultView, shares: bigint): bigint {
+  return (shares * v.price) / 10n ** BigInt(v.shareDecimals);
+}
+
+function statusBlocks(env: FlpEnvelope) {
+  const l = env.data.lifecycle;
+  const halted = l.depositsPaused || l.breaker || l.mode === 'unwind' || l.mode === 'closed';
+  return {
+    publicDeposits: halted || l.publicDepositsPaused,
+    directDeposits: halted,
+    withdrawals: l.withdrawalsPaused,
+  };
+}
+
+export interface RouteState<R> {
+  route: R;
+  /** Why the route is closed now, if it is. */
+  closed: string | null;
+}
+
+export function depositRoutes(env: FlpEnvelope, user: FlpUser | null | undefined) {
+  const mode = env.data.lifecycle.mode;
+  const blocks = statusBlocks(env);
+  const publicClosed =
+    (user?.availability.publicDepositsBlockedByStatus ?? blocks.publicDeposits)
+      ? 'Public deposits are closed'
+      : null;
+  const routes: RouteState<DepositRoute>[] = [];
+  if (mode === 'pre-deposit') routes.push({ route: 'pre-deposit', closed: publicClosed });
+  if (mode === 'live') routes.push({ route: 'queued', closed: publicClosed });
+  if (user?.depositApproved && (mode === 'pre-deposit' || mode === 'live')) {
+    routes.push({
+      route: 'direct',
+      closed: user.availability.depositsBlockedByStatus ? 'Direct deposits are paused' : null,
+    });
+  }
+  return routes;
+}
+
+export function withdrawRoutes(env: FlpEnvelope, user: FlpUser | null | undefined, shares: bigint) {
+  const mode = env.data.lifecycle.mode;
+  const paused =
+    (user?.availability.withdrawalsBlockedByStatus ?? statusBlocks(env).withdrawals)
+      ? 'Withdrawals are paused'
+      : null;
+  const routes: RouteState<WithdrawRoute>[] = [];
+  if (mode === 'pre-deposit') {
+    // Refunds of public principal work through a trading pause.
+    routes.push({ route: 'refund', closed: null });
+    if (shares > 0n && user?.depositApproved) {
+      const deferred = env.data.queues.deferredHead !== null;
+      routes.push({
+        route: 'instant',
+        closed: paused ?? (deferred ? 'An older withdrawal batch is funded first' : null),
+      });
+    }
+    if (shares > 0n) routes.push({ route: 'queued', closed: paused });
+  }
+  if (mode === 'live') routes.push({ route: 'queued', closed: paused });
+  if (mode === 'closed') routes.push({ route: 'redeem', closed: null });
+  return routes;
+}
+
+/** A new request conflicts with a ticket left for another epoch (6008). */
+export function ticketBlocks(ticket: FlpTicket | undefined, target: bigint): boolean {
+  if (!ticket || ticket.state === 'none') return false;
+  return !(ticket.state === 'queued' && BigInt(ticket.ticket.epoch) === target);
+}

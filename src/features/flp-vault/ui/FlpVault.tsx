@@ -1,48 +1,44 @@
 /**
- * FLP vault: live phase and totals, the wallet's position, and the
- * pre-deposit deposit/withdraw form. Live-phase tickets (request → epoch
- * close → claim) aren't supported here yet, so actions only open in
- * pre-deposit, where both directions settle immediately at 1:1.
+ * FLP vault: phase, totals, share price and epoch timing; the deposit /
+ * withdraw form and the wallet's open requests; the vault's positions,
+ * orders and health; and its accounting, parameters and addresses. Reads
+ * come from the FLP data API, transactions go straight to the FLP cluster.
  */
-import { useState, type ReactNode } from 'react';
-import { ExternalLink } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useState } from 'react';
 
 import { cn } from '@/lib/utils';
-import { Button } from '@/shared/ui/button';
-import { Input } from '@/shared/ui/input';
-import { Segmented } from '@/shared/ui/segmented';
-import { shortenAddress } from '@/shared/lib/solana/helpers';
 import { ConnectWallet } from '@/features/wallet-connect';
+import { Button } from '@/shared/ui/button';
 
-import { FLP_CLUSTER, FLP_PROGRAM_ID, FLP_VAULT, flpExplorerTxUrl } from '../model/config';
+import type { FlpEnvelope } from '../model/api';
+import { FLP_CLUSTER, type FlpVaultConfig } from '../model/config';
 import {
   describeFlpError,
+  formatDuration,
+  formatPrice,
   formatUnits,
   MODE_LABEL,
-  parseUnits,
-  toInputString,
 } from '../model/format';
-import { FlpConfirmationTimeout, useFlpActions, type FlpAction } from '../model/useFlpActions';
-import { useFlpVault, type FlpUserView, type FlpVaultView } from '../model/useFlpVault';
+import { useFlpVault } from '../model/useFlpVault';
+import { sharesValue, vaultView } from '../model/view';
+import { ActionForm } from './ActionForm';
+import { DevnetTools, PositionPanel, VaultDetails } from './Panels';
+import { Portfolio } from './Portfolio';
+import { Requests } from './Requests';
+import { Bone, Dash, NotAvailable, Panel, Tile } from './primitives';
+import { useNow } from '../model/useNow';
 
-const PHASE_LABEL = {
-  idle: '',
-  signing: 'Approve in wallet…',
-  sending: 'Sending…',
-  confirming: 'Confirming…',
-} as const;
+export function FlpVault({ config }: { config: FlpVaultConfig }) {
+  const vault = config.address;
+  const { data, envelope, user, userLoading, wallet, owner } = useFlpVault(vault);
 
-export function FlpVault() {
-  const { vault, user, owner } = useFlpVault();
-
-  if (vault.isError) {
+  if (data.isError && !envelope) {
     return (
       <Panel>
         <div className="flex flex-col items-start gap-3 px-4 py-6">
           <p className="text-sm text-danger">Couldn&apos;t read the vault on {FLP_CLUSTER}.</p>
-          <p className="font-mono text-[11px] text-rock/45">{describeFlpError(vault.error)}</p>
-          <Button variant="outline" size="sm" onClick={() => vault.refetch()}>
+          <p className="font-mono text-[11px] text-rock/45">{describeFlpError(data.error)}</p>
+          <Button variant="outline" size="sm" onClick={() => data.refetch()}>
             Retry
           </Button>
         </div>
@@ -50,303 +46,191 @@ export function FlpVault() {
     );
   }
 
-  const v = vault.data;
   return (
     <div className="space-y-5">
-      <Tiles vault={v} user={user.data} owner={owner} userLoading={!!owner && user.isPending} />
-      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]">
-        <Panel>
-          {!v ? (
-            <div className="space-y-3 p-4">
-              <Bone className="h-8 w-48" />
-              <Bone className="h-9 w-full" />
-              <Bone className="h-9 w-full" />
-            </div>
-          ) : v.mode !== 'pre-deposit' ? (
-            <p className="px-4 py-6 text-sm text-rock/60">
-              The vault is {MODE_LABEL[v.mode].toLowerCase()}. This page supports pre-deposits and
-              pre-withdrawals only.
-            </p>
-          ) : !owner ? (
-            <div className="flex flex-col items-start gap-3 px-4 py-6">
-              <p className="text-sm text-rock/60">Connect a wallet to deposit.</p>
-              <ConnectWallet />
-            </div>
-          ) : (
-            <ActionForm vault={v} user={user.data} />
-          )}
-        </Panel>
-        <Details vault={v} />
-      </div>
-    </div>
-  );
-}
-
-/** Pre-deposit deposit/withdraw form; also used by the vault page's dialog. */
-export function ActionForm({
-  vault,
-  user,
-  initialAction = 'deposit',
-  onDone,
-}: {
-  vault: FlpVaultView;
-  user?: FlpUserView;
-  initialAction?: FlpAction;
-  /** Called after a confirmed deposit or withdrawal. */
-  onDone?: () => void;
-}) {
-  const [action, setAction] = useState<FlpAction>(initialAction);
-  const [input, setInput] = useState('');
-  const tx = useFlpActions();
-
-  const deposit = action === 'deposit';
-  const decimals = deposit ? vault.quoteDecimals : vault.shareDecimals;
-  const unit = deposit ? 'USDC' : 'FLP';
-  const available = deposit ? user?.quoteBalance : user?.shareBalance;
-  const open = deposit ? vault.depositsOpen : vault.withdrawalsOpen;
-  const amount = parseUnits(input, decimals);
-
-  let problem: string | null = null;
-  if (!open) problem = deposit ? 'Deposits are paused' : 'Withdrawals are paused';
-  else if (input && amount === null) problem = 'Enter a valid amount';
-  else if (amount !== null && available !== undefined && amount > available)
-    problem = `Exceeds your ${unit} balance`;
-  else if (deposit && amount !== null && amount > 0n && amount < vault.minDeposit)
-    problem = `Minimum deposit is ${formatUnits(vault.minDeposit, decimals)} USDC`;
-
-  const canSubmit = !problem && !!amount && amount > 0n && !!user && !tx.isPending;
-
-  const submit = () => {
-    if (!canSubmit || !amount) return;
-    tx.mutate(
-      { action, amount },
-      {
-        onSuccess: ({ signature }) => {
-          setInput('');
-          onDone?.();
-          toast.success(
-            `${deposit ? 'Deposited' : 'Withdrew'} ${formatUnits(amount, decimals)} ${unit}`,
-            { action: { label: 'View', onClick: () => window.open(flpExplorerTxUrl(signature)) } }
-          );
-        },
-        onError: err => {
-          const sig = err instanceof FlpConfirmationTimeout ? err.signature : null;
-          toast.error(describeFlpError(err), {
-            action: sig
-              ? { label: 'View', onClick: () => window.open(flpExplorerTxUrl(sig)) }
-              : undefined,
-          });
-        },
-      }
-    );
-  };
-
-  return (
-    <form
-      className="flex flex-col gap-4 p-4"
-      onSubmit={e => {
-        e.preventDefault();
-        submit();
-      }}
-    >
-      <Segmented
-        aria-label="Action"
-        value={action}
-        onChange={a => {
-          setAction(a);
-          setInput('');
-        }}
-        options={[
-          { value: 'deposit', label: 'Deposit' },
-          { value: 'withdraw', label: 'Withdraw' },
-        ]}
-        className="w-max"
+      <Tiles
+        envelope={envelope}
+        shares={user ? BigInt(user.investedSharesIncludingOwedAndUnfunded) : null}
+        owner={owner}
+        userLoading={userLoading}
       />
+      {envelope && <Freshness envelope={envelope} />}
+      {envelope && <StatusNotice envelope={envelope} />}
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-baseline justify-between gap-3">
-          <Eyebrow>Amount</Eyebrow>
-          <span className="font-mono text-[11px] text-rock/45 tabular-nums">
-            {available === undefined ? '—' : formatUnits(available, decimals)} {unit} available
-          </span>
+      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]">
+        <div className="space-y-5">
+          <Panel>
+            {!envelope ? (
+              <div className="space-y-3 p-4">
+                <Bone className="h-8 w-48" />
+                <Bone className="h-9 w-full" />
+                <Bone className="h-9 w-full" />
+                <SlowNote />
+              </div>
+            ) : !owner ? (
+              <div className="flex flex-col items-start gap-3 px-4 py-6">
+                <p className="text-sm text-rock/60">Connect a wallet to deposit.</p>
+                <ConnectWallet />
+              </div>
+            ) : (
+              <ActionForm
+                key={vault.toBase58()}
+                vault={vault}
+                envelope={envelope}
+                user={userLoading ? undefined : user}
+                wallet={wallet.data}
+              />
+            )}
+          </Panel>
+          {envelope && user && <Requests vault={vault} envelope={envelope} user={user} />}
         </div>
-        <div className="flex">
-          <Input
-            inputMode="decimal"
-            autoComplete="off"
-            placeholder="0.00"
-            value={input}
-            onChange={e => setInput(e.target.value.replace(',', '.'))}
-            aria-invalid={!!problem}
-            className="font-mono tabular-nums"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            className="border-l-0"
-            disabled={!available}
-            onClick={() => available !== undefined && setInput(toInputString(available, decimals))}
-          >
-            Max
-          </Button>
+        <div className="space-y-5">
+          {owner && (
+            <PositionPanel
+              envelope={envelope}
+              user={user}
+              userLoading={userLoading}
+              wallet={wallet.data}
+            />
+          )}
+          {owner && <DevnetTools config={config} owner={owner} user={user} envelope={envelope} />}
         </div>
-        <p className={cn('min-h-4 text-xs', problem ? 'text-danger' : 'text-rock/45')}>
-          {problem ??
-            (deposit
-              ? 'Settles now: 1 FLP per USDC, no fees. Funds stay in escrow until launch.'
-              : 'Settles now at 1 USDC per FLP while the vault is in pre-deposit.')}
-        </p>
       </div>
 
-      {deposit && user && user.quoteBalance === 0n && (
-        <p className="border border-outline bg-card px-3 py-2 text-xs text-rock/60">
-          This wallet has no test USDC on {FLP_CLUSTER}. It&apos;s a synthetic mint, and
-          there&apos;s no public faucet yet, so ask the team to mint some. You also need a little
-          devnet SOL for fees.
-        </p>
-      )}
-
-      <Button type="submit" disabled={!canSubmit}>
-        {tx.isPending ? PHASE_LABEL[tx.phase] || 'Preparing…' : deposit ? 'Deposit' : 'Withdraw'}
-      </Button>
-    </form>
+      <Portfolio vault={vault} envelope={envelope} />
+      <VaultDetails vault={vault} envelope={envelope} />
+    </div>
   );
 }
 
 function Tiles({
-  vault,
-  user,
+  envelope,
+  shares,
   owner,
   userLoading,
 }: {
-  vault?: FlpVaultView;
-  user?: FlpUserView;
+  envelope?: FlpEnvelope;
+  shares: bigint | null;
   owner: string | null;
   userLoading: boolean;
 }) {
-  const dash = <span className="text-rock/35">—</span>;
-  const loading = !vault;
+  const now = useNow();
+  const loading = !envelope;
+  const v = envelope ? vaultView(envelope) : null;
+  const q = (n: bigint, f = 2) => (v ? formatUnits(n, v.quoteDecimals, f) : '');
+
+  let epochValue = <Dash />;
+  let epochHint: string | null = null;
+  if (v) {
+    const left = v.epoch.scheduledEnd - now;
+    epochValue = <>#{v.epoch.current.toString()}</>;
+    epochHint =
+      left > 0
+        ? now < v.epoch.cutoffAt
+          ? `ends in ${formatDuration(left)}`
+          : `past cutoff, ends in ${formatDuration(left)}`
+        : 'closing';
+  }
+
   return (
-    <div className="grid grid-cols-1 divide-outline border border-outline max-sm:divide-y sm:grid-cols-3 sm:divide-x">
+    <div className="grid grid-cols-2 divide-outline border border-outline max-lg:[&>*]:border-b max-lg:[&>*]:border-outline lg:grid-cols-5 lg:divide-x">
       <Tile
         label="Phase"
         loading={loading}
-        value={vault ? MODE_LABEL[vault.mode] : dash}
-        hint={vault && !vault.depositsOpen && vault.mode === 'pre-deposit' ? 'paused' : null}
-        accent={vault?.mode === 'pre-deposit'}
+        value={v ? MODE_LABEL[v.mode] : <Dash />}
+        hint={
+          v?.mode === 'pre-deposit' ? 'before graduation' : v?.mode === 'live' ? 'trading' : null
+        }
+        accent={v?.mode === 'pre-deposit'}
       />
       <Tile
-        label="Total deposited"
+        label="TVL"
         loading={loading}
-        value={vault ? formatUnits(vault.escrowBalance, vault.quoteDecimals, 2) : dash}
-        hint={vault ? `of ${formatUnits(vault.tvlCap, vault.quoteDecimals, 0)} cap` : null}
+        value={
+          v ? v.tvl === null ? <NotAvailable reason="Portfolio read failed" /> : q(v.tvl) : <Dash />
+        }
+        hint={v ? `of ${q(v.tvlCap, 0)} shared cap` : null}
       />
       <Tile
-        label="Your position"
-        loading={userLoading || (!!owner && loading)}
+        label="Share price"
+        loading={loading}
+        value={v ? formatPrice(v.price, 6) : <Dash />}
+        hint={v ? 'USDC, at last close' : null}
+      />
+      <Tile label="Epoch" loading={loading} value={epochValue} hint={epochHint} />
+      <Tile
+        label="Your shares"
+        loading={!!owner && (loading || userLoading)}
         value={
           !owner ? (
             <span className="text-base font-normal text-rock/45">Connect wallet</span>
-          ) : user && vault ? (
-            formatUnits(user.shareBalance, vault.shareDecimals, 2)
+          ) : v && shares !== null ? (
+            formatUnits(shares, v.shareDecimals, 2)
+          ) : v ? (
+            '0'
           ) : (
-            dash
+            <Dash />
           )
         }
-        hint={owner && user ? 'FLP' : null}
+        hint={owner && v && shares ? `≈ ${q(sharesValue(v, shares))} USDC` : owner ? 'FLP' : null}
       />
     </div>
   );
 }
 
-function Details({ vault }: { vault?: FlpVaultView }) {
-  const rows: Array<[string, string | undefined]> = [
-    ['Network', undefined],
-    ['Program', FLP_PROGRAM_ID.toBase58()],
-    ['Vault', FLP_VAULT.toBase58()],
-    ['Share mint', vault?.state.shareMint.toBase58()],
-    ['Test USDC', vault?.state.quoteMint.toBase58()],
-  ];
+/** How old the shown data is: the harness can serve a copy minutes old while it refreshes. */
+function Freshness({ envelope }: { envelope: FlpEnvelope }) {
+  const now = useNow();
+  const age = Math.max(0, now - Math.floor(envelope.generated_ts_ms / 1000));
+  const old = age > 30;
   return (
-    <Panel>
-      <dl className="divide-y divide-outline">
-        {rows.map(([label, address]) => (
-          <div key={label} className="flex items-center justify-between gap-3 px-4 py-2.5">
-            <dt>
-              <Eyebrow>{label}</Eyebrow>
-            </dt>
-            <dd className="font-mono text-xs text-rock/70">
-              {label === 'Network' ? (
-                <span className="text-amber-200">{FLP_CLUSTER}</span>
-              ) : address ? (
-                <a
-                  href={`https://explorer.solana.com/address/${address}?cluster=${FLP_CLUSTER}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 hover:text-rock"
-                  title={address}
-                >
-                  {shortenAddress(address)}
-                  <ExternalLink className="size-3" />
-                </a>
-              ) : (
-                <Bone className="h-3.5 w-20" />
-              )}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </Panel>
-  );
-}
-
-function Tile({
-  label,
-  value,
-  hint,
-  loading,
-  accent,
-}: {
-  label: string;
-  value: ReactNode;
-  hint?: ReactNode;
-  loading: boolean;
-  accent?: boolean;
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-2 px-4 py-3.5">
-      <Eyebrow>{label}</Eyebrow>
-      {loading ? (
-        <Bone className="h-7 w-28" />
-      ) : (
-        <div className="flex min-w-0 items-baseline gap-2">
-          <span
-            className={cn(
-              'truncate font-mono text-xl font-semibold tabular-nums',
-              accent ? 'text-amber-200' : 'text-rock'
-            )}
-          >
-            {value}
-          </span>
-          {hint && <span className="truncate font-mono text-[11px] text-rock/45">{hint}</span>}
-        </div>
+    <p
+      className={cn(
+        '-mt-3 px-1 text-right font-mono text-[11px] tabular-nums',
+        old ? 'text-amber-200' : 'text-rock/35'
       )}
-    </div>
+    >
+      {envelope.cache?.refreshing && old ? 'Refreshing · ' : ''}
+      Updated {formatDuration(age)} ago · slot {envelope.source.slot}
+    </p>
   );
 }
 
-function Panel({ children }: { children: ReactNode }) {
-  return <section className="self-start border border-outline">{children}</section>;
-}
-
-function Bone({ className }: { className?: string }) {
-  return <span className={cn('skeleton-bone block motion-reduce:animate-none!', className)} />;
-}
-
-function Eyebrow({ children }: { children: ReactNode }) {
+/** The devnet data API can take 15–40 s on an uncached read; say so after a few seconds. */
+function SlowNote() {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setShown(true), 4_000);
+    return () => window.clearTimeout(id);
+  }, []);
+  if (!shown) return null;
   return (
-    <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-rock/50">
-      {children}
-    </span>
+    <p className="text-xs text-rock/45">
+      Reading the vault from the {FLP_CLUSTER} data API. A fresh read can take up to 40 seconds.
+    </p>
+  );
+}
+
+/** Pauses, the breaker and recovery: say so above the form. */
+function StatusNotice({ envelope }: { envelope: FlpEnvelope }) {
+  const l = envelope.data.lifecycle;
+  const notes: string[] = [];
+  if (l.breaker) notes.push('The circuit breaker is tripped: deposits are closed.');
+  else if (l.depositsPaused) notes.push('Deposits are paused.');
+  else if (l.publicDepositsPaused)
+    notes.push('Public deposits are paused. Approved wallets can still deposit directly.');
+  if (l.withdrawalsPaused)
+    notes.push('Trading withdrawals are paused. Pre-deposit refunds and claims still work.');
+  if (l.mode === 'unwind')
+    notes.push(
+      'The vault is unwinding positions. New requests wait; pending deposits can be refunded.'
+    );
+  if (l.mode === 'closed')
+    notes.push('The vault is closed. Redeem shares at the fixed closing ratio.');
+  if (!notes.length) return null;
+  return (
+    <div className="border border-amber-200/40 bg-amber-200/5 px-4 py-2.5 text-xs text-amber-200">
+      {notes.join(' ')}
+    </div>
   );
 }
