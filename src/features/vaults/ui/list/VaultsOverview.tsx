@@ -81,7 +81,7 @@ export function VaultsOverview() {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative sm:w-80">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-rock/55" />
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-rock/60" />
           <Input
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -102,7 +102,7 @@ export function VaultsOverview() {
               label: (
                 <span className="flex items-center gap-1.5">
                   {n === 'all' ? 'All' : n === 'mainnet' ? 'Mainnet' : 'Devnet'}
-                  <span className="text-rock/55 tabular-nums">{counts[n]}</span>
+                  <span className="text-rock/60 tabular-nums">{counts[n]}</span>
                 </span>
               ),
             }))}
@@ -150,8 +150,17 @@ export function VaultsOverview() {
                   }
             }
           />
+          {list.missing > 0 && (
+            <p className="px-1 text-xs text-amber-200">
+              {list.missing === 1 ? 'One vault' : `${list.missing} vaults`} couldn’t be loaded and
+              {list.missing === 1 ? ' is' : ' are'} missing from the list.{' '}
+              <button type="button" className="underline" onClick={() => list.refetch()}>
+                Retry
+              </button>
+            </p>
+          )}
           {list.data && (
-            <p className="px-1 font-mono text-[11px] text-rock/55">
+            <p className="px-1 font-mono text-[11px] text-rock/60">
               Synced from chain · updated {timeAgo(list.data.updated_at_ms)}
             </p>
           )}
@@ -168,13 +177,18 @@ function Totals({
   wallet,
 }: {
   vaults: Vault[];
-  totals?: { network: VaultNetwork; tvl: number; vaults: number }[];
+  totals?: { network: VaultNetwork; tvl: number | null; vaults: number }[];
   loading: boolean;
   wallet?: string;
 }) {
   const mine = vaults.filter(v => v.user);
+  // Still loading this wallet's position somewhere: don't total a partial list.
+  const userLoading = !!wallet && vaults.some(v => v.source === 'flp' && v.user === undefined);
   const equity = mine.reduce((a, v) => a + (v.user?.equity ?? 0), 0);
-  const pnl = mine.reduce((a, v) => a + (v.user?.all_time_pnl ?? 0), 0);
+  const pnl = mine.some(v => v.user?.all_time_pnl === null)
+    ? null
+    : mine.reduce((a, v) => a + (v.user?.all_time_pnl ?? 0), 0);
+  const claimable = mine.reduce((a, v) => a + (v.user?.claimable ?? 0), 0);
   // One TVL tile per network present, mainnet first; never a cross-network sum.
   const tvl = [...(totals ?? [])].sort((a, b) => a.network.localeCompare(b.network)).reverse();
 
@@ -204,20 +218,23 @@ function Totals({
         ))
       )}
       <Tile
-        label="Your deposits"
-        loading={loading && !!wallet}
-        value={
-          !wallet ? (
-            <span className="text-base font-normal text-rock/60">Connect wallet</span>
-          ) : (
-            usd(equity)
-          )
+        label="Your balance"
+        loading={(loading || userLoading) && !!wallet}
+        value={!wallet ? DASH : usd(equity)}
+        hint={
+          !wallet
+            ? 'Connect wallet'
+            : claimable > 0
+              ? `${usd(claimable)} ready to claim`
+              : mine.length
+                ? `in ${mine.length} ${mine.length === 1 ? 'vault' : 'vaults'}`
+                : null
         }
-        hint={wallet && mine.length ? `in ${mine.length}` : null}
+        valueClassName={claimable > 0 ? 'text-amber-200' : undefined}
       />
       <Tile
-        label="Your all-time PnL"
-        loading={loading && !!wallet}
+        label="Your earnings"
+        loading={(loading || userLoading) && !!wallet}
         value={!wallet ? DASH : usdSigned(pnl)}
         valueClassName={wallet ? tone(pnl) : undefined}
       />
@@ -232,10 +249,12 @@ function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void })
       role="alert"
       className="flex flex-col items-center gap-3 border border-outline px-4 py-14 text-center"
     >
-      <p className="text-sm text-rock/75">
-        {status === 404 ? 'Vaults aren’t live on this gateway yet' : 'Couldn’t load vaults'}
+      <p className="text-sm text-rock/75">Couldn’t load vaults</p>
+      <p className="text-xs text-rock/60">
+        {status === 404
+          ? 'The vault data service isn’t available right now.'
+          : 'The vault data service is slow or unreachable. Try again in a moment.'}
       </p>
-      <p className="text-xs text-rock/60">Check your connection and try again.</p>
       <Button variant="outline" size="sm" onClick={onRetry}>
         Retry
       </Button>

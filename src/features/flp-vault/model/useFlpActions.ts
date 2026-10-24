@@ -6,8 +6,7 @@
  * app uses. Direct deposits and instant withdrawals are simulated first to set
  * their slippage bound; a failed simulation stops before the wallet prompt.
  */
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useWallet } from '@solana/wallet-adapter-react';
 import {
   ComputeBudgetProgram,
@@ -23,11 +22,16 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import bs58 from 'bs58';
+import { toast } from 'sonner';
 
-import { enrichSendError, pollForConfirmation } from '@/shared/hooks/useMangoMarginDeposit';
+import { enrichSendError } from '@/shared/hooks/useMangoMarginDeposit';
 import { fitsLegacyPacket, type FlpClient, type VaultAccount } from '../sdk';
-import { getFlp } from './chain';
+import { confirmSignature, FlpTxFailed, getFlp } from './chain';
+import { flpExplorerTxUrl } from './config';
+import { describeFlpError, isWalletRejection } from './format';
+import { API_CACHE_MS, flpKeys } from './keys';
 import { pricingAccounts } from './pricing';
+import { getTxState, setTxState, useTxState, type FlpPhase } from './txStore';
 
 export type FlpActionKind =
   | 'deposit'
@@ -41,16 +45,16 @@ export type FlpActionKind =
   | 'refund-pending-deposit'
   | 'claim-withdrawal'
   | 'claim-graduated';
-export type FlpPhase = 'idle' | 'quoting' | 'signing' | 'sending' | 'confirming';
+export type { FlpPhase };
 
 export class FlpConfirmationTimeout extends Error {
   constructor(readonly signature: string) {
-    super('Not confirmed yet. Check the explorer before retrying.');
+    super('Not confirmed yet. Check the transaction before trying again.');
   }
 }
 
-// Slippage tolerance on simulated direct deposits and instant withdrawals.
-const TOLERANCE_BPS = 50n;
+/** Slippage tolerance on simulated direct deposits and instant withdrawals. */
+export const TOLERANCE_BPS = 50n;
 const CU_PRICED = 300_000;
 const CU_DEFAULT = 100_000;
 
@@ -189,23 +193,37 @@ export interface FlpActionInput {
   kind: FlpActionKind;
   /** Native USDC or shares, by action; ignored by claims and cancels. */
   amount?: bigint;
+  /** Success toast; `expected` is the simulated outcome, when there is one. */
+  success: (expected: bigint | null) => string;
 }
 
+export interface FlpActionResult {
+  signature: string;
+  slot: number;
+  expected: bigint | null;
+}
+
+/**
+ * The vault's user transactions. Pending state, phase and toasts live outside
+ * the calling component (mutation key + txStore), so closing the dialog
+ * mid-send loses nothing and a second send can't start meanwhile.
+ */
 export function useFlpActions(vault: PublicKey) {
   const wallet = useWallet();
   const queryClient = useQueryClient();
-  const [phase, setPhase] = useState<FlpPhase>('idle');
-  const [quote, setQuote] = useState<bigint | null>(null);
+  const vaultKey = vault.toBase58();
+  const tx = useTxState(vaultKey);
+  const inFlight = useIsMutating({ mutationKey: flpKeys.tx(vaultKey) }) > 0;
 
   const mutation = useMutation({
-    mutationFn: async ({ kind, amount = 0n }: FlpActionInput) => {
+    mutationKey: flpKeys.tx(vaultKey),
+    mutationFn: async ({ kind, amount = 0n }: FlpActionInput): Promise<FlpActionResult> => {
       const owner = wallet.publicKey;
       if (!owner) throw new Error('Connect a wallet first');
       if (!wallet.signTransaction) throw new Error('This wallet cannot sign transactions');
       const { connection, client } = getFlp();
-      setQuote(null);
 
-      setPhase('quoting');
+      setTxState(vaultKey, { phase: 'quoting', active: kind, quote: null });
       const state = await client.fetchVault(vault);
       let expected: bigint | null = null;
       const { ixs, units } = await buildFlpAction(
@@ -214,7 +232,7 @@ export function useFlpActions(vault: PublicKey) {
         { vault, state, owner, client },
         n => {
           expected = n;
-          setQuote(n);
+          setTxState(vaultKey, { quote: n });
         }
       );
       const all = [ComputeBudgetProgram.setComputeUnitLimit({ units }), ...ixs];
@@ -222,20 +240,20 @@ export function useFlpActions(vault: PublicKey) {
       if (!size.fits) throw new Error(`Transaction is ${size.bytes} bytes, over the 1,232 limit`);
 
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-      const tx = new Transaction({ feePayer: owner, blockhash, lastValidBlockHeight }).add(...all);
-
-      setPhase('signing');
-      const signed = await wallet.signTransaction(tx);
-      const sigBytes = signed.signatures[0]?.signature;
+      setTxState(vaultKey, { phase: 'signing' });
+      const signedTx = await wallet.signTransaction(
+        new Transaction({ feePayer: owner, blockhash, lastValidBlockHeight }).add(...all)
+      );
+      const sigBytes = signedTx.signatures[0]?.signature;
       if (!sigBytes) throw new Error('Signed transaction is missing a signature');
       // Known before the send, so a time-out can still point at the transaction.
       const signature = bs58.encode(sigBytes);
 
-      setPhase('sending');
+      setTxState(vaultKey, { phase: 'sending' });
       try {
         // Keep preflight: it's the same RPC that served the blockhash, and its
         // simulation logs carry the program error name.
-        await connection.sendRawTransaction(signed.serialize(), {
+        await connection.sendRawTransaction(signedTx.serialize(), {
           preflightCommitment: 'confirmed',
           maxRetries: 10,
         });
@@ -247,27 +265,62 @@ export function useFlpActions(vault: PublicKey) {
           throw await enrichSendError(err);
       }
 
-      setPhase('confirming');
-      const confirmed = await pollForConfirmation(
-        connection,
-        signature,
-        lastValidBlockHeight,
-        'confirmed'
-      );
-      if (!confirmed) throw new FlpConfirmationTimeout(signature);
-      return { signature, expected: expected as bigint | null };
+      setTxState(vaultKey, { phase: 'confirming' });
+      const confirmation = await confirmSignature(signature, lastValidBlockHeight);
+      if (confirmation.status === 'expired')
+        throw new Error('The transaction expired without executing. You can send it again.');
+      if (confirmation.status === 'unknown') throw new FlpConfirmationTimeout(signature);
+      return { signature, slot: confirmation.slot, expected };
+    },
+    // Options-level callbacks run even if the calling component has unmounted.
+    onSuccess: (result, input) => {
+      setTxState(vaultKey, {
+        minSlot: Math.max(result.slot, getTxState(vaultKey).minSlot ?? 0),
+        last: {
+          kind: input.kind,
+          amount: input.amount ?? 0n,
+          expected: result.expected,
+          signature: result.signature,
+          slot: result.slot,
+          atMs: Date.now(),
+        },
+      });
+      toast.success(input.success(result.expected), {
+        action: { label: 'View', onClick: () => window.open(flpExplorerTxUrl(result.signature)) },
+      });
+    },
+    onError: err => {
+      if (isWalletRejection(err)) {
+        toast('Cancelled in wallet');
+        return;
+      }
+      const sig =
+        err instanceof FlpConfirmationTimeout || err instanceof FlpTxFailed ? err.signature : null;
+      toast.error(describeFlpError(err), {
+        action: sig
+          ? { label: 'View', onClick: () => window.open(flpExplorerTxUrl(sig)) }
+          : undefined,
+      });
     },
     onSettled: () => {
-      setPhase('idle');
-      void queryClient.invalidateQueries({ queryKey: ['flp', 'wallet', vault.toBase58()] });
+      setTxState(vaultKey, { phase: 'idle', active: null });
+      void queryClient.invalidateQueries({ queryKey: flpKeys.walletAll(vaultKey) });
       // The data API caches for 3 s: read once now and once past the cache.
-      void queryClient.invalidateQueries({ queryKey: ['flp', 'data', vault.toBase58()] });
+      void queryClient.invalidateQueries({ queryKey: flpKeys.dataAll(vaultKey) });
       window.setTimeout(
-        () => queryClient.invalidateQueries({ queryKey: ['flp', 'data', vault.toBase58()] }),
-        3_500
+        () => queryClient.invalidateQueries({ queryKey: flpKeys.dataAll(vaultKey) }),
+        API_CACHE_MS
       );
     },
   });
 
-  return { ...mutation, phase, quote };
+  return {
+    run: (input: FlpActionInput, onSuccess?: (r: FlpActionResult) => void) =>
+      mutation.mutate(input, { onSuccess }),
+    /** A transaction for this vault is in flight, from any component. */
+    isPending: inFlight,
+    phase: tx.phase,
+    active: tx.active,
+    quote: tx.quote,
+  };
 }

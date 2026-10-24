@@ -1,7 +1,12 @@
 /**
- * The wallet's open requests: the deposit and withdrawal tickets with their
- * state and epoch timing, and the claims and cancels each state allows, plus
- * shares owed from graduation.
+ * The wallet's open requests on the vault page: queued deposits and
+ * withdrawals with their settlement time, and the claim, refund or cancel
+ * each state allows, plus shares owed from launch. Hidden when there's
+ * nothing open.
+ *
+ * Right after the user's own transaction the data API can lag for a while,
+ * so a request placed moments ago is shown at once ("Confirmed, updating"),
+ * and buttons wait until the data has caught up.
  */
 import type { ReactNode } from 'react';
 import type { PublicKey } from '@solana/web3.js';
@@ -9,205 +14,296 @@ import type { PublicKey } from '@solana/web3.js';
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
 
-import type { FlpTicket } from '../model/api';
+import type { FlpTicket, FlpUser } from '../model/api';
 import { formatDuration, formatTime, formatUnits } from '../model/format';
 import { useFlpActions, type FlpActionKind } from '../model/useFlpActions';
-import { epochEnd, vaultView, type VaultView } from '../model/view';
 import { useFlpVault } from '../model/useFlpVault';
 import { useNow } from '../model/useNow';
-import { PHASE_LABEL, runAction } from './runAction';
+import { useTxState } from '../model/txStore';
+import { epochEnd, vaultView, type VaultView } from '../model/view';
+import { PHASE_LABEL } from './phase';
 
-const STATE_LABEL: Record<FlpTicket['state'], string> = {
-  none: '',
-  queued: 'Queued',
-  'claimable-shares': 'Claimable',
-  'refund-only': 'Refund only',
-  'funded-claimable': 'Claimable',
-  deferred: 'Deferred',
-  unavailable: 'Unavailable',
-};
+type Tone = 'ready' | 'wait' | 'warn';
 
-/** Shown only while the connected wallet has something to claim, cancel or wait on. */
+interface Item {
+  key: string;
+  title: string;
+  status: string;
+  tone: Tone;
+  detail: string;
+  action?: { kind: FlpActionKind; label: string; success: string; primary: boolean };
+}
+
 export function Requests({ vault }: { vault: PublicKey }) {
-  const { envelope, user } = useFlpVault(vault);
+  const { envelope, user, syncing, readOnly } = useFlpVault(vault);
   const now = useNow();
   const tx = useFlpActions(vault);
+  const last = useTxState(vault.toBase58()).last;
   if (!envelope || !user) return null;
   const v = vaultView(envelope);
-  const graduated = BigInt(user.graduationClaimableShares);
-  const items: ReactNode[] = [];
+  const items = requestItems(user, v, now);
 
-  const button = (
-    kind: FlpActionKind,
-    label: string,
-    done: string,
-    variant: 'default' | 'outline' = 'default'
-  ) => (
-    <Button
-      size="sm"
-      variant={variant}
-      disabled={tx.isPending}
-      onClick={() => runAction(tx, { kind }, () => done)}
-    >
-      {tx.isPending && tx.variables?.kind === kind ? PHASE_LABEL[tx.phase] || '…' : label}
-    </Button>
-  );
-
-  if (graduated > 0n) {
-    const amount = `${formatUnits(graduated, v.shareDecimals, 4)} FLP`;
-    items.push(
-      <Item
-        key="graduated"
-        title="Graduated shares"
-        state="Claimable"
-        tone="good"
-        detail={`Your pre-deposit became ${amount}.`}
-        actions={button('claim-graduated', 'Claim shares', `Claimed ${amount}`)}
-      />
-    );
+  // The data predates the user's last request: show it until the data has it.
+  if (
+    syncing &&
+    last &&
+    v.mode === 'live' &&
+    (last.kind === 'deposit' || last.kind === 'withdraw')
+  ) {
+    const deposit = last.kind === 'deposit';
+    const key = deposit ? 'deposit' : 'withdrawal';
+    if (!items.some(i => i.key === key)) {
+      items.push({
+        key,
+        title: deposit
+          ? `Deposit · ${formatUnits(last.amount, v.quoteDecimals, 2)} USDC`
+          : `Withdrawal · ${formatUnits(last.amount, v.shareDecimals, 4)} FLP`,
+        status: 'Requested',
+        tone: 'wait',
+        detail: 'Confirmed on chain. The vault data is catching up.',
+      });
+    }
   }
-
-  const dep = user.deposit;
-  if (dep.state !== 'none') {
-    const amount = `${formatUnits(BigInt(dep.ticket.amount), v.quoteDecimals, 4)} USDC`;
-    const claim = `${formatUnits(BigInt(dep.claimable), dep.state === 'refund-only' ? v.quoteDecimals : v.shareDecimals, 4)} ${dep.state === 'refund-only' ? 'USDC' : 'FLP'}`;
-    const halted = v.mode === 'unwind' || v.mode === 'closed';
-    items.push(
-      <Item
-        key="deposit"
-        title={`Deposit · ${amount}`}
-        state={STATE_LABEL[dep.state]}
-        tone={dep.state === 'claimable-shares' || dep.state === 'refund-only' ? 'good' : undefined}
-        detail={ticketDetail(dep, v, now, claim, 'deposit')}
-        actions={
-          <>
-            {dep.state === 'queued' &&
-              halted &&
-              button('refund-pending-deposit', 'Refund', `Refunded ${amount}`)}
-            {dep.state === 'queued' &&
-              !halted &&
-              dep.cancellable &&
-              button('cancel-deposit', 'Cancel', 'Deposit request cancelled', 'outline')}
-            {dep.state === 'claimable-shares' &&
-              button('claim-deposit', 'Claim shares', `Claimed ${claim}`)}
-            {dep.state === 'refund-only' && button('claim-deposit', 'Refund', `Refunded ${claim}`)}
-          </>
-        }
-      />
-    );
-  }
-
-  const wd = user.withdrawal;
-  if (wd.state !== 'none') {
-    const amount = `${formatUnits(BigInt(wd.ticket.amount), v.shareDecimals, 4)} FLP`;
-    const claim = `${formatUnits(BigInt(wd.claimable), v.quoteDecimals, 4)} USDC`;
-    items.push(
-      <Item
-        key="withdrawal"
-        title={`Withdrawal · ${amount}`}
-        state={STATE_LABEL[wd.state]}
-        tone={
-          wd.state === 'funded-claimable' ? 'good' : wd.state === 'deferred' ? 'warn' : undefined
-        }
-        detail={ticketDetail(wd, v, now, claim, 'withdrawal')}
-        actions={
-          <>
-            {wd.state === 'queued' &&
-              wd.cancellable &&
-              button('cancel-withdraw', 'Cancel', 'Withdrawal request cancelled', 'outline')}
-            {wd.state === 'funded-claimable' &&
-              button('claim-withdrawal', 'Claim USDC', `Claimed ${claim}`)}
-          </>
-        }
-      />
-    );
-  }
-
   if (!items.length) return null;
+
   return (
-    <section className="flex flex-col border border-amber-200/30">
+    <section className="flex flex-col border border-amber-200/30" aria-label="Your requests">
       <div className="flex min-h-11 items-center justify-between gap-3 border-b border-outline bg-card px-3 py-1.5 sm:px-4">
         <h2 className="flex items-center gap-2 text-sm text-rock">
           Your requests
           <span className="font-mono text-[11px] tabular-nums text-rock/60">{items.length}</span>
         </h2>
+        {syncing && <span className="text-xs text-rock/60">Updating…</span>}
       </div>
-      <ul className="divide-y divide-outline">{items}</ul>
+      <ul className="divide-y divide-outline">
+        {items.map(item => (
+          <li
+            key={item.key}
+            className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+          >
+            <div className="flex min-w-0 flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm tabular-nums text-rock">{item.title}</span>
+                <Status tone={item.tone}>{item.status}</Status>
+              </div>
+              <p className="text-xs text-rock/65">{item.detail}</p>
+            </div>
+            {item.action && (
+              <ActionButton
+                action={item.action}
+                title={item.title}
+                busy={tx.isPending && tx.active === item.action.kind}
+                label={PHASE_LABEL[tx.phase]}
+                disabled={tx.isPending || syncing || readOnly}
+                onRun={a => tx.run({ kind: a.kind, success: () => a.success })}
+              />
+            )}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
 
-function ticketDetail(
-  t: FlpTicket,
-  v: VaultView,
-  now: number,
-  claim: string,
-  kind: 'deposit' | 'withdrawal'
-): string {
-  const epoch = BigInt(t.ticket.epoch);
-  switch (t.state) {
-    case 'queued': {
-      const end = epochEnd(v, epoch);
-      const cutoff = end - v.params.requestCutoffS;
-      const timing =
-        now < end
-          ? `ends ${formatTime(end)} (in ${formatDuration(end - now)})`
-          : 'ended, waiting for the keeper to close it';
-      const cancel =
-        now < cutoff
-          ? ` Cancel until ${formatTime(cutoff)}.`
-          : now < end
-            ? ' Past the cutoff.'
-            : '';
-      return `Epoch ${epoch} ${timing}.${cancel}`;
-    }
-    case 'claimable-shares':
-      return `Epoch ${epoch} closed. ${claim} ready to claim.`;
-    case 'refund-only':
-      return `Epoch ${epoch} held its deposits. Refund ${claim}.`;
-    case 'funded-claimable':
-      return `Epoch ${epoch} funded your withdrawal. ${claim} ready to claim.`;
-    case 'deferred':
-      return `The vault couldn't pay at the epoch ${epoch} close. Your ${kind} keeps its place and the next close tries again. Its value still moves with the vault.`;
-    default:
-      return t.reason ?? '';
-  }
-}
-
-function Item({
+function ActionButton({
+  action,
   title,
-  state,
-  tone,
-  detail,
-  actions,
+  busy,
+  label,
+  disabled,
+  onRun,
 }: {
+  action: NonNullable<Item['action']>;
   title: string;
-  state: string;
-  tone?: 'good' | 'warn';
-  detail: string;
-  actions: ReactNode;
+  busy: boolean;
+  label: string;
+  disabled: boolean;
+  onRun: (action: NonNullable<Item['action']>) => void;
 }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-sm tabular-nums text-rock">{title}</span>
-          <span
-            className={cn(
-              'border px-1 font-mono text-[10px] uppercase tracking-wider',
-              tone === 'good'
-                ? 'border-success/50 text-success'
-                : tone === 'warn'
-                  ? 'border-amber-200/50 text-amber-200'
-                  : 'border-outline text-rock/60'
-            )}
-          >
-            {state}
-          </span>
-        </div>
-        <p className="text-xs text-rock/50">{detail}</p>
-      </div>
-      <div className="flex gap-2">{actions}</div>
-    </li>
+    <Button
+      size="sm"
+      variant={action.primary ? 'default' : 'outline'}
+      disabled={disabled}
+      aria-label={`${action.label}: ${title}`}
+      onClick={() => onRun(action)}
+    >
+      {busy ? label || 'Working…' : action.label}
+    </Button>
+  );
+}
+
+function requestItems(user: FlpUser, v: VaultView, now: number): Item[] {
+  const items: Item[] = [];
+  const flp = (n: bigint) => `${formatUnits(n, v.shareDecimals, 4)} FLP`;
+  const usd = (n: bigint) => `${formatUnits(n, v.quoteDecimals, 2)} USDC`;
+
+  const graduated = BigInt(user.graduationClaimableShares);
+  if (graduated > 0n) {
+    items.push({
+      key: 'graduated',
+      title: `Launch shares · ${flp(graduated)}`,
+      status: 'Ready',
+      tone: 'ready',
+      detail: 'FLP launched and your pre-deposit became shares.',
+      action: {
+        kind: 'claim-graduated',
+        label: 'Claim FLP',
+        success: `Claimed ${flp(graduated)}`,
+        primary: true,
+      },
+    });
+  }
+
+  const dep = user.deposit;
+  if (dep.state !== 'none') {
+    const amount = BigInt(dep.ticket.amount);
+    const title = `Deposit · ${usd(amount)}`;
+    const claim = BigInt(dep.claimable);
+    const halted = v.mode === 'unwind' || v.mode === 'closed';
+    if (dep.state === 'queued' && halted)
+      items.push({
+        key: 'deposit',
+        title,
+        status: 'Refundable',
+        tone: 'ready',
+        detail: 'The vault stopped taking deposits before this one settled.',
+        action: {
+          kind: 'refund-pending-deposit',
+          label: 'Get USDC back',
+          success: `${usd(amount)} back in your wallet`,
+          primary: true,
+        },
+      });
+    else if (dep.state === 'queued')
+      items.push({
+        key: 'deposit',
+        title,
+        status: 'Requested',
+        tone: 'wait',
+        detail: queuedDetail(dep, v, now, 'FLP'),
+        action: dep.cancellable
+          ? {
+              kind: 'cancel-deposit',
+              label: 'Cancel',
+              success: 'Deposit request cancelled',
+              primary: false,
+            }
+          : undefined,
+      });
+    else if (dep.state === 'claimable-shares')
+      items.push({
+        key: 'deposit',
+        title,
+        status: 'Ready',
+        tone: 'ready',
+        detail: `Settled: ${flp(claim)} are yours to claim.`,
+        action: {
+          kind: 'claim-deposit',
+          label: 'Claim FLP',
+          success: `Claimed ${flp(claim)}`,
+          primary: true,
+        },
+      });
+    else if (dep.state === 'refund-only')
+      items.push({
+        key: 'deposit',
+        title,
+        status: 'Refundable',
+        tone: 'ready',
+        detail: 'This settlement didn’t accept deposits. Take your USDC back.',
+        action: {
+          kind: 'claim-deposit',
+          label: 'Get USDC back',
+          success: `${usd(claim)} back in your wallet`,
+          primary: true,
+        },
+      });
+    else
+      items.push({
+        key: 'deposit',
+        title,
+        status: 'Unavailable',
+        tone: 'warn',
+        detail: dep.reason ?? '',
+      });
+  }
+
+  const wd = user.withdrawal;
+  if (wd.state !== 'none') {
+    const title = `Withdrawal · ${flp(BigInt(wd.ticket.amount))}`;
+    const claim = BigInt(wd.claimable);
+    if (wd.state === 'queued')
+      items.push({
+        key: 'withdrawal',
+        title,
+        status: 'Requested',
+        tone: 'wait',
+        detail: queuedDetail(wd, v, now, 'USDC'),
+        action: wd.cancellable
+          ? {
+              kind: 'cancel-withdraw',
+              label: 'Cancel',
+              success: 'Withdrawal request cancelled',
+              primary: false,
+            }
+          : undefined,
+      });
+    else if (wd.state === 'funded-claimable')
+      items.push({
+        key: 'withdrawal',
+        title,
+        status: 'Ready',
+        tone: 'ready',
+        detail: `Paid out: ${usd(claim)} is yours to claim.`,
+        action: {
+          kind: 'claim-withdrawal',
+          label: 'Claim USDC',
+          success: `Claimed ${usd(claim)}`,
+          primary: true,
+        },
+      });
+    else if (wd.state === 'deferred')
+      items.push({
+        key: 'withdrawal',
+        title,
+        status: 'Waiting for liquidity',
+        tone: 'warn',
+        detail:
+          'The vault couldn’t pay out at this settlement. You keep your place in line and the next settlement tries again. Until then its value still moves with the vault.',
+      });
+    else
+      items.push({
+        key: 'withdrawal',
+        title,
+        status: 'Unavailable',
+        tone: 'warn',
+        detail: wd.reason ?? '',
+      });
+  }
+  return items;
+}
+
+function queuedDetail(t: FlpTicket, v: VaultView, now: number, gets: 'FLP' | 'USDC'): string {
+  const end = epochEnd(v, BigInt(t.ticket.epoch));
+  const cutoff = end - v.params.requestCutoffS;
+  if (now >= end) return 'Settling now. This usually takes under a minute.';
+  const when = `Settles at ${formatTime(end)} (in ${formatDuration(end - now)}), then you claim your ${gets}.`;
+  if (now < cutoff) return `${when} You can cancel until ${formatTime(cutoff)}.`;
+  return `${when} Past the cancel cutoff.`;
+}
+
+function Status({ tone, children }: { tone: Tone; children: ReactNode }) {
+  return (
+    <span
+      className={cn(
+        'border px-1.5 font-mono text-[10px] uppercase tracking-wider',
+        tone === 'ready' && 'border-amber-200/60 text-amber-200',
+        tone === 'wait' && 'border-outline text-rock/70',
+        tone === 'warn' && 'border-danger/50 text-danger'
+      )}
+    >
+      {children}
+    </span>
   );
 }

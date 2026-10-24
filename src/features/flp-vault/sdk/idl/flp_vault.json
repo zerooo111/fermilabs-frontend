@@ -2874,7 +2874,7 @@
     {
       "name": "cureDeferred",
       "docs": [
-        "Delegate or admin: fund the deferred head at its own close price."
+        "Delegate or admin: fund the deferred head at the current price, no lower than its close."
       ],
       "accounts": [
         {
@@ -5181,6 +5181,16 @@
           "name": "den",
           "type": "u128",
           "index": false
+        },
+        {
+          "name": "positiveUpnl",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "publicShareBps",
+          "type": "u16",
+          "index": false
         }
       ]
     },
@@ -5575,6 +5585,26 @@
         {
           "name": "wdDen",
           "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "FlpBreakerObservation",
+      "fields": [
+        {
+          "name": "vault",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "pendingEvents",
+          "type": "u32",
+          "index": false
+        },
+        {
+          "name": "beingLiquidated",
+          "type": "bool",
           "index": false
         }
       ]

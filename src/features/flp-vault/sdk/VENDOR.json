@@ -1,0 +1,11 @@
+{
+  "package": "@fermi-dex/flp-vault",
+  "source": "https://github.com/Fermi-DEX/fermi-v1/tree/main/flp-vault/sdk",
+  "commit": "9bdc811914fb330f60a3eeae2e4b965de4126f3e",
+  "vendoredAt": "2026-10-24",
+  "files": {
+    "src/index.ts": "cfcd45e6b75799c5e849cda0020a222f5608efaf8b37495624d62bdc3c1aa4e0",
+    "idl/flp_vault.json": "9d5d0a5098efaf45f8ef5888ea150d116d07601db1c6168092b2813d98488e97"
+  },
+  "manifest": "https://flp.34-116-238-207.sslip.io/deployment.json (sdk.indexTsSha256, idl.sha256)"
+}

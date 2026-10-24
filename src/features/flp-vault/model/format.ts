@@ -58,17 +58,13 @@ export function fixedScaled(v: Fixed, decimals: number): bigint {
 // The program prices shares with virtual offsets of 1,000,000 (design.md 6.3).
 const VIRTUAL = 1_000_000n;
 
+/** Share prices are bigints scaled by 10^PRICE_DECIMALS (1.002568 is 1_002_568n). */
+export const PRICE_DECIMALS = 6;
+
 /** Quote per share, scaled by 10^`decimals`: (nav + 1e6) / (supply + 1e6). */
-export function sharePrice(nav: bigint, supply: bigint, decimals = 6): bigint {
+export function sharePrice(nav: bigint, supply: bigint, decimals = PRICE_DECIMALS): bigint {
   return ((nav + VIRTUAL) * 10n ** BigInt(decimals)) / (supply + VIRTUAL);
 }
-
-export const MODE_LABEL = {
-  'pre-deposit': 'Pre-deposit',
-  live: 'Live',
-  unwind: 'Unwinding',
-  closed: 'Closed',
-} as const;
 
 /** "4m 05s", "1h 02m", "3d 4h": a countdown that stays readable at any scale. */
 export function formatDuration(seconds: number): string {
@@ -78,6 +74,13 @@ export function formatDuration(seconds: number): string {
   if (s < 86_400)
     return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
   return `${Math.floor(s / 86_400)}d ${Math.floor((s % 86_400) / 3600)}h`;
+}
+
+/** An epoch length in words: "5 min", "1 hour", "24 hours". */
+export function formatPeriod(seconds: number): string {
+  if (seconds % 3600 === 0) return seconds === 3600 ? '1 hour' : `${seconds / 3600} hours`;
+  if (seconds % 60 === 0) return `${seconds / 60} min`;
+  return `${seconds} s`;
 }
 
 export function formatTime(unixSeconds: number): string {
@@ -114,7 +117,14 @@ const USER_MESSAGES: Record<number, string> = {
   6047: 'An older withdrawal batch is funded first. Use the queued withdrawal or wait.',
 };
 
-/** Name the FLP program error inside a failed send/simulation, when there is one. */
+const REJECTED = /user rejected|rejected the request|request rejected|user denied/i;
+
+/** The user declined in the wallet: not an error worth a red toast. */
+export function isWalletRejection(err: unknown): boolean {
+  return REJECTED.test(err instanceof Error ? err.message : String(err));
+}
+
+/** A user-facing sentence for a failed send or simulation. */
 export function describeFlpError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
   const hex = message.match(/custom program error: 0x([0-9a-f]+)/i);
@@ -129,7 +139,9 @@ export function describeFlpError(err: unknown): string {
         : null;
   if (code !== null && USER_MESSAGES[code]) return USER_MESSAGES[code];
   const known = code !== null ? FLP_ERRORS.get(code) : undefined;
-  if (known) return known.msg ? `${known.name}: ${known.msg}` : known.name;
-  if (/user rejected|rejected the request/i.test(message)) return 'Request rejected in wallet';
+  // Other program errors: the IDL message as a sentence, without the Rust name.
+  if (known?.msg) return `${known.msg.charAt(0).toUpperCase()}${known.msg.slice(1)}.`;
+  if (known) return known.name;
+  if (REJECTED.test(message)) return 'Cancelled in wallet';
   return message.split('\n')[0];
 }

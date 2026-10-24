@@ -16,7 +16,7 @@ export function Bone({ className }: { className?: string }) {
   return <span className={cn('skeleton-bone block motion-reduce:animate-none!', className)} />;
 }
 
-export const DASH = <span className="text-rock/45">—</span>;
+export const DASH = <span className="text-rock/60">—</span>;
 
 /** One headline number in a ruled strip of tiles. */
 export function Tile({
@@ -94,7 +94,7 @@ export function PanelBar({
 export function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-2.5">
-      <dt className="text-xs text-rock/55">{label}</dt>
+      <dt className="text-xs text-rock/60">{label}</dt>
       <dd className="min-w-0 truncate text-right font-mono text-xs text-rock/85 tabular-nums">
         {children}
       </dd>

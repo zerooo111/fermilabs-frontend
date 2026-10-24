@@ -8,7 +8,14 @@ import axios from 'axios';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
-import { FlpDevnetStrip, FlpHoldings, FlpRequests } from '@/features/flp-vault';
+import {
+  FlpDevnetStrip,
+  FlpHoldings,
+  FlpPerformance,
+  FlpRequests,
+  useFlpLiveUpdates,
+  type FlpVaultConfig,
+} from '@/features/flp-vault';
 import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { TabStrip, TabStripItem } from '@/shared/ui/tab-strip';
 
@@ -17,6 +24,7 @@ import {
   pct,
   bps,
   capLabel,
+  countdown,
   duration,
   formatDate,
   num,
@@ -29,7 +37,7 @@ import {
 import { isFlpVault } from '../../model/flpSource';
 import { useVault, useWalletAddress } from '../../model/useVaults';
 import { Address } from '../Address';
-import { MODE_LABEL, useWindowParam } from '../../model/params';
+import { useWindowParam } from '../../model/params';
 import { ModeBadge, NetworkBadge } from '../VaultBadges';
 import { VaultMark } from '../VaultMark';
 import { Bone, DASH, Row, Tile } from '../primitives';
@@ -51,17 +59,56 @@ export function VaultDetail({ network, address }: { network: VaultNetwork; addre
 
   return (
     <div className="flex flex-col gap-5">
+      {flp && <FlpLive config={flp} />}
       <Header vault={v} network={network} address={address} />
       {flp && <FlpDevnetStrip vault={flp.address} />}
       <Stats vault={v} />
       {flp && <FlpRequests vault={flp.address} />}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         {v ? <OverviewPanel vault={v} /> : <Bone className="min-h-[22rem] w-full" />}
-        <PerformancePanel network={network} address={address} mode={v?.mode} history={!flp} />
+        {flp ? (
+          <FlpPerformance vault={flp.address} />
+        ) : (
+          <PerformancePanel network={network} address={address} mode={v?.mode} />
+        )}
       </div>
       {flp ? <FlpHoldings vault={flp.address} /> : v && <ActivityPanel vault={v} />}
     </div>
   );
+}
+
+/** Chain subscriptions for an FLP vault page, mounted once. */
+function FlpLive({ config }: { config: FlpVaultConfig }) {
+  useFlpLiveUpdates(config.address);
+  return null;
+}
+
+/** How old the vault data is, once it's old enough to matter (the FLP API can lag minutes). */
+function Freshness({ vault: v }: { vault: Vault }) {
+  const now = useNow();
+  const age = Math.max(0, Math.round((now - v.synced_at_ms) / 1000));
+  if (age < 30) return null;
+  return (
+    <span
+      className={cn(
+        'font-mono text-[11px] tabular-nums',
+        age > 120 ? 'text-amber-200' : 'text-rock/60'
+      )}
+      title="The vault data API can serve a copy while it refreshes"
+    >
+      Updated {timeAgo(v.synced_at_ms, now)}
+      {v.stale ? ' · refreshing' : ''}
+    </span>
+  );
+}
+
+function useNow(): number {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  return now;
 }
 
 function Header({
@@ -108,7 +155,8 @@ function Header({
             <div className="flex flex-wrap items-center gap-2">
               <NetworkBadge network={network} />
               {v && <ModeBadge mode={v.mode} />}
-              <Address address={address} network={network} className="text-xs text-rock/55" />
+              <Address address={address} network={network} className="text-xs text-rock/60" />
+              {v && <Freshness vault={v} />}
             </div>
           </div>
         </div>
@@ -126,6 +174,10 @@ function Stats({ vault: v }: { vault?: Vault }) {
   const wallet = useWalletAddress();
   const loading = !v;
   const user = v?.user ?? null;
+  // Connected, but this wallet's read hasn't landed yet: never show someone else's.
+  const userLoading = !!wallet && (!v || v.user === undefined);
+  const pending = user ? user.pending_deposit : 0;
+  const claimable = user?.claimable ?? 0;
   const windowTag = v ? (v.window === 'all' ? 'All' : v.window.toUpperCase()) : '';
   return (
     <div className="grid grid-cols-2 divide-outline border border-outline max-sm:[&>*:nth-child(n+3)]:border-t max-sm:[&>*:nth-child(odd)]:border-r max-sm:[&>*]:border-outline sm:grid-cols-4 sm:divide-x">
@@ -135,6 +187,14 @@ function Stats({ vault: v }: { vault?: Vault }) {
           value={capLabel(v.tvl, v.tvl_cap)}
           hint={`${usd(v.tvl, 0)} of ${usd(v.tvl_cap, 0)}`}
           footer={<CapMeter tvl={v.tvl} cap={v.tvl_cap} bare />}
+        />
+      ) : v?.apr === null && v.source === 'flp' ? (
+        // No history for an APR yet: the return since launch is the real number.
+        <Tile
+          label="Since launch"
+          value={pctSigned(v.all_time_return)}
+          valueClassName={tone(v.all_time_return)}
+          hint="APR after a week of history"
         />
       ) : (
         <Tile
@@ -151,33 +211,36 @@ function Stats({ vault: v }: { vault?: Vault }) {
         hint={v ? `${v.depositors} ${v.depositors === 1 ? 'depositor' : 'depositors'}` : null}
       />
       <Tile
-        label="Your deposit"
-        loading={loading && !!wallet}
-        value={
-          !wallet ? (
-            <span className="text-base font-normal text-rock/60">Connect wallet</span>
-          ) : user ? (
-            usd(user.equity)
-          ) : (
-            DASH
-          )
+        label="Your balance"
+        loading={userLoading}
+        value={!wallet || !user ? DASH : usd(user.equity)}
+        hint={
+          !wallet
+            ? 'Connect wallet'
+            : claimable > 0
+              ? `${usd(claimable)} ready to claim`
+              : pending > 0
+                ? `+${usd(pending)} pending`
+                : user && user.shares > 0
+                  ? `${num(user.shares)} FLP`
+                  : null
         }
-        hint={user && user.shares > 0 ? `${num(user.shares)} shares` : null}
       />
       {v?.mode === 'pre-deposit' ? (
         // Nothing to earn yet; what you own of the vault is the useful number.
         <Tile
           label="Your share"
-          loading={loading && !!wallet}
-          value={!wallet || !user || v.tvl <= 0 ? DASH : pct(user.equity / v.tvl, 2)}
+          loading={userLoading}
+          value={!wallet || !user || !v.tvl ? DASH : pct(user.equity / v.tvl, 2)}
           hint={wallet && user ? 'of the vault' : null}
         />
       ) : (
         <Tile
-          label="Your all-time PnL"
-          loading={loading && !!wallet}
+          label="Your earnings"
+          loading={userLoading}
           value={!wallet || !user ? DASH : usdSigned(user.all_time_pnl)}
           valueClassName={user ? tone(user.all_time_pnl) : undefined}
+          hint={user && user.all_time_pnl === null ? 'Not priced right now' : null}
         />
       )}
     </div>
@@ -203,10 +266,9 @@ function OverviewPanel({ vault: v }: { vault: Vault }) {
       </div>
       {tab === 'about' ? (
         <>
-          <p className="border-b border-outline px-4 py-3.5 text-sm leading-relaxed text-rock/75">
-            {v.description}
-          </p>
-          <dl className="divide-y divide-outline">
+          <p className="px-4 py-3.5 text-sm leading-relaxed text-rock/75">{v.description}</p>
+          <Lifecycle vault={v} />
+          <dl className="divide-y divide-outline border-t border-outline">
             <Row label="Leader">
               {v.kind === 'protocol' ? (
                 <Address address={v.leader} network={v.network} label="Fermi" />
@@ -214,16 +276,20 @@ function OverviewPanel({ vault: v }: { vault: Vault }) {
                 <Address address={v.leader} network={v.network} />
               )}
             </Row>
-            <Row label="Status">
-              {MODE_LABEL[v.mode]}
-              {v.breaker_tripped && <span className="ml-2 text-danger">breaker tripped</span>}
-            </Row>
-            {v.mode === 'live' && v.epoch_started_at_ms && (
-              <Row label="Next settlement">
-                <Settlement endsAtMs={v.epoch_started_at_ms + v.epoch_duration_s * 1000} />
+            {v.breaker_tripped && (
+              <Row label="Status">
+                <span className="text-danger">Paused by the circuit breaker</span>
               </Row>
             )}
-            <Row label="Depositors">{v.depositors}</Row>
+            {v.mode === 'live' && (v.next_settlement_ms ?? v.epoch_started_at_ms) && (
+              <Row label="Next settlement">
+                <Settlement
+                  endsAtMs={
+                    v.next_settlement_ms ?? v.epoch_started_at_ms! + v.epoch_duration_s * 1000
+                  }
+                />
+              </Row>
+            )}
             <Row label="All-time vault PnL">
               <span className={tone(v.all_time_pnl)}>{usdSigned(v.all_time_pnl)}</span>
             </Row>
@@ -236,7 +302,6 @@ function OverviewPanel({ vault: v }: { vault: Vault }) {
                 : `${bps(v.fees.management_bps)} mgmt · ${bps(v.fees.performance_bps)} perf`}
             </Row>
           </dl>
-          <Lifecycle vault={v} />
           {v.mode !== 'pre-deposit' && (
             <div className="border-t border-outline px-4 py-3">
               <CapMeter tvl={v.tvl} cap={v.tvl_cap} />
@@ -284,19 +349,10 @@ function OverviewPanel({ vault: v }: { vault: Vault }) {
 
 /** Countdown to the epoch close, when queued deposits and withdrawals are priced. */
 function Settlement({ endsAtMs }: { endsAtMs: number }) {
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, []);
+  const now = useNow();
   const left = Math.round((endsAtMs - now) / 1000);
-  if (left <= 0) return <span className="text-rock/60">Settling now</span>;
-  return (
-    <span className="tabular-nums">
-      in{' '}
-      {left >= 60 ? `${Math.floor(left / 60)}m ${String(left % 60).padStart(2, '0')}s` : `${left}s`}
-    </span>
-  );
+  if (left <= 0) return <span className="text-rock/60">Settling, usually under a minute</span>;
+  return <span className="tabular-nums">in {countdown(left)}</span>;
 }
 
 function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void }) {

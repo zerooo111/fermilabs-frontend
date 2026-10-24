@@ -8,7 +8,7 @@ import { useInfiniteQuery, useQueries, useQuery, keepPreviousData } from '@tanst
 import { useWallet } from '@solana/wallet-adapter-react';
 import axios from 'axios';
 
-import { FLP_VAULTS, flpVaultQuery } from '@/features/flp-vault';
+import { FLP_VAULTS, devOwner, flpVaultQuery } from '@/features/flp-vault';
 
 import {
   fetchVault,
@@ -16,6 +16,7 @@ import {
   fetchVaultDepositors,
   fetchVaultHistory,
   fetchVaults,
+  gatewayConfigured,
   type Vault,
   type VaultList,
   type VaultNetwork,
@@ -38,8 +39,9 @@ function retry(failures: number, err: unknown): boolean {
   return failures < 1;
 }
 
+/** The connected wallet, or in dev the `?flpOwner=` wallet being viewed read-only. */
 export function useWalletAddress(): string | undefined {
-  return useWallet().publicKey?.toBase58();
+  return useWallet().publicKey?.toBase58() ?? devOwner() ?? undefined;
 }
 
 /** Every vault: the FLP vaults from the data API, plus whatever the gateway lists. */
@@ -49,32 +51,45 @@ export function useVaults(window: VaultWindow) {
     queryKey: [...vaultsKey, 'list', window, wallet ?? null],
     queryFn: ({ signal }) => fetchVaults({ window, wallet }, signal),
     refetchInterval: REFRESH_MS,
-    placeholderData: keepPreviousData,
+    // Keep the last list while a new window loads, but never across wallets.
+    placeholderData: (prev, prevQuery) =>
+      prevQuery?.queryKey[3] === (wallet ?? null) ? prev : undefined,
     retry,
+    enabled: gatewayConfigured,
   });
   const flp = useQueries({
     queries: FLP_VAULTS.map(c => ({
       ...flpVaultQuery(c.address.toBase58(), wallet ?? null),
+      // The wallet-less read stands in while this wallet's loads; flpToVault
+      // drops its user, so the tiles show loading rather than nobody's position.
       placeholderData: keepPreviousData,
     })),
+    combine: results => ({
+      envelopes: results.map(r => r.data),
+      pending: results.some(r => r.isPending),
+      failed: results.filter(r => r.isError).length,
+      error: results.find(r => r.isError)?.error ?? null,
+      refetch: () => results.forEach(r => void r.refetch()),
+    }),
   });
 
-  const flpData = flp.map(r => r.data);
   const data = useMemo((): VaultList | undefined => {
-    const own: Vault[] = flpData.flatMap((env, i) =>
-      env ? [flpToVault(FLP_VAULTS[i], env, window)] : []
+    const own: Vault[] = flp.envelopes.flatMap((env, i) =>
+      env ? [flpToVault(FLP_VAULTS[i], env, window, wallet)] : []
     );
     const mine = new Set(own.map(v => `${v.network}:${v.address}`));
     const vaults = [
       ...own,
       ...(gateway.data?.vaults ?? []).filter(v => !mine.has(`${v.network}:${v.address}`)),
     ];
-    if (!vaults.length && (gateway.isPending || flp.some(r => r.isPending))) return undefined;
+    if (!vaults.length && (flp.pending || (gatewayConfigured && gateway.isPending)))
+      return undefined;
     const totals = (['mainnet', 'devnet'] as const).flatMap(network => {
       const of = vaults.filter(v => v.network === network);
-      return of.length
-        ? [{ network, vaults: of.length, tvl: of.reduce((a, v) => a + v.tvl, 0) }]
-        : [];
+      if (!of.length) return [];
+      // A total over a vault that can't be valued is itself unknown.
+      const tvl = of.some(v => v.tvl === null) ? null : of.reduce((a, v) => a + (v.tvl ?? 0), 0);
+      return [{ network, vaults: of.length, tvl }];
     });
     return {
       window,
@@ -84,19 +99,19 @@ export function useVaults(window: VaultWindow) {
       total: vaults.length,
       vaults,
     };
-    // flpData changes identity every render; its entries are the real inputs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...flpData, gateway.data, gateway.isPending, window]);
+  }, [flp.envelopes, flp.pending, gateway.data, gateway.isPending, window, wallet]);
 
-  const allFailed = gateway.isError && flp.every(r => r.isError);
+  const failed = flp.failed === FLP_VAULTS.length && (!gatewayConfigured || gateway.isError);
   return {
     data,
-    isPending: !data,
-    isError: allFailed && !data,
-    error: gateway.error,
+    isPending: !data && !failed,
+    isError: failed && !data?.vaults.length,
+    /** FLP vaults that couldn't be read; the list shows the rest. */
+    missing: flp.failed,
+    error: flp.error ?? gateway.error,
     refetch: () => {
-      void gateway.refetch();
-      flp.forEach(r => void r.refetch());
+      if (gatewayConfigured) void gateway.refetch();
+      flp.refetch();
     },
   };
 }
@@ -108,9 +123,10 @@ export function useVault(network: VaultNetwork, address: string, window: VaultWi
     queryKey: [...vaultsKey, 'detail', network, address, window, wallet ?? null],
     queryFn: ({ signal }) => fetchVault(network, address, { window, wallet }, signal),
     refetchInterval: REFRESH_MS,
-    placeholderData: keepPreviousData,
+    placeholderData: (prev, prevQuery) =>
+      prevQuery?.queryKey[6] === (wallet ?? null) ? prev : undefined,
     retry,
-    enabled: !flpConfig,
+    enabled: !flpConfig && gatewayConfigured,
   });
   const flp = useQuery({
     ...flpVaultQuery(address, wallet ?? null),
@@ -119,21 +135,15 @@ export function useVault(network: VaultNetwork, address: string, window: VaultWi
   });
   const env = flp.data;
   const data = useMemo(
-    () => (flpConfig && env ? flpToVault(flpConfig, env, window) : undefined),
-    [flpConfig, env, window]
+    () => (flpConfig && env ? flpToVault(flpConfig, env, window, wallet) : undefined),
+    [flpConfig, env, window, wallet]
   );
   if (!flpConfig) return gateway;
   return { data, isError: flp.isError && !env, error: flp.error, refetch: flp.refetch };
 }
 
-export function useVaultHistory(
-  network: VaultNetwork,
-  address: string,
-  window: VaultWindow,
-  enabled = true
-) {
+export function useVaultHistory(network: VaultNetwork, address: string, window: VaultWindow) {
   return useQuery({
-    enabled,
     queryKey: [...vaultsKey, 'history', network, address, window],
     queryFn: ({ signal }) => fetchVaultHistory(network, address, window, signal),
     refetchInterval: REFRESH_MS * 2,

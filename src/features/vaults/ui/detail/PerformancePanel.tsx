@@ -71,13 +71,10 @@ export function PerformancePanel({
   network,
   address,
   mode,
-  history: hasHistory = true,
 }: {
   network: VaultNetwork;
   address: string;
   mode?: VaultMode;
-  /** False where no history source exists yet: shows a placeholder instead. */
-  history?: boolean;
 }) {
   const { window, setWindow } = useWindowParam();
   // Before launch the share price is pinned at 1, so every return series is
@@ -86,7 +83,7 @@ export function PerformancePanel({
   const metrics = preLaunch ? METRICS.filter(x => x.value === 'tvl') : METRICS;
   const [picked, setMetric] = useState<Metric>('return');
   const metric = metrics.some(x => x.value === picked) ? picked : metrics[0].value;
-  const history = useVaultHistory(network, address, window, hasHistory);
+  const history = useVaultHistory(network, address, window);
   const m = METRICS.find(x => x.value === metric)!;
 
   const data = useMemo(() => {
@@ -98,56 +95,39 @@ export function PerformancePanel({
 
   return (
     <section className="flex min-h-[22rem] flex-col border border-outline">
-      {!hasHistory ? (
-        <div className="flex min-h-11 items-center border-b border-outline bg-card px-3 py-1.5 sm:px-4">
-          <h2 className="text-sm text-rock">Performance</h2>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-outline bg-card px-3 py-1.5 sm:px-4">
-          <TabStrip
-            id="vault-metric"
-            active={metric}
-            className="-mb-1.5 flex overflow-x-auto"
-            role="tablist"
-          >
-            {metrics.map(x => (
-              <TabStripItem
-                key={x.value}
-                value={x.value}
-                onSelect={v => setMetric(v as Metric)}
-                className="h-9"
-              >
-                {x.label}
-              </TabStripItem>
-            ))}
-          </TabStrip>
-          {preLaunch && (
-            <span className="mr-auto font-mono text-[10px] uppercase tracking-[0.12em] text-rock/55">
-              Returns chart from launch
-            </span>
-          )}
-          <Segmented
-            aria-label="Chart window"
-            mono
-            value={window}
-            onChange={setWindow}
-            options={WINDOWS}
-          />
-        </div>
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-outline bg-card px-3 py-1.5 sm:px-4">
+        <TabStrip
+          id="vault-metric"
+          active={metric}
+          className="-mb-1.5 flex overflow-x-auto"
+          role="tablist"
+        >
+          {metrics.map(x => (
+            <TabStripItem
+              key={x.value}
+              value={x.value}
+              onSelect={v => setMetric(v as Metric)}
+              className="h-9"
+            >
+              {x.label}
+            </TabStripItem>
+          ))}
+        </TabStrip>
+        {preLaunch && (
+          <span className="mr-auto font-mono text-[10px] uppercase tracking-[0.12em] text-rock/60">
+            Returns chart from launch
+          </span>
+        )}
+        <Segmented
+          aria-label="Chart window"
+          mono
+          value={window}
+          onChange={setWindow}
+          options={WINDOWS}
+        />
+      </div>
       <div className="grid-pattern relative flex-1 p-2">
-        {!hasHistory ? (
-          <div className="relative flex h-full min-h-72 flex-col items-center justify-center gap-1.5 overflow-hidden text-center">
-            <DitherRidge
-              seed={address}
-              className="absolute inset-x-0 bottom-0 h-1/4 max-h-24 text-lichen opacity-60"
-            />
-            <p className="relative text-sm text-rock/75">Performance charts are coming soon</p>
-            <p className="relative max-w-xs text-xs text-rock/60">
-              Share price, TVL and PnL history will show here once the vault is indexed.
-            </p>
-          </div>
-        ) : history.isPending ? (
+        {history.isPending ? (
           <Bone className="h-full min-h-72 w-full" />
         ) : data.length < 2 ? (
           <div className="relative flex h-full min-h-72 flex-col items-center justify-center gap-1.5 overflow-hidden text-center">

@@ -24,10 +24,13 @@ export interface VaultUser {
   cost_basis: number;
   total_deposited: number;
   total_withdrawn: number;
-  all_time_pnl: number;
+  /** Null when part of it is unknown (e.g. unrealized PnL the API can't price). */
+  all_time_pnl: number | null;
   realized_pnl: number;
   pending_deposit: number;
   pending_withdraw_shares: number;
+  /** Ready to claim now, in USDC terms (FLP vaults). */
+  claimable?: number;
   first_deposit_at_ms: number | null;
   last_action_at_ms: number | null;
 }
@@ -46,6 +49,9 @@ export interface Vault {
   mode: VaultMode;
   deposits_open: boolean;
   withdrawals_open: boolean;
+  /** Why Deposit / Withdraw are unavailable, when they are (FLP vaults). */
+  deposits_reason?: string | null;
+  withdrawals_reason?: string | null;
   breaker_tripped: boolean;
   leader: string;
   delegate: string;
@@ -54,7 +60,8 @@ export interface Vault {
   share_mint: string;
   quote_decimals: number;
   share_decimals: number;
-  tvl: number;
+  /** Null when the vault can't be valued right now. */
+  tvl: number | null;
   share_price: number;
   high_water_mark: number;
   share_supply: number;
@@ -62,7 +69,7 @@ export interface Vault {
   total_deposited: number;
   total_withdrawn: number;
   pre_deposit_total: number;
-  all_time_pnl: number;
+  all_time_pnl: number | null;
   all_time_return: number;
   window: VaultWindow;
   /** Share-price return over the window; null without history. */
@@ -82,6 +89,8 @@ export interface Vault {
   epoch: number;
   epoch_duration_s: number;
   epoch_started_at_ms: number | null;
+  /** When the open epoch settles queued requests (FLP vaults). */
+  next_settlement_ms?: number | null;
   created_at_ms: number;
   live_started_at_ms: number | null;
   age_days: number;
@@ -99,7 +108,7 @@ export interface VaultList {
   window: VaultWindow;
   network: VaultNetwork | 'all';
   updated_at_ms: number;
-  totals: { network: VaultNetwork; vaults: number; tvl: number }[];
+  totals: { network: VaultNetwork; vaults: number; tvl: number | null }[];
   total: number;
   vaults: Vault[];
 }
@@ -153,11 +162,13 @@ export interface VaultActivity {
   next_before: number | null;
 }
 
-// Vaults are only deployed on the staging gateway for now, so they're read
-// from there regardless of VITE_GATEWAY_URL. Drop this override once the
-// gateway ships to prod.
-const STAGING_GATEWAY_URL = 'https://v1.fermi.trade/staging';
-const GATEWAY = () => import.meta.env.VITE_VAULTS_GATEWAY_URL || STAGING_GATEWAY_URL;
+// The gateway's vault sync (/v2/vaults) isn't deployed anywhere yet, so it's
+// only called when VITE_VAULTS_GATEWAY_URL points at one (e.g.
+// https://v1.fermi.trade/staging). FLP vaults don't need it: they read the
+// FLP data API (model/flpSource.ts).
+const GATEWAY_URL: string | undefined = import.meta.env.VITE_VAULTS_GATEWAY_URL;
+export const gatewayConfigured = !!GATEWAY_URL;
+const GATEWAY = () => GATEWAY_URL;
 
 const vaultPath = (network: VaultNetwork, address: string) =>
   API_ROUTES_V2.vault

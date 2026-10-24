@@ -4,7 +4,7 @@
  * wallet has (frontend-guide.md B.2 rules 13 and 19, B.3).
  */
 import type { FlpEnvelope, FlpPortfolio, FlpTicket, FlpUser, Unknown } from './api';
-import { fixedToNative, sharePrice } from './format';
+import { fixedScaled, fixedToNative, sharePrice } from './format';
 
 export type DepositRoute = 'pre-deposit' | 'queued' | 'direct';
 export type WithdrawRoute = 'refund' | 'instant' | 'queued' | 'redeem';
@@ -105,16 +105,23 @@ export function depositRoutes(env: FlpEnvelope, user: FlpUser | null | undefined
   return routes;
 }
 
+/**
+ * Withdrawal routes. With a known wallet (`user` not undefined) only the ones
+ * it has a balance for; before that, every route the phase allows.
+ */
 export function withdrawRoutes(env: FlpEnvelope, user: FlpUser | null | undefined, shares: bigint) {
   const mode = env.data.lifecycle.mode;
   const paused =
     (user?.availability.withdrawalsBlockedByStatus ?? statusBlocks(env).withdrawals)
       ? 'Withdrawals are paused'
       : null;
+  const known = user !== undefined;
+  const principal = BigInt(user?.refundablePublicPrincipal ?? '0');
+  const hasShares = !known || shares > 0n;
   const routes: RouteState<WithdrawRoute>[] = [];
   if (mode === 'pre-deposit') {
     // Refunds of public principal work through a trading pause.
-    routes.push({ route: 'refund', closed: null });
+    if (!known || principal > 0n) routes.push({ route: 'refund', closed: null });
     if (shares > 0n && user?.depositApproved) {
       const deferred = env.data.queues.deferredHead !== null;
       routes.push({
@@ -124,9 +131,47 @@ export function withdrawRoutes(env: FlpEnvelope, user: FlpUser | null | undefine
     }
     if (shares > 0n) routes.push({ route: 'queued', closed: paused });
   }
-  if (mode === 'live') routes.push({ route: 'queued', closed: paused });
-  if (mode === 'closed') routes.push({ route: 'redeem', closed: null });
+  if (mode === 'live' && hasShares) routes.push({ route: 'queued', closed: paused });
+  if (mode === 'closed' && hasShares) routes.push({ route: 'redeem', closed: null });
   return routes;
+}
+
+/**
+ * Whether Deposit and Withdraw lead anywhere for this wallet: the one source
+ * for the vault page buttons and the form (an approved wallet keeps the direct
+ * deposit through a public-only pause, frontend-guide.md B.2 rule 19).
+ */
+export function availability(env: FlpEnvelope, user: FlpUser | null | undefined, shares: bigint) {
+  const deposit = depositRoutes(env, user);
+  const withdraw = withdrawRoutes(env, user, shares);
+  const mode = env.data.lifecycle.mode;
+  return {
+    canDeposit: deposit.some(r => !r.closed),
+    depositReason:
+      deposit.find(r => r.closed)?.closed ??
+      (mode === 'unwind' || mode === 'closed' ? 'The vault no longer takes deposits' : null),
+    canWithdraw: withdraw.some(r => !r.closed),
+    withdrawReason:
+      withdraw.find(r => r.closed)?.closed ??
+      (mode === 'unwind'
+        ? 'Withdrawals wait until the vault finishes unwinding'
+        : user !== undefined
+          ? 'Nothing to withdraw'
+          : null),
+  };
+}
+
+/** Standing unsettled-profit risk, with the disclosure a deposit form must show. */
+export function upnlRisk(env: FlpEnvelope) {
+  const r = env.data.standingUpnlRisk;
+  if (!r) return null;
+  return {
+    amount: fixedToNative(r.grossPositiveUnsettledPnlQuoteNative),
+    /** Share of NAV in basis points. */
+    bps: Number(fixedScaled(r.upnlToNavRatio, 4)),
+    disclosure: r.depositDisclosure,
+    definition: r.definition,
+  };
 }
 
 /** A new request conflicts with a ticket left for another epoch (6008). */

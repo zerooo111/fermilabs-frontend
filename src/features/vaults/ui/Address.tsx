@@ -38,7 +38,7 @@ export function Address({
         type="button"
         onClick={copy}
         aria-label={copied ? 'Copied' : 'Copy address'}
-        className={cn('text-rock/55 transition-colors hover:text-rock', FOCUS_RING)}
+        className={cn('text-rock/60 transition-colors hover:text-rock', FOCUS_RING)}
       >
         <Icon className="size-3" />
       </button>
@@ -47,7 +47,7 @@ export function Address({
         target="_blank"
         rel="noreferrer"
         aria-label="Open in Solana Explorer"
-        className={cn('text-rock/55 transition-colors hover:text-rock', FOCUS_RING)}
+        className={cn('text-rock/60 transition-colors hover:text-rock', FOCUS_RING)}
       >
         <ExternalLink className="size-3" />
       </a>

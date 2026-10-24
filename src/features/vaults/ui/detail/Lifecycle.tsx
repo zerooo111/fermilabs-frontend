@@ -30,7 +30,7 @@ function steps(v: Vault): Step[] {
       title: v.mode === 'unwind' ? 'Unwinding' : 'Closed',
       body:
         v.mode === 'unwind'
-          ? 'Positions are being wound down. Withdrawals continue.'
+          ? 'Positions are being wound down. New requests wait; open deposits can be refunded.'
           : 'Holders redeem shares at the final price.',
       at: null,
     },
@@ -75,7 +75,7 @@ export function Lifecycle({ vault: v }: { vault: Vault }) {
                   <span
                     className={cn(
                       'text-xs',
-                      now ? 'text-rock' : done ? 'text-rock/75' : 'text-rock/55'
+                      now ? 'text-rock' : done ? 'text-rock/75' : 'text-rock/60'
                     )}
                   >
                     {s.title}
@@ -86,7 +86,7 @@ export function Lifecycle({ vault: v }: { vault: Vault }) {
                     )}
                   </span>
                   {s.at && (done || now) && (
-                    <span className="font-mono text-[11px] text-rock/55">
+                    <span className="font-mono text-[11px] text-rock/60">
                       {formatDate(s.at / 1000)}
                     </span>
                   )}

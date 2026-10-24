@@ -23,8 +23,6 @@ export interface FlpVaultConfig {
   id: number;
   address: PublicKey;
   name: string;
-  /** What the operator keeps this vault for; the live phase comes from the API. */
-  purpose: string;
   /** The devnet whitelist service approves direct deposits on this vault. */
   whitelist: boolean;
 }
@@ -35,15 +33,13 @@ export const FLP_VAULTS: readonly FlpVaultConfig[] = [
   {
     id: 3,
     address: new PublicKey('8fAqhdnBWnCN2nkkkX4qhU316bhhsvAtKRfoCAv1Hmgo'),
-    name: 'FLP Vault 3',
-    purpose: 'Pre-deposit',
+    name: 'Fermi Liquidity Provider (FLP)',
     whitelist: true,
   },
   {
     id: 1,
     address: new PublicKey('FXFEzgjZyFYcNvhAuCVhFw33qShzP659WG5wvZHXrPnL'),
-    name: 'FLP Vault 1',
-    purpose: 'Live',
+    name: 'FLP Live Test',
     whitelist: false,
   },
 ];

@@ -3,16 +3,17 @@
  * how to get them (test-USDC faucet, devnet SOL) and how to get approved for
  * direct deposits on the vault that offers it.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { PublicKey } from '@solana/web3.js';
 import { toast } from 'sonner';
 
 import { Button } from '@/shared/ui/button';
 
-import { requestFaucet, requestWhitelist } from '../model/api';
+import { FlpHttpError, requestFaucet, requestWhitelist } from '../model/api';
 import { getFlp } from '../model/chain';
 import { flpExplorerTxUrl, flpVaultConfig } from '../model/config';
+import { API_CACHE_MS, flpKeys } from '../model/keys';
 import { useFlpVault } from '../model/useFlpVault';
 
 const FAUCET_AMOUNT = '500';
@@ -23,9 +24,12 @@ export function DevnetStrip({ vault }: { vault: PublicKey }) {
   const [airdropping, setAirdropping] = useState(false);
   const config = flpVaultConfig(vault.toBase58());
 
+  // One idempotency key per faucet request: a retry after 409/503 must reuse
+  // it (the operator reconciles it); only a finished request starts a new one.
+  const faucetKey = useRef<string | null>(null);
   const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ['flp'] });
-    window.setTimeout(() => queryClient.invalidateQueries({ queryKey: ['flp'] }), 3_500);
+    void queryClient.invalidateQueries({ queryKey: flpKeys.all });
+    window.setTimeout(() => queryClient.invalidateQueries({ queryKey: flpKeys.all }), API_CACHE_MS);
   };
   const viewTx = (signature?: string) =>
     signature
@@ -33,7 +37,14 @@ export function DevnetStrip({ vault }: { vault: PublicKey }) {
       : undefined;
 
   const faucet = useMutation({
-    mutationFn: () => requestFaucet(owner!, FAUCET_AMOUNT),
+    mutationFn: () => {
+      faucetKey.current ??= `fe-${crypto.randomUUID()}`;
+      return requestFaucet(owner!, FAUCET_AMOUNT, faucetKey.current);
+    },
+    onSettled: (_r, err) => {
+      const retryable = err instanceof FlpHttpError && (err.status === 409 || err.status >= 500);
+      if (!retryable) faucetKey.current = null;
+    },
     onSuccess: r => {
       refresh();
       toast.success(`Sent ${FAUCET_AMOUNT} test USDC`, { action: viewTx(r.signature) });
@@ -98,14 +109,14 @@ export function DevnetStrip({ vault }: { vault: PublicKey }) {
               size="sm"
               disabled={whitelist.isPending}
               onClick={() => whitelist.mutate()}
-              title="Approved wallets can deposit straight into shares"
+              title="Approved wallets get FLP at once instead of waiting for launch or settlement"
             >
-              {whitelist.isPending ? 'Approving…' : 'Get direct-deposit access'}
+              {whitelist.isPending ? 'Approving…' : 'Get instant-deposit access'}
             </Button>
           )}
         </div>
       ) : (
-        <p className="text-xs text-rock/50">Connect a wallet to get test funds.</p>
+        <p className="text-xs text-rock/60">Connect a wallet to get test funds.</p>
       )}
     </div>
   );

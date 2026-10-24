@@ -178,6 +178,14 @@ export interface FlpVaultData {
   };
   pnl: { unsettledTradingQuoteNative: Fixed | null };
   queues: { deferredHead: string | null };
+  /** Gross positive unsettled PnL: a deposit interface must show it with its disclosure. */
+  standingUpnlRisk?: {
+    definition: string;
+    depositDisclosure: string;
+    grossPositiveUnsettledPnlQuoteNative: Fixed;
+    /** Fraction of current indicative NAV. */
+    upnlToNavRatio: Fixed;
+  };
   portfolio: FlpPortfolio | Unknown | null;
   user: FlpUser | null;
 }
@@ -191,7 +199,13 @@ export interface FlpEnvelope {
   user_account_exists: boolean | null;
   data: FlpVaultData;
   /** The harness serves a stale copy while it refreshes in the background. */
-  cache?: { hit: boolean; age_ms: number; stale?: boolean; refreshing?: boolean };
+  cache?: {
+    hit: boolean;
+    age_ms: number;
+    stale?: boolean;
+    refreshing?: boolean;
+    refresh_error?: string | null;
+  };
 }
 
 export interface FlpOrder {
@@ -225,6 +239,15 @@ export async function fetchOrders(marketIndex: number, owner: string): Promise<F
   return body.data ?? [];
 }
 
+export class FlpHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+  }
+}
+
 async function post<T>(path: string, body: unknown, idempotencyKey: string): Promise<T> {
   const res = await fetch(`${FLP_API_URL}${path}`, {
     method: 'POST',
@@ -234,19 +257,25 @@ async function post<T>(path: string, body: unknown, idempotencyKey: string): Pro
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const detail = data?.error ?? data?.message;
-    if (res.status === 429) throw new Error('Rate limited. Try again in a minute.');
-    throw new Error(detail ? `${detail} (HTTP ${res.status})` : `HTTP ${res.status}`);
+    throw new FlpHttpError(
+      res.status,
+      res.status === 429
+        ? 'Rate limited. Try again in a minute.'
+        : detail
+          ? `${detail} (HTTP ${res.status})`
+          : `HTTP ${res.status}`
+    );
   }
   return data as T;
 }
 
-/** Mint test USDC to `wallet`. `amount` is a decimal string, max 6 decimals. */
-export function requestFaucet(wallet: string, amount: string) {
-  return post<{ state: string; signature?: string }>(
-    '/faucet',
-    { wallet, amount },
-    `fe-${crypto.randomUUID()}`
-  );
+/**
+ * Mint test USDC to `wallet`. `amount` is a decimal string, max 6 decimals.
+ * Reuse `idempotencyKey` to retry the same request (a 409 or 503 must never
+ * be resent under a new key); make a new one for each new request.
+ */
+export function requestFaucet(wallet: string, amount: string, idempotencyKey: string) {
+  return post<{ state: string; signature?: string }>('/faucet', { wallet, amount }, idempotencyKey);
 }
 
 /** Approve `wallet` for direct deposits on the whitelist vault (vault 3). */

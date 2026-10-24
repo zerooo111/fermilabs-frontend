@@ -55,7 +55,7 @@ export function Holdings({ vault }: { vault: PublicKey }) {
             Balances
           </TabStripItem>
         </TabStrip>
-        <span className="hidden font-mono text-[10px] uppercase tracking-[0.12em] text-rock/45 sm:block">
+        <span className="hidden font-mono text-[10px] uppercase tracking-[0.12em] text-rock/60 sm:block">
           Indicative
         </span>
       </div>
@@ -98,7 +98,7 @@ function Positions({ positions, qd }: { positions: FlpPosition[]; qd: number }) 
           const exposure = fixedToNative(p.signedExposureSettlementNative);
           const side = lots > 0n ? 'long' : lots < 0n ? 'short' : 'flat';
           return (
-            <TableRow key={p.marketIndex} className={cn(side === 'flat' && 'text-rock/45')}>
+            <TableRow key={p.marketIndex} className={cn(side === 'flat' && 'text-rock/60')}>
               <TableCell
                 className={cn(
                   TD,
@@ -265,5 +265,5 @@ function Count({ n }: { n?: number }) {
 }
 
 function Message({ children }: { children: ReactNode }) {
-  return <p className="px-4 py-10 text-center text-xs text-rock/55">{children}</p>;
+  return <p className="px-4 py-10 text-center text-xs text-rock/60">{children}</p>;
 }
