@@ -69,6 +69,17 @@ export async function confirmSignature(
   return { status: 'unknown' };
 }
 
+/** A preflight rejection with its program logs appended, so describeFlpError can name the error. */
+export async function withSendLogs(err: unknown): Promise<Error> {
+  if (!(err instanceof Error)) return new Error(String(err));
+  const logs = await (err as Error & { getLogs?: () => Promise<string[] | null> })
+    .getLogs?.()
+    .catch(() => null);
+  return logs?.length
+    ? Object.assign(new Error(`${err.message}\n${logs.join('\n')}`), { name: err.name })
+    : err;
+}
+
 /** The transaction executed and failed; nothing changed on chain. */
 export class FlpTxFailed extends Error {
   constructor(

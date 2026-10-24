@@ -11,7 +11,7 @@ A React + TypeScript + Vite frontend for a Solana-based decentralized exchange (
 ### Development
 
 ```bash
-pnpm dev          # Start development server on port 4000
+pnpm dev          # Start development server on port 8070
 pnpm build        # Build for production
 pnpm preview      # Preview production build
 pnpm serve        # Serve on port 5500 with host
@@ -23,10 +23,11 @@ pnpm serve        # Serve on port 5500 with host
 pnpm lint         # Run ESLint
 pnpm lint:fix     # Fix ESLint issues
 pnpm format       # Format code with Prettier
-pnpm typecheck    # TypeScript type checking
+pnpm typecheck    # Type-check the app; fails only on errors not in typecheck-baseline.json
+pnpm test         # Unit tests (vitest, src/**/*.test.ts)
 ```
 
-**Important**: Always run `pnpm lint` and `pnpm typecheck` after making changes to ensure code quality.
+**Important**: Always run `pnpm lint`, `pnpm typecheck` and `pnpm test` after making changes. `pnpm typecheck` lists the known baseline errors; when you fix some, run `node scripts/typecheck.mjs --update`.
 
 ## Architecture
 
@@ -56,9 +57,10 @@ Uses **PNPM** - always use `pnpm` commands, not `npm` or `yarn`.
 
 ## Development Notes
 
-- Development server runs on port 4000
+- Development server runs on port 8070 (the gateway's CORS allowlist only accepts that port)
 - Uses TypeScript strict mode
 - Radix UI components are pre-configured in `src/shared/ui/`
+- Vaults: `features/vaults` (pages under `/vaults`) and `features/flp-vault` (FLP data, transactions, vendored SDK). Read their README.md first; `pnpm flp:sync` checks FLP against the protocol's deployment manifest. `features/vault-deposit` (`/vault`) is the older, unrelated `fermi_vault` program.
 - The perps chart is CandleFrame (vendored tarball in `vendor/`, built from github.com/adarshzpatel/candleframe); see `src/features/chart/ui/CandleFrameChart.tsx`
 - All Solana wallet adapters are configured in app providers
 - Environment variables should be prefixed with `VITE_`

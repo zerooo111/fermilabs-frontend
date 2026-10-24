@@ -6,6 +6,7 @@
  * they're parsed with BigInt.
  */
 import { FLP_API_URL } from './config';
+import { parseEnvelope } from './schema';
 
 /** `{ raw, fractionalBits }`: native units are raw / 2^fractionalBits. */
 export interface Fixed {
@@ -226,11 +227,9 @@ async function getJson<T>(path: string): Promise<T> {
 
 /** The vault, plus the user's tickets and balances when `owner` is given. */
 export async function fetchVaultData(vault: string, owner: string | null): Promise<FlpEnvelope> {
-  const body = await getJson<FlpEnvelope>(
-    `/state/vaults/${vault}${owner ? `/users/${owner}` : ''}`
-  );
-  if (body.schema_version !== 1) throw new Error(`Unsupported data schema ${body.schema_version}`);
-  return body;
+  const body = await getJson<unknown>(`/state/vaults/${vault}${owner ? `/users/${owner}` : ''}`);
+  // Validated at the boundary (schema.ts): a changed field fails here, not in the UI.
+  return parseEnvelope(body);
 }
 
 /** Resting orders of `owner` (the vault authority) on one perp market, with price and size. */

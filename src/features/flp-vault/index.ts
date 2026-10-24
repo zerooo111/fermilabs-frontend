@@ -5,7 +5,7 @@ export { Holdings as FlpHoldings } from './ui/Holdings';
 export { Requests as FlpRequests } from './ui/Requests';
 export { DevnetStrip as FlpDevnetStrip } from './ui/DevnetStrip';
 export { FlpPerformance } from './ui/FlpPerformance';
-export { useFlpVault, useFlpLiveUpdates, flpVaultQuery } from './model/useFlpVault';
+export { useFlpLiveUpdates, flpVaultQuery } from './model/useFlpVault';
 export { devOwner } from './model/devOwner';
 export { useFlpActions } from './model/useFlpActions';
 export { availability, vaultView } from './model/view';

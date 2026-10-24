@@ -24,9 +24,8 @@ import {
 import bs58 from 'bs58';
 import { toast } from 'sonner';
 
-import { enrichSendError } from '@/shared/hooks/useMangoMarginDeposit';
 import { fitsLegacyPacket, type FlpClient, type VaultAccount } from '../sdk';
-import { confirmSignature, FlpTxFailed, getFlp } from './chain';
+import { confirmSignature, FlpTxFailed, getFlp, withSendLogs } from './chain';
 import { flpExplorerTxUrl } from './config';
 import { describeFlpError, isWalletRejection } from './format';
 import { API_CACHE_MS, flpKeys } from './keys';
@@ -262,7 +261,7 @@ export function useFlpActions(vault: PublicKey) {
         // A preflight rejection proves it didn't execute. A transport error
         // (HTTP 429, a dropped connection) doesn't: keep polling for it.
         if (err instanceof SendTransactionError && !msg.includes('already been processed'))
-          throw await enrichSendError(err);
+          throw await withSendLogs(err);
       }
 
       setTxState(vaultKey, { phase: 'confirming' });
