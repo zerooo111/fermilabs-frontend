@@ -33,6 +33,8 @@ export interface VaultUser {
 }
 
 export interface Vault {
+  /** Where the row came from: the gateway's synced copy, or the FLP data API. */
+  source?: 'gateway' | 'flp';
   network: VaultNetwork;
   address: string;
   vault_id: number;

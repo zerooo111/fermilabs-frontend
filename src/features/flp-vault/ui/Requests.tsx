@@ -9,13 +9,13 @@ import type { PublicKey } from '@solana/web3.js';
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
 
-import type { FlpEnvelope, FlpTicket, FlpUser } from '../model/api';
+import type { FlpTicket } from '../model/api';
 import { formatDuration, formatTime, formatUnits } from '../model/format';
 import { useFlpActions, type FlpActionKind } from '../model/useFlpActions';
 import { epochEnd, vaultView, type VaultView } from '../model/view';
-import { PHASE_LABEL, runAction } from './runAction';
-import { Panel } from './primitives';
+import { useFlpVault } from '../model/useFlpVault';
 import { useNow } from '../model/useNow';
+import { PHASE_LABEL, runAction } from './runAction';
 
 const STATE_LABEL: Record<FlpTicket['state'], string> = {
   none: '',
@@ -27,18 +27,13 @@ const STATE_LABEL: Record<FlpTicket['state'], string> = {
   unavailable: 'Unavailable',
 };
 
-export function Requests({
-  vault,
-  envelope,
-  user,
-}: {
-  vault: PublicKey;
-  envelope: FlpEnvelope;
-  user: FlpUser;
-}) {
-  const v = vaultView(envelope);
+/** Shown only while the connected wallet has something to claim, cancel or wait on. */
+export function Requests({ vault }: { vault: PublicKey }) {
+  const { envelope, user } = useFlpVault(vault);
   const now = useNow();
   const tx = useFlpActions(vault);
+  if (!envelope || !user) return null;
+  const v = vaultView(envelope);
   const graduated = BigInt(user.graduationClaimableShares);
   const items: ReactNode[] = [];
 
@@ -128,16 +123,17 @@ export function Requests({
     );
   }
 
+  if (!items.length) return null;
   return (
-    <Panel title="Your requests">
-      {items.length ? (
-        <ul className="divide-y divide-outline">{items}</ul>
-      ) : (
-        <p className="px-4 py-4 text-xs text-rock/45">
-          No open requests. Queued deposits and withdrawals show here until you claim them.
-        </p>
-      )}
-    </Panel>
+    <section className="flex flex-col border border-amber-200/30">
+      <div className="flex min-h-11 items-center justify-between gap-3 border-b border-outline bg-card px-3 py-1.5 sm:px-4">
+        <h2 className="flex items-center gap-2 text-sm text-rock">
+          Your requests
+          <span className="font-mono text-[11px] tabular-nums text-rock/60">{items.length}</span>
+        </h2>
+      </div>
+      <ul className="divide-y divide-outline">{items}</ul>
+    </section>
   );
 }
 

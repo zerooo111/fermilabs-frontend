@@ -168,7 +168,9 @@ export interface FlpVaultData {
       redemptionEscrowBalance: string;
     };
   };
+  fees: { highWaterMarkPriceE12: string };
   flows: {
+    inceptionTs: string;
     totalDepositedGross: string;
     totalWithdrawnNet: string;
     netDeposits: string;

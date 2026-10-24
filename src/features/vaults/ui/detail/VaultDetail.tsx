@@ -2,12 +2,13 @@
  * One vault: headline numbers, what it is and how it's configured, its
  * performance chart, then depositors and activity.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
+import { FlpDevnetStrip, FlpHoldings, FlpRequests } from '@/features/flp-vault';
 import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { TabStrip, TabStripItem } from '@/shared/ui/tab-strip';
 
@@ -25,6 +26,7 @@ import {
   usd,
   usdSigned,
 } from '../../model/format';
+import { isFlpVault } from '../../model/flpSource';
 import { useVault, useWalletAddress } from '../../model/useVaults';
 import { Address } from '../Address';
 import { MODE_LABEL, useWindowParam } from '../../model/params';
@@ -40,6 +42,9 @@ import { VaultActions } from './VaultActions';
 export function VaultDetail({ network, address }: { network: VaultNetwork; address: string }) {
   const { window } = useWindowParam();
   const q = useVault(network, address, window);
+  // FLP vaults read the FLP data API, which also gives their positions and
+  // the wallet's open requests, but no history or activity feed yet.
+  const flp = isFlpVault(network, address);
 
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const v = q.data;
@@ -47,12 +52,14 @@ export function VaultDetail({ network, address }: { network: VaultNetwork; addre
   return (
     <div className="flex flex-col gap-5">
       <Header vault={v} network={network} address={address} />
+      {flp && <FlpDevnetStrip vault={flp.address} />}
       <Stats vault={v} />
+      {flp && <FlpRequests vault={flp.address} />}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         {v ? <OverviewPanel vault={v} /> : <Bone className="min-h-[22rem] w-full" />}
-        <PerformancePanel network={network} address={address} mode={v?.mode} />
+        <PerformancePanel network={network} address={address} mode={v?.mode} history={!flp} />
       </div>
-      {v && <ActivityPanel vault={v} />}
+      {flp ? <FlpHoldings vault={flp.address} /> : v && <ActivityPanel vault={v} />}
     </div>
   );
 }
@@ -211,6 +218,11 @@ function OverviewPanel({ vault: v }: { vault: Vault }) {
               {MODE_LABEL[v.mode]}
               {v.breaker_tripped && <span className="ml-2 text-danger">breaker tripped</span>}
             </Row>
+            {v.mode === 'live' && v.epoch_started_at_ms && (
+              <Row label="Next settlement">
+                <Settlement endsAtMs={v.epoch_started_at_ms + v.epoch_duration_s * 1000} />
+              </Row>
+            )}
             <Row label="Depositors">{v.depositors}</Row>
             <Row label="All-time vault PnL">
               <span className={tone(v.all_time_pnl)}>{usdSigned(v.all_time_pnl)}</span>
@@ -267,6 +279,23 @@ function OverviewPanel({ vault: v }: { vault: Vault }) {
         </dl>
       )}
     </section>
+  );
+}
+
+/** Countdown to the epoch close, when queued deposits and withdrawals are priced. */
+function Settlement({ endsAtMs }: { endsAtMs: number }) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const left = Math.round((endsAtMs - now) / 1000);
+  if (left <= 0) return <span className="text-rock/60">Settling now</span>;
+  return (
+    <span className="tabular-nums">
+      in{' '}
+      {left >= 60 ? `${Math.floor(left / 60)}m ${String(left % 60).padStart(2, '0')}s` : `${left}s`}
+    </span>
   );
 }
 

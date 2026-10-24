@@ -15,7 +15,7 @@ export function AprValue({ vault: v, className }: { vault: Vault; className?: st
     return (
       <span
         className={cn('font-mono text-xs uppercase tracking-[0.12em] text-amber-200/80', className)}
-        title="Earns from launch. Pre-deposits settle 1:1 until then."
+        title="Earns from launch. Pre-deposits wait in escrow until then."
       >
         Pre-launch
       </span>

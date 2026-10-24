@@ -16,7 +16,7 @@ function steps(v: Vault): Step[] {
     {
       key: 'pre-deposit',
       title: 'Pre-deposit',
-      body: 'Deposits mint shares 1:1 and can be withdrawn any time.',
+      body: 'Deposits wait in escrow and can be withdrawn any time. They become shares at launch.',
       at: v.created_at_ms,
     },
     {

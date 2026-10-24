@@ -1,6 +1,11 @@
-export { FlpVault } from './ui/FlpVault';
+export { Holdings as FlpHoldings } from './ui/Holdings';
+export { Requests as FlpRequests } from './ui/Requests';
+export { DevnetStrip as FlpDevnetStrip } from './ui/DevnetStrip';
 export { ActionForm as FlpActionForm, type FlpSide } from './ui/ActionForm';
-export { useFlpVault, usePrefetchFlpVaults } from './model/useFlpVault';
+export { useFlpVault, useFlpOrders, flpVaultQuery } from './model/useFlpVault';
+export { useFlpActions } from './model/useFlpActions';
 export { formatUnits, MODE_LABEL } from './model/format';
-export { FLP_CLUSTER, FLP_VAULTS, flpVaultConfig } from './model/config';
+export { vaultView, portfolioOf, portfolioUnavailable, epochEnd } from './model/view';
+export { FLP_CLUSTER, FLP_PROGRAM_ID, FLP_VAULTS, flpVaultConfig } from './model/config';
 export type { FlpVaultConfig } from './model/config';
+export type { FlpEnvelope, FlpUser, FlpTicket } from './model/api';

@@ -5,7 +5,7 @@
  * invalidate both, so the view follows the chain between polls.
  */
 import { useEffect, useMemo } from 'react';
-import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 
@@ -24,6 +24,18 @@ export const flpKeys = {
 // The API caches each response for 3 s; a refetch sooner gets the same body.
 const API_CACHE_MS = 3_500;
 
+/** The data API read for one vault (and wallet), shared by every view of it. */
+export function flpVaultQuery(vault: string, owner: string | null) {
+  return queryOptions({
+    queryKey: flpKeys.data(vault, owner),
+    queryFn: () => fetchVaultData(vault, owner),
+    // A stale copy means a refresh is running on the harness: ask again soon.
+    refetchInterval: query => (query.state.data?.cache?.stale ? 3_000 : 10_000),
+    retry: 2,
+    retryDelay: 5_000,
+  });
+}
+
 export function useFlpVault(vault: PublicKey) {
   const queryClient = useQueryClient();
   const { publicKey } = useWallet();
@@ -31,15 +43,10 @@ export function useFlpVault(vault: PublicKey) {
   const vaultKey = vault.toBase58();
 
   const data = useQuery({
-    queryKey: flpKeys.data(vaultKey, owner),
-    queryFn: () => fetchVaultData(vaultKey, owner),
-    // A stale copy means a refresh is running on the harness: ask again soon.
-    refetchInterval: query => (query.state.data?.cache?.stale ? 3_000 : 10_000),
+    ...flpVaultQuery(vaultKey, owner),
     // An uncached read can take many seconds. Keep showing the vault while a
     // new wallet's view loads; callers check `envelope.owner` for user data.
     placeholderData: prev => (prev?.vault === vaultKey ? prev : undefined),
-    retry: 2,
-    retryDelay: 5_000,
   });
 
   const units = data.data?.data.units;
@@ -112,21 +119,4 @@ export function useFlpOrders(vault: PublicKey, envelope: FlpEnvelope | undefined
       loading: results.some(r => r.isPending),
     }),
   });
-}
-
-/** Warm every listed vault, so switching between them doesn't wait on a fresh read. */
-export function usePrefetchFlpVaults(vaults: readonly PublicKey[]) {
-  const queryClient = useQueryClient();
-  const { publicKey } = useWallet();
-  const owner = publicKey?.toBase58() ?? null;
-  const keys = vaults.map(v => v.toBase58()).join(',');
-  useEffect(() => {
-    for (const vault of keys.split(',')) {
-      void queryClient.prefetchQuery({
-        queryKey: flpKeys.data(vault, owner),
-        queryFn: () => fetchVaultData(vault, owner),
-        staleTime: 10_000,
-      });
-    }
-  }, [keys, owner, queryClient]);
 }
