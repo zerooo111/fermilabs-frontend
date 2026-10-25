@@ -9,7 +9,7 @@ import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 import { createSolanaRpc, createSolanaRpcSubscriptions } from '@solana/kit';
 import { config } from '@/shared/config/constants';
 
-export type SolanaChain = 'solana:mainnet' | 'solana:devnet' | 'solana:testnet';
+type SolanaChain = 'solana:mainnet' | 'solana:devnet' | 'solana:testnet';
 
 /**
  * Email/Google/X login with Privy embedded wallets. Off until embedded wallets
@@ -27,10 +27,6 @@ const wsUrl: string = import.meta.env.VITE_WS_URL || rpcUrl.replace(/^http/, 'ws
 export const privyChain: SolanaChain =
   (import.meta.env.VITE_SOLANA_CHAIN as SolanaChain | undefined) ||
   (/devnet/i.test(rpcUrl) ? 'solana:devnet' : 'solana:mainnet');
-
-// Some features live on devnet whatever the app trades on (the FLP vault test
-// deployment). Privy needs an RPC for every chain a transaction is signed on.
-const devnetRpcUrl: string = import.meta.env.VITE_FLP_RPC_URL || 'https://api.devnet.solana.com';
 
 /** Solscan account page for the configured cluster. */
 export function solscanAccountUrl(address: string): string {
@@ -58,10 +54,6 @@ export const privyProviderProps = {
     },
     solana: {
       rpcs: {
-        'solana:devnet': {
-          rpc: createSolanaRpc(devnetRpcUrl),
-          rpcSubscriptions: createSolanaRpcSubscriptions(devnetRpcUrl.replace(/^http/, 'ws')),
-        },
         [privyChain]: {
           rpc: createSolanaRpc(rpcUrl),
           rpcSubscriptions: createSolanaRpcSubscriptions(wsUrl),

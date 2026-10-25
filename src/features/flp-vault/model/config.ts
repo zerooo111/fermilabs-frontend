@@ -10,8 +10,6 @@
 import { PublicKey } from '@solana/web3.js';
 
 export const FLP_CLUSTER = 'devnet';
-/** Wallet-standard chain id that FLP transactions are signed for. */
-export const FLP_CHAIN = `solana:${FLP_CLUSTER}` as const;
 export const FLP_RPC_URL: string =
   import.meta.env.VITE_FLP_RPC_URL || 'https://api.devnet.solana.com';
 /** Data API, faucet and whitelist host. CORS is open and it needs no key. */

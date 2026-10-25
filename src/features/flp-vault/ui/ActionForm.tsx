@@ -12,7 +12,6 @@ import type { PublicKey } from '@solana/web3.js';
 import { Check, ExternalLink } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { ConnectWallet } from '@/features/wallet-connect';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Segmented } from '@/shared/ui/segmented';
@@ -47,6 +46,7 @@ import {
   type VaultView,
   type WithdrawRoute,
 } from '../model/view';
+import { DevnetWalletButton } from './DevnetWallet';
 import { PHASE_LABEL } from './phase';
 
 export type FlpSide = 'deposit' | 'withdraw';
@@ -99,8 +99,11 @@ export function ActionForm({
   if (!owner) {
     return (
       <div className="flex flex-col items-start gap-3 p-4">
-        <p className="text-sm text-rock/70">Connect a wallet to {side}.</p>
-        <ConnectWallet />
+        <p className="text-sm text-rock/70">
+          Connect a devnet wallet to {side}. This vault is on devnet, so it uses your wallet
+          extension directly, not your Fermi login.
+        </p>
+        <DevnetWalletButton size="default" />
       </div>
     );
   }

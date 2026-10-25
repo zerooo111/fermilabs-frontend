@@ -86,13 +86,11 @@ export function PrivyBridge({ adapter }: { adapter: PrivyWalletAdapter }) {
         return signature;
       },
       // Transactions move funds — keep Privy's confirmation modal.
-      // The wallet simulates on the chain it's told, so a devnet transaction
-      // must say devnet (FLP), not the app's trading chain.
-      signTransaction: async (transaction, chain = privyChain) => {
+      signTransaction: async transaction => {
         const { signedTransaction } = await signTransactionRef.current({
           transaction,
           wallet: active,
-          chain,
+          chain: privyChain,
         });
         return signedTransaction;
       },

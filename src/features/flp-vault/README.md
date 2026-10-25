@@ -32,6 +32,15 @@ SDK (vendored) ──► useFlpActions.ts / pricing.ts: build, sign, send, confi
   `flpKeys.tx(vault)` mutation key, not in components: closing the dialog
   mid-send loses nothing, and only one transaction per vault runs at a time.
 
+## Wallet
+
+The vault pages wrap their content in `FlpWalletProvider` (`ui/DevnetWallet.tsx`):
+a direct wallet-standard connection (Phantom, Solflare, Backpack…) on the devnet
+RPC, with its own saved selection. Privy, which handles the app's mainnet
+trading login, isn't used on these pages. Inside them `useWallet()` is the devnet
+wallet; transactions are signed sign-only, so the wallet's own network setting
+applies (testers switch their wallet to devnet / testnet mode).
+
 ## Invariants
 
 - Amounts are `bigint` native units end to end. `features/vaults/model/flpSource.ts`

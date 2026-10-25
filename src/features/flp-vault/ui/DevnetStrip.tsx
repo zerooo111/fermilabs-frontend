@@ -15,6 +15,7 @@ import { getFlp } from '../model/chain';
 import { flpExplorerTxUrl, flpVaultConfig } from '../model/config';
 import { API_CACHE_MS, flpKeys } from '../model/keys';
 import { useFlpVault } from '../model/useFlpVault';
+import { DevnetWalletButton } from './DevnetWallet';
 
 const FAUCET_AMOUNT = '500';
 
@@ -88,10 +89,11 @@ export function DevnetStrip({ vault }: { vault: PublicKey }) {
     <div className="flex flex-col gap-2 border border-amber-200/30 bg-amber-200/[0.04] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-xs text-rock/70">
         <span className="text-amber-200">Devnet test vault.</span> Deposits use test USDC with no
-        value.
+        value. Connect a wallet in devnet mode; your Fermi login isn’t used here.
       </p>
       {owner ? (
         <div className="flex flex-wrap gap-2">
+          <DevnetWalletButton />
           <Button
             variant="outline"
             size="sm"
@@ -116,7 +118,7 @@ export function DevnetStrip({ vault }: { vault: PublicKey }) {
           )}
         </div>
       ) : (
-        <p className="text-xs text-rock/60">Connect a wallet to get test funds.</p>
+        <DevnetWalletButton />
       )}
     </div>
   );

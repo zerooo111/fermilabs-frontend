@@ -5,7 +5,6 @@
  * `useAnchorWallet()`; PrivyBridge feeds the active Privy wallet in through
  * `setSigner()`.
  */
-import type { SolanaChain } from './privyConfig';
 import {
   BaseMessageSignerWalletAdapter,
   WalletDisconnectedError,
@@ -39,11 +38,8 @@ export interface PrivySigner {
   walletIcon: string | null;
   isEmbedded: boolean;
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
-  /**
-   * Takes and returns a serialized transaction (Privy's hooks are byte-only).
-   * `chain` defaults to the app's trading chain.
-   */
-  signTransaction: (serialized: Uint8Array, chain?: SolanaChain) => Promise<Uint8Array>;
+  /** Takes and returns a serialized transaction (Privy's hooks are byte-only). */
+  signTransaction: (serialized: Uint8Array) => Promise<Uint8Array>;
 }
 
 const ICON =
@@ -165,18 +161,6 @@ export class PrivyWalletAdapter extends BaseMessageSignerWalletAdapter {
   }
 
   async signTransaction<T extends Transaction | VersionedTransaction>(transaction: T): Promise<T> {
-    return this.signTransactionOn(transaction);
-  }
-
-  /**
-   * Sign for a specific chain (wallet-adapter's `signTransaction` has no chain
-   * argument). Devnet features such as FLP pass `solana:devnet`, so the wallet
-   * simulates and labels the transaction on the right network.
-   */
-  async signTransactionOn<T extends Transaction | VersionedTransaction>(
-    transaction: T,
-    chain?: SolanaChain
-  ): Promise<T> {
     const signer = this.requireSigner();
     try {
       const isVersioned = transaction instanceof VersionedTransaction;
@@ -187,7 +171,7 @@ export class PrivyWalletAdapter extends BaseMessageSignerWalletAdapter {
             verifySignatures: false,
           });
 
-      const signed = await signer.signTransaction(serialized, chain);
+      const signed = await signer.signTransaction(serialized);
 
       // Some sign-only external wallets return a bare 64-byte signature
       // instead of the full transaction; attach it to the original.
