@@ -7,6 +7,11 @@
  *
  * Transactions are signed with the wallet's sign-only feature, which carries
  * no chain: the wallet uses its own network setting.
+ *
+ * TODO(remove): this separate wallet handling is temporary, for devnet
+ * testing only. When FLP moves to mainnet, delete this file and the
+ * FlpWalletProvider wrappers in pages/vaults and pages/vault-detail, so the
+ * vault pages use the app's Privy wallet like the rest of the app.
  */
 import { useState, type ReactNode } from 'react';
 import { ConnectionProvider, WalletProvider, useWallet } from '@solana/wallet-adapter-react';

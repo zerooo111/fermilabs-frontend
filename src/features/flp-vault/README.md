@@ -34,6 +34,12 @@ SDK (vendored) ──► useFlpActions.ts / pricing.ts: build, sign, send, confi
 
 ## Wallet
 
+> **TODO (remove before mainnet):** the separate devnet wallet below is a
+> temporary testing workaround. When FLP moves to mainnet, delete
+> `ui/DevnetWallet.tsx` and the `FlpWalletProvider` wrappers in
+> `pages/vaults` and `pages/vault-detail`, so the vault pages use the app's
+> Privy wallet like everything else.
+
 The vault pages wrap their content in `FlpWalletProvider` (`ui/DevnetWallet.tsx`):
 a direct wallet-standard connection (Phantom, Solflare, Backpack…) on the devnet
 RPC, with its own saved selection. Privy, which handles the app's mainnet
