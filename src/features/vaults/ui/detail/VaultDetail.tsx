@@ -35,7 +35,7 @@ import {
   usdSigned,
 } from '../../model/format';
 import { isFlpVault } from '../../model/flpSource';
-import { useVault, useWalletAddress } from '../../model/useVaults';
+import { useVault, useVaultHistory, useWalletAddress } from '../../model/useVaults';
 import { Address } from '../Address';
 import { useWindowParam } from '../../model/params';
 import { ModeBadge, NetworkBadge } from '../VaultBadges';
@@ -67,7 +67,7 @@ export function VaultDetail({ network, address }: { network: VaultNetwork; addre
       <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         {v ? <OverviewPanel vault={v} /> : <Bone className="min-h-[22rem] w-full" />}
         {flp ? (
-          <FlpPerformance vault={flp.address} />
+          <FlpChart config={flp} network={network} address={address} mode={v?.mode} />
         ) : (
           <PerformancePanel network={network} address={address} mode={v?.mode} />
         )}
@@ -75,6 +75,29 @@ export function VaultDetail({ network, address }: { network: VaultNetwork; addre
       {flp ? <FlpHoldings vault={flp.address} /> : v && <ActivityPanel vault={v} />}
     </div>
   );
+}
+
+/**
+ * An FLP vault's chart: the gateway's synced history (epoch closes, NAV events,
+ * 15-minute snapshots) once it has some, otherwise the live numbers and how
+ * the vault works. The gateway is optional: if it's down, the page still works.
+ */
+function FlpChart({
+  config,
+  network,
+  address,
+  mode,
+}: {
+  config: FlpVaultConfig;
+  network: VaultNetwork;
+  address: string;
+  mode?: Vault['mode'];
+}) {
+  const { window } = useWindowParam();
+  const history = useVaultHistory(network, address, window);
+  const points = history.data?.points.length ?? 0;
+  if (points >= 2) return <PerformancePanel network={network} address={address} mode={mode} />;
+  return <FlpPerformance vault={config.address} />;
 }
 
 /** Chain subscriptions for an FLP vault page, mounted once. */

@@ -16,7 +16,6 @@ import {
   fetchVaultDepositors,
   fetchVaultHistory,
   fetchVaults,
-  gatewayConfigured,
   type Vault,
   type VaultList,
   type VaultNetwork,
@@ -55,7 +54,6 @@ export function useVaults(window: VaultWindow) {
     placeholderData: (prev, prevQuery) =>
       prevQuery?.queryKey[3] === (wallet ?? null) ? prev : undefined,
     retry,
-    enabled: gatewayConfigured,
   });
   const flp = useQueries({
     queries: FLP_VAULTS.map(c => ({
@@ -74,16 +72,23 @@ export function useVaults(window: VaultWindow) {
   });
 
   const data = useMemo((): VaultList | undefined => {
+    const synced = new Map((gateway.data?.vaults ?? []).map(v => [`${v.network}:${v.address}`, v]));
     const own: Vault[] = flp.envelopes.flatMap((env, i) =>
-      env ? [flpToVault(FLP_VAULTS[i], env, window, wallet)] : []
+      env
+        ? [
+            withHistory(
+              flpToVault(FLP_VAULTS[i], env, window, wallet),
+              synced.get(key(FLP_VAULTS[i]))
+            ),
+          ]
+        : []
     );
     const mine = new Set(own.map(v => `${v.network}:${v.address}`));
     const vaults = [
       ...own,
-      ...(gateway.data?.vaults ?? []).filter(v => !mine.has(`${v.network}:${v.address}`)),
+      ...[...synced.values()].filter(v => !mine.has(`${v.network}:${v.address}`)),
     ];
-    if (!vaults.length && (flp.pending || (gatewayConfigured && gateway.isPending)))
-      return undefined;
+    if (!vaults.length && (flp.pending || gateway.isPending)) return undefined;
     const totals = (['mainnet', 'devnet'] as const).flatMap(network => {
       const of = vaults.filter(v => v.network === network);
       if (!of.length) return [];
@@ -101,7 +106,7 @@ export function useVaults(window: VaultWindow) {
     };
   }, [flp.envelopes, flp.pending, gateway.data, gateway.isPending, window, wallet]);
 
-  const failed = flp.failed === FLP_VAULTS.length && (!gatewayConfigured || gateway.isError);
+  const failed = flp.failed === FLP_VAULTS.length && gateway.isError;
   return {
     data,
     isPending: !data && !failed,
@@ -110,7 +115,7 @@ export function useVaults(window: VaultWindow) {
     missing: flp.failed,
     error: flp.error ?? gateway.error,
     refetch: () => {
-      if (gatewayConfigured) void gateway.refetch();
+      void gateway.refetch();
       flp.refetch();
     },
   };
@@ -126,7 +131,6 @@ export function useVault(network: VaultNetwork, address: string, window: VaultWi
     placeholderData: (prev, prevQuery) =>
       prevQuery?.queryKey[6] === (wallet ?? null) ? prev : undefined,
     retry,
-    enabled: !flpConfig && gatewayConfigured,
   });
   const flp = useQuery({
     ...flpVaultQuery(address, wallet ?? null),
@@ -134,12 +138,32 @@ export function useVault(network: VaultNetwork, address: string, window: VaultWi
     enabled: !!flpConfig,
   });
   const env = flp.data;
+  const synced = gateway.data;
   const data = useMemo(
-    () => (flpConfig && env ? flpToVault(flpConfig, env, window, wallet) : undefined),
-    [flpConfig, env, window, wallet]
+    () =>
+      flpConfig && env
+        ? withHistory(flpToVault(flpConfig, env, window, wallet), synced)
+        : undefined,
+    [flpConfig, env, window, wallet, synced]
   );
   if (!flpConfig) return gateway;
   return { data, isError: flp.isError && !env, error: flp.error, refetch: flp.refetch };
+}
+
+const key = (c: { address: { toBase58(): string } }) => `devnet:${c.address.toBase58()}`;
+
+/**
+ * An FLP vault's live state with the gateway's history-derived numbers (APR,
+ * window return, sparkline), when the gateway has synced it.
+ */
+function withHistory(v: Vault, synced: Vault | undefined): Vault {
+  if (!synced) return v;
+  return {
+    ...v,
+    apr: synced.apr,
+    window_return: synced.window_return,
+    sparkline: synced.sparkline,
+  };
 }
 
 export function useVaultHistory(network: VaultNetwork, address: string, window: VaultWindow) {

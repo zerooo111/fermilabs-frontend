@@ -24,9 +24,11 @@ import {
 import bs58 from 'bs58';
 import { toast } from 'sonner';
 
+import { signTransactionOn } from '@/entities/wallet';
+
 import { fitsLegacyPacket, type FlpClient, type VaultAccount } from '../sdk';
 import { confirmSignature, FlpTxFailed, getFlp, withSendLogs } from './chain';
-import { flpExplorerTxUrl } from './config';
+import { FLP_CHAIN, flpExplorerTxUrl } from './config';
 import { describeFlpError, isWalletRejection } from './format';
 import { API_CACHE_MS, flpKeys } from './keys';
 import { pricingAccounts } from './pricing';
@@ -219,7 +221,6 @@ export function useFlpActions(vault: PublicKey) {
     mutationFn: async ({ kind, amount = 0n }: FlpActionInput): Promise<FlpActionResult> => {
       const owner = wallet.publicKey;
       if (!owner) throw new Error('Connect a wallet first');
-      if (!wallet.signTransaction) throw new Error('This wallet cannot sign transactions');
       const { connection, client } = getFlp();
 
       setTxState(vaultKey, { phase: 'quoting', active: kind, quote: null });
@@ -240,8 +241,11 @@ export function useFlpActions(vault: PublicKey) {
 
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
       setTxState(vaultKey, { phase: 'signing' });
-      const signedTx = await wallet.signTransaction(
-        new Transaction({ feePayer: owner, blockhash, lastValidBlockHeight }).add(...all)
+      // Signed as a devnet transaction: the wallet simulates it on that chain,
+      // not on the mainnet the rest of the app trades on.
+      const signedTx = await signTransactionOn(
+        new Transaction({ feePayer: owner, blockhash, lastValidBlockHeight }).add(...all),
+        FLP_CHAIN
       );
       const sigBytes = signedTx.signatures[0]?.signature;
       if (!sigBytes) throw new Error('Signed transaction is missing a signature');

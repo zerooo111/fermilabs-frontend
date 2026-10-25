@@ -13,4 +13,10 @@ export {
   type AccountIdentity,
   type LoginMethod,
 } from './model';
-export { embeddedWalletsEnabled, privyIdentityToken, solscanAccountUrl } from './privyConfig';
+export {
+  embeddedWalletsEnabled,
+  privyIdentityToken,
+  solscanAccountUrl,
+  type SolanaChain,
+} from './privyConfig';
+export { signTransactionOn } from './signOnChain';
