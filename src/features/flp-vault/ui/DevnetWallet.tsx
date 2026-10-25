@@ -13,7 +13,7 @@
  * FlpWalletProvider wrappers in pages/vaults and pages/vault-detail, so the
  * vault pages use the app's Privy wallet like the rest of the app.
  */
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ConnectionProvider, WalletProvider, useWallet } from '@solana/wallet-adapter-react';
 import { WalletReadyState, type Adapter } from '@solana/wallet-adapter-base';
 import { ExternalLink, LogOut } from 'lucide-react';
@@ -38,13 +38,49 @@ export function FlpWalletProvider({ children }: { children: ReactNode }) {
         autoConnect
         onError={error => {
           if (/reject|denied|cancel/i.test(error.message)) return;
+          if (error.name === 'WalletConnectionError' || error.name === 'WalletNotReadyError') {
+            toast.error('Couldn’t connect your wallet', {
+              description:
+                'Unlock it, switch it to devnet (testnet mode in Phantom, Solflare or Backpack), and try again.',
+            });
+            return;
+          }
           toast.error(error.message || error.name || 'Wallet error');
         }}
       >
+        <NetworkCheck />
         {children}
       </WalletProvider>
     </ConnectionProvider>
   );
+}
+
+/**
+ * Once connected, warn when the wallet says it isn't on devnet (wallets list
+ * the chains an account supports; most list all of them, so this only catches
+ * wallets that report mainnet only). Sign-only still works on any setting,
+ * but the wallet's preview then simulates on the wrong network.
+ */
+function NetworkCheck() {
+  const { wallet, publicKey } = useWallet();
+  const warned = useRef<string | null>(null);
+  useEffect(() => {
+    const key = publicKey?.toBase58();
+    if (!wallet || !key || warned.current === key) return;
+    const adapter = wallet.adapter as Adapter & {
+      wallet?: { accounts?: ReadonlyArray<{ address: string; chains?: readonly string[] }> };
+    };
+    const chains = adapter.wallet?.accounts?.find(a => a.address === key)?.chains;
+    if (chains?.length && !chains.includes('solana:devnet')) {
+      warned.current = key;
+      toast.warning(`${wallet.adapter.name} isn’t on devnet`, {
+        description:
+          'This vault runs on devnet. Switch the wallet to devnet (testnet mode) so its previews match; Solana wallets can’t be switched from the app.',
+        duration: 10_000,
+      });
+    }
+  }, [wallet, publicKey]);
+  return null;
 }
 
 const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
