@@ -269,8 +269,11 @@ function requestItems(user: FlpUser, v: VaultView, now: number): Item[] {
         title,
         status: 'Waiting for liquidity',
         tone: 'warn',
-        detail:
-          'The vault couldn’t pay out at this settlement. You keep your place in line and the next settlement tries again. Until then its value still moves with the vault.',
+        detail: `The vault couldn’t pay out at this settlement. You keep your place in line${
+          v.funding && now <= v.funding.deadline
+            ? `; a funding window is open until ${formatTime(v.funding.deadline)}`
+            : ' until the vault has the cash'
+        }. Until then its value still moves with the vault.`,
       });
     else
       items.push({

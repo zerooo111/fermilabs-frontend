@@ -486,11 +486,13 @@ function Summary({
           </div>
         ))}
       </dl>
-      {side === 'deposit' && risk && (
-        // Required with every deposit (fermi-v1 deployment manifest, uPnL disclosure).
+      {side === 'deposit' && (
+        // Required with every deposit, even when the amount is unknown
+        // (INTEGRATION_GUIDE.md "Values and UI disclosures").
         <p className="border-t border-outline px-3 py-2 text-[11px] leading-relaxed text-rock/60">
-          Unsettled profit in the vault: {usd(risk.amount)} ({(risk.bps / 100).toFixed(2)}% of its
-          value), {risk.disclosure}.
+          {risk?.amount != null && risk.bps != null
+            ? `Unsettled profit in the vault: ${usd(risk.amount)} (${(risk.bps / 100).toFixed(2)}% of its value), ${risk.disclosure}.`
+            : `Unsettled profit in the vault is unknown right now. Positive unsettled profit is ${risk?.disclosure ?? 'counted at par when you enter, excluded when you exit'}.`}
         </p>
       )}
     </div>
@@ -538,7 +540,9 @@ function Blocking({
       success: deposit ? 'Deposit request cancelled' : 'Withdrawal request cancelled',
     };
   } else if (ticket.state === 'deferred') {
-    text = 'Your last withdrawal is waiting for liquidity. A new one can follow once it pays out.';
+    text = v.funding
+      ? `Your last withdrawal is waiting for funding; the window is open until ${formatTime(v.funding.deadline)}. A new one can follow once it pays out.`
+      : 'Your last withdrawal is waiting for liquidity. A new one can follow once it pays out.';
   } else {
     text = `Your last ${side} request is still settling. You can request again once it’s done.`;
   }

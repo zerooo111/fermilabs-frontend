@@ -3,8 +3,9 @@
  * transaction: the approved direct deposit and the approved instant
  * withdrawal. Health is [quote bank (writable), quote oracle, ...active perp
  * markets, ...their oracles] in the vault FermiAccount's perp slot order, then
- * one event queue per active perp slot (RC4 gates build; 6043 otherwise).
- * Two RPC calls, as in the fermi-v1 example client (frontend_flow.cjs).
+ * one event queue per active perp slot (6043 otherwise). Two RPC calls, as
+ * in the fermi-v1 RC6 example client (frontend_flow.cjs), which also checks
+ * that the core accounts belong to the core program.
  */
 import type { BorshCoder } from '@coral-xyz/anchor';
 import { PublicKey, type AccountMeta } from '@solana/web3.js';
@@ -35,6 +36,8 @@ export async function pricingAccounts(vault: PublicKey, state: VaultAccount) {
     'confirmed'
   );
   if (!accountInfo || !bankInfo) throw new Error('Vault FermiAccount or quote bank is missing');
+  if (!accountInfo.owner.equals(FLP_CORE_PROGRAM_ID) || !bankInfo.owner.equals(FLP_CORE_PROGRAM_ID))
+    throw new Error('Vault core accounts have the wrong owner');
   const account = core.accounts.decode('FermiAccount', accountInfo.data) as {
     perps: Array<{ marketIndex: number }>;
   };
@@ -61,6 +64,7 @@ export async function pricingAccounts(vault: PublicKey, state: VaultAccount) {
     : [];
   const perpMarkets = infos.map((info, i) => {
     if (!info) throw new Error(`Missing perp market ${markets[i].toBase58()}`);
+    if (!info.owner.equals(FLP_CORE_PROGRAM_ID)) throw new Error('Perp market has the wrong owner');
     return core.accounts.decode('PerpMarket', info.data) as {
       oracle: PublicKey;
       eventQueue: PublicKey;

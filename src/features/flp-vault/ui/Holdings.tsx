@@ -21,7 +21,6 @@ import { portfolioOf, portfolioUnavailable } from '../model/view';
 type Tab = 'positions' | 'orders' | 'balances';
 const TH = 'h-9 px-2 sm:px-4';
 const TD = 'px-2 py-2.5 sm:px-4 font-mono text-xs tabular-nums';
-const HEALTH_INFINITE = 10n ** 12n;
 
 export function Holdings({ vault }: { vault: PublicKey }) {
   const { envelope } = useFlpVault(vault);
@@ -198,7 +197,6 @@ function Orders({
 function Balances({ envelope }: { envelope: FlpEnvelope }) {
   const portfolio = portfolioOf(envelope)!;
   const qd = envelope.data.units.quoteDecimals;
-  const ratio = fixedToNative(portfolio.health.initRatioPercent);
   const unsettled = fixedToNative(portfolio.valuation.unsettledPerpQuoteNative);
   return (
     <Table className="min-w-[32rem]">
@@ -230,15 +228,6 @@ function Balances({ envelope }: { envelope: FlpEnvelope }) {
           <TableCell className={TD} />
           <TableCell className={cn(TD, 'text-right', tone(unsettled))}>
             {formatSigned(unsettled, qd, 2)} USDC
-          </TableCell>
-        </TableRow>
-        <TableRow>
-          <TableCell className={cn(TD, 'font-sans text-sm text-rock/70')}>Account health</TableCell>
-          <TableCell className={TD} />
-          <TableCell className={cn(TD, 'text-right')}>
-            {ratio > HEALTH_INFINITE
-              ? 'No liabilities'
-              : `${ratio.toLocaleString('en-US')}% init ratio`}
           </TableCell>
         </TableRow>
       </TableBody>

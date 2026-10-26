@@ -2,7 +2,7 @@
  * Native-unit helpers. u64 balances stay bigint end to end; they're never
  * routed through JS `number`.
  */
-import { FLP_IDL } from '../sdk';
+import { FLP_V4_IDL } from '../sdk';
 import type { Fixed } from './api';
 
 /** Parse a decimal string into native units, or null if it isn't a valid amount. */
@@ -92,7 +92,7 @@ export function formatTime(unixSeconds: number): string {
 }
 
 const FLP_ERRORS = new Map(
-  ((FLP_IDL.errors ?? []) as Array<{ code: number; name: string; msg?: string }>).map(e => [
+  ((FLP_V4_IDL.errors ?? []) as Array<{ code: number; name: string; msg?: string }>).map(e => [
     e.code,
     e,
   ])

@@ -1,10 +1,11 @@
 /**
  * FLP user transactions. Each one refetches the vault first (the program
  * rejects instructions built for a phase that has since changed), builds with
- * the SDK builder for the action (frontend-guide.md B.3), has the wallet sign,
- * then sends and confirms on the FLP cluster, whatever cluster the rest of the
- * app uses. Direct deposits and instant withdrawals are simulated first to set
- * their slippage bound; a failed simulation stops before the wallet prompt.
+ * the RC6 version-4 builder for the action (INTEGRATION_GUIDE.md "Public and
+ * permissioned users"), has the wallet sign, then sends and confirms on the
+ * FLP cluster, whatever cluster the rest of the app uses. Direct deposits and
+ * instant withdrawals are simulated first to set their slippage bound; a
+ * failed simulation stops before the wallet prompt.
  */
 import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -17,14 +18,17 @@ import {
   VersionedTransaction,
   type TransactionInstruction,
 } from '@solana/web3.js';
-import {
-  createAssociatedTokenAccountIdempotentInstruction,
-  getAssociatedTokenAddressSync,
-} from '@solana/spl-token';
 import bs58 from 'bs58';
 import { toast } from 'sonner';
 
-import { fitsLegacyPacket, type FlpClient, type VaultAccount } from '../sdk';
+import {
+  fitsLegacyPacket,
+  NONE_EPOCH,
+  STATUS,
+  vaultMode,
+  type FlpV4Client,
+  type VaultAccount,
+} from '../sdk';
 import { confirmSignature, FlpTxFailed, getFlp, withSendLogs } from './chain';
 import { flpExplorerTxUrl } from './config';
 import { describeFlpError, isWalletRejection } from './format';
@@ -61,18 +65,23 @@ export interface FlpActionCtx {
   vault: PublicKey;
   state: VaultAccount;
   owner: PublicKey;
-  client: FlpClient;
+  client: FlpV4Client;
 }
 
-const quoteAtaIx = ({ state, owner }: FlpActionCtx) =>
-  createAssociatedTokenAccountIdempotentInstruction(
-    owner,
-    getAssociatedTokenAddressSync(state.quoteMint, owner, true),
-    owner,
-    state.quoteMint
-  );
-const shareAtaIx = ({ state, owner, client }: FlpActionCtx) =>
-  client.shareAtaInstructions(state, owner).instruction;
+// The version-4 builders leave phase checks to the program. These repeat the
+// ones the earlier SDK made, so a stale page fails before the wallet prompt.
+function requireDeposits(state: VaultAccount, publicRoute: boolean) {
+  const blocked =
+    STATUS.depositsPaused |
+    STATUS.breaker |
+    STATUS.unwind |
+    STATUS.closed |
+    (publicRoute ? STATUS.publicDepositsPaused : 0);
+  if (state.status & blocked) throw new Error('Deposits are unavailable');
+}
+function requireWithdrawals(state: VaultAccount) {
+  if (state.status & STATUS.withdrawalsPaused) throw new Error('Withdrawals are paused');
+}
 
 async function simulate(ixs: TransactionInstruction[], owner: PublicKey, units: number) {
   const { connection, client } = getFlp();
@@ -103,14 +112,21 @@ export async function buildFlpAction(
   quoted: (expected: bigint) => void
 ): Promise<{ ixs: TransactionInstruction[]; units: number }> {
   const { vault, state, owner, client } = ctx;
+  const mode = vaultMode(state.status);
+  // Each builder returns its whole array, starting with the idempotent
+  // initDepositor and the destination token accounts it needs: one transaction.
+  const plain = (ixs: TransactionInstruction[]) => ({ ixs, units: CU_DEFAULT });
   switch (kind) {
     case 'deposit':
-      // Pre-deposit escrow before graduation, a queued request after it.
-      return {
-        ixs: [shareAtaIx(ctx), ...client.depositInstructions(vault, state, owner, amount)],
-        units: CU_DEFAULT,
-      };
+      // Public principal before graduation, a queued request after it.
+      requireDeposits(state, true);
+      if (mode === 'pre-deposit')
+        return plain(client.preDepositInstructions(vault, state, owner, amount));
+      if (mode === 'live')
+        return plain(client.requestDepositInstructions(vault, state, owner, amount));
+      throw new Error('Deposits are unavailable');
     case 'direct-deposit': {
+      requireDeposits(state, false);
       const { accounts, health } = await pricingAccounts(vault, state);
       const draft = (min: bigint) =>
         client.permissionedDepositInstructions(vault, state, owner, amount, min, accounts, health);
@@ -122,23 +138,25 @@ export async function buildFlpAction(
       return { ixs: draft(lessTolerance(shares)), units: CU_PRICED };
     }
     case 'refund':
-      return {
-        ixs: [quoteAtaIx(ctx), client.publicRefundInstruction(vault, state, owner, amount)],
-        units: CU_DEFAULT,
-      };
+      // Public principal only (never trading shares, guide B.2 rule 11).
+      if (!(state.status & STATUS.preDeposit))
+        throw new Error('Public principal already graduated; claim shares and use the queue');
+      return plain(client.preWithdrawInstructions(vault, state, owner, amount));
     case 'withdraw':
       // Trading shares: a queued request, or a terminal redemption once closed.
-      // Never `withdrawalInstruction`: before graduation it's the escrow refund.
-      return {
-        ixs: [quoteAtaIx(ctx), client.tradingWithdrawalInstruction(vault, state, owner, amount)],
-        units: CU_DEFAULT,
-      };
+      if (state.status & STATUS.closed)
+        return plain(client.terminalRedeemInstructions(vault, state, owner, amount));
+      requireWithdrawals(state);
+      return plain(client.requestWithdrawInstructions(vault, state, owner, amount));
     case 'instant-withdraw': {
+      if (mode !== 'pre-deposit' || state.status & (STATUS.breaker | STATUS.unwind))
+        throw new Error('Instant withdrawals are available only before graduation');
+      requireWithdrawals(state);
+      if (!state.deferredHead.eq(NONE_EPOCH))
+        throw new Error('An older withdrawal batch is funded first');
       const { accounts, health } = await pricingAccounts(vault, state);
-      const draft = (min: bigint) => [
-        quoteAtaIx(ctx),
-        client.permissionedWithdraw(vault, state, owner, amount, min, accounts, health),
-      ];
+      const draft = (min: bigint) =>
+        client.permissionedWithdrawInstructions(vault, state, owner, amount, min, accounts, health);
       const events = await simulate(draft(0n), owner, CU_PRICED);
       const event = events.find(e => e.name === 'FlpPermissionedWithdrawal');
       if (!event) throw new Error('The withdrawal simulation returned no payout');
@@ -147,44 +165,23 @@ export async function buildFlpAction(
       return { ixs: draft(lessTolerance(net)), units: CU_PRICED };
     }
     case 'cancel-deposit':
-      return {
-        ixs: [quoteAtaIx(ctx), client.cancelDeposit(vault, state, owner)],
-        units: CU_DEFAULT,
-      };
+      return plain(client.cancelDepositInstructions(vault, state, owner));
     case 'cancel-withdraw':
-      return {
-        ixs: [shareAtaIx(ctx), client.cancelWithdraw(vault, state, owner)],
-        units: CU_DEFAULT,
-      };
+      return plain(client.cancelWithdrawInstructions(vault, state, owner));
     case 'claim-deposit': {
+      // The actual epoch record decides: shares, or a refund if it held deposits.
       const depositor = await client.fetchDepositor(vault, owner);
       const record = await client.fetchEpoch(vault, depositor.dep.epoch);
-      return {
-        ixs: [
-          shareAtaIx(ctx),
-          quoteAtaIx(ctx),
-          client.settleDepositInstruction(vault, state, owner, record),
-        ],
-        units: CU_DEFAULT,
-      };
+      return plain(client.settleDepositInstructions(vault, state, owner, record));
     }
     case 'refund-pending-deposit':
-      return {
-        ixs: [quoteAtaIx(ctx), client.refundPendingDeposit(vault, state, owner)],
-        units: CU_DEFAULT,
-      };
+      return plain(client.refundPendingDepositInstructions(vault, state, owner));
     case 'claim-withdrawal': {
       const depositor = await client.fetchDepositor(vault, owner);
-      return {
-        ixs: [quoteAtaIx(ctx), client.claimWithdrawal(vault, state, owner, depositor.wd.epoch)],
-        units: CU_DEFAULT,
-      };
+      return plain(client.claimWithdrawalInstructions(vault, state, owner, depositor.wd.epoch));
     }
     case 'claim-graduated':
-      return {
-        ixs: [shareAtaIx(ctx), client.claimPreDeposit(vault, state, owner)],
-        units: CU_DEFAULT,
-      };
+      return plain(client.claimPreDepositInstructions(vault, state, owner));
   }
 }
 

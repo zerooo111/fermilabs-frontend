@@ -6,17 +6,22 @@ import { writeFileSync } from 'node:fs';
 
 const API = process.env.FLP_API_URL ?? 'https://flp.34-116-238-207.sslip.io';
 const DIR = 'src/features/flp-vault/model/__fixtures__';
-const PRE = '8fAqhdnBWnCN2nkkkX4qhU316bhhsvAtKRfoCAv1Hmgo'; // vault 3, pre-deposit
-const LIVE = 'FXFEzgjZyFYcNvhAuCVhFw33qShzP659WG5wvZHXrPnL'; // vault 1, live
-// A devnet test wallet with shares in both vaults and an approved direct-deposit account on vault 3.
-const WALLET = process.env.FLP_FIXTURE_WALLET ?? 'APEs3GeG4oWmqT919AA9df8YZv1VHun2BXpnW4YPFx7s';
+// RC6 has one vault, already live: its captures replace live*.json. The
+// pre-deposit*.json captures stay from RC4 (vault 3 8fAq…, program 5EJSS…)
+// until an RC6 vault runs a pre-deposit phase.
+const PRE = process.env.FLP_FIXTURE_PRE_VAULT; // unset: keep the RC4 pre-deposit captures
+const LIVE = 'DSF7hKayWatQyRhuyr4UkrG3zUuNW6b1Q5VhW7BzrUhu'; // RC6 vault
+// A devnet wallet with shares in the RC6 vault and direct-deposit approval.
+const WALLET = process.env.FLP_FIXTURE_WALLET ?? 'CSYxXfixXywMcTGECWjiJdoD75gtzU67fA8JR6YqFvha';
 // A wallet with no Depositor record (user: null).
 const NOBODY = 'Fermi111111111111111111111111111111111111111';
 
 const shots = {
-  'pre-deposit.json': `/state/vaults/${PRE}`,
-  'pre-deposit-user.json': `/state/vaults/${PRE}/users/${WALLET}`,
-  'pre-deposit-nouser.json': `/state/vaults/${PRE}/users/${NOBODY}`,
+  ...(PRE && {
+    'pre-deposit.json': `/state/vaults/${PRE}`,
+    'pre-deposit-user.json': `/state/vaults/${PRE}/users/${WALLET}`,
+    'pre-deposit-nouser.json': `/state/vaults/${PRE}/users/${NOBODY}`,
+  }),
   'live.json': `/state/vaults/${LIVE}`,
   'live-user.json': `/state/vaults/${LIVE}/users/${WALLET}`,
 };

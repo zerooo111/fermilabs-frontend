@@ -39,10 +39,14 @@ export function vaultView(env: FlpEnvelope) {
     tvl: nav === null ? null : nav + escrow,
     tvlCap: BigInt(params.tvlCap),
     supply,
-    /** Quote per share at the last keeper close, scaled by 1e6. */
+    /** Quote per share at the last keeper close (NAV_mid), scaled by 1e6. */
     price: sharePrice(lastNavMid, supply),
+    /** Immediate entry prices at NAV_high, immediate exit at NAV_low (same evidence). */
+    priceHigh: sharePrice(BigInt(last.navHigh), supply),
+    priceLow: sharePrice(BigInt(last.navLow), supply),
     priceSlot: last.slot,
     priceStale: last.stale,
+    funding: fundingEvidence(env),
     minDeposit: BigInt(params.minDeposit),
     minWithdrawShares: BigInt(params.minWithdrawShares),
     params,
@@ -59,6 +63,19 @@ export function vaultView(env: FlpEnvelope) {
   };
 }
 export type VaultView = ReturnType<typeof vaultView>;
+
+/**
+ * The current funding window, from authenticated current evidence only: the
+ * PDA's version, vault, generation and eligibility, open at the reader's chain
+ * time. A stale read claims nothing until a fresh one arrives; a configured
+ * timer alone proves no window (frontend-guide.md "Funding and recovery display").
+ */
+function fundingEvidence(env: FlpEnvelope): { deadline: number } | null {
+  const w = env.data.fundingWindow;
+  if (!w || !w.authenticated || !w.current || !w.eligible || !w.open || env.cache?.stale)
+    return null;
+  return { deadline: Number(w.deadline) };
+}
 
 /** Scheduled end of `epoch` (a past, current or future one). */
 export function epochEnd(v: VaultView, epoch: bigint): number {
@@ -161,16 +178,33 @@ export function availability(env: FlpEnvelope, user: FlpUser | null | undefined,
   };
 }
 
-/** Standing unsettled-profit risk, with the disclosure a deposit form must show. */
+/**
+ * Standing unsettled-profit risk, with the disclosure a deposit form must show
+ * whether or not the amount is known, and the operator notice tier.
+ */
 export function upnlRisk(env: FlpEnvelope) {
   const r = env.data.standingUpnlRisk;
   if (!r) return null;
+  const gross = r.grossPositiveUnsettledPnlQuoteNative;
+  const ratio = r.upnlToNavRatio;
+  const tier1 = r.monitor?.tier1.status;
+  const tier2 = r.monitor?.tier2.status;
   return {
-    amount: fixedToNative(r.grossPositiveUnsettledPnlQuoteNative),
-    /** Share of NAV in basis points. */
-    bps: Number(fixedScaled(r.upnlToNavRatio, 4)),
+    amount: 'raw' in gross ? fixedToNative(gross) : null,
+    /** Share of NAV in basis points; null when unknown. */
+    bps: 'raw' in ratio ? Number(fixedScaled(ratio, 4)) : null,
+    reason: 'raw' in gross ? null : gross.reason,
     disclosure: r.depositDisclosure,
     definition: r.definition,
+    /** Tier 2 outranks tier 1. Both request settlement; neither is a breaker. */
+    notice:
+      tier2 === 'page-operator'
+        ? ('page-operator' as const)
+        : tier1 === 'operator-notice'
+          ? ('operator-notice' as const)
+          : null,
+    /** Missing or stale duration history: the duration rule can't be judged. */
+    durationUnknown: tier1 === 'duration-unknown' || tier2 === 'history-unknown',
   };
 }
 

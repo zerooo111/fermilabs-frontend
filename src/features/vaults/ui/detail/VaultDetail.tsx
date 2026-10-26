@@ -11,6 +11,7 @@ import { Button } from '@/shared/ui/button';
 import {
   FlpDevnetStrip,
   FlpHoldings,
+  FlpHttpError,
   FlpPerformance,
   FlpRequests,
   useFlpLiveUpdates,
@@ -381,18 +382,27 @@ function Settlement({ endsAtMs }: { endsAtMs: number }) {
 function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   const status = axios.isAxiosError(error) ? error.response?.status : undefined;
   const missing = status === 404 || status === 400;
+  // The FLP data service doesn't read this deployment yet (an RC6 vault before
+  // the protocol team hosts its reader): a retry won't help.
+  const unread = error instanceof FlpHttpError && error.status === 422;
   return (
     <div
       role="alert"
       className="flex flex-col items-center gap-3 border border-outline px-4 py-16 text-center"
     >
       <p className="text-sm text-rock/75">
-        {missing ? 'Vault not found' : 'Couldn’t load this vault'}
+        {missing
+          ? 'Vault not found'
+          : unread
+            ? 'This vault’s data isn’t available yet'
+            : 'Couldn’t load this vault'}
       </p>
       <p className="text-xs text-rock/60">
         {missing
           ? 'Check the link, or pick a vault from the list.'
-          : 'Check your connection and try again.'}
+          : unread
+            ? 'Fermi is upgrading the devnet vault data service. Check back soon.'
+            : 'Check your connection and try again.'}
       </p>
       <div className="flex gap-2">
         <Button asChild variant="outline" size="sm">

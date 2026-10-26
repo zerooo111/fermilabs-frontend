@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { edit, fixtures } from './fixtures';
+import { FLP_VAULTS } from './config';
+import { edit, fixtures, rc6 } from './fixtures';
 import { parseEnvelope } from './schema';
 import {
   availability,
@@ -24,6 +25,43 @@ describe('schema', () => {
       (env.data.lifecycle as { mode: string }).mode = 'paused';
     });
     expect(() => parseEnvelope(broken)).toThrow(/data\.lifecycle\.mode/);
+  });
+
+  it('takes a vault read only from the RC6 reader for that vault', () => {
+    const vault = FLP_VAULTS[0].address.toBase58();
+    // An RC4 reader (profile rc2-pr29) must not stand in for RC6.
+    expect(() => parseEnvelope(fixtures.live(), vault)).toThrow(/rc2-pr29/);
+    expect(() => parseEnvelope(rc6(fixtures.live()), vault)).not.toThrow();
+    expect(() => parseEnvelope(rc6(fixtures.live()), fixtures.live().vault)).toThrow(
+      /another program or vault/
+    );
+  });
+});
+
+describe('funding window', () => {
+  const window = {
+    closedEpoch: '8',
+    scheduledStart: '1792993450',
+    deadline: '1792993750',
+    eligible: true,
+    authenticated: true,
+    current: true,
+    open: true,
+  };
+  const withWindow = (change: Partial<typeof window> = {}, stale = false) =>
+    edit(fixtures.live(), e => {
+      e.data.fundingWindow = { ...window, ...change };
+      e.cache = { hit: true, age_ms: 0, stale };
+    });
+
+  it('shows an open window only on current, eligible evidence from a fresh read', () => {
+    expect(vaultView(withWindow()).funding).toEqual({ deadline: 1792993750 });
+    expect(vaultView(withWindow({ current: false })).funding).toBeNull();
+    expect(vaultView(withWindow({ eligible: false })).funding).toBeNull();
+    expect(vaultView(withWindow({ open: false })).funding).toBeNull();
+    // A stale copy claims nothing until a fresh read succeeds.
+    expect(vaultView(withWindow({}, true)).funding).toBeNull();
+    expect(vaultView(fixtures.live()).funding).toBeNull();
   });
 });
 
@@ -117,5 +155,24 @@ describe('upnlRisk', () => {
     const risk = upnlRisk(fixtures.live());
     expect(risk?.disclosure).toMatch(/counted at par when you enter/);
     expect(typeof risk?.bps).toBe('number');
+  });
+
+  it('keeps the disclosure when the amount is unknown, and reads the notice tiers', () => {
+    const risk = upnlRisk(
+      edit(fixtures.live(), e => {
+        const r = e.data.standingUpnlRisk!;
+        r.grossPositiveUnsettledPnlQuoteNative = { value: null, reason: 'Oracle marks are stale' };
+        r.upnlToNavRatio = { value: null, reason: 'Oracle marks are stale' };
+        r.monitor = {
+          tier1: { status: 'duration-unknown' },
+          tier2: { status: 'page-operator', triggers: ['single-market-upnl-at-least-500bps'] },
+        };
+      })
+    );
+    expect(risk).toMatchObject({ amount: null, bps: null, reason: 'Oracle marks are stale' });
+    expect(risk?.disclosure).toMatch(/counted at par when you enter/);
+    // A tier-2 condition still applies when the duration history is unknown.
+    expect(risk?.notice).toBe('page-operator');
+    expect(risk?.durationUnknown).toBe(true);
   });
 });

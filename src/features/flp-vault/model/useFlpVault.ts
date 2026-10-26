@@ -14,7 +14,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 
 import { deriveDepositor } from '../sdk';
-import { fetchOrders, fetchVaultData, type FlpEnvelope, type FlpOrder } from './api';
+import { fetchOrders, fetchVaultData, FlpHttpError, type FlpEnvelope, type FlpOrder } from './api';
 import { COMMITMENT, getFlp, readWallet, walletAtas } from './chain';
 import { FLP_PROGRAM_ID } from './config';
 import { devOwner } from './devOwner';
@@ -42,7 +42,8 @@ export function flpVaultQuery(vault: string, owner: string | null) {
         : query.state.data?.cache?.stale
           ? 3_000
           : 10_000,
-    retry: 2,
+    // A 4xx (the reader can't read this vault) won't change on a retry.
+    retry: (failures, err) => failures < 2 && !(err instanceof FlpHttpError && err.status < 500),
     retryDelay: 5_000,
   });
 }

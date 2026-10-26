@@ -1,7 +1,7 @@
 /**
  * One line under a devnet vault's header: these are test funds, and here's
  * how to get them (test-USDC faucet, devnet SOL) and how to get approved for
- * direct deposits on the vault that offers it.
+ * direct deposits, on the vaults whose helpers the data API host serves.
  */
 import { useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -94,14 +94,16 @@ export function DevnetStrip({ vault }: { vault: PublicKey }) {
       {owner ? (
         <div className="flex flex-wrap gap-2">
           <DevnetWalletButton />
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={faucet.isPending}
-            onClick={() => faucet.mutate()}
-          >
-            {faucet.isPending ? 'Sending…' : `Get ${FAUCET_AMOUNT} test USDC`}
-          </Button>
+          {config?.faucet && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={faucet.isPending}
+              onClick={() => faucet.mutate()}
+            >
+              {faucet.isPending ? 'Sending…' : `Get ${FAUCET_AMOUNT} test USDC`}
+            </Button>
+          )}
           <Button variant="outline" size="sm" disabled={airdropping} onClick={airdrop}>
             {airdropping ? 'Requesting…' : 'Get devnet SOL'}
           </Button>

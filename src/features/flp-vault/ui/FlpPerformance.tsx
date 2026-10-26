@@ -48,7 +48,12 @@ export function FlpPerformance({ vault }: { vault: PublicKey }) {
           }
           small={!live}
         />
-        <Stat label="Share price" value={`$${formatPrice(v.price, PRICE_DECIMALS)}`} />
+        <Stat
+          label="Share price"
+          value={`$${formatPrice(v.price, PRICE_DECIMALS)}`}
+          // NAV_mid, with the entry (NAV_high) and exit (NAV_low) prices of the same evidence.
+          title={`At the vault's last on-chain valuation (slot ${v.priceSlot}${v.priceStale ? ', stale' : ''}): mid $${formatPrice(v.price, PRICE_DECIMALS)}, instant entry $${formatPrice(v.priceHigh, PRICE_DECIMALS)}, instant exit $${formatPrice(v.priceLow, PRICE_DECIMALS)}.`}
+        />
         <Stat
           label="Vault PnL"
           value={pnl === null ? '—' : usd(pnl, qd)}
@@ -56,9 +61,14 @@ export function FlpPerformance({ vault }: { vault: PublicKey }) {
         />
         <Stat
           label="Unsettled profit"
-          value={risk ? `${(risk.bps / 100).toFixed(2)}%` : '—'}
-          hint={risk ? `$${formatUnits(risk.amount, qd, 2)}` : undefined}
+          value={risk?.bps != null ? `${(risk.bps / 100).toFixed(2)}%` : '—'}
+          hint={
+            risk?.amount != null
+              ? `$${formatUnits(risk.amount, qd, 2)}`
+              : (risk?.reason ?? undefined)
+          }
           title={risk ? `${risk.definition}. It is ${risk.disclosure}.` : undefined}
+          note={risk?.notice ? NOTICE[risk.notice] : undefined}
         />
       </dl>
 
@@ -99,6 +109,12 @@ export function FlpPerformance({ vault }: { vault: PublicKey }) {
   );
 }
 
+// Standing-uPnL notices request settlement; they are not a breaker or a recovery trigger.
+const NOTICE = {
+  'operator-notice': 'Settlement requested',
+  'page-operator': 'Settlement overdue',
+} as const;
+
 /** Signed dollars from native units: "+$2.34", "-$0.80", "$0.00". */
 function usd(n: bigint, decimals = 6): string {
   const cents = (n < 0n ? -n : n) / 10n ** BigInt(decimals - 2);
@@ -113,6 +129,7 @@ function Stat({
   tone,
   title,
   small,
+  note,
 }: {
   label: string;
   value: ReactNode;
@@ -120,6 +137,7 @@ function Stat({
   tone?: 'up' | 'down';
   title?: string;
   small?: boolean;
+  note?: string;
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-1.5 px-4 py-3" title={title}>
@@ -137,6 +155,7 @@ function Stat({
         {value}
         {hint && <span className="ml-1.5 text-[11px] text-rock/60">{hint}</span>}
       </dd>
+      {note && <dd className="text-[11px] text-amber-200">{note}</dd>}
     </div>
   );
 }

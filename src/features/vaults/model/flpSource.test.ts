@@ -1,12 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { FLP_VAULTS } from '@/features/flp-vault';
+import { PublicKey } from '@solana/web3.js';
+
+import type { FlpVaultConfig } from '@/features/flp-vault';
 import { edit, fixtures } from '@/features/flp-vault/model/fixtures';
 
 import { flpToVault } from './flpSource';
 
-const live = FLP_VAULTS.find(v => v.id === 1)!;
-const pre = FLP_VAULTS.find(v => v.id === 3)!;
+// The fixtures' vaults (RC4 captures, fixtures.ts), not the configured RC6 one.
+const config = (id: number, address: string): FlpVaultConfig => ({
+  id,
+  address: new PublicKey(address),
+  name: `Vault ${id}`,
+  faucet: false,
+  whitelist: false,
+});
+const live = config(1, 'FXFEzgjZyFYcNvhAuCVhFw33qShzP659WG5wvZHXrPnL');
+const pre = config(3, '8fAqhdnBWnCN2nkkkX4qhU316bhhsvAtKRfoCAv1Hmgo');
 
 describe('flpToVault', () => {
   it('attaches the user only for the wallet it was read for', () => {

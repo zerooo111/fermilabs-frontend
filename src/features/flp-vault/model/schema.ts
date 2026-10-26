@@ -8,6 +8,7 @@
 import { z } from 'zod';
 
 import type { FlpEnvelope } from './api';
+import { FLP_API_PROFILE, FLP_PROGRAM_ID } from './config';
 
 const native = z.string().regex(/^-?\d+$/, 'decimal integer string');
 const fixed = z.object({ raw: native, fractionalBits: z.number() });
@@ -82,8 +83,34 @@ const portfolio = z
         .passthrough()
     ),
     collateral: z.array(z.object({ tokenIndex: z.number(), decimals: z.number() }).passthrough()),
-    health: z.object({ initRatioPercent: fixed }).passthrough(),
     valuation: z.object({ unsettledPerpQuoteNative: fixed }).passthrough(),
+  })
+  .passthrough();
+
+const fundingWindow = z
+  .object({
+    closedEpoch: native,
+    scheduledStart: native,
+    deadline: native,
+    eligible: z.boolean(),
+    authenticated: z.boolean(),
+    current: z.boolean(),
+    open: z.boolean(),
+  })
+  .passthrough();
+
+const upnlRisk = z
+  .object({
+    depositDisclosure: z.string(),
+    grossPositiveUnsettledPnlQuoteNative: z.union([fixed, unknownValue]),
+    upnlToNavRatio: z.union([fixed, unknownValue]),
+    monitor: z
+      .object({
+        tier1: z.object({ status: z.string() }).passthrough(),
+        tier2: z.object({ status: z.string(), triggers: z.array(z.string()) }).passthrough(),
+      })
+      .passthrough()
+      .optional(),
   })
   .passthrough();
 
@@ -91,7 +118,7 @@ export const envelopeSchema = z
   .object({
     schema_version: z.literal(1),
     generated_ts_ms: z.number(),
-    source: z.object({ slot: native }).passthrough(),
+    source: z.object({ slot: native, program_id: z.string(), profile: z.string() }).passthrough(),
     vault: z.string(),
     owner: z.string().nullable(),
     data: z
@@ -131,6 +158,8 @@ export const envelopeSchema = z
           })
           .passthrough(),
         flows: z.object({ netDeposits: native, activeDepositors: z.number() }).passthrough(),
+        fundingWindow: fundingWindow.nullable().optional(),
+        standingUpnlRisk: upnlRisk.optional(),
         portfolio: z.union([portfolio, unknownValue, z.null()]),
         user: user.nullable(),
       })
@@ -138,12 +167,26 @@ export const envelopeSchema = z
   })
   .passthrough();
 
-/** Parse a data API body, naming the first field that doesn't match. */
-export function parseEnvelope(body: unknown): FlpEnvelope {
+/**
+ * Parse a data API body, naming the first field that doesn't match. With
+ * `vault`, the response must also be the RC6 reader's view of that vault on
+ * this deployment's program (frontend_flow.cjs `harnessVault`): a reader still
+ * on an older profile must not stand in for it.
+ */
+export function parseEnvelope(body: unknown, vault?: string): FlpEnvelope {
   const result = envelopeSchema.safeParse(body);
   if (!result.success) {
     const issue = result.error.issues[0];
     throw new Error(`FLP data API changed: ${issue.path.join('.') || 'body'}: ${issue.message}`);
   }
-  return body as FlpEnvelope;
+  const env = body as FlpEnvelope;
+  if (vault !== undefined) {
+    if (env.source.profile !== FLP_API_PROFILE)
+      throw new Error(
+        `FLP data API serves the ${env.source.profile} profile, not ${FLP_API_PROFILE}`
+      );
+    if (env.source.program_id !== FLP_PROGRAM_ID.toBase58() || env.vault !== vault)
+      throw new Error('FLP data API answered for another program or vault');
+  }
+  return env;
 }

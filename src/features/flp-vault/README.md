@@ -5,9 +5,23 @@ transactions, and the FLP-only UI shown on the vault page under `/vaults`
 (`features/vaults` owns the pages; this feature owns FLP data and actions).
 
 Protocol docs (source of truth, kept current by the protocol team):
-fermi-v1 `flp-vault/docs/` — `INTEGRATION_GUIDE.md` (deployment, endpoints,
-devnet helpers), `frontend-guide.md` (user flows; Part B rules are cited in
-code as "B.2 rule N"), `data-endpoints.md` (data API fields), `sdk-guide.md`.
+fermi-v1 `flp-vault/docs/` — `INTEGRATION_GUIDE.md` (RC6 deployment, the
+version-4 methods, disclosures), `frontend-guide.md` (user flows),
+`data-endpoints.md` (data API fields), `sdk-guide.md`. Rules cited in code as
+"B.2 rule N" are from the earlier frontend guide and still hold.
+
+## Deployment: RC6 (devnet)
+
+One version-4 vault, `DSF7hK…rUhu`, on program `FLPRrD…oa9Q` (core
+`6zuHzx…uX5`), on a private test group with synthetic test USDC (`BPmUCs…`).
+The RC4 vaults (program `5EJSS…`) are not RC6 accounts.
+
+- The data API must serve the `rc6-devnet` profile for this program and vault
+  (`parseEnvelope(body, vault)` checks `source.profile`, `source.program_id`,
+  `vault`). Until the protocol team hosts the RC6 reader, the host answers
+  422 and the vault pages show the vault as unavailable.
+- The host's faucet and whitelist still serve the RC4 group, so the devnet
+  strip hides them (`faucet` / `whitelist` in `config.ts`).
 
 ## Data flow
 
@@ -18,7 +32,7 @@ data API (harness) ──► api.ts ──► schema.ts (runtime check) ──�
                                                                   │      └─► ui/* (form, requests, holdings, performance)
                                                                   └─► features/vaults/model/flpSource.ts ──► Vault (list + detail pages)
 chain (RPC) ──► chain.ts: wallet balances, confirmations
-SDK (vendored) ──► useFlpActions.ts / pricing.ts: build, sign, send, confirm
+SDK (vendored, FlpV4Client) ──► useFlpActions.ts / pricing.ts: build, sign, send, confirm
 ```
 
 - Display data comes from the data API, one request per vault (and wallet).
@@ -54,38 +68,60 @@ applies (testers switch their wallet to devnet / testnet mode).
 - An unknown value (`{ value: null, reason }`, a null NAV) stays `null` and
   renders as a dash. Never as 0 (B.2 rule 9).
 - `fetchVault` runs before every transaction (the program rejects
-  instructions built for a phase that changed).
-- Share withdrawals use `tradingWithdrawalInstruction`, never
-  `withdrawalInstruction` (before graduation that's the escrow refund, B.2
-  rule 11). `useFlpActions.test.ts` guards it.
+  instructions built for a phase that changed). The v4 `fetchVault` also
+  authenticates the recovery sidecar.
+- Every user instruction comes from a `FlpV4Client` `…Instructions` method:
+  it returns the whole array (the idempotent `initDepositor` first, then the
+  destination token accounts it needs), sent as one transaction. The v4
+  builders don't check the phase; `buildFlpAction` does, so a stale page fails
+  before the wallet prompt.
+- Share withdrawals are `requestWithdrawInstructions` (or
+  `terminalRedeemInstructions` once closed), never `preWithdrawInstructions`:
+  that's the public-principal refund (B.2 rule 11). `useFlpActions.test.ts`
+  guards it against the real builders.
 - Direct deposits and instant withdrawals are simulated first; `minShares` /
   `minQuote` come from the simulated event less `TOLERANCE_BPS`.
 - Priced instructions take health accounts in FermiAccount perp-slot order,
   then one event queue per active slot (`pricing.ts`; 6043 otherwise).
-- Every deposit view shows the standing unsettled-profit disclosure
-  (`view.upnlRisk`, required by the deployment manifest).
+- Every deposit view shows the standing unsettled-profit disclosure, also
+  when the amount is unknown (`view.upnlRisk`). Its operator notice tiers
+  (`operator-notice`, `page-operator`) request settlement; they aren't a breaker.
+- No health percentage: RC6 has no numerical Init-health breaker, and core
+  health is checked by the actual core withdrawal.
+- A funding window shows as open only on authenticated current evidence from
+  a fresh read (`view.vaultView().funding`); a stale copy claims nothing.
+- Share price tooltips give NAV_mid, NAV_high (instant entry) and NAV_low
+  (instant exit) with the slot of the vault's last on-chain valuation.
 - A read for one wallet never stands in for another (`envelope.owner` check).
 
 ## Config and the vendored SDK
 
-- Addresses: `model/config.ts`, from `${FLP_API_URL}/deployment.json`.
+- Addresses: `model/config.ts`, from the INTEGRATION_GUIDE.md devnet table
+  and the runtime artifact receipt (`mainnet/rc6/devnet/`). Don't check them
+  against `RC6_RELEASE`: its program IDs are the production pins.
   Env: `VITE_FLP_RPC_URL`, `VITE_FLP_API_URL` (both optional, devnet defaults).
 - `sdk/src` and `sdk/idl` are byte-for-byte copies of fermi-v1
   `flp-vault/sdk` (`sdk/VENDOR.json`); eslint and prettier skip them. Never edit.
-  `sdk/fermi_core_accounts.json` is a trimmed core IDL (FermiAccount, Bank,
-  PerpMarket), loaded only for priced instructions.
-- `pnpm flp:sync` reports drift between config/SDK and the manifest;
-  `pnpm flp:sync --write` re-vendors the SDK from fermi-v1 `main`.
+  `sdk/index.ts` re-exports the legacy entry (types, PDAs, status bits) and the
+  v4 entry. `sdk/fermi_core_accounts.json` is a trimmed core IDL
+  (FermiAccount, Bank, PerpMarket), loaded only for priced instructions.
+- `pnpm flp:sync` reports drift between config/SDK and those records (and the
+  data API's `/deployment.json` once it describes RC6);
+  `pnpm flp:sync --write` re-vendors the SDK from fermi-v1 `main`, checking
+  the v4 IDL against the guide's canonical hash.
 
 ## Verifying changes
 
 - `pnpm test` — pure logic against real API responses in `model/__fixtures__`
-  (`pnpm flp:fixtures` re-captures them). `fixtures.ts` has an `edit()` helper
-  for states the devnet vaults aren't in (paused, unwind, null NAV, …).
+  (`pnpm flp:fixtures` re-captures them). They're RC4 captures until the RC6
+  reader is hosted; `fixtures.ts` has `rc6()` to relabel one and `edit()` for
+  states the devnet vaults aren't in (paused, unwind, null NAV, …).
 - `pnpm typecheck` (baseline-aware, see `scripts/typecheck.mjs`), `pnpm lint`.
 - No wallet locally (no `VITE_PRIVY_APP_ID`): open
   `http://localhost:8070/vaults/devnet/<vault>?flpOwner=<wallet>` to see that
   wallet's balance, requests and form limits read-only (dev builds only).
-  `APEs3GeG4oWmqT919AA9df8YZv1VHun2BXpnW4YPFx7s` holds shares in both vaults.
-- Devnet funds: the vault page's devnet strip calls the faucet and whitelist
-  services (INTEGRATION_GUIDE.md section 6).
+  On RC6, `CSYxXfixXywMcTGECWjiJdoD75gtzU67fA8JR6YqFvha` holds shares and
+  direct-deposit approval.
+- Devnet funds: the vault page's devnet strip calls the host's faucet and
+  whitelist services for vaults that have them; RC6 test USDC comes from the
+  protocol team for now.

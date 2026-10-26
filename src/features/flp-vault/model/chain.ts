@@ -1,21 +1,21 @@
 /**
- * FLP cluster access: one shared Connection and SDK client, and the wallet
+ * FLP cluster access: one shared Connection and RC6 (version-4) SDK client, and the wallet
  * balances the forms need exact (SOL for fees, test USDC, FLP shares), read
  * in one getMultipleAccounts call.
  */
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, unpackAccount } from '@solana/spl-token';
 
-import { FlpClient, TOKEN_2022_PROGRAM_ID } from '../sdk';
+import { FlpV4Client, TOKEN_2022_PROGRAM_ID } from '../sdk';
 import { FLP_PROGRAM_ID, FLP_RPC_URL } from './config';
 
 export const COMMITMENT = 'confirmed' as const;
 
-let shared: { connection: Connection; client: FlpClient } | null = null;
+let shared: { connection: Connection; client: FlpV4Client } | null = null;
 export function getFlp() {
   if (!shared) {
     const connection = new Connection(FLP_RPC_URL, COMMITMENT);
-    shared = { connection, client: new FlpClient(connection, FLP_PROGRAM_ID) };
+    shared = { connection, client: new FlpV4Client(connection, FLP_PROGRAM_ID) };
   }
   return shared;
 }
