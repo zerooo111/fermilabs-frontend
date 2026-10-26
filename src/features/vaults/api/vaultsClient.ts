@@ -157,9 +157,40 @@ export interface VaultDay {
   return_pct: number;
 }
 
+/**
+ * Other accounts' daily history from before the vault existed (the FLP data
+ * API's labelled reference series): show it with its scope and caveats,
+ * never as the vault's returns.
+ */
+export interface VaultReference {
+  series: string;
+  /** Whose accounts these are, in the data API's words. */
+  scope: string;
+  unit: string;
+  note?: string;
+  caveats?: string[];
+  summary?: {
+    period?: string;
+    pnl?: string;
+    pnlPctOfStart?: string;
+    /** The whole system's P&L over the same period, taker included. */
+    makerHedgeAndTakerCombinedPnl?: string;
+    relayFeesDeducted?: boolean;
+  };
+  days: {
+    day: string;
+    partial: boolean;
+    equity_start: number;
+    equity_end: number;
+    pnl: number;
+    pnl_pct: number;
+  }[];
+}
+
 export interface VaultDaily {
   window: VaultWindow;
   days: VaultDay[];
+  reference?: VaultReference | null;
 }
 
 export interface VaultDepositors {

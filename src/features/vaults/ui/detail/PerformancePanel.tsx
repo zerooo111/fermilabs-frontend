@@ -3,7 +3,9 @@
  * returns, share price, TVL and PnL. History is the gateway's snapshots
  * (every 15 min) plus points recovered from chain (epoch closes, NAV events).
  * A vault with daily rows (the FLP data API's, deposits and withdrawals taken
- * out) shows them as "Daily P&L" in place of the per-period returns.
+ * out) shows them as "Daily P&L" in place of the per-period returns, after
+ * the data API's labelled reference series (other accounts, before the
+ * vault), in grey with a caption.
  */
 import { useMemo, useState } from 'react';
 
@@ -11,7 +13,13 @@ import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { Segmented } from '@/shared/ui/segmented';
 import { TabStrip, TabStripItem } from '@/shared/ui/tab-strip';
 
-import type { VaultDay, VaultHistoryPoint, VaultMode, VaultNetwork } from '../../api/vaultsClient';
+import type {
+  VaultDay,
+  VaultHistoryPoint,
+  VaultMode,
+  VaultNetwork,
+  VaultReference,
+} from '../../api/vaultsClient';
 import { pctSigned, usdCompact, usdSigned } from '../../model/format';
 import { useVaultDaily, useVaultHistory } from '../../model/useVaults';
 import { VaultChart, type VaultChartMode } from '../VaultChart';
@@ -78,8 +86,54 @@ const METRICS: {
 ];
 
 /** One bar per UTC day, at the day's midnight. */
-function dailySeries(days: VaultDay[]) {
-  return days.map(d => ({ time: Date.parse(`${d.day}T00:00:00Z`) / 1000, value: d.pnl }));
+const dayTime = (day: string) => Date.parse(`${day}T00:00:00Z`) / 1000;
+
+/**
+ * One bar per UTC day, at the day's midnight. The reference series (other
+ * accounts, before the vault) comes first, muted, and only for days before
+ * the vault's own rows.
+ */
+function dailySeries(days: VaultDay[], reference: VaultReference | null | undefined) {
+  const first = days[0]?.day;
+  const before = (reference?.days ?? []).filter(d => !first || d.day < first);
+  const bars = [
+    ...before.map(d => ({ time: dayTime(d.day), value: d.pnl, muted: true })),
+    ...days.map(d => ({ time: dayTime(d.day), value: d.pnl, muted: false })),
+  ];
+  // Days with no data (e.g. between the reference series and the vault's
+  // launch) stay visible as empty slots rather than closing up.
+  const out: { time: number; value: number; muted?: boolean; gap?: boolean }[] = [];
+  for (const b of bars) {
+    const prev = out[out.length - 1];
+    for (let t = prev ? prev.time + DAY_S : b.time; t < b.time; t += DAY_S)
+      out.push({ time: t, value: 0, gap: true });
+    out.push(b);
+  }
+  return out;
+}
+
+const DAY_S = 86_400;
+
+/** What the grey bars are, from the series' own labels. */
+function referenceCaption(r: VaultReference, launch: string | undefined): string {
+  const s = r.summary;
+  const combined = s?.makerHedgeAndTakerCombinedPnl;
+  return [
+    `Grey bars${launch ? ` before ${formatDay(launch)}` : ''}: Fermi’s market-maker account and its hedge (taker excluded), before this vault existed. Not this vault’s returns.`,
+    combined !== undefined
+      ? `With the taker included, the whole system made about ${usdSigned(Number(combined))} over the same period${s?.relayFeesDeducted === false ? ', before relay fees' : ''}.`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function formatDay(day: string): string {
+  return new Date(`${day}T00:00:00Z`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
 }
 
 export function PerformancePanel({
@@ -109,10 +163,14 @@ export function PerformancePanel({
 
   const data = useMemo(() => {
     const series =
-      metric === 'daily' ? dailySeries(days ?? []) : m.series(history.data?.points ?? []);
+      metric === 'daily'
+        ? dailySeries(days ?? [], daily.data?.reference)
+        : m.series(history.data?.points ?? []);
     // Lightweight Charts needs strictly increasing times.
     return series.filter((p, i) => i === 0 || p.time > series[i - 1].time);
-  }, [history.data, days, m, metric]);
+  }, [history.data, days, daily.data?.reference, m, metric]);
+  const reference = daily.data?.reference;
+  const showsReference = metric === 'daily' && data.some(p => 'muted' in p && p.muted);
   // One day is already a bar; a line needs two points.
   const enough = metric === 'daily' ? data.length >= 1 : data.length >= 2;
 
@@ -173,6 +231,11 @@ export function PerformancePanel({
           </div>
         )}
       </div>
+      {showsReference && reference && (
+        <p className="border-t border-outline px-3 py-2 text-[11px] leading-relaxed text-rock/60 sm:px-4">
+          {referenceCaption(reference, days?.[0]?.day)}
+        </p>
+      )}
     </section>
   );
 }

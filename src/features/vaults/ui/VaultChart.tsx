@@ -4,7 +4,9 @@
  *
  * `area` draws a cream line with a soft fill, for TVL and share price.
  * `baseline` splits green and red around zero, for PnL and cumulative return.
- * `histogram` draws one green/red bar per point, for per-period returns.
+ * `histogram` draws one green/red bar per point, for per-period returns; a
+ * `muted` point is drawn grey (data that isn't the vault's own) and a `gap`
+ * point leaves its slot empty (a day with no data).
  */
 import { useEffect, useRef } from 'react';
 import {
@@ -29,7 +31,7 @@ export function VaultChart({
   height,
   minimal = false,
 }: {
-  data: { time: number; value: number }[];
+  data: { time: number; value: number; muted?: boolean; gap?: boolean }[];
   mode: VaultChartMode;
   formatValue: (n: number) => string;
   /** Pixel height. Leave unset to fill the parent. */
@@ -42,7 +44,7 @@ export function VaultChart({
   const seriesRef = useRef<
     ISeriesApi<'Area'> | ISeriesApi<'Baseline'> | ISeriesApi<'Histogram'> | null
   >(null);
-  const colorsRef = useRef<{ up: string; down: string } | null>(null);
+  const colorsRef = useRef<{ up: string; down: string; muted: string } | null>(null);
   const formatRef = useRef(formatValue);
   formatRef.current = formatValue;
 
@@ -94,7 +96,7 @@ export function VaultChart({
       handleScale: !minimal,
     });
 
-    colorsRef.current = { up, down };
+    colorsRef.current = { up, down, muted: fg };
     const series =
       mode === 'histogram'
         ? chart.addSeries(HistogramSeries, {
@@ -138,13 +140,21 @@ export function VaultChart({
     if (!seriesRef.current || !chartRef.current) return;
     const c = colorsRef.current;
     seriesRef.current.setData(
-      data.map(p => ({
-        time: p.time as UTCTimestamp,
-        value: p.value,
-        ...(mode === 'histogram' && c
-          ? { color: withAlpha(p.value >= 0 ? c.up : c.down, 0.85) }
-          : {}),
-      }))
+      data.map(p =>
+        p.gap
+          ? { time: p.time as UTCTimestamp }
+          : {
+              time: p.time as UTCTimestamp,
+              value: p.value,
+              ...(mode === 'histogram' && c
+                ? {
+                    color: p.muted
+                      ? withAlpha(c.muted, 0.3)
+                      : withAlpha(p.value >= 0 ? c.up : c.down, 0.85),
+                  }
+                : {}),
+            }
+      )
     );
     chartRef.current.timeScale().fitContent();
   }, [data, mode, minimal]);
