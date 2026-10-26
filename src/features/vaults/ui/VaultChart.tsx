@@ -7,6 +7,9 @@
  * `histogram` draws one green/red bar per point, for per-period returns; a
  * `muted` point is drawn grey (data that isn't the vault's own) and a `gap`
  * point leaves its slot empty (a day with no data).
+ *
+ * `reference` adds a grey dashed line under the main series, for a series
+ * that isn't the vault's own (it's never joined to the vault's line).
  */
 import { useEffect, useRef } from 'react';
 import {
@@ -14,6 +17,8 @@ import {
   BaselineSeries,
   ColorType,
   HistogramSeries,
+  LineSeries,
+  LineStyle,
   createChart,
   type IChartApi,
   type ISeriesApi,
@@ -26,12 +31,15 @@ export type VaultChartMode = 'area' | 'baseline' | 'histogram';
 
 export function VaultChart({
   data,
+  reference,
   mode,
   formatValue,
   height,
   minimal = false,
 }: {
   data: { time: number; value: number; muted?: boolean; gap?: boolean }[];
+  /** A grey dashed line for data that isn't the vault's own. */
+  reference?: { time: number; value: number }[];
   mode: VaultChartMode;
   formatValue: (n: number) => string;
   /** Pixel height. Leave unset to fill the parent. */
@@ -44,6 +52,7 @@ export function VaultChart({
   const seriesRef = useRef<
     ISeriesApi<'Area'> | ISeriesApi<'Baseline'> | ISeriesApi<'Histogram'> | null
   >(null);
+  const referenceRef = useRef<ISeriesApi<'Line'> | null>(null);
   const colorsRef = useRef<{ up: string; down: string; muted: string } | null>(null);
   const formatRef = useRef(formatValue);
   formatRef.current = formatValue;
@@ -97,6 +106,17 @@ export function VaultChart({
     });
 
     colorsRef.current = { up, down, muted: fg };
+    // Added first, so the vault's own series draws on top.
+    referenceRef.current = minimal
+      ? null
+      : chart.addSeries(LineSeries, {
+          color: withAlpha(fg, 0.45),
+          lineWidth: 2,
+          lineStyle: LineStyle.Dashed,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        });
     const series =
       mode === 'histogram'
         ? chart.addSeries(HistogramSeries, {
@@ -133,6 +153,7 @@ export function VaultChart({
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      referenceRef.current = null;
     };
   }, [mode, minimal]);
 
@@ -156,8 +177,11 @@ export function VaultChart({
             }
       )
     );
+    referenceRef.current?.setData(
+      (reference ?? []).map(p => ({ time: p.time as UTCTimestamp, value: p.value }))
+    );
     chartRef.current.timeScale().fitContent();
-  }, [data, mode, minimal]);
+  }, [data, reference, mode, minimal]);
 
   return <div ref={containerRef} style={{ height: height ?? '100%' }} className="w-full" />;
 }

@@ -178,10 +178,16 @@ export function useVaultHistory(network: VaultNetwork, address: string, window: 
 }
 
 /** Daily P&L rows; empty for vaults the gateway has no data API for. */
-export function useVaultDaily(network: VaultNetwork, address: string, window: VaultWindow) {
+export function useVaultDaily(
+  network: VaultNetwork,
+  address: string,
+  window: VaultWindow,
+  enabled = true
+) {
   return useQuery({
     queryKey: [...vaultsKey, 'daily', network, address, window],
     queryFn: ({ signal }) => fetchVaultDaily(network, address, window, signal),
+    enabled,
     refetchInterval: REFRESH_MS * 2,
     placeholderData: keepPreviousData,
     retry,

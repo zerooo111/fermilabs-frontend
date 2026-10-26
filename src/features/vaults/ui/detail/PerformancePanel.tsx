@@ -3,9 +3,10 @@
  * returns, share price, TVL and PnL. History is the gateway's snapshots
  * (every 15 min) plus points recovered from chain (epoch closes, NAV events).
  * A vault with daily rows (the FLP data API's, deposits and withdrawals taken
- * out) shows them as "Daily P&L" in place of the per-period returns, after
- * the data API's labelled reference series (other accounts, before the
- * vault), in grey with a caption.
+ * out) shows them as "Daily P&L" in place of the per-period returns. The
+ * data API's labelled reference series (other accounts, before the vault)
+ * shows in grey on Daily P&L, Return and PnL, never joined to the vault's
+ * own series, with a caption; not on TVL or share price.
  */
 import { useMemo, useState } from 'react';
 
@@ -114,12 +115,34 @@ function dailySeries(days: VaultDay[], reference: VaultReference | null | undefi
 
 const DAY_S = 86_400;
 
-/** What the grey bars are, from the series' own labels. */
-function referenceCaption(r: VaultReference, launch: string | undefined): string {
+/**
+ * The reference series as a line for the Return (%) and PnL ($) charts:
+ * cumulative P&L, and its share of the series' starting equity (the report's
+ * own "relative to the start, not compounded"). Only days before the vault.
+ */
+function referenceLine(
+  r: VaultReference | null | undefined,
+  days: VaultDay[] | undefined,
+  metric: Metric
+) {
+  if (!r || (metric !== 'return' && metric !== 'pnl')) return [];
+  const first = days?.[0]?.day;
+  const rows = r.days.filter(d => !first || d.day < first);
+  const start = rows[0]?.equity_start;
+  if (!start) return [];
+  let cum = 0;
+  return rows.map(d => {
+    cum += d.pnl;
+    return { time: dayTime(d.day), value: metric === 'pnl' ? cum : (cum / start) * 100 };
+  });
+}
+
+/** What the grey series is, from its own labels. */
+function referenceCaption(r: VaultReference, launch: string | undefined, daily: boolean): string {
   const s = r.summary;
   const combined = s?.makerHedgeAndTakerCombinedPnl;
   return [
-    `Grey bars${launch ? ` before ${formatDay(launch)}` : ''}: Fermi’s market-maker account and its hedge (taker excluded), before this vault existed. Not this vault’s returns.`,
+    `Grey ${daily ? 'bars' : 'dashed line'}${launch ? ` before ${formatDay(launch)}` : ''}: Fermi’s market-maker account and its hedge (taker excluded), before this vault existed. Not this vault’s returns.`,
     combined !== undefined
       ? `With the taker included, the whole system made about ${usdSigned(Number(combined))} over the same period${s?.relayFeesDeducted === false ? ', before relay fees' : ''}.`
       : null,
@@ -170,9 +193,15 @@ export function PerformancePanel({
     return series.filter((p, i) => i === 0 || p.time > series[i - 1].time);
   }, [history.data, days, daily.data?.reference, m, metric]);
   const reference = daily.data?.reference;
-  const showsReference = metric === 'daily' && data.some(p => 'muted' in p && p.muted);
+  const referenceData = useMemo(
+    () => referenceLine(reference, days, metric),
+    [reference, days, metric]
+  );
+  const showsReference =
+    referenceData.length > 0 || (metric === 'daily' && data.some(p => 'muted' in p && p.muted));
   // One day is already a bar; a line needs two points.
-  const enough = metric === 'daily' ? data.length >= 1 : data.length >= 2;
+  const enough =
+    metric === 'daily' ? data.length >= 1 : data.length >= 2 || referenceData.length >= 2;
 
   return (
     <section className="flex min-h-[22rem] flex-col border border-outline">
@@ -227,13 +256,19 @@ export function PerformancePanel({
           </div>
         ) : (
           <div className="h-full min-h-72">
-            <VaultChart key={metric} data={data} mode={m.mode} formatValue={m.format} />
+            <VaultChart
+              key={metric}
+              data={data}
+              reference={referenceData}
+              mode={m.mode}
+              formatValue={m.format}
+            />
           </div>
         )}
       </div>
       {showsReference && reference && (
         <p className="border-t border-outline px-3 py-2 text-[11px] leading-relaxed text-rock/60 sm:px-4">
-          {referenceCaption(reference, days?.[0]?.day)}
+          {referenceCaption(reference, days?.[0]?.day, metric === 'daily')}
         </p>
       )}
     </section>

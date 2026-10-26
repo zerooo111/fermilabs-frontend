@@ -20,7 +20,7 @@ import {
 import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { TabStrip, TabStripItem } from '@/shared/ui/tab-strip';
 
-import type { Vault, VaultNetwork, VaultUser } from '../../api/vaultsClient';
+import type { Vault, VaultNetwork, VaultReference, VaultUser } from '../../api/vaultsClient';
 import {
   pct,
   bps,
@@ -36,7 +36,7 @@ import {
   usdSigned,
 } from '../../model/format';
 import { isFlpVault } from '../../model/flpSource';
-import { useVault, useVaultHistory, useWalletAddress } from '../../model/useVaults';
+import { useVault, useVaultDaily, useVaultHistory, useWalletAddress } from '../../model/useVaults';
 import { Address } from '../Address';
 import { useWindowParam } from '../../model/params';
 import { ModeBadge, NetworkBadge } from '../VaultBadges';
@@ -214,6 +214,48 @@ function balanceParts(u: VaultUser): string[] {
   return parts;
 }
 
+/**
+ * The market maker's P&L from the private phase before the vault launched
+ * (the data API's labelled reference series): a line under the first tile,
+ * kept out of APR and returns, with its caveats on hover.
+ */
+function PrivatePhase({ r }: { r: VaultReference }) {
+  const full = r.days.filter(d => !d.partial);
+  if (!full.length) return null;
+  const s = r.summary;
+  const pnl = s?.pnl !== undefined ? Number(s.pnl) : full.reduce((a, d) => a + d.pnl, 0);
+  const pctOfStart =
+    s?.pnlPctOfStart !== undefined ? Number(s.pnlPctOfStart) / 100 : pnl / full[0].equity_start;
+  const range = dayRange(full[0].day, full[full.length - 1].day);
+  const combined = s?.makerHedgeAndTakerCombinedPnl;
+  const title = [
+    `Historic P&L from the private phase, ${range}: Fermi’s market-maker account and its hedge, taker excluded, before this vault existed. Not this vault’s returns.`,
+    combined !== undefined
+      ? `With the taker included, about ${usdSigned(Number(combined))}${s?.relayFeesDeducted === false ? ', before relay fees' : ''}.`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return (
+    <p className="truncate font-mono text-[11px] text-rock/60" title={title}>
+      Private phase{' '}
+      <span className={tone(pnl)}>
+        {`${pnl < 0 ? '-' : '+'}$${Math.round(Math.abs(pnl)).toLocaleString('en-US')} (${pctSigned(pctOfStart, 1)})`}
+      </span>{' '}
+      · {range}
+    </p>
+  );
+}
+
+/** "1–19 Oct" (UTC days). */
+function dayRange(from: string, to: string): string {
+  const d = (day: string, opts: Intl.DateTimeFormatOptions) =>
+    new Date(`${day}T00:00:00Z`).toLocaleDateString('en-GB', { ...opts, timeZone: 'UTC' });
+  return from.slice(0, 7) === to.slice(0, 7)
+    ? `${d(from, { day: 'numeric' })}–${d(to, { day: 'numeric', month: 'short' })}`
+    : `${d(from, { day: 'numeric', month: 'short' })} – ${d(to, { day: 'numeric', month: 'short' })}`;
+}
+
 function Stats({ vault: v }: { vault?: Vault }) {
   const wallet = useWalletAddress();
   const loading = !v;
@@ -221,6 +263,9 @@ function Stats({ vault: v }: { vault?: Vault }) {
   // Connected, but this wallet's read hasn't landed yet: never show someone else's.
   const userLoading = !!wallet && (!v || v.user === undefined);
   const windowTag = v ? (v.window === 'all' ? 'All' : v.window.toUpperCase()) : '';
+  const daily = useVaultDaily(v?.network ?? 'devnet', v?.address ?? '', 'all', v?.source === 'flp');
+  const reference = daily.data?.reference;
+  const privatePhase = reference ? <PrivatePhase r={reference} /> : null;
   return (
     <div className="grid grid-cols-2 divide-outline border border-outline max-sm:[&>*:nth-child(n+3)]:border-t max-sm:[&>*:nth-child(odd)]:border-r max-sm:[&>*]:border-outline sm:grid-cols-4 sm:divide-x">
       {v?.mode === 'pre-deposit' ? (
@@ -237,6 +282,7 @@ function Stats({ vault: v }: { vault?: Vault }) {
           value={pctSigned(v.all_time_return)}
           valueClassName={tone(v.all_time_return)}
           hint="APR after a week of history"
+          footer={privatePhase}
         />
       ) : (
         <Tile
@@ -244,6 +290,7 @@ function Stats({ vault: v }: { vault?: Vault }) {
           loading={loading}
           value={v ? <AprValue vault={v} /> : ''}
           hint={v?.window_return != null ? `${pctSigned(v.window_return)} return` : null}
+          footer={privatePhase}
         />
       )}
       <Tile
