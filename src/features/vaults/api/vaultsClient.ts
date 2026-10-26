@@ -19,7 +19,13 @@ export type VaultMode = 'pre-deposit' | 'live' | 'unwind' | 'closed';
 
 export interface VaultUser {
   wallet: string;
+  /** Shares owned, including any under a pending withdrawal. */
   shares: number;
+  /**
+   * The wallet's balance in the vault, in USDC: its shares at the share
+   * price, plus a queued deposit (still USDC until the epoch close),
+   * pre-deposit principal and USDC waiting to be claimed.
+   */
   equity: number;
   cost_basis: number;
   total_deposited: number;
@@ -31,6 +37,10 @@ export interface VaultUser {
   pending_withdraw_shares: number;
   /** Ready to claim now, in USDC terms (FLP vaults). */
   claimable?: number;
+  /** Of `shares`, the ones ready to claim (settled deposit, graduation). FLP vaults. */
+  claimable_shares?: number;
+  /** USDC ready to claim: a funded withdrawal or a refunded deposit. FLP vaults. */
+  claimable_quote?: number;
   first_deposit_at_ms: number | null;
   last_action_at_ms: number | null;
 }

@@ -165,6 +165,38 @@ describe('ticketBlocks', () => {
   });
 });
 
+describe('queued deposit', () => {
+  const withQueued = (cancellable: boolean) =>
+    edit(fixtures.live(), e => {
+      e.data.user = structuredClone(fixtures.liveUser().data.user!);
+      e.data.user.sharesHeld = '0';
+      e.data.user.deposit = {
+        ...e.data.user.deposit,
+        state: 'queued',
+        ticket: {
+          requestId: '9',
+          epoch: e.data.epoch.requestTarget,
+          amount: '200000000',
+          aux: '200000000',
+        },
+        cancellable,
+      };
+    });
+
+  it('opens Withdraw to take a queued deposit back until the cutoff', () => {
+    const env = withQueued(true);
+    expect(availability(env, env.data.user, 0n)).toMatchObject({ canWithdraw: true });
+  });
+
+  it('says when a queued deposit can no longer be taken back', () => {
+    const env = withQueued(false);
+    expect(availability(env, env.data.user, 0n)).toMatchObject({
+      canWithdraw: false,
+      withdrawReason: 'Your queued deposit converts to FLP at the next settlement',
+    });
+  });
+});
+
 describe('upnlRisk', () => {
   it('carries the disclosure a deposit form must show', () => {
     const risk = upnlRisk(fixtures.live());

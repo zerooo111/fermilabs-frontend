@@ -163,6 +163,14 @@ export function withdrawRoutes(env: FlpEnvelope, user: FlpUser | null | undefine
 }
 
 /**
+ * The wallet's queued deposit: still USDC until its epoch closes, and the
+ * wallet can take it back (cancel) until the request cutoff.
+ */
+export function queuedDeposit(user: FlpUser | null | undefined): FlpTicket | null {
+  return user?.deposit.state === 'queued' ? user.deposit : null;
+}
+
+/**
  * Whether Deposit and Withdraw lead anywhere for this wallet: the one source
  * for the vault page buttons and the form (an approved wallet keeps the direct
  * deposit through a public-only pause, frontend-guide.md B.2 rule 19).
@@ -171,19 +179,23 @@ export function availability(env: FlpEnvelope, user: FlpUser | null | undefined,
   const deposit = depositRoutes(env, user);
   const withdraw = withdrawRoutes(env, user, shares);
   const mode = env.data.lifecycle.mode;
+  const queued = queuedDeposit(user);
   return {
     canDeposit: deposit.some(r => !r.closed),
     depositReason:
       deposit.find(r => r.closed)?.closed ??
       (mode === 'unwind' || mode === 'closed' ? 'The vault no longer takes deposits' : null),
-    canWithdraw: withdraw.some(r => !r.closed),
+    // A queued deposit can be taken back from the Withdraw form.
+    canWithdraw: withdraw.some(r => !r.closed) || !!queued?.cancellable,
     withdrawReason:
       withdraw.find(r => r.closed)?.closed ??
       (mode === 'unwind'
         ? 'Withdrawals wait until the vault finishes unwinding'
-        : user !== undefined
-          ? 'Nothing to withdraw'
-          : null),
+        : queued
+          ? 'Your queued deposit converts to FLP at the next settlement'
+          : user !== undefined
+            ? 'Nothing to withdraw'
+            : null),
   };
 }
 

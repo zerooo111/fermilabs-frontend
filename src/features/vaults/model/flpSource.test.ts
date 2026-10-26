@@ -43,6 +43,46 @@ describe('flpToVault', () => {
     expect(user.equity).toBeCloseTo(11, 1);
   });
 
+  it('counts a queued deposit in the balance, as USDC, but not in earnings', () => {
+    const base = fixtures.liveUser();
+    const before = flpToVault(live, base, '30d', base.owner!).user!;
+    const env = edit(base, e => {
+      e.data.user!.deposit = {
+        ...e.data.user!.deposit,
+        state: 'queued',
+        ticket: {
+          requestId: '7',
+          epoch: e.data.epoch.requestTarget,
+          amount: '25000000',
+          aux: '25000000',
+        },
+        cancellable: true,
+      };
+    });
+    const user = flpToVault(live, env, '30d', env.owner!).user!;
+    expect(user.equity - before.equity).toBeCloseTo(25, 6);
+    expect(user.pending_deposit).toBe(25);
+    expect(user.all_time_pnl).toBe(before.all_time_pnl);
+  });
+
+  it('counts settled deposit shares once (they are in the invested shares)', () => {
+    const base = fixtures.liveUser();
+    const before = flpToVault(live, base, '30d', base.owner!).user!;
+    // The API adds settled, unclaimed deposit shares to the invested shares.
+    const env = edit(base, e => {
+      const u = e.data.user!;
+      u.deposit = { ...u.deposit, state: 'claimable-shares', claimable: '5000000' };
+      u.investedSharesIncludingOwedAndUnfunded = String(
+        BigInt(u.investedSharesIncludingOwedAndUnfunded) + 5_000_000n
+      );
+      u.pnl.currentUnrealized = { value: null, reason: 'priced from the share price' };
+    });
+    const user = flpToVault(live, env, '30d', env.owner!).user!;
+    const price = flpToVault(live, env, '30d', env.owner!).share_price;
+    expect(user.claimable).toBeCloseTo(5 * price, 6);
+    expect(user.equity).toBeCloseTo(before.shares * price + 5 * price, 6);
+  });
+
   it('keeps unknowns unknown: no NAV means no TVL and no vault PnL', () => {
     const env = edit(fixtures.live(), e => {
       e.data.valuation.currentNav.value = null;

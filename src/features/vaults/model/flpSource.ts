@@ -132,14 +132,22 @@ function flpUser(env: FlpEnvelope, sharePrice: number): VaultUser | null {
     unrealized.value !== null
       ? ui(unrealized.indicativeInvestedValueQuote, qd)
       : invested * sharePrice;
-  // Ready to claim, in USDC terms: settled deposit shares, refunds, funded withdrawals.
-  const claimable =
-    (dep.state === 'claimable-shares' ? ui(dep.claimable, sd) * sharePrice : 0) +
+  // USDC waiting to be claimed: a refunded deposit, a funded withdrawal.
+  const claimableQuote =
     (dep.state === 'refund-only' ? ui(dep.claimable, qd) : 0) +
-    (wd.state === 'funded-claimable' ? ui(wd.claimable, qd) : 0) +
-    ui(u.graduationClaimableShares, sd) * sharePrice;
+    (wd.state === 'funded-claimable' ? ui(wd.claimable, qd) : 0);
+  // Settled deposit and graduation shares: already in the invested shares.
+  const claimableShares =
+    (dep.state === 'claimable-shares' ? ui(dep.claimable, sd) : 0) +
+    ui(u.graduationClaimableShares, sd);
+  // Ready to claim, in USDC terms.
+  const claimable = claimableQuote + claimableShares * sharePrice;
   const realized = ui(u.pnl.recordedRealizedQuote, qd);
-  const equity = investedValue + principal + claimable;
+  // The invested shares already include settled-but-unclaimed deposit shares,
+  // graduation shares and shares under withdrawal, so only USDC is added: a
+  // queued deposit (USDC until the epoch close; it can still be cancelled),
+  // pre-deposit principal and claimable USDC.
+  const equity = investedValue + principal + pendingDeposit + claimableQuote;
   const hasTicket = dep.state !== 'none' || wd.state !== 'none';
   if (equity === 0 && !hasTicket) return null;
   return {
@@ -155,6 +163,8 @@ function flpUser(env: FlpEnvelope, sharePrice: number): VaultUser | null {
     pending_withdraw_shares:
       wd.state === 'queued' || wd.state === 'deferred' ? ui(wd.ticket.amount, sd) : 0,
     claimable,
+    claimable_shares: claimableShares,
+    claimable_quote: claimableQuote,
     first_deposit_at_ms: null,
     last_action_at_ms: null,
   };

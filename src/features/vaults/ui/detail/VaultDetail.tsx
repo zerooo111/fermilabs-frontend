@@ -20,7 +20,7 @@ import {
 import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { TabStrip, TabStripItem } from '@/shared/ui/tab-strip';
 
-import type { Vault, VaultNetwork } from '../../api/vaultsClient';
+import type { Vault, VaultNetwork, VaultUser } from '../../api/vaultsClient';
 import {
   pct,
   bps,
@@ -194,14 +194,32 @@ function Header({
   );
 }
 
+/**
+ * What the balance is made of: shares, a queued deposit, a pending
+ * withdrawal and what's ready to claim (the "Your requests" card has each
+ * request's timing and actions).
+ */
+function balanceParts(u: VaultUser): string[] {
+  const parts: string[] = [];
+  // `shares` includes the ones under withdrawal and the ones ready to claim.
+  const of = [
+    (u.claimable_shares ?? 0) > 0 && `${num(u.claimable_shares!)} to claim`,
+    u.pending_withdraw_shares > 0 && `${num(u.pending_withdraw_shares)} withdrawing`,
+  ].filter(Boolean);
+  if (u.shares > 0) parts.push(`${num(u.shares)} FLP${of.length ? ` (${of.join(', ')})` : ''}`);
+  if (u.pending_deposit > 0) parts.push(`${usd(u.pending_deposit)} queued`);
+  // Gateway vaults give only the USDC-terms total.
+  const quote = u.claimable_quote ?? (u.claimable_shares === undefined ? (u.claimable ?? 0) : 0);
+  if (quote > 0) parts.push(`${usd(quote)} to claim`);
+  return parts;
+}
+
 function Stats({ vault: v }: { vault?: Vault }) {
   const wallet = useWalletAddress();
   const loading = !v;
   const user = v?.user ?? null;
   // Connected, but this wallet's read hasn't landed yet: never show someone else's.
   const userLoading = !!wallet && (!v || v.user === undefined);
-  const pending = user ? user.pending_deposit : 0;
-  const claimable = user?.claimable ?? 0;
   const windowTag = v ? (v.window === 'all' ? 'All' : v.window.toUpperCase()) : '';
   return (
     <div className="grid grid-cols-2 divide-outline border border-outline max-sm:[&>*:nth-child(n+3)]:border-t max-sm:[&>*:nth-child(odd)]:border-r max-sm:[&>*]:border-outline sm:grid-cols-4 sm:divide-x">
@@ -238,17 +256,7 @@ function Stats({ vault: v }: { vault?: Vault }) {
         label="Your balance"
         loading={userLoading}
         value={!wallet || !user ? DASH : usd(user.equity)}
-        hint={
-          !wallet
-            ? 'Connect wallet'
-            : claimable > 0
-              ? `${usd(claimable)} ready to claim`
-              : pending > 0
-                ? `+${usd(pending)} pending`
-                : user && user.shares > 0
-                  ? `${num(user.shares)} FLP`
-                  : null
-        }
+        hint={!wallet ? 'Connect wallet' : user ? balanceParts(user).join(' · ') || null : null}
       />
       {v?.mode === 'pre-deposit' ? (
         // Nothing to earn yet; what you own of the vault is the useful number.

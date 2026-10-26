@@ -37,6 +37,7 @@ import { useNow } from '../model/useNow';
 import {
   depositRoutes,
   epochEnd,
+  queuedDeposit,
   sharesValue,
   ticketBlocks,
   upnlRisk,
@@ -193,9 +194,12 @@ function Form({
           : undefined
       : undefined;
 
+  // Withdrawing: a queued deposit is still USDC and can be taken back.
+  const queued = side === 'withdraw' ? queuedDeposit(user) : null;
+
   let problem: string | null = null;
   let amountProblem = false;
-  if (!current) problem = noRoute(side, v);
+  if (!current) problem = queued ? null : noRoute(side, v);
   else if (current.closed) problem = current.closed;
   else if (blocking) problem = null;
   else if (amount !== null && balance !== undefined && amount > balance) {
@@ -287,6 +291,8 @@ function Form({
         ]}
       />
 
+      {queued && <QueuedDeposit vault={vault} ticket={queued} v={v} now={now} />}
+
       {routes.length > 1 && route && (
         <div className="flex flex-col gap-1.5">
           <span id={`${ids}-route`} className="text-xs text-rock/60">
@@ -305,47 +311,49 @@ function Form({
         </div>
       )}
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-baseline justify-between gap-3">
-          <label htmlFor={`${ids}-amount`} className="text-xs text-rock/60">
-            Amount
-          </label>
-          <span className="font-mono text-[11px] text-rock/60 tabular-nums">
-            {balance === undefined ? '—' : formatUnits(balance, decimals, 4)} {unit}{' '}
-            {route === 'refund' ? 'pre-deposited' : 'available'}
-          </span>
-        </div>
-        <div className="flex">
-          <Input
-            id={`${ids}-amount`}
-            inputMode="decimal"
-            autoComplete="off"
-            placeholder="0.00"
-            value={input}
-            onChange={e => setInput(clampDecimals(e.target.value.replace(',', '.'), decimals))}
-            aria-invalid={amountProblem}
-            aria-describedby={`${ids}-note`}
-            disabled={!route}
-            className="h-10 font-mono tabular-nums"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10 border-l-0"
-            disabled={!max}
-            onClick={() => max !== undefined && setInput(toInputString(max, decimals))}
+      {(route || !queued) && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between gap-3">
+            <label htmlFor={`${ids}-amount`} className="text-xs text-rock/60">
+              Amount
+            </label>
+            <span className="font-mono text-[11px] text-rock/60 tabular-nums">
+              {balance === undefined ? '—' : formatUnits(balance, decimals, 4)} {unit}{' '}
+              {route === 'refund' ? 'pre-deposited' : 'available'}
+            </span>
+          </div>
+          <div className="flex">
+            <Input
+              id={`${ids}-amount`}
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="0.00"
+              value={input}
+              onChange={e => setInput(clampDecimals(e.target.value.replace(',', '.'), decimals))}
+              aria-invalid={amountProblem}
+              aria-describedby={`${ids}-note`}
+              disabled={!route}
+              className="h-10 font-mono tabular-nums"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 border-l-0"
+              disabled={!max}
+              onClick={() => max !== undefined && setInput(toInputString(max, decimals))}
+            >
+              Max
+            </Button>
+          </div>
+          <p
+            id={`${ids}-note`}
+            role={problem ? 'alert' : undefined}
+            className={cn('min-h-4 text-xs', problem ? 'text-danger' : 'text-rock/60')}
           >
-            Max
-          </Button>
+            {problem}
+          </p>
         </div>
-        <p
-          id={`${ids}-note`}
-          role={problem ? 'alert' : undefined}
-          className={cn('min-h-4 text-xs', problem ? 'text-danger' : 'text-rock/60')}
-        >
-          {problem}
-        </p>
-      </div>
+      )}
 
       {blocking && <Blocking vault={vault} ticket={blocking} side={side} v={v} />}
 
@@ -359,9 +367,11 @@ function Form({
         </p>
       )}
 
-      <Button type="submit" size="lg" disabled={!canSubmit}>
-        {pendingLabel ?? waiting ?? submitLabel(side, route)}
-      </Button>
+      {(route || !queued) && (
+        <Button type="submit" size="lg" disabled={!canSubmit}>
+          {pendingLabel ?? waiting ?? submitLabel(side, route)}
+        </Button>
+      )}
     </form>
   );
 }
@@ -494,6 +504,52 @@ function Summary({
             ? `Unsettled profit in the vault: ${usd(risk.amount)} (${(risk.bps / 100).toFixed(2)}% of its value), ${risk.disclosure}.`
             : `Unsettled profit in the vault is unknown right now. Positive unsettled profit is ${risk?.disclosure ?? 'counted at par when you enter, excluded when you exit'}.`}
         </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A queued deposit, shown on the Withdraw side: it stays USDC until its epoch
+ * closes, so until the cutoff it can be taken back at once.
+ */
+function QueuedDeposit({
+  vault,
+  ticket,
+  v,
+  now,
+}: {
+  vault: PublicKey;
+  ticket: FlpTicket;
+  v: VaultView;
+  now: number;
+}) {
+  const tx = useFlpActions(vault);
+  const got = `${formatUnits(BigInt(ticket.ticket.amount), v.quoteDecimals, 2)} USDC`;
+  const end = epochEnd(v, BigInt(ticket.ticket.epoch));
+  const cutoff = end - v.params.requestCutoffS;
+  const open = ticket.cancellable && now < cutoff;
+  return (
+    <div className="flex flex-col gap-2.5 border border-outline bg-card px-3 py-3">
+      <p className="text-xs leading-relaxed text-rock/80">
+        {open
+          ? `Your ${got} deposit is still USDC until it converts to FLP at ${formatTime(end)}. You can take it back now, until ${formatTime(cutoff)}.`
+          : `Your ${got} deposit converts to FLP at ${formatTime(end)}; it's past the cutoff to take it back. Once it's FLP, you can withdraw it.`}
+      </p>
+      {open && (
+        <Button
+          type="button"
+          size="sm"
+          className="self-start"
+          disabled={tx.isPending}
+          onClick={() =>
+            tx.run({ kind: 'cancel-deposit', success: () => `${got} back in your wallet` })
+          }
+        >
+          {tx.isPending && tx.active === 'cancel-deposit'
+            ? PHASE_LABEL[tx.phase] || 'Working…'
+            : `Get ${got} back`}
+        </Button>
       )}
     </div>
   );
