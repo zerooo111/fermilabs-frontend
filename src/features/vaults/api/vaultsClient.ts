@@ -129,6 +129,29 @@ export interface VaultHistory {
   points: VaultHistoryPoint[];
 }
 
+/** One UTC day of a vault (the FLP data API's daily rows, synced by the gateway). */
+export interface VaultDay {
+  /** YYYY-MM-DD (UTC). */
+  day: string;
+  /** Today: still being recorded. */
+  partial: boolean;
+  equity_start: number;
+  equity_end: number;
+  deposits: number;
+  withdrawals: number;
+  /** Equity change with deposits and withdrawals taken out. */
+  pnl: number;
+  /** Percent (0.5 = 0.5%). */
+  pnl_pct: number;
+  /** Percent (0.5 = 0.5%). */
+  return_pct: number;
+}
+
+export interface VaultDaily {
+  window: VaultWindow;
+  days: VaultDay[];
+}
+
 export interface VaultDepositors {
   total: number;
   depositors: VaultUser[];
@@ -203,6 +226,15 @@ export function fetchVaultHistory(
   signal?: AbortSignal
 ) {
   return get<VaultHistory>(`${vaultPath(network, address)}/history`, { window }, signal);
+}
+
+export function fetchVaultDaily(
+  network: VaultNetwork,
+  address: string,
+  window: VaultWindow,
+  signal?: AbortSignal
+) {
+  return get<VaultDaily>(`${vaultPath(network, address)}/daily`, { window }, signal);
 }
 
 export function fetchVaultDepositors(

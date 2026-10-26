@@ -37,6 +37,15 @@ export function vaultView(env: FlpEnvelope) {
     escrow,
     /** Trading NAV plus the deposit escrow (public principal and queued deposits). */
     tvl: nav === null ? null : nav + escrow,
+    /**
+     * Money put in, matching `tvl`: the program's net deposits plus the
+     * deposits waiting in the escrow, which it counts only at the epoch close
+     * (queued) or never (held). `tvl - netIn` is the vault's P&L.
+     */
+    netIn:
+      BigInt(d.flows.netDeposits) +
+      BigInt(seg.queuedDepositGross ?? '0') +
+      BigInt(seg.heldRefundOnlyDeposits ?? '0'),
     tvlCap: BigInt(params.tvlCap),
     supply,
     /** Quote per share at the last keeper close (NAV_mid), scaled by 1e6. */

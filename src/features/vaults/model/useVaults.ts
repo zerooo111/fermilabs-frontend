@@ -13,6 +13,7 @@ import { FLP_VAULTS, devOwner, flpVaultQuery } from '@/features/flp-vault';
 import {
   fetchVault,
   fetchVaultActivity,
+  fetchVaultDaily,
   fetchVaultDepositors,
   fetchVaultHistory,
   fetchVaults,
@@ -170,6 +171,17 @@ export function useVaultHistory(network: VaultNetwork, address: string, window: 
   return useQuery({
     queryKey: [...vaultsKey, 'history', network, address, window],
     queryFn: ({ signal }) => fetchVaultHistory(network, address, window, signal),
+    refetchInterval: REFRESH_MS * 2,
+    placeholderData: keepPreviousData,
+    retry,
+  });
+}
+
+/** Daily P&L rows; empty for vaults the gateway has no data API for. */
+export function useVaultDaily(network: VaultNetwork, address: string, window: VaultWindow) {
+  return useQuery({
+    queryKey: [...vaultsKey, 'daily', network, address, window],
+    queryFn: ({ signal }) => fetchVaultDaily(network, address, window, signal),
     refetchInterval: REFRESH_MS * 2,
     placeholderData: keepPreviousData,
     retry,

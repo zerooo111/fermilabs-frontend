@@ -29,7 +29,7 @@ export function FlpPerformance({ vault }: { vault: PublicKey }) {
   const qd = v.quoteDecimals;
   const live = v.mode === 'live';
   const left = v.epoch.scheduledEnd - now;
-  const pnl = v.tvl === null ? null : v.tvl - BigInt(envelope.data.flows.netDeposits);
+  const pnl = v.tvl === null ? null : v.tvl - v.netIn;
   const risk = upnlRisk(envelope);
   const every = formatPeriod(v.epoch.duration);
 

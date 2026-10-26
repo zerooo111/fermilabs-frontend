@@ -203,6 +203,7 @@ export interface FlpVaultData {
       depositEscrowBalance: string;
       publicRefundablePrincipal: string;
       queuedDepositGross: string;
+      heldRefundOnlyDeposits?: string;
       redemptionEscrowBalance: string;
     };
   };

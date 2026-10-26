@@ -75,6 +75,19 @@ describe('vaultView', () => {
     expect(v.price > 900_000n && v.price < 1_100_000n).toBe(true);
   });
 
+  it('counts a queued deposit in TVL but not as profit', () => {
+    const before = vaultView(fixtures.live());
+    const queued = vaultView(
+      edit(fixtures.live(), e => {
+        const seg = e.data.valuation.segregated;
+        seg.depositEscrowBalance = String(BigInt(seg.depositEscrowBalance) + 25_000_000n);
+        seg.queuedDepositGross = String(BigInt(seg.queuedDepositGross) + 25_000_000n);
+      })
+    );
+    expect(queued.tvl! - before.tvl!).toBe(25_000_000n);
+    expect(queued.tvl! - queued.netIn).toBe(before.tvl! - before.netIn);
+  });
+
   it('leaves TVL unknown when the API can’t value the vault', () => {
     const env = edit(fixtures.live(), e => {
       e.data.valuation.currentNav.value = null;

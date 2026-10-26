@@ -2,6 +2,8 @@
  * Vault performance over the selected window: cumulative return, per-period
  * returns, share price, TVL and PnL. History is the gateway's snapshots
  * (every 15 min) plus points recovered from chain (epoch closes, NAV events).
+ * A vault with daily rows (the FLP data API's, deposits and withdrawals taken
+ * out) shows them as "Daily P&L" in place of the per-period returns.
  */
 import { useMemo, useState } from 'react';
 
@@ -9,14 +11,14 @@ import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { Segmented } from '@/shared/ui/segmented';
 import { TabStrip, TabStripItem } from '@/shared/ui/tab-strip';
 
-import type { VaultHistoryPoint, VaultMode, VaultNetwork } from '../../api/vaultsClient';
+import type { VaultDay, VaultHistoryPoint, VaultMode, VaultNetwork } from '../../api/vaultsClient';
 import { pctSigned, usdCompact, usdSigned } from '../../model/format';
-import { useVaultHistory } from '../../model/useVaults';
+import { useVaultDaily, useVaultHistory } from '../../model/useVaults';
 import { VaultChart, type VaultChartMode } from '../VaultChart';
 import { useWindowParam, WINDOWS } from '../../model/params';
 import { Bone } from '../primitives';
 
-type Metric = 'return' | 'periods' | 'price' | 'tvl' | 'pnl';
+type Metric = 'return' | 'periods' | 'daily' | 'price' | 'tvl' | 'pnl';
 
 const METRICS: {
   value: Metric;
@@ -45,6 +47,14 @@ const METRICS: {
       })),
   },
   {
+    value: 'daily',
+    label: 'Daily P&L',
+    mode: 'histogram',
+    format: usdSigned,
+    // Filled from the daily rows (dailySeries), not the snapshots.
+    series: () => [],
+  },
+  {
     value: 'price',
     label: 'Share price',
     mode: 'area',
@@ -67,6 +77,11 @@ const METRICS: {
   },
 ];
 
+/** One bar per UTC day, at the day's midnight. */
+function dailySeries(days: VaultDay[]) {
+  return days.map(d => ({ time: Date.parse(`${d.day}T00:00:00Z`) / 1000, value: d.pnl }));
+}
+
 export function PerformancePanel({
   network,
   address,
@@ -80,18 +95,26 @@ export function PerformancePanel({
   // Before launch the share price is pinned at 1, so every return series is
   // flat zero: chart deposits (TVL) only.
   const preLaunch = mode === 'pre-deposit';
-  const metrics = preLaunch ? METRICS.filter(x => x.value === 'tvl') : METRICS;
+  const history = useVaultHistory(network, address, window);
+  const daily = useVaultDaily(network, address, window);
+  const days = daily.data?.days;
+  const hasDaily = !!days?.length;
+  // Daily P&L replaces the per-period returns where the vault has daily rows.
+  const shown = METRICS.filter(x => (hasDaily ? x.value !== 'periods' : x.value !== 'daily'));
+  const metrics = preLaunch ? shown.filter(x => x.value === 'tvl' || x.value === 'daily') : shown;
   const [picked, setMetric] = useState<Metric>('return');
   const metric = metrics.some(x => x.value === picked) ? picked : metrics[0].value;
-  const history = useVaultHistory(network, address, window);
   const m = METRICS.find(x => x.value === metric)!;
+  const pending = metric === 'daily' ? daily.isPending : history.isPending;
 
   const data = useMemo(() => {
-    const points = history.data?.points ?? [];
+    const series =
+      metric === 'daily' ? dailySeries(days ?? []) : m.series(history.data?.points ?? []);
     // Lightweight Charts needs strictly increasing times.
-    const series = m.series(points);
     return series.filter((p, i) => i === 0 || p.time > series[i - 1].time);
-  }, [history.data, m]);
+  }, [history.data, days, m, metric]);
+  // One day is already a bar; a line needs two points.
+  const enough = metric === 'daily' ? data.length >= 1 : data.length >= 2;
 
   return (
     <section className="flex min-h-[22rem] flex-col border border-outline">
@@ -127,9 +150,9 @@ export function PerformancePanel({
         />
       </div>
       <div className="grid-pattern relative flex-1 p-2">
-        {history.isPending ? (
+        {pending ? (
           <Bone className="h-full min-h-72 w-full" />
-        ) : data.length < 2 ? (
+        ) : !enough ? (
           <div className="relative flex h-full min-h-72 flex-col items-center justify-center gap-1.5 overflow-hidden text-center">
             <DitherRidge
               seed={address}
@@ -139,7 +162,9 @@ export function PerformancePanel({
             <p className="relative max-w-xs text-xs text-rock/60">
               {metric === 'pnl'
                 ? 'PnL is charted from the gateway’s own snapshots, which started recently.'
-                : 'The chart fills in as the vault is synced. Try a longer window.'}
+                : metric === 'daily'
+                  ? 'Daily P&L is recorded once a day; the first day is still in progress.'
+                  : 'The chart fills in as the vault is synced. Try a longer window.'}
             </p>
           </div>
         ) : (
