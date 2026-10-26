@@ -1,15 +1,19 @@
 #!/usr/bin/env node
-// Check the FLP integration against the live deployment manifest, and
-// optionally re-vendor the SDK.
+// Check the FLP integration against the protocol team's RC6 devnet records,
+// and optionally re-vendor the SDK.
 //
 //   pnpm flp:sync           report drift (exit 1 if any)
 //   pnpm flp:sync --write   re-vendor sdk/src + sdk/idl (+ the trimmed core IDL)
-//                           from fermi-v1, verified against the manifest hashes
+//                           from fermi-v1 main, verified against the RC6 IDL hash
 //
-// The protocol team updates the manifest on every frontend-relevant change
-// (fermi-v1 flp-vault/docs/INTEGRATION_GUIDE.md). Addresses in config.ts are
-// reported, not rewritten: change them by hand and re-run.
-// Needs `gh` (authenticated) for --write; fermi-v1 may be private.
+// Sources (fermi-v1 main, kept current by the protocol team):
+// - flp-vault/docs/INTEGRATION_GUIDE.md "Devnet — RC6 vanity deployment" table
+//   (vault program, core program, target vault);
+// - flp-vault/mainnet/rc6/devnet/<date>-runtime-artifact.json (the devnet pins);
+// - the canonical IDL hash at the top of the guide (RC6_RELEASE.idlSha256).
+// The data API host's /deployment.json is checked too, once it describes RC6.
+// Addresses in config.ts are reported, not rewritten: change them by hand.
+// Needs `gh` (authenticated); fermi-v1 may be private.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -21,83 +25,105 @@ const CONFIG = 'src/features/flp-vault/model/config.ts';
 const write = process.argv.includes('--write');
 
 const sha = buf => createHash('sha256').update(buf).digest('hex');
-const manifest = await (
-  await fetch(`${API}/deployment.json`, { signal: AbortSignal.timeout(60_000) })
-).json();
+const gh = args => execFileSync('gh', args, { maxBuffer: 64 * 1024 * 1024 });
+const raw = path =>
+  gh([
+    'api',
+    `repos/${REPO}/contents/${path}?ref=main`,
+    '-H',
+    'Accept: application/vnd.github.raw',
+  ]);
+const commit = gh(['api', `repos/${REPO}/commits/main`, '--jq', '.sha'])
+  .toString()
+  .trim();
+
 const config = readFileSync(CONFIG, 'utf8');
 const vendor = JSON.parse(readFileSync(`${SDK}/VENDOR.json`, 'utf8'));
 const drift = [];
-
-// Addresses the app hardcodes.
 const has = (label, address) => {
-  if (address && !config.includes(address))
-    drift.push(`${label}: manifest has ${address}, not in config.ts`);
+  if (!address) drift.push(`${label}: not found in the protocol records`);
+  else if (!config.includes(address))
+    drift.push(`${label}: records have ${address}, not in config.ts`);
 };
-has('vault program', manifest.programs?.vault);
-has('core program', manifest.programs?.core);
-has('pre-deposit vault', manifest.vaults?.predeposit?.vault);
-has('live vault', manifest.vaults?.live?.vault);
-for (const m of manifest.markets ?? []) {
-  if (!new RegExp(`\\b${m.index}: ${m.baseDecimals}\\b`).test(config))
-    drift.push(
-      `market ${m.index} (${m.name}): baseDecimals ${m.baseDecimals} not in FLP_MARKET_BASE_DECIMALS`
-    );
+
+// The devnet table of the integration guide.
+const guide = raw('flp-vault/docs/INTEGRATION_GUIDE.md').toString();
+const row = name =>
+  guide.match(new RegExp(`\\| ${name} \\| \`([1-9A-HJ-NP-Za-km-z]{32,44})\` \\|`))?.[1];
+has('vault program', row('Vault program'));
+has('core program', row('Core program'));
+has('RC6 vault', row('Target vault PDA'));
+const idlSha = guide.match(/canonical IDL SHA-256 is `([0-9a-f]{64})`/)?.[1];
+if (!idlSha) drift.push('canonical IDL hash: not found in the integration guide');
+
+// The newest runtime artifact receipt must name the same programs.
+const receipts = JSON.parse(
+  gh(['api', `repos/${REPO}/contents/flp-vault/mainnet/rc6/devnet?ref=main`]).toString()
+)
+  .map(f => f.name)
+  .filter(n => n.endsWith('-runtime-artifact.json'))
+  .sort();
+const receipt = receipts.length
+  ? JSON.parse(raw(`flp-vault/mainnet/rc6/devnet/${receipts.at(-1)}`).toString())
+  : null;
+if (!receipt) drift.push('runtime artifact receipt: none in flp-vault/mainnet/rc6/devnet');
+else {
+  has(`vault program (${receipts.at(-1)})`, receipt.vaultProgram);
+  has(`devnet core program (${receipts.at(-1)})`, receipt.devnetRuntimeCore?.program);
 }
 
-// Vendored files: on disk vs VENDOR.json vs manifest.
-const files = {
-  'src/index.ts': manifest.sdk?.indexTsSha256,
-  'idl/flp_vault.json': manifest.idl?.sha256,
-};
-for (const [file, wanted] of Object.entries(files)) {
-  const actual = sha(readFileSync(`${SDK}/${file}`));
+// The data API host's manifest, once it serves this program.
+const manifest = await fetch(`${API}/deployment.json`, { signal: AbortSignal.timeout(60_000) })
+  .then(r => (r.ok ? r.json() : null))
+  .catch(() => null);
+const manifestCurrent = manifest?.programs?.vault && config.includes(manifest.programs.vault);
+if (manifestCurrent) {
+  for (const m of manifest.markets ?? [])
+    if (!new RegExp(`\\b${m.index}: ${m.baseDecimals}\\b`).test(config))
+      drift.push(`market ${m.index} (${m.name}): baseDecimals ${m.baseDecimals} not in config.ts`);
+}
+
+// Vendored files: on disk vs VENDOR.json vs fermi-v1 main.
+const FILES = ['src/index.ts', 'src/v4.ts', 'idl/flp_vault.json', 'idl/flp_vault_v4.json'];
+const upstream = Object.fromEntries(FILES.map(f => [f, raw(`flp-vault/sdk/${f}`)]));
+for (const file of FILES) {
+  let actual = null;
+  try {
+    actual = sha(readFileSync(`${SDK}/${file}`));
+  } catch {
+    drift.push(`${file}: missing`);
+    continue;
+  }
   if (actual !== vendor.files[file])
     drift.push(`${file}: edited locally (hash differs from VENDOR.json)`);
-  if (wanted && actual !== wanted)
-    drift.push(`${file}: manifest wants ${wanted.slice(0, 12)}…, vendored ${actual.slice(0, 12)}…`);
+  if (actual !== sha(upstream[file])) drift.push(`${file}: fermi-v1 main has a newer copy`);
 }
+if (idlSha && sha(upstream['idl/flp_vault_v4.json']) !== idlSha)
+  drift.push(
+    'idl/flp_vault_v4.json on fermi-v1 main does not match the guide’s canonical IDL hash'
+  );
 
-const sdkDrift = drift.some(d => d.startsWith('src/') || d.startsWith('idl/'));
+const sdkDrift = drift.some(d => /^(src|idl)\//.test(d));
 if (write && sdkDrift) {
-  const raw = path =>
-    execFileSync(
-      'gh',
-      [
-        'api',
-        `repos/${REPO}/contents/${path}?ref=main`,
-        '-H',
-        'Accept: application/vnd.github.raw',
-      ],
-      {
-        maxBuffer: 64 * 1024 * 1024,
-      }
-    );
-  const commit = execFileSync('gh', ['api', `repos/${REPO}/commits/main`, '--jq', '.sha'])
-    .toString()
-    .trim();
-  const src = raw('flp-vault/sdk/src/index.ts');
-  const idl = raw('flp-vault/sdk/idl/flp_vault.json');
-  if (sha(src) !== files['src/index.ts'] || sha(idl) !== files['idl/flp_vault.json'])
-    throw new Error('fermi-v1 main does not match the manifest hashes yet; try again later');
+  if (idlSha && sha(upstream['idl/flp_vault_v4.json']) !== idlSha)
+    throw new Error('fermi-v1 main does not match the RC6 IDL hash yet; try again later');
   mkdirSync(`${SDK}/src`, { recursive: true });
   mkdirSync(`${SDK}/idl`, { recursive: true });
-  writeFileSync(`${SDK}/src/index.ts`, src);
-  writeFileSync(`${SDK}/idl/flp_vault.json`, idl);
+  for (const file of FILES) writeFileSync(`${SDK}/${file}`, upstream[file]);
   writeFileSync(`${SDK}/fermi_core_accounts.json`, trimCoreIdl(JSON.parse(raw('mango_v4.json'))));
   vendor.commit = commit;
   vendor.vendoredAt = new Date().toISOString().slice(0, 10);
-  vendor.files = { 'src/index.ts': sha(src), 'idl/flp_vault.json': sha(idl) };
+  vendor.files = Object.fromEntries(FILES.map(f => [f, sha(upstream[f])]));
   writeFileSync(`${SDK}/VENDOR.json`, `${JSON.stringify(vendor, null, 2)}\n`);
   console.log(
     `re-vendored the SDK from ${REPO}@${commit.slice(0, 8)}; run pnpm typecheck && pnpm test`
   );
-  process.exit(
-    drift.length - drift.filter(d => d.startsWith('src/') || d.startsWith('idl/')).length ? 1 : 0
-  );
+  process.exit(drift.filter(d => !/^(src|idl)\//.test(d)).length ? 1 : 0);
 }
 
 console.log(
-  `manifest updated ${manifest.updatedAt ?? '?'}; vendored ${vendor.commit.slice(0, 8)} (${vendor.vendoredAt})`
+  `fermi-v1 main ${commit.slice(0, 8)}; vendored ${vendor.commit.slice(0, 8)} (${vendor.vendoredAt}); ` +
+    `data API manifest ${manifestCurrent ? 'describes this deployment' : 'still describes another deployment'}`
 );
 if (!drift.length) {
   console.log('flp:sync: in sync');

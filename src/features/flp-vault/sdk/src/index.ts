@@ -45,7 +45,7 @@ export const V1_MAX_ADDRESSES = 64;
 export const PERP_MARKET_DISCRIMINATOR = BorshAccountsCoder.accountDiscriminator('PerpMarket');
 export const PERP_MARKET_EVENT_QUEUE_OFFSET = 128;
 /** `FundingCheck` reasons recorded for the deferred head (`headSkipReason`). */
-export const FUNDING_FAILURE = { navNotPositive: 1, spotQuoteShort: 2, healthFloor: 3, bankLiquidity: 4 } as const;
+export const FUNDING_FAILURE = { navNotPositive: 1, spotQuoteShort: 2, healthFloor: 3, bankLiquidity: 4, pendingCoreSettlement: 5 } as const;
 
 /** Unique addresses of one transaction: the fee payer, every program id and every account. */
 export function uniqueAddressCount(instructions: TransactionInstruction[], payer?: PublicKey): number {
@@ -449,8 +449,8 @@ export class FlpClient {
    * end. `maxBatches` defaults to `DEFAULT_EQUITY_BATCHES`; up to
    * `MAX_EQUITY_BATCHES` drain a backlog in one close when the transaction also
    * requests `LARGE_HEAP_BYTES` of heap and enough compute. Pass `maxBatches: 1`
-   * when two exceed the budget: the head alone is a valid prefix. Consume every
-   * vault fill first. The recovery sidecar is appended on expanded vaults; the
+   * when two exceed the budget: the head alone is a valid prefix. Pricing projects
+   * authenticated retained events without consuming them. The recovery sidecar is appended on expanded vaults; the
    * program reads it only during recovery. */
   async closeEpoch(vault: PublicKey, state: VaultAccount, accounts: Record<string, PublicKey>, health: AccountMeta[],
     options: { maxBatches?: number } = {}) {
@@ -482,7 +482,7 @@ export class FlpClient {
     return this.instruction('checkBreaker', { ...accounts, vault, shareMint: state.shareMint },
       {}, await this.withEventQueues(health));
   }
-  /** Admin: clear the breaker with clean event queues and restart its price reference. */
+  /** Admin: clear the breaker using the projected effective view and restart its price reference. */
   async resetBreaker(vault: PublicKey, state: VaultAccount, admin: PublicKey, accounts: Record<string, PublicKey>, health: AccountMeta[]) {
     return this.instruction('resetBreaker', { ...accounts, vault, admin, shareMint: state.shareMint },
       {}, await this.withEventQueues(health));
@@ -498,8 +498,8 @@ export class FlpClient {
    * NAV_low price after accruable fees, provided that price is at or above
    * the batch's close price (`CureBelowClosePrice` otherwise), with the funding checks of a close
    * (spot quote, bank liquidity, post-payout health floor). Not during recovery.
-   * `accounts`: authority, idleAccount and the `fermi.*` keys. Consume every vault
-   * fill first; the event queues are appended after `health`. */
+   * `accounts`: authority, idleAccount and the `fermi.*` keys. The
+   * event queues follow `health`; pricing projects retained events without consumption. */
   async cureDeferred(vault: PublicKey, state: VaultAccount, signer: PublicKey, accounts: Record<string, PublicKey>, health: AccountMeta[]) {
     if (state.deferredHead.eq(NONE_EPOCH)) throw new Error('No deferred batch to cure');
     if (state.status & (STATUS.unwind | STATUS.closed)) throw new Error('Cures are unavailable during recovery or after closure');

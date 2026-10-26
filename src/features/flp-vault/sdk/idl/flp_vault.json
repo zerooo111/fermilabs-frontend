@@ -5824,7 +5824,7 @@
     {
       "code": 6042,
       "name": "UnconsumedVaultFills",
-      "msg": "a fill or out event of the vault account is unconsumed; consume the perp events before pricing"
+      "msg": "vault fills or out events are unconsumed; consume them before confirming settled recovery state"
     },
     {
       "code": 6043,
@@ -5850,6 +5850,11 @@
       "code": 6047,
       "name": "DeferredWithdrawalFirst",
       "msg": "an older withdrawal batch is deferred; it is funded first (cure_deferred or the next close)"
+    },
+    {
+      "code": 6048,
+      "name": "InvalidPendingEvent",
+      "msg": "retained event queue or event data is malformed"
     }
   ],
   "metadata": {

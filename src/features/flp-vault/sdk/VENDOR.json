@@ -1,11 +1,13 @@
 {
   "package": "@fermi-dex/flp-vault",
   "source": "https://github.com/Fermi-DEX/fermi-v1/tree/main/flp-vault/sdk",
-  "commit": "9bdc811914fb330f60a3eeae2e4b965de4126f3e",
-  "vendoredAt": "2026-10-24",
+  "commit": "831dd16c3e50a2f163d52c12c826e0f4d71cedb6",
+  "vendoredAt": "2026-10-26",
   "files": {
-    "src/index.ts": "cfcd45e6b75799c5e849cda0020a222f5608efaf8b37495624d62bdc3c1aa4e0",
-    "idl/flp_vault.json": "9d5d0a5098efaf45f8ef5888ea150d116d07601db1c6168092b2813d98488e97"
+    "src/index.ts": "b01e26ebb18d760d5cae41e9b10e9c0cfe7f8203ccd33a7258b3b1acf1936e90",
+    "src/v4.ts": "92fa868ef5ca7e43d2a50d378e9636b28880850be280d44e2aeef6c5e711769b",
+    "idl/flp_vault.json": "11643b67dcecf19a3197683ce49b8e7527e5cf2a0cb4da18b6f10f21756948e1",
+    "idl/flp_vault_v4.json": "58eac53814dad683186097170bbd0c6264f99af59edb273c84dbef1a60b48dd6"
   },
-  "manifest": "https://flp.34-116-238-207.sslip.io/deployment.json (sdk.indexTsSha256, idl.sha256)"
+  "manifest": "fermi-v1 flp-vault/docs/INTEGRATION_GUIDE.md (canonical IDL hash) + mainnet/rc6/devnet/*-runtime-artifact.json"
 }
