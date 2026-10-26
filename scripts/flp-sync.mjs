@@ -78,9 +78,15 @@ const manifest = await fetch(`${API}/deployment.json`, { signal: AbortSignal.tim
   .catch(() => null);
 const manifestCurrent = manifest?.programs?.vault && config.includes(manifest.programs.vault);
 if (manifestCurrent) {
-  for (const m of manifest.markets ?? [])
-    if (!new RegExp(`\\b${m.index}: ${m.baseDecimals}\\b`).test(config))
-      drift.push(`market ${m.index} (${m.name}): baseDecimals ${m.baseDecimals} not in config.ts`);
+  // Every listed market needs base decimals in config.ts; the RC6 manifest
+  // doesn't give them (read them from the PerpMarket), earlier ones did.
+  for (const m of manifest.markets ?? []) {
+    const wanted = m.baseDecimals ?? '\\d+';
+    if (!new RegExp(`\\b${m.index}: ${wanted}\\b`).test(config))
+      drift.push(
+        `market ${m.index} (${m.name}): base decimals ${m.baseDecimals ?? '?'} not in config.ts`
+      );
+  }
 }
 
 // Vendored files: on disk vs VENDOR.json vs fermi-v1 main.

@@ -18,10 +18,13 @@ The RC4 vaults (program `5EJSS…`) are not RC6 accounts.
 
 - The data API must serve the `rc6-devnet` profile for this program and vault
   (`parseEnvelope(body, vault)` checks `source.profile`, `source.program_id`,
-  `vault`). Until the protocol team hosts the RC6 reader, the host answers
-  422 and the vault pages show the vault as unavailable.
-- The host's faucet and whitelist still serve the RC4 group, so the devnet
-  strip hides them (`faucet` / `whitelist` in `config.ts`).
+  `vault`). A 422 (a reader that can't read the vault) shows the vault as
+  unavailable.
+- The host's faucet mints RC6 test USDC (max 10,000 per request, 50,000 per
+  wallet per day). Its RC4 whitelist service is retired, so there's no
+  approval button (`faucet` / `whitelist` in `config.ts`).
+- Epochs last 10 minutes; the team's keeper closes each one shortly after
+  `epoch.scheduledEnd`.
 
 ## Data flow
 
@@ -122,6 +125,5 @@ applies (testers switch their wallet to devnet / testnet mode).
   wallet's balance, requests and form limits read-only (dev builds only).
   On RC6, `CSYxXfixXywMcTGECWjiJdoD75gtzU67fA8JR6YqFvha` holds shares and
   direct-deposit approval.
-- Devnet funds: the vault page's devnet strip calls the host's faucet and
-  whitelist services for vaults that have them; RC6 test USDC comes from the
-  protocol team for now.
+- Devnet funds: the vault page's devnet strip calls the host's faucet (and
+  whitelist, for vaults that have one).

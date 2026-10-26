@@ -1,37 +1,67 @@
 {
   "view": "confirmed",
-  "generated_ts_ms": 1792814109161,
+  "generated_ts_ms": 1792998847474,
   "schema_version": 1,
   "source": {
-    "program_id": "5EJSSPcM4icUVcrGR7WwQzKDn915zCfAHaXnmAsFT7n2",
-    "profile": "rc2-pr29",
+    "program_id": "FLPRrDPN5tJpLx6wY6FUiGFN5Kws8gHUCYMCcs6Goa9Q",
+    "profile": "rc6-devnet",
     "commitment": "confirmed",
-    "slot": "514479241",
-    "chain_unix_timestamp": "1792814108",
+    "slot": "515252703",
+    "chain_unix_timestamp": "1792998846",
     "consistency": "FLP, token, clock, core account, bank, perp market and oracle data from one getMultipleAccounts context",
     "current_nav_is_execution_quote": false
   },
-  "vault": "FXFEzgjZyFYcNvhAuCVhFw33qShzP659WG5wvZHXrPnL",
-  "owner": "APEs3GeG4oWmqT919AA9df8YZv1VHun2BXpnW4YPFx7s",
+  "vault": "DSF7hKayWatQyRhuyr4UkrG3zUuNW6b1Q5VhW7BzrUhu",
+  "owner": "CSYxXfixXywMcTGECWjiJdoD75gtzU67fA8JR6YqFvha",
   "user_account_exists": true,
   "data": {
+    "fundingWindow": {
+      "vault": "DSF7hKayWatQyRhuyr4UkrG3zUuNW6b1Q5VhW7BzrUhu",
+      "version": 1,
+      "closedEpoch": "35",
+      "scheduledStart": "1792998838",
+      "deadline": "1792999138",
+      "eligible": true,
+      "address": "HUwqJR8iEkC3mxz9fhNqfqgbGfQt37U1Uc4F3hkvDRUw",
+      "authenticated": true,
+      "current": true,
+      "open": true
+    },
+    "recoverySidecar": {
+      "address": "DcsUMbVtrYSM9hTKQLVNMCu56sjNatTK8UUgv6ta4fT1",
+      "authenticated": true,
+      "mode": 0,
+      "batchEpoch": "18446744073709551615",
+      "startedAt": "0"
+    },
+    "executionEvidence": {
+      "coreWithdrawal": {
+        "value": null,
+        "reason": "Requires a fresh amount-bound core withdrawal simulation"
+      },
+      "pendingEvents": {
+        "value": null,
+        "reason": "Exact projected pricing requires current canonical event replay or transaction simulation"
+      },
+      "resourceFailureAction": "hold-and-consume; never infer a breaker or recovery trigger"
+    },
     "units": {
-      "quoteMint": "GLQvq1Y8anpAgqSu4C5XAJYukkpmtFhUgPzA26KcSej6",
+      "quoteMint": "BPmUCswawRjBswEkXRtgAkDkgn5D5mYXiLdVusQ5Kaxj",
       "quoteDecimals": 6,
-      "shareMint": "9pAMwXLwQ5UVetwCtADWW4edrrNsputoUANe73kKSCFJ",
+      "shareMint": "86GHYGXvJaMVTHvjw3MdJ3kLeCYQWfyeLsCda8aKMd8B",
       "shareDecimals": 6,
       "quantities": "decimal integer strings in native units",
       "prices": "native quote per native share; ratios are exact"
     },
     "addresses": {
-      "group": "5BEQGaiW96tN5E4SoH39UMzLSy8P4eeafGcV21GPkh4L",
-      "fermiAccount": "FeW3zeY9NQmZ5j6DZq7iVSHyxqNEvrd1xupZ6T8z7fo",
-      "quoteBank": "3NCtxvk8V2ZhymmByFMFafoqvddqHZamrJqoA88UkzmL",
-      "depositEscrow": "83JToC3Avng1kUfe61xprjTG8ora4kXXxRNnrLKsUUP1",
-      "redemptionEscrow": "7pdAQHsTh4Jaf2zezMKtG9v2HUxEKzTBq7TLQsXRqo9X"
+      "group": "7LSmhhsbZs6ChhoUtvPpVHDrdziUjV3gNeQLsNc3XC7k",
+      "fermiAccount": "AUqzvhTaMf5UAxtKcWo4BRQJu4U5aBzES8QyBNS2havg",
+      "quoteBank": "2nwQgwy45DthXcxweMu4moevbNRUnedWVcWRTY3FrewF",
+      "depositEscrow": "81JBjk86S19U7K6QBMZqcjf16shBFx2oJdLzVYa9Bj3u",
+      "redemptionEscrow": "74zHfiAE1zftASRdX36kbsarV1hQpkZ5Pm97XREFwmLG"
     },
     "lifecycle": {
-      "version": 3,
+      "version": 4,
       "mode": "live",
       "statusBits": 0,
       "seeded": true,
@@ -41,9 +71,9 @@
       "breaker": false,
       "unwind": {
         "mode": 0,
-        "batchEpoch": "18446744073709551615",
-        "startedAt": "1792781034",
-        "marketIndexes": [0, 1, 2, 65535],
+        "batchEpoch": "0",
+        "startedAt": "0",
+        "marketIndexes": [0, 0, 0, 0],
         "targetBaseLots": ["0", "0", "0", "0"]
       },
       "recoveryParams": {
@@ -71,9 +101,9 @@
       "graduation": {
         "adminTriggered": true,
         "scheduledAt": null,
-        "liveStartedAt": "1792580829",
-        "numerator": "911000000",
-        "denominator": "913000000",
+        "liveStartedAt": "1792991721",
+        "numerator": "102000000",
+        "denominator": "102000000",
         "remainingQuote": "0",
         "remainingShares": "0"
       },
@@ -81,44 +111,46 @@
       "terminalSupply": "0"
     },
     "configuration": {
+      "numericalInitBreakerSupported": false,
+      "coreWithdrawalHealth": "checked by actual core withdrawal",
       "params": {
-        "epochDurationS": 300,
-        "requestCutoffS": 30,
+        "epochDurationS": 600,
+        "requestCutoffS": 5,
         "timelockS": 3,
         "mgmtFeeBps": 0,
         "perfFeeBps": 0,
         "depositFeeBps": 0,
         "withdrawFeeBps": 0,
-        "upnlHaircutBps": 0,
+        "upnlHaircutBps": 10000,
         "minPostWithdrawInitRatioBps": 0,
         "breakerDrawdownBps": 1000,
         "breakerMinInitRatioBps": 0,
-        "breakerWindowS": 86400,
-        "tvlCap": "100000000000",
-        "minDeposit": "1000000",
-        "minWithdrawShares": "1000000"
+        "breakerWindowS": 3600,
+        "tvlCap": "1000000000000",
+        "minDeposit": "1",
+        "minWithdrawShares": "1"
       },
       "pendingParams": {
-        "epochDurationS": 300,
-        "requestCutoffS": 30,
+        "epochDurationS": 600,
+        "requestCutoffS": 5,
         "timelockS": 3,
         "mgmtFeeBps": 0,
         "perfFeeBps": 0,
         "depositFeeBps": 0,
         "withdrawFeeBps": 0,
-        "upnlHaircutBps": 0,
+        "upnlHaircutBps": 10000,
         "minPostWithdrawInitRatioBps": 0,
         "breakerDrawdownBps": 1000,
         "breakerMinInitRatioBps": 0,
-        "breakerWindowS": 86400,
-        "tvlCap": "100000000000",
-        "minDeposit": "1000000",
-        "minWithdrawShares": "1000000"
+        "breakerWindowS": 3600,
+        "tvlCap": "1000000000000",
+        "minDeposit": "1",
+        "minWithdrawShares": "1"
       },
       "pendingParamsEta": "0",
       "scheduledEpochTiming": null,
-      "admin": "EuAFsaabnZN7BYp4MWrtR6dsgQh43VDpTrPy52zVUXDL",
-      "delegate": "35aiZz4EXyLWtn86N5Vr9w2ciQu2dec6kAJ7LQjgSpY3",
+      "admin": "3fZcc4gttHXHqKaDPvEUXGx9sDaLWd7B4xGMVevC7nn5",
+      "delegate": "GL6FMtLkYBjNg5BgvGiFWYR9Seum36tyKQuDfC2DXQbn",
       "pendingDelegate": "11111111111111111111111111111111",
       "pendingDelegateEta": "0",
       "delegateDelaySeconds": 3,
@@ -126,38 +158,38 @@
       "pendingEquityFundingWindowSeconds": "300"
     },
     "epoch": {
-      "current": "548",
-      "startedAt": "1792813850",
-      "scheduledEnd": "1792814150",
-      "cutoffAt": "1792814120",
-      "requestTarget": "548",
-      "fundingWindowEndsAt": "1792814450",
-      "withinScheduledFundingWindow": false,
+      "current": "36",
+      "startedAt": "1792998838",
+      "scheduledEnd": "1792999438",
+      "cutoffAt": "1792999433",
+      "requestTarget": "36",
+      "fundingWindowEndsAt": "1792999138",
+      "withinScheduledFundingWindow": true,
       "payoutTime": {
         "value": null,
         "reason": "Keeper execution, FIFO funding, liquidity, health and recovery determine funding; the schedule is not a payout guarantee"
       }
     },
     "shares": {
-      "mintedSupply": "1228023769",
+      "mintedSupply": "111000000",
       "owedUnminted": "0",
       "lockedUnfunded": "0",
-      "pricingSupply": "1228023769",
-      "deadShares": "10000000",
+      "pricingSupply": "111000000",
+      "deadShares": "1000000",
       "graduationSharesAlreadyIncludedInOwed": "0"
     },
     "valuation": {
       "currentNav": {
         "value": {
-          "raw": "346518470750650098800000",
+          "raw": "31243722414882816000000",
           "fractionalBits": 48
         },
         "quality": "indicative",
         "source": {
-          "coreAccountSlot": "514479241",
-          "marketsSlot": "514479241",
-          "marketsFetchedAtMs": 1792814109148,
-          "groupStructureFetchedAtMs": 1792814108903,
+          "coreAccountSlot": "515252703",
+          "marketsSlot": "515252703",
+          "marketsFetchedAtMs": 1792998847464,
+          "groupStructureFetchedAtMs": 1792998844782,
           "commitment": "confirmed",
           "atomicWithVault": true
         },
@@ -168,15 +200,15 @@
         "reason": "Gross assets require a consistent current asset/liability valuation"
       },
       "lastProgramNav": {
-        "slot": "514478231",
-        "navMid": "1231080910",
-        "navLow": "1231080910",
-        "navHigh": "1231080911",
-        "initRatioBps": "9223372036854775807",
-        "spotQuote": "1230931111",
+        "slot": "515252684",
+        "navMid": "111000000",
+        "navLow": "111000000",
+        "navHigh": "111000000",
+        "initRatioBps": "-9223372036854775808",
+        "spotQuote": "111000000",
         "unitInterpretation": "quote-native",
-        "stale": true,
-        "slotLag": "1010",
+        "stale": false,
+        "slotLag": "19",
         "warning": "Historical program observation, not current TVL; do not combine with current flows or supply to calculate returns"
       },
       "segregated": {
@@ -184,17 +216,17 @@
         "publicRefundablePrincipal": "0",
         "queuedDepositGross": "0",
         "heldRefundOnlyDeposits": "0",
-        "redemptionEscrowBalance": "0",
+        "redemptionEscrowBalance": "1000000",
         "idleTradingQuote": "0",
         "warning": "Deposit and redemption escrows are outside trading NAV. Idle quote is part of NAV, never add it twice. Redemption balance may include rounding dust."
       }
     },
     "fees": {
-      "recipient": "C8s2A6Lgf5N1p5PETVJRJpxvvGTpqCXeUoHryQY3iiNh",
-      "managementSharesAccrued": "231",
+      "recipient": "EiRUcVf7Nh6MKU8BXuRcXv5WtJ7PSuR7wAmg6tL6Y49U",
+      "managementSharesAccrued": "0",
       "performanceSharesAccrued": "0",
-      "highWaterMarkPriceE12": "1002773741937",
-      "lastAccrualAt": "1792813865",
+      "highWaterMarkPriceE12": "1000000000000",
+      "lastAccrualAt": "1792998841",
       "performanceFeeBpsNow": 0,
       "historicalFlowFees": {
         "value": null,
@@ -202,13 +234,13 @@
       }
     },
     "flows": {
-      "inceptionTs": "1792574007",
-      "totalDepositedGross": "1493910376",
-      "totalWithdrawnNet": "265179265",
-      "netDeposits": "1228731111",
-      "cumMgmtFeeShares": "231",
+      "inceptionTs": "1792991682",
+      "totalDepositedGross": "114000000",
+      "totalWithdrawnNet": "3000000",
+      "netDeposits": "111000000",
+      "cumMgmtFeeShares": "0",
       "cumPerfFeeShares": "0",
-      "activeDepositors": 6
+      "activeDepositors": 2
     },
     "pnl": {
       "realized": {
@@ -229,7 +261,7 @@
       },
       "externalPhoenixHedgesIncluded": false,
       "unsettledTradingQuoteNative": {
-        "raw": "42164949503180800000",
+        "raw": "0",
         "fractionalBits": 48
       }
     },
@@ -238,7 +270,7 @@
       "deferredHead": null,
       "deferredTail": null,
       "totalLockedUnfundedShares": "0",
-      "fundedEscrowBalance": "0",
+      "fundedEscrowBalance": "1000000",
       "deferredBatchCount": {
         "value": null,
         "reason": "Linked list is not traversed by this bounded read"
@@ -246,11 +278,11 @@
       "ordering": "FIFO by deferred epoch batch; no within-batch payout rank"
     },
     "user": {
-      "owner": "APEs3GeG4oWmqT919AA9df8YZv1VHun2BXpnW4YPFx7s",
-      "depositApproved": false,
+      "owner": "CSYxXfixXywMcTGECWjiJdoD75gtzU67fA8JR6YqFvha",
+      "depositApproved": true,
       "approvalIsTradingDelegation": false,
-      "sharesHeld": "4974380",
-      "investedSharesIncludingOwedAndUnfunded": "4974380",
+      "sharesHeld": "100000000",
+      "investedSharesIncludingOwedAndUnfunded": "100000000",
       "refundablePublicPrincipal": "0",
       "graduationClaimableShares": "0",
       "terminalRedeemableHeldSharesQuote": null,
@@ -282,7 +314,7 @@
       },
       "availability": {
         "publicEscrowDepositMode": false,
-        "approvedImmediateDepositMode": false,
+        "approvedImmediateDepositMode": true,
         "queuedDepositMode": true,
         "depositsBlockedByStatus": false,
         "publicDepositsBlockedByStatus": false,
@@ -291,15 +323,15 @@
       },
       "pnl": {
         "recordedRealizedQuote": "0",
-        "heldSharesCostBasisQuote": "4987158",
+        "heldSharesCostBasisQuote": "100000000",
         "withdrawalTicketReleasedBasisQuote": "0",
         "unclaimedDepositGrossBasisQuote": null,
-        "totalDepositedRecorded": "10000000",
-        "totalWithdrawnRecorded": "5012842",
+        "totalDepositedRecorded": "100000000",
+        "totalWithdrawnRecorded": "0",
         "currentUnrealized": {
-          "value": "-395",
-          "indicativeInvestedValueQuote": "4986763",
-          "attributableBasisQuote": "4987158",
+          "value": "0",
+          "indicativeInvestedValueQuote": "100000000",
+          "attributableBasisQuote": "100000000",
           "reason": "Indicative current mid mark minus recorded attributable gross cost basis; excludes funded claims and refundable escrow; fee dilution may accrue before execution; market data from the same read as the vault"
         },
         "historicalReturn": {
@@ -307,33 +339,55 @@
           "reason": "Recorded average-cost realized PnL is not a time-weighted return; index events for history"
         }
       },
-      "firstDepositAt": "1792753448",
-      "lastActionAt": "1792753601"
+      "firstDepositAt": "1792991694",
+      "lastActionAt": "1792991694"
     },
+    "release": {
+      "release": "RC6-devnet",
+      "status": "tentative-code-freeze",
+      "sourceCommit": "c19bb5d7ab5f9730fddcc7de88c7a89e39b49959",
+      "integrationProfile": "rc6-devnet",
+      "vaultVersion": 4,
+      "fundingWindowVersion": 1,
+      "vaultProgram": "FLPRrDPN5tJpLx6wY6FUiGFN5Kws8gHUCYMCcs6Goa9Q",
+      "coreProgram": "6zuHzxwDsZHXSpNtgE4rru3e55n3DMPbMd3UBT31YuX5",
+      "vaultElfBytes": 1776520,
+      "vaultElfSha256": "67027fbbb0486ba20bde37437977d032035dc5248f545681224b57c12a83ba2c",
+      "coreElfBytes": 3680936,
+      "coreElfSha256": "57d280f1b278e5b6550987011c6a6451c98b91a9ca3a9437c4c7260922cdc374",
+      "idlSha256": "58eac53814dad683186097170bbd0c6264f99af59edb273c84dbef1a60b48dd6",
+      "maxLen": 1954172,
+      "liveDeploymentQualified": false,
+      "vaultTree": "9ef3f17a80f59d5ec63361559334449d280a613e",
+      "coreTree": "e3a23d5c6760d3c6925545be01757d90184a3d39",
+      "runtimeArtifactReceiptSha256": "01e322f9731efe2223a5d6c4b04b225adb123423b8f6382e01bb47a64bb5aceb",
+      "artifactAuthentication": "expected pins only; independently check deployed ProgramData before signing"
+    },
+    "deferredHeadRecord": null,
     "portfolio": {
       "status": "indicative",
       "warnings": [
         "Core account, FLP accounts, banks, perp markets and oracles were read in one RPC context. Values are indicative, not an execution NAV.",
         "Phoenix hedge accounts are external and excluded."
       ],
-      "quoteMint": "GLQvq1Y8anpAgqSu4C5XAJYukkpmtFhUgPzA26KcSej6",
+      "quoteMint": "BPmUCswawRjBswEkXRtgAkDkgn5D5mYXiLdVusQ5Kaxj",
       "quoteDecimals": 6,
       "valuation": {
         "spotQuoteNative": {
-          "raw": "346476305801146918000000",
+          "raw": "31243722414882816000000",
           "fractionalBits": 48
         },
         "unsettledPerpQuoteNative": {
-          "raw": "42164949503180800000",
+          "raw": "0",
           "fractionalBits": 48
         },
         "idleQuoteNative": "0",
         "indicativeNavQuoteNative": {
-          "raw": "346518470750650098800000",
+          "raw": "31243722414882816000000",
           "fractionalBits": 48
         },
         "positiveMarkedComponentsQuoteNative": {
-          "raw": "346518470750650098800000",
+          "raw": "31243722414882816000000",
           "fractionalBits": 48
         },
         "negativeMarkedComponentsQuoteNative": {
@@ -349,15 +403,15 @@
       "collateral": [
         {
           "tokenIndex": 0,
-          "mint": "GLQvq1Y8anpAgqSu4C5XAJYukkpmtFhUgPzA26KcSej6",
-          "bank": "3NCtxvk8V2ZhymmByFMFafoqvddqHZamrJqoA88UkzmL",
+          "mint": "BPmUCswawRjBswEkXRtgAkDkgn5D5mYXiLdVusQ5Kaxj",
+          "bank": "2nwQgwy45DthXcxweMu4moevbNRUnedWVcWRTY3FrewF",
           "decimals": 6,
           "balanceNative": {
-            "raw": "346476305801146918000000",
+            "raw": "31243722414882816000000",
             "fractionalBits": 48
           },
           "quoteValueNative": {
-            "raw": "346476305801146918000000",
+            "raw": "31243722414882816000000",
             "fractionalBits": 48
           },
           "oracleSlot": "0"
@@ -366,25 +420,25 @@
       "positions": [
         {
           "marketIndex": 0,
-          "market": "BA1vWQcAkf8GhumyLUcY38tFJHT6z3gqLydESxwUmysQ",
-          "name": "FLP-DEV-SOL-PERP",
+          "market": "HbXZZmmcAa8YDrg1wwje1LFTE1yrVPxUR3YBMFFTXPLJ",
+          "name": "RC6-SOL-PERP",
           "settleTokenIndex": 0,
-          "settlementMint": "GLQvq1Y8anpAgqSu4C5XAJYukkpmtFhUgPzA26KcSej6",
+          "settlementMint": "BPmUCswawRjBswEkXRtgAkDkgn5D5mYXiLdVusQ5Kaxj",
           "settlementDecimals": 6,
           "baseLotSize": "1000000",
           "quoteLotSize": "1000",
-          "baseLots": "0",
+          "baseLots": "2",
           "takerBaseLots": "0",
           "takerQuoteLots": "0",
-          "baseNativeIncludingTaker": "0",
+          "baseNativeIncludingTaker": "2000000",
           "signedExposureSettlementNative": {
-            "raw": "0",
+            "raw": "56294995342131200000000",
             "fractionalBits": 48
           },
           "bidsBaseLots": "0",
           "asksBaseLots": "0",
           "quotePositionNative": {
-            "raw": "0",
+            "raw": "-56294995342131200000000",
             "fractionalBits": 48
           },
           "unsettledPnlSettlementNative": {
@@ -393,60 +447,6 @@
           },
           "positiveUnsettledPnlQuoteNative": {
             "raw": "0",
-            "fractionalBits": 48
-          },
-          "realizedPnlForCurrentPositionNative": {
-            "raw": "0",
-            "fractionalBits": 48
-          },
-          "unsettledFundingNative": {
-            "raw": "0",
-            "fractionalBits": 48
-          },
-          "cumulativeSpotTransfersNative": "2000000",
-          "historicalRealized": {
-            "value": null,
-            "reason": "Current-position accounting is not lifetime realized trading PnL"
-          },
-          "unrealizedFromEntry": {
-            "value": null,
-            "reason": "Historical entry cost requires indexer; unsettled PnL is not unrealized-only PnL"
-          },
-          "oracleSlot": "0",
-          "oraclePriceSettlementNativePerBaseNative": {
-            "raw": "28147497671065600",
-            "fractionalBits": 48
-          }
-        },
-        {
-          "marketIndex": 1,
-          "market": "4UhA4JkeBdhNVHyXjeh86mLB6HLsCTXDSb3uNkwKEvZQ",
-          "name": "FLP-RISK-1",
-          "settleTokenIndex": 0,
-          "settlementMint": "GLQvq1Y8anpAgqSu4C5XAJYukkpmtFhUgPzA26KcSej6",
-          "settlementDecimals": 6,
-          "baseLotSize": "1000000",
-          "quoteLotSize": "1000",
-          "baseLots": "0",
-          "takerBaseLots": "0",
-          "takerQuoteLots": "0",
-          "baseNativeIncludingTaker": "0",
-          "signedExposureSettlementNative": {
-            "raw": "0",
-            "fractionalBits": 48
-          },
-          "bidsBaseLots": "0",
-          "asksBaseLots": "0",
-          "quotePositionNative": {
-            "raw": "42164949503180800000",
-            "fractionalBits": 48
-          },
-          "unsettledPnlSettlementNative": {
-            "raw": "42164949503180800000",
-            "fractionalBits": 48
-          },
-          "positiveUnsettledPnlQuoteNative": {
-            "raw": "42164949503180800000",
             "fractionalBits": 48
           },
           "realizedPnlForCurrentPositionNative": {
@@ -468,61 +468,7 @@
           },
           "oracleSlot": "0",
           "oraclePriceSettlementNativePerBaseNative": {
-            "raw": "14073748835532800",
-            "fractionalBits": 48
-          }
-        },
-        {
-          "marketIndex": 2,
-          "market": "3M7uJy2fV2toogQDCDMos6JdGNpxxteTVmJJmjuDfXgY",
-          "name": "FLP-RISK-2",
-          "settleTokenIndex": 0,
-          "settlementMint": "GLQvq1Y8anpAgqSu4C5XAJYukkpmtFhUgPzA26KcSej6",
-          "settlementDecimals": 6,
-          "baseLotSize": "1000000",
-          "quoteLotSize": "1000",
-          "baseLots": "0",
-          "takerBaseLots": "0",
-          "takerQuoteLots": "0",
-          "baseNativeIncludingTaker": "0",
-          "signedExposureSettlementNative": {
-            "raw": "0",
-            "fractionalBits": 48
-          },
-          "bidsBaseLots": "0",
-          "asksBaseLots": "0",
-          "quotePositionNative": {
-            "raw": "0",
-            "fractionalBits": 48
-          },
-          "unsettledPnlSettlementNative": {
-            "raw": "0",
-            "fractionalBits": 48
-          },
-          "positiveUnsettledPnlQuoteNative": {
-            "raw": "0",
-            "fractionalBits": 48
-          },
-          "realizedPnlForCurrentPositionNative": {
-            "raw": "0",
-            "fractionalBits": 48
-          },
-          "unsettledFundingNative": {
-            "raw": "0",
-            "fractionalBits": 48
-          },
-          "cumulativeSpotTransfersNative": "200000",
-          "historicalRealized": {
-            "value": null,
-            "reason": "Current-position accounting is not lifetime realized trading PnL"
-          },
-          "unrealizedFromEntry": {
-            "value": null,
-            "reason": "Historical entry cost requires indexer; unsettled PnL is not unrealized-only PnL"
-          },
-          "oracleSlot": "0",
-          "oraclePriceSettlementNativePerBaseNative": {
-            "raw": "5629499534213120",
+            "raw": "28147497671065600",
             "fractionalBits": 48
           }
         }
@@ -534,15 +480,15 @@
       },
       "health": {
         "initReferenceNative": {
-          "raw": "346518470750650098800000",
+          "raw": "28428971976687616000000",
           "fractionalBits": 48
         },
         "maintReferenceNative": {
-          "raw": "346518470750650098800000",
+          "raw": "29836348873506816000000",
           "fractionalBits": 48
         },
         "initRatioPercent": {
-          "raw": "170141183460469231731687303715884105727",
+          "raw": "284289651986941279",
           "fractionalBits": 48
         },
         "executionEligible": {
@@ -554,11 +500,11 @@
         "definition": "Gross positive oracle-marked unsettled perp PnL; includes funding and realized-but-unsettled PnL; losses and external hedges do not offset it",
         "depositDisclosure": "counted at par when you enter, excluded when you exit",
         "grossPositiveUnsettledPnlQuoteNative": {
-          "raw": "42164949503180800000",
+          "raw": "0",
           "fractionalBits": 48
         },
         "upnlToNavRatio": {
-          "raw": "34250347907",
+          "raw": "0",
           "fractionalBits": 48
         },
         "denominator": "Current indicative NAV in quote-native Q48 units, including idle quote and excluding segregated escrows and external hedges",
@@ -573,25 +519,20 @@
           "tier1": {
             "status": "below-threshold",
             "action": "settle now",
-            "observedAboveThresholdSeconds": "0",
+            "observedAboveThresholdSeconds": null,
             "durationRule": "strictly more than one funding window"
           },
           "tier2": {
-            "status": "below-threshold",
+            "status": "history-unknown",
             "triggers": [],
             "singleMarketThresholdMarkets": [],
             "agedMarkets": [],
             "meaning": "Settlement failing: operator action requested; no message or page has been delivered"
           },
           "history": {
-            "status": "observed",
-            "reason": null,
-            "observedPositiveMarkets": [
-              {
-                "marketIndex": 1,
-                "observedPositiveEpochAge": "1"
-              }
-            ],
+            "status": "unknown",
+            "reason": "Observation gap, changed funding window or invalid prior observation; positive tracking restarted",
+            "observedPositiveMarkets": [],
             "source": "endpoint-driven persisted observations using chain clock, slot and current epoch",
             "maxObservationGapSeconds": "300",
             "limitation": "Sampled observations do not prove continuous unsettled individual PnL lots; positive profit can be settled and replaced between observations. No background monitoring or automatic pager delivery."
@@ -600,7 +541,7 @@
       },
       "pnl": {
         "unsettledPerpQuoteNative": {
-          "raw": "42164949503180800000",
+          "raw": "0",
           "fractionalBits": 48
         },
         "realizedLifetime": {
@@ -613,10 +554,10 @@
         }
       },
       "source": {
-        "coreAccountSlot": "514479241",
-        "marketsSlot": "514479241",
-        "marketsFetchedAtMs": 1792814109148,
-        "groupStructureFetchedAtMs": 1792814108903,
+        "coreAccountSlot": "515252703",
+        "marketsSlot": "515252703",
+        "marketsFetchedAtMs": 1792998847464,
+        "groupStructureFetchedAtMs": 1792998844782,
         "commitment": "confirmed",
         "atomicWithVault": true
       }
@@ -625,11 +566,11 @@
       "definition": "Gross positive oracle-marked unsettled perp PnL; includes funding and realized-but-unsettled PnL; losses and external hedges do not offset it",
       "depositDisclosure": "counted at par when you enter, excluded when you exit",
       "grossPositiveUnsettledPnlQuoteNative": {
-        "raw": "42164949503180800000",
+        "raw": "0",
         "fractionalBits": 48
       },
       "upnlToNavRatio": {
-        "raw": "34250347907",
+        "raw": "0",
         "fractionalBits": 48
       },
       "denominator": "Current indicative NAV in quote-native Q48 units, including idle quote and excluding segregated escrows and external hedges",
@@ -644,25 +585,20 @@
         "tier1": {
           "status": "below-threshold",
           "action": "settle now",
-          "observedAboveThresholdSeconds": "0",
+          "observedAboveThresholdSeconds": null,
           "durationRule": "strictly more than one funding window"
         },
         "tier2": {
-          "status": "below-threshold",
+          "status": "history-unknown",
           "triggers": [],
           "singleMarketThresholdMarkets": [],
           "agedMarkets": [],
           "meaning": "Settlement failing: operator action requested; no message or page has been delivered"
         },
         "history": {
-          "status": "observed",
-          "reason": null,
-          "observedPositiveMarkets": [
-            {
-              "marketIndex": 1,
-              "observedPositiveEpochAge": "1"
-            }
-          ],
+          "status": "unknown",
+          "reason": "Observation gap, changed funding window or invalid prior observation; positive tracking restarted",
+          "observedPositiveMarkets": [],
           "source": "endpoint-driven persisted observations using chain clock, slot and current epoch",
           "maxObservationGapSeconds": "300",
           "limitation": "Sampled observations do not prove continuous unsettled individual PnL lots; positive profit can be settled and replaced between observations. No background monitoring or automatic pager delivery."

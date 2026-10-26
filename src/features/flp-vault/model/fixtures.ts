@@ -3,9 +3,10 @@
  * `node scripts/flp-fixtures.mjs`), parsed through the runtime schema, plus
  * helpers that derive the states the devnet vaults aren't in right now.
  *
- * These are RC4 captures (profile rc2-pr29, vaults 3 and 1): the envelope
- * shape is the same (schema_version 1), and `rc6()` relabels one as the RC6
- * reader's. Re-capture from the RC6 vault once the data API serves it.
+ * live*.json are RC6 captures (profile rc6-devnet). pre-deposit*.json stay
+ * RC4 captures (profile rc2-pr29, vault 3) until an RC6 vault runs a
+ * pre-deposit phase; the envelope shape is the same (schema_version 1), and
+ * `rc6()` relabels one as the RC6 reader's.
  */
 import live from './__fixtures__/live.json';
 import liveUser from './__fixtures__/live-user.json';
@@ -25,9 +26,9 @@ export const fixtures = {
   preUser: load(preUser),
   /** Vault 3, a wallet with no Depositor record (`user: null`). */
   preNoUser: load(preNoUser),
-  /** Vault 1 after graduation, no wallet. */
+  /** The RC6 vault, live, no wallet. */
   live: load(live),
-  /** Vault 1, a wallet holding shares and no open request. */
+  /** The RC6 vault, an approved wallet holding shares and no open request. */
   liveUser: load(liveUser),
 };
 

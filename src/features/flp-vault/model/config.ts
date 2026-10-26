@@ -34,13 +34,14 @@ export interface FlpVaultConfig {
 }
 
 // RC6 has one vault, on a private test group with synthetic test USDC
-// (BPmUCs…). The host's faucet and whitelist still serve the RC4 group.
+// (BPmUCs…), which the host's faucet mints. The RC4 whitelist service is
+// retired: the RC6 vault takes public deposits.
 export const FLP_VAULTS: readonly FlpVaultConfig[] = [
   {
     id: 1,
     address: new PublicKey('DSF7hKayWatQyRhuyr4UkrG3zUuNW6b1Q5VhW7BzrUhu'),
     name: 'Fermi Liquidity Provider (FLP)',
-    faucet: false,
+    faucet: true,
     whitelist: false,
   },
 ];

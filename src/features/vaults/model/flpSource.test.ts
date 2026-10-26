@@ -7,7 +7,8 @@ import { edit, fixtures } from '@/features/flp-vault/model/fixtures';
 
 import { flpToVault } from './flpSource';
 
-// The fixtures' vaults (RC4 captures, fixtures.ts), not the configured RC6 one.
+// The fixtures' vaults (fixtures.ts): the RC6 vault, and RC4 vault 3 for the
+// pre-deposit phase RC6 hasn't run.
 const config = (id: number, address: string): FlpVaultConfig => ({
   id,
   address: new PublicKey(address),
@@ -15,7 +16,7 @@ const config = (id: number, address: string): FlpVaultConfig => ({
   faucet: false,
   whitelist: false,
 });
-const live = config(1, 'FXFEzgjZyFYcNvhAuCVhFw33qShzP659WG5wvZHXrPnL');
+const live = config(1, 'DSF7hKayWatQyRhuyr4UkrG3zUuNW6b1Q5VhW7BzrUhu');
 const pre = config(3, '8fAqhdnBWnCN2nkkkX4qhU316bhhsvAtKRfoCAv1Hmgo');
 
 describe('flpToVault', () => {

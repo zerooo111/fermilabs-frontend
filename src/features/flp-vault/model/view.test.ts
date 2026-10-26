@@ -29,10 +29,11 @@ describe('schema', () => {
 
   it('takes a vault read only from the RC6 reader for that vault', () => {
     const vault = FLP_VAULTS[0].address.toBase58();
+    expect(() => parseEnvelope(fixtures.live(), vault)).not.toThrow();
     // An RC4 reader (profile rc2-pr29) must not stand in for RC6.
-    expect(() => parseEnvelope(fixtures.live(), vault)).toThrow(/rc2-pr29/);
-    expect(() => parseEnvelope(rc6(fixtures.live()), vault)).not.toThrow();
-    expect(() => parseEnvelope(rc6(fixtures.live()), fixtures.live().vault)).toThrow(
+    expect(() => parseEnvelope(fixtures.pre(), vault)).toThrow(/rc2-pr29/);
+    expect(() => parseEnvelope(rc6(fixtures.pre()), vault)).not.toThrow();
+    expect(() => parseEnvelope(fixtures.live(), fixtures.pre().vault)).toThrow(
       /another program or vault/
     );
   });
@@ -61,7 +62,8 @@ describe('funding window', () => {
     expect(vaultView(withWindow({ open: false })).funding).toBeNull();
     // A stale copy claims nothing until a fresh read succeeds.
     expect(vaultView(withWindow({}, true)).funding).toBeNull();
-    expect(vaultView(fixtures.live()).funding).toBeNull();
+    // RC4 had no FundingWindow PDA.
+    expect(vaultView(fixtures.pre()).funding).toBeNull();
   });
 });
 
