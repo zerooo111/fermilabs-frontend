@@ -19,7 +19,9 @@ real USDC (`EPjFWd…Dt1v`). Addresses come from the SDK's `RC6_MAINNET_RELEASE`
 
 - Data comes from the FLP-only mainnet reader
   (`https://flp-mainnet.34-116-238-207.sslip.io`), separate from the main
-  dashboard's harness. A response must carry profile `rc6` for this program
+  dashboard's harness, through the gateway's pass-through
+  (`<gateway>/v2/flp/mainnet/state/...`, same paths and responses; gateway
+  `docs/vaults.md`). The browser never calls the reader host. A response must carry profile `rc6` for this program
   and vault (`parseEnvelope(body, vault)`); the devnet reader's `rc6-devnet`
   copy of the same program is rejected. A 422 shows the vault as unavailable.
 - Pre-launch (status 72, `PRE_DEPOSIT` + `PUBLIC_DEPOSITS_PAUSED`): only

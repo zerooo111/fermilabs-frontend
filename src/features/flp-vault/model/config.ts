@@ -4,7 +4,8 @@
  * mainnet-deployed-rc6.1.md, and the SDK's `RC6_MAINNET_RELEASE` pins).
  *
  * The vault trades on its own Fermi r9 group (core FRMiX94…, group 2mDvxS4A…),
- * not the main dashboard's, so its data comes from a separate FLP-only reader.
+ * not the main dashboard's, so its data comes from a separate FLP-only reader,
+ * which the gateway passes through.
  * Transactions go through the app's mainnet RPC and Privy wallet. Addresses are
  * kept here rather than read from env so a stale build variable can't point
  * the page at the devnet deployment (same program ID, other cluster).
@@ -18,8 +19,13 @@ import { RC6_MAINNET_RELEASE } from '../sdk';
 export const FLP_CLUSTER = 'mainnet';
 /** The app's RPC: FLP is on the same cluster as trading. */
 export const FLP_RPC_URL: string = config.devnet.rpcUrl;
-/** FLP-only mainnet reader. CORS is open and it needs no key. */
-export const FLP_API_URL = 'https://flp-mainnet.34-116-238-207.sslip.io';
+/**
+ * The FLP-only mainnet reader (flp-mainnet.34-116-238-207.sslip.io), through
+ * the gateway's `/v2/flp/mainnet` pass-through (same paths, status and body).
+ * Same gateway as the vault history (vaultsClient.ts): staging by default,
+ * since vault pages only exist where `showUnlaunched` is on.
+ */
+export const FLP_API_URL = `${import.meta.env.VITE_VAULTS_GATEWAY_URL || 'https://v1.fermi.trade/staging'}/v2/flp/${FLP_CLUSTER}`;
 /** Reader profile a data API response must carry for this deployment. */
 export const FLP_API_PROFILE = RC6_MAINNET_RELEASE.integrationProfile;
 

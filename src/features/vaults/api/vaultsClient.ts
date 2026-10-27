@@ -229,9 +229,9 @@ export interface VaultActivity {
 // The gateway syncs vaults from chain into its database (fermi-api-gateway
 // docs/vaults.md) and keeps their history: one point per epoch close, NAV
 // event and 15-minute sync. Vault pages only exist where `showUnlaunched` is
-// on, so the staging gateway is the default. FLP vaults still read their live
-// state from the FLP data API (model/flpSource.ts); the gateway adds history,
-// APR and sparklines, and the pages work without it.
+// on, so the staging gateway is the default. FLP vaults read their live
+// state from the FLP data API (model/flpSource.ts), passed through the same
+// gateway at /v2/flp; the synced copy adds history, APR and sparklines.
 const GATEWAY = () => import.meta.env.VITE_VAULTS_GATEWAY_URL || 'https://v1.fermi.trade/staging';
 
 const vaultPath = (network: VaultNetwork, address: string) =>
