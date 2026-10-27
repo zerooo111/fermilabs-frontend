@@ -223,11 +223,6 @@ export function PerformancePanel({
             </TabStripItem>
           ))}
         </TabStrip>
-        {preLaunch && (
-          <span className="mr-auto font-mono text-[10px] uppercase tracking-[0.12em] text-rock/60">
-            Returns chart from launch
-          </span>
-        )}
         <Segmented
           aria-label="Chart window"
           mono
