@@ -1,6 +1,6 @@
 /**
  * Single vault page, addressed by network and vault address in the URL
- * (`/vaults/devnet/<address>`), so devnet and mainnet links never collide.
+ * (`/vaults/mainnet/<address>`), so devnet and mainnet links never collide.
  */
 import { Navigate, useParams } from 'react-router-dom';
 

@@ -33,7 +33,7 @@ export const EARN_WAYS: EarnWay[] = [
     action: 'Deposit in the FLP vault',
     pitch: 'Early depositors split a 250,000-point pool.',
     startsAtMs: FLP_OPENS_MS,
-    href: '/flp',
+    href: '/vaults',
     cta: 'Deposit',
   },
   {

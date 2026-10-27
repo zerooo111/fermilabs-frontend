@@ -23,6 +23,8 @@ interface SegmentedProps<T extends string> {
   'aria-label': string;
   /** Mono for data (timeframes, sizes); sans for words. */
   mono?: boolean;
+  /** `md`: full-width cells at a touch-friendly height, for forms. */
+  size?: 'sm' | 'md';
   className?: string;
 }
 
@@ -31,6 +33,7 @@ export function Segmented<T extends string>({
   onChange,
   options,
   mono,
+  size = 'sm',
   className,
   ...aria
 }: SegmentedProps<T>) {
@@ -73,12 +76,15 @@ export function Segmented<T extends string>({
             onClick={() => onChange(option.value)}
             onKeyDown={e => onKeyDown(e, i)}
             className={cn(
-              'flex h-6 min-w-7 items-center justify-center bg-background px-2 text-xs transition-colors',
+              'flex min-w-7 items-center justify-center bg-background px-2 transition-colors',
+              size === 'md' ? 'h-10 flex-1 text-sm' : 'h-6 text-xs',
               'focus-visible:z-10 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-200',
               mono && 'font-mono',
               checked
                 ? 'bg-[color-mix(in_srgb,var(--color-rock)_14%,var(--color-background))] text-rock'
-                : 'text-rock/45 hover:text-rock/80'
+                : size === 'md'
+                  ? 'text-rock/65 hover:text-rock'
+                  : 'text-rock/45 hover:text-rock/80'
             )}
           >
             {option.label}

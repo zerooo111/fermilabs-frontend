@@ -17,16 +17,6 @@ const host = typeof window !== 'undefined' ? window.location.hostname : '';
 export const isLandingHost = LANDING_HOSTS.includes(host);
 export const isAppHost = APP_HOSTS.includes(host);
 
-/** Hosts that show pages we haven't launched yet. Production hides them. */
-const PREVIEW_HOSTS = ['staging.fermi.trade', 'localhost', '127.0.0.1'];
-
-/**
- * Vaults and FLP aren't live on mainnet yet: only staging and local dev route
- * to them or link to them. Any other host, production included, hides them.
- * (Points launched on 2026-10-21 and are shown everywhere.)
- */
-export const showUnlaunched = PREVIEW_HOSTS.includes(host);
-
 /**
  * A link to an app route (`/perps`, `/vaults`, …): on the landing domain it
  * points at app.fermi.trade, everywhere else it stays on the current host.

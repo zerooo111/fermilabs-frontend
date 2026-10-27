@@ -1,0 +1,502 @@
+{
+  "view": "confirmed",
+  "generated_ts_ms": 1793059498590,
+  "schema_version": 1,
+  "source": {
+    "program_id": "FLPRrDPN5tJpLx6wY6FUiGFN5Kws8gHUCYMCcs6Goa9Q",
+    "profile": "rc6",
+    "commitment": "confirmed",
+    "slot": "461860700",
+    "chain_unix_timestamp": "1793059498",
+    "consistency": "FLP, token, clock, core account, bank, perp market and oracle data from one getMultipleAccounts context",
+    "current_nav_is_execution_quote": false
+  },
+  "vault": "8aHdjxJzec6CfBngSFZYQvqZsBtXWXG6j1C3rW799pbP",
+  "owner": null,
+  "user_account_exists": null,
+  "data": {
+    "fundingWindow": {
+      "vault": "8aHdjxJzec6CfBngSFZYQvqZsBtXWXG6j1C3rW799pbP",
+      "version": 1,
+      "closedEpoch": "18446744073709551615",
+      "scheduledStart": "0",
+      "deadline": "0",
+      "eligible": false,
+      "address": "8UsgBtHYHsmc8BW9WRBkiPuZjWUwgrvjGc6cej3YBd6k",
+      "authenticated": true,
+      "current": false,
+      "open": false
+    },
+    "recoverySidecar": {
+      "address": {
+        "_bn": "81534344474638562926869645009469645207323703057541712369509710501104130974539"
+      },
+      "authenticated": true,
+      "mode": 0,
+      "batchEpoch": "18446744073709551615",
+      "startedAt": "0"
+    },
+    "executionEvidence": {
+      "coreWithdrawal": {
+        "value": null,
+        "reason": "Requires a fresh amount-bound core withdrawal simulation"
+      },
+      "pendingEvents": {
+        "value": null,
+        "reason": "Exact projected pricing requires current canonical event replay or transaction simulation"
+      },
+      "resourceFailureAction": "hold-and-consume; never infer a breaker or recovery trigger"
+    },
+    "units": {
+      "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "quoteDecimals": 6,
+      "shareMint": "C5WNDho4oWkmBhKXNnZKuai7e2FCnyqPG15FDjPoSrbD",
+      "shareDecimals": 6,
+      "quantities": "decimal integer strings in native units",
+      "prices": "native quote per native share; ratios are exact"
+    },
+    "addresses": {
+      "group": "2mDvxS4A6bJyR3RjLwvBWeNuFvCAaQ26ss7w1jUChRse",
+      "fermiAccount": "AHSh1j6dGQR3gXzARWZWH2mSmX86zdA98TjiGks1wr2J",
+      "quoteBank": "147eAzRXsDhNnL1We6qDXN7XfDrRVJvLszp59v1XnEXv",
+      "depositEscrow": "4mYmpiUzi2ehdWphdU7pM8ytEpFoisHw8DHNjuWU5esN",
+      "redemptionEscrow": "GdkEsV8PpKpdrEYiP2S6yS8gD1oYbAHR8vhb4kagS47t"
+    },
+    "lifecycle": {
+      "version": 4,
+      "mode": "pre-deposit",
+      "statusBits": 72,
+      "seeded": true,
+      "depositsPaused": false,
+      "publicDepositsPaused": true,
+      "withdrawalsPaused": false,
+      "breaker": false,
+      "unwind": {
+        "mode": 0,
+        "batchEpoch": "0",
+        "startedAt": "0",
+        "marketIndexes": [0, 0, 0, 0],
+        "targetBaseLots": ["0", "0", "0", "0"]
+      },
+      "recoveryParams": {
+        "graceProportionalS": 93600,
+        "graceFullS": 604800,
+        "oracleBandBps": 75,
+        "maxStepQuote": "50000000000"
+      },
+      "permissionlessRecovery": {
+        "headSkipReason": 0,
+        "headSkipReasonName": "none",
+        "headEligibleFailTs": null,
+        "earliestProportionalTriggerAt": null,
+        "earliestFullTriggerAt": null,
+        "reason": "No deferred withdrawal batch"
+      },
+      "delegateRestoreAfterRecovery": null,
+      "pendingRecoveryParams": {
+        "graceProportionalS": 0,
+        "graceFullS": 0,
+        "oracleBandBps": 0,
+        "maxStepQuote": "0"
+      },
+      "pendingRecoveryEta": "0",
+      "graduation": {
+        "adminTriggered": true,
+        "scheduledAt": null,
+        "liveStartedAt": "0",
+        "numerator": "0",
+        "denominator": "0",
+        "remainingQuote": "0",
+        "remainingShares": "0"
+      },
+      "terminalAssets": "0",
+      "terminalSupply": "0"
+    },
+    "configuration": {
+      "numericalInitBreakerSupported": false,
+      "coreWithdrawalHealth": "checked by actual core withdrawal",
+      "params": {
+        "epochDurationS": 86400,
+        "requestCutoffS": 3600,
+        "timelockS": 0,
+        "mgmtFeeBps": 0,
+        "perfFeeBps": 0,
+        "depositFeeBps": 0,
+        "withdrawFeeBps": 0,
+        "upnlHaircutBps": 10000,
+        "minPostWithdrawInitRatioBps": 3000,
+        "breakerDrawdownBps": 0,
+        "breakerMinInitRatioBps": 0,
+        "breakerWindowS": 86400,
+        "tvlCap": "100000000000",
+        "minDeposit": "10000000",
+        "minWithdrawShares": "1000000"
+      },
+      "pendingParams": {
+        "epochDurationS": 0,
+        "requestCutoffS": 0,
+        "timelockS": 0,
+        "mgmtFeeBps": 0,
+        "perfFeeBps": 0,
+        "depositFeeBps": 0,
+        "withdrawFeeBps": 0,
+        "upnlHaircutBps": 0,
+        "minPostWithdrawInitRatioBps": 0,
+        "breakerDrawdownBps": 0,
+        "breakerMinInitRatioBps": 0,
+        "breakerWindowS": 0,
+        "tvlCap": "0",
+        "minDeposit": "0",
+        "minWithdrawShares": "0"
+      },
+      "pendingParamsEta": "0",
+      "scheduledEpochTiming": null,
+      "admin": "7tkj9XQPLa6KnZNZS8AkHSRBuAKtNKnPPE627thxzJGn",
+      "delegate": "11111111111111111111111111111111",
+      "pendingDelegate": "11111111111111111111111111111111",
+      "pendingDelegateEta": "0",
+      "delegateDelaySeconds": 0,
+      "equityFundingWindowSeconds": "7200",
+      "pendingEquityFundingWindowSeconds": "300"
+    },
+    "epoch": {
+      "current": "0",
+      "startedAt": "1793025750",
+      "scheduledEnd": "1793112150",
+      "cutoffAt": "1793108550",
+      "requestTarget": "0",
+      "fundingWindowEndsAt": "0",
+      "withinScheduledFundingWindow": false,
+      "payoutTime": {
+        "value": null,
+        "reason": "Keeper execution, FIFO funding, liquidity, health and recovery determine funding; the schedule is not a payout guarantee"
+      }
+    },
+    "shares": {
+      "mintedSupply": "1000000",
+      "owedUnminted": "0",
+      "lockedUnfunded": "0",
+      "pricingSupply": "1000000",
+      "deadShares": "1000000",
+      "graduationSharesAlreadyIncludedInOwed": "0"
+    },
+    "valuation": {
+      "currentNav": {
+        "value": {
+          "raw": "281474976710656000000",
+          "fractionalBits": 48
+        },
+        "quality": "indicative",
+        "source": {
+          "coreAccountSlot": "461860700",
+          "marketsSlot": "461860700",
+          "marketsFetchedAtMs": 1793059498576,
+          "groupStructureFetchedAtMs": 1793059496141,
+          "commitment": "confirmed",
+          "atomicWithVault": true
+        },
+        "reason": "Indicative mid equity, not an executable deposit/redemption price; segregated escrows excluded"
+      },
+      "grossAssets": {
+        "value": null,
+        "reason": "Gross assets require a consistent current asset/liability valuation"
+      },
+      "lastProgramNav": {
+        "slot": "0",
+        "navMid": "0",
+        "navLow": "0",
+        "navHigh": "0",
+        "initRatioBps": "-9223372036854775808",
+        "spotQuote": "0",
+        "unitInterpretation": "quote-native",
+        "stale": true,
+        "slotLag": "461860700",
+        "warning": "Historical program observation, not current TVL; do not combine with current flows or supply to calculate returns"
+      },
+      "segregated": {
+        "depositEscrowBalance": "0",
+        "publicRefundablePrincipal": "0",
+        "queuedDepositGross": "0",
+        "heldRefundOnlyDeposits": "0",
+        "redemptionEscrowBalance": "0",
+        "idleTradingQuote": "1000000",
+        "warning": "Deposit and redemption escrows are outside trading NAV. Idle quote is part of NAV, never add it twice. Redemption balance may include rounding dust."
+      }
+    },
+    "fees": {
+      "recipient": "8BXTPcPnH9TczhLsh6AQta3UvHj7XEPLPJE3ZhhKuxGW",
+      "managementSharesAccrued": "0",
+      "performanceSharesAccrued": "0",
+      "highWaterMarkPriceE12": "1000000000000",
+      "lastAccrualAt": "1793025750",
+      "performanceFeeBpsNow": 0,
+      "historicalFlowFees": {
+        "value": null,
+        "reason": "Requires indexed fee events; gross/net flows are not a fee ledger"
+      }
+    },
+    "flows": {
+      "inceptionTs": "1793025750",
+      "totalDepositedGross": "1000000",
+      "totalWithdrawnNet": "0",
+      "netDeposits": "1000000",
+      "cumMgmtFeeShares": "0",
+      "cumPerfFeeShares": "0",
+      "activeDepositors": 0
+    },
+    "pnl": {
+      "realized": {
+        "value": null,
+        "reason": "Requires indexed trading, funding and fee history"
+      },
+      "unrealized": {
+        "value": null,
+        "reason": "See per-market current marks; historical entry basis is not reconstructed"
+      },
+      "cashFlowAdjusted": {
+        "value": null,
+        "reason": "Current NAV and flow counters are not an aligned historical return series; public escrow, held deposits, funded claims and fee dilution require reconciliation"
+      },
+      "historicalReturn": {
+        "value": null,
+        "reason": "Requires indexed cash flows and time-weighted share valuations"
+      },
+      "externalPhoenixHedgesIncluded": false,
+      "unsettledTradingQuoteNative": {
+        "raw": "0",
+        "fractionalBits": 48
+      }
+    },
+    "queues": {
+      "pendingEpochTotals": [],
+      "deferredHead": null,
+      "deferredTail": null,
+      "totalLockedUnfundedShares": "0",
+      "fundedEscrowBalance": "0",
+      "deferredBatchCount": {
+        "value": null,
+        "reason": "Linked list is not traversed by this bounded read"
+      },
+      "ordering": "FIFO by deferred epoch batch; no within-batch payout rank"
+    },
+    "user": null,
+    "release": {
+      "release": "RC6.1-mainnet",
+      "status": "tentative-code-freeze",
+      "sourceCommit": "bbfbff39606ad44c8a36bece3c8a42c9bd1638b2",
+      "integrationProfile": "rc6",
+      "vaultVersion": 4,
+      "fundingWindowVersion": 1,
+      "vaultProgram": "FLPRrDPN5tJpLx6wY6FUiGFN5Kws8gHUCYMCcs6Goa9Q",
+      "coreProgram": "FRMiX94PWHbndvySq8xyRx185GvPeggUeKaLmZgVdd4",
+      "vaultElfBytes": 1776216,
+      "vaultElfSha256": "4cd0f7787be53a52195ff21bc34797f3eb40de1810d17443d883f1533f59f36e",
+      "coreElfBytes": 3777264,
+      "coreElfSha256": "29c6167e1e0eb4577215cf5a85a9646ed36b97c479ace0a71631b7fe71358aa9",
+      "idlSha256": "58eac53814dad683186097170bbd0c6264f99af59edb273c84dbef1a60b48dd6",
+      "maxLen": 1954172,
+      "liveDeploymentQualified": false,
+      "vaultTree": "4d0193a04db4a63ec33ae9c504465f7ed5fdadd5",
+      "coreTree": "e3a23d5c6760d3c6925545be01757d90184a3d39",
+      "executableHash": "5e03fd650b2d724636460edfa8f46d2b1435a4530f9999855d5573504b12c263",
+      "canonicalBaseline": {
+        "vaultProgram": "FKrm8e4Y8vAXRRGkUtTK7t5d2WdY6pxK6ChMV4KH1F8g",
+        "vaultElfSha256": "1fb228a921a9fb6b6227e3df3cc1123c76eb1b41a266a8ccf22afb8b02dde92a",
+        "vaultElfBytes": 1776216
+      },
+      "artifactAuthentication": "expected pins only; independently check deployed ProgramData before signing"
+    },
+    "deferredHeadRecord": null,
+    "portfolio": {
+      "status": "indicative",
+      "warnings": [
+        "Core account, FLP accounts, banks, perp markets and oracles were read in one RPC context. Values are indicative, not an execution NAV.",
+        "Phoenix hedge accounts are external and excluded."
+      ],
+      "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "quoteDecimals": 6,
+      "valuation": {
+        "spotQuoteNative": {
+          "raw": "0",
+          "fractionalBits": 48
+        },
+        "unsettledPerpQuoteNative": {
+          "raw": "0",
+          "fractionalBits": 48
+        },
+        "idleQuoteNative": "1000000",
+        "indicativeNavQuoteNative": {
+          "raw": "281474976710656000000",
+          "fractionalBits": 48
+        },
+        "indicativeNavLowQuoteNative": {
+          "raw": "281474976710656000000",
+          "fractionalBits": 48
+        },
+        "navLowBasis": "Program NAV_low rule (nav.rs fold_nav): core quote cash, plus each perp unsettled PnL with base valued at the lower of oracle/stable price for a long (higher for a short), a positive result kept at (10,000 - upnlHaircutBps) / 10,000, plus idle quote. Current account state only: unconsumed fills are not projected. Indicative, not an execution NAV.",
+        "positiveMarkedComponentsQuoteNative": {
+          "raw": "281474976710656000000",
+          "fractionalBits": 48
+        },
+        "negativeMarkedComponentsQuoteNative": {
+          "raw": "0",
+          "fractionalBits": 48
+        },
+        "grossAssets": {
+          "value": null,
+          "reason": "Positive marked components net each derivative; they are not gross notional assets"
+        },
+        "segregatedEscrowsIncluded": false
+      },
+      "collateral": [
+        {
+          "tokenIndex": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "bank": "147eAzRXsDhNnL1We6qDXN7XfDrRVJvLszp59v1XnEXv",
+          "decimals": 6,
+          "balanceNative": {
+            "raw": "0",
+            "fractionalBits": 48
+          },
+          "quoteValueNative": {
+            "raw": "0",
+            "fractionalBits": 48
+          },
+          "oracleSlot": "461860557"
+        }
+      ],
+      "positions": [],
+      "openOrders": {
+        "items": [],
+        "scope": "Core account order slots only; book price/remaining quantity and relayer pending intents require book/queue readers",
+        "completeOrderBookView": false
+      },
+      "health": {
+        "initReferenceNative": {
+          "raw": "0",
+          "fractionalBits": 48
+        },
+        "maintReferenceNative": {
+          "raw": "0",
+          "fractionalBits": 48
+        },
+        "initRatioPercent": {
+          "raw": "170141183460469231731687303715884105727",
+          "fractionalBits": 48
+        },
+        "executionEligible": {
+          "value": null,
+          "reason": "Oracle, bank liquidity, account flags and withdrawal amount must be checked by program"
+        }
+      },
+      "standingUpnlRisk": {
+        "definition": "Gross positive oracle-marked unsettled perp PnL; includes funding and realized-but-unsettled PnL; losses and external hedges do not offset it",
+        "depositDisclosure": "counted at par when you enter, excluded when you exit",
+        "grossPositiveUnsettledPnlQuoteNative": {
+          "raw": "0",
+          "fractionalBits": 48
+        },
+        "upnlToNavRatio": {
+          "raw": "0",
+          "fractionalBits": 48
+        },
+        "denominator": "Current indicative NAV in quote-native Q48 units, including idle quote and excluding segregated escrows and external hedges",
+        "monitor": {
+          "policy": {
+            "tier1Bps": 200,
+            "tier2TotalBps": 800,
+            "tier2SingleMarketBps": 500,
+            "tier2ObservedPositiveEpochAge": 2,
+            "fundingWindowSeconds": "7200"
+          },
+          "tier1": {
+            "status": "below-threshold",
+            "action": "settle now",
+            "observedAboveThresholdSeconds": "0",
+            "durationRule": "strictly more than one funding window"
+          },
+          "tier2": {
+            "status": "below-threshold",
+            "triggers": [],
+            "singleMarketThresholdMarkets": [],
+            "agedMarkets": [],
+            "meaning": "Settlement failing: operator action requested. This field delivers nothing; alert delivery, when the operator enables it, is reported by GET /state/vaults/:vault/monitor"
+          },
+          "history": {
+            "status": "observed",
+            "reason": null,
+            "observedPositiveMarkets": [],
+            "source": "persisted observations from vault reads (requests, and the background sampler when enabled) using chain clock, slot and current epoch",
+            "maxObservationGapSeconds": "7200",
+            "limitation": "Sampled observations do not prove continuous unsettled individual PnL lots; positive profit can be settled and replaced between observations. Without the background sampler, observations exist only when the vault is requested."
+          }
+        }
+      },
+      "pnl": {
+        "unsettledPerpQuoteNative": {
+          "raw": "0",
+          "fractionalBits": 48
+        },
+        "realizedLifetime": {
+          "value": null,
+          "reason": "Requires indexed trade/settlement/funding/fee history"
+        },
+        "cashFlowAdjustedLifetime": {
+          "value": null,
+          "reason": "Requires reconciled historical vault flows and fee dilution; net deposits alone is not trading PnL"
+        }
+      },
+      "source": {
+        "coreAccountSlot": "461860700",
+        "marketsSlot": "461860700",
+        "marketsFetchedAtMs": 1793059498576,
+        "groupStructureFetchedAtMs": 1793059496141,
+        "commitment": "confirmed",
+        "atomicWithVault": true
+      }
+    },
+    "standingUpnlRisk": {
+      "definition": "Gross positive oracle-marked unsettled perp PnL; includes funding and realized-but-unsettled PnL; losses and external hedges do not offset it",
+      "depositDisclosure": "counted at par when you enter, excluded when you exit",
+      "grossPositiveUnsettledPnlQuoteNative": {
+        "raw": "0",
+        "fractionalBits": 48
+      },
+      "upnlToNavRatio": {
+        "raw": "0",
+        "fractionalBits": 48
+      },
+      "denominator": "Current indicative NAV in quote-native Q48 units, including idle quote and excluding segregated escrows and external hedges",
+      "monitor": {
+        "policy": {
+          "tier1Bps": 200,
+          "tier2TotalBps": 800,
+          "tier2SingleMarketBps": 500,
+          "tier2ObservedPositiveEpochAge": 2,
+          "fundingWindowSeconds": "7200"
+        },
+        "tier1": {
+          "status": "below-threshold",
+          "action": "settle now",
+          "observedAboveThresholdSeconds": "0",
+          "durationRule": "strictly more than one funding window"
+        },
+        "tier2": {
+          "status": "below-threshold",
+          "triggers": [],
+          "singleMarketThresholdMarkets": [],
+          "agedMarkets": [],
+          "meaning": "Settlement failing: operator action requested. This field delivers nothing; alert delivery, when the operator enables it, is reported by GET /state/vaults/:vault/monitor"
+        },
+        "history": {
+          "status": "observed",
+          "reason": null,
+          "observedPositiveMarkets": [],
+          "source": "persisted observations from vault reads (requests, and the background sampler when enabled) using chain clock, slot and current epoch",
+          "maxObservationGapSeconds": "7200",
+          "limitation": "Sampled observations do not prove continuous unsettled individual PnL lots; positive profit can be settled and replaced between observations. Without the background sampler, observations exist only when the vault is requested."
+        }
+      }
+    }
+  }
+}

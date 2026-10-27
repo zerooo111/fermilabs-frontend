@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAtomValue } from 'jotai';
 import { cn } from '@/lib/utils';
-import { landingHref, showUnlaunched } from '@/shared/lib/domains';
+import { landingHref } from '@/shared/lib/domains';
 import { ConnectWallet } from '../../../features/wallet-connect/ui/ConnectWallet';
 import { FeeCreditDialog } from '@/features/fee-credit';
 import { ApiKeysMenuItem, ApiKeysPanel } from '@/features/api-keys';
@@ -81,17 +81,15 @@ export function Header() {
           >
             Perps
           </Link>
-          {showUnlaunched && (
-            <Link
-              to="/vaults"
-              className={cn(
-                NAV_LINK,
-                location.pathname.startsWith('/vaults') ? 'text-rock' : 'text-rock/60'
-              )}
-            >
-              Vaults
-            </Link>
-          )}
+          <Link
+            to="/vaults"
+            className={cn(
+              NAV_LINK,
+              location.pathname.startsWith('/vaults') ? 'text-rock' : 'text-rock/60'
+            )}
+          >
+            Vaults
+          </Link>
           <Link
             to="/referrals"
             className={cn(

@@ -1,0 +1,20 @@
+{
+  "src/features/chart/index.ts: error TS2724: '\"./lib/perps-chart\"' has no exported member named 'PerpsCandleData'. Did you mean 'PerpsCandleParams'?": 1,
+  "src/features/chart/ui/PerpsChart.tsx: error TS2339: Property 'close' does not exist on type 'PriceSeriesDatum'.": 2,
+  "src/features/chart/ui/PerpsChart.tsx: error TS2339: Property 'high' does not exist on type 'PriceSeriesDatum'.": 2,
+  "src/features/chart/ui/PerpsChart.tsx: error TS2339: Property 'low' does not exist on type 'PriceSeriesDatum'.": 2,
+  "src/features/chart/ui/PerpsChart.tsx: error TS2339: Property 'open' does not exist on type 'PriceSeriesDatum'.": 2,
+  "src/features/chart/ui/PerpsChart.tsx: error TS2339: Property 'value' does not exist on type 'PriceSeriesDatum'.": 2,
+  "src/features/layout/ui/TerminalDock.tsx: error TS2322: Type 'Record<string, ComponentType<IDockviewPanelProps>>' is not assignable to type 'Record<string, FunctionComponent<IDockviewPanelProps>>'.": 1,
+  "src/features/order-placement/lib/usePerps.ts: error TS18048: 'relayResponse' is possibly 'undefined'.": 3,
+  "src/features/order-placement/lib/usePerps.ts: error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.": 1,
+  "src/features/order-placement/lib/usePerps.ts: error TS2783: 'mangoAccount' is specified more than once, so this usage will be overwritten.": 1,
+  "src/features/order-placement/ui/MyPositions.tsx: error TS2339: Property 'baseTokenName' does not exist on type 'Market'.": 1,
+  "src/features/order-placement/ui/MyPositions.tsx: error TS2339: Property 'quoteTokenName' does not exist on type 'Market'.": 2,
+  "src/features/server-selector/ui/ServerSelector.tsx: error TS2322: Type '{ children: Element[]; value: string; onValueChange: (value: string) => void; f: true; }' is not assignable to type 'IntrinsicAttributes & SelectSharedProps & { value?: string | undefined; defaultValue?: string | undefined; onValueChange?(value: string): void; }'.": 1,
+  "src/features/vault-deposit/lib/useVaultProgram.tsx: error TS2339: Property 'vaultProgramId' does not exist on type '{ gatewayUrl: string; rpcUrl: string; commitment: Commitment; wsUrl: string; defaultHarnessMarketId: any; defaultMarketName: any; mangoProgramId: string; mangoGroupPk: string; mangoExecutionQueuePk: any; ... 9 more ...; v2View: \"optimistic\" | \"confirmed\"; }'.": 1,
+  "src/pages/home/ui/SkyScene.tsx: error TS2339: Property 'setTimeout' does not exist on type 'never'.": 1,
+  "src/shared/api/v2-adapter.ts: error TS2322: Type '({ owner: string; market_id: string; market_name: string; base_position: string; avg_entry_price: string; mark_price: string; realized_pnl: string; unrealized_pnl: string; cumulative_funding: string; base_decimals: number; quote_decimals: number; base_mint: string; quote_mint: string; } | null)[]' is not assignable to type 'Position[]'.": 2,
+  "src/shared/api/v2-adapter.ts: error TS2677: A type predicate's type must be assignable to its parameter's type.": 2,
+  "src/shared/lib/harness-market.ts: error TS2322: Type 'string | number' is not assignable to type 'number'.": 4
+}

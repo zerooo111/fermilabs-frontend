@@ -1,4 +1,5 @@
 import { useAtomValue } from 'jotai';
+import { useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { sseConnectionStateAtom } from '@/shared/api/sse-atoms';
 import { useGatewayLatency } from '@/shared/hooks/useGatewayLatency';
@@ -34,6 +35,9 @@ const STATUS_LINKS = [
 /** Fixed bottom strip: live connection health on the left, links and build on the right. */
 export function StatusBar() {
   const state = useAtomValue(sseConnectionStateAtom);
+  // The market data stream runs only on the perps page; elsewhere it's off,
+  // not offline.
+  const streaming = useLocation().pathname.startsWith('/perps');
   const latency = useGatewayLatency();
   const connection = CONNECTION[state];
   const network = getNetwork(config.devnet.rpcUrl);
@@ -41,11 +45,16 @@ export function StatusBar() {
   return (
     <footer className="fixed inset-x-0 bottom-0 z-40 flex h-6 items-center justify-between border-t border-outline bg-background px-2 font-mono text-[11px] text-rock/50 md:px-4">
       <div className="relative flex items-center divide-x divide-outline">
-        <span className="flex items-center gap-1.5 pr-3" title="Market data stream">
-          <span className={cn('size-1.5 rounded-full', connection.dot)} />
-          {connection.label}
-        </span>
-        <span className="px-3 tabular-nums" title="Round-trip time to the gateway">
+        {streaming && (
+          <span className="flex items-center gap-1.5 pr-3" title="Market data stream">
+            <span className={cn('size-1.5 rounded-full', connection.dot)} />
+            {connection.label}
+          </span>
+        )}
+        <span
+          className={cn('tabular-nums', streaming ? 'px-3' : 'pr-3')}
+          title="Round-trip time to the gateway"
+        >
           {latency === null ? (
             '–'
           ) : (

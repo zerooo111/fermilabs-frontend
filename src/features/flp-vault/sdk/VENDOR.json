@@ -1,0 +1,13 @@
+{
+  "package": "@fermi-dex/flp-vault",
+  "source": "https://github.com/Fermi-DEX/fermi-v1/tree/main/flp-vault/sdk",
+  "commit": "551679619c7d1b84ce9aead5ac9d85c5c5687729",
+  "vendoredAt": "2026-10-27",
+  "files": {
+    "src/index.ts": "b01e26ebb18d760d5cae41e9b10e9c0cfe7f8203ccd33a7258b3b1acf1936e90",
+    "src/v4.ts": "a3188b013884cc843c1e9560a83b9714f725d2bfbc78f22b77be1c4caac5a7ab",
+    "idl/flp_vault.json": "11643b67dcecf19a3197683ce49b8e7527e5cf2a0cb4da18b6f10f21756948e1",
+    "idl/flp_vault_v4.json": "58eac53814dad683186097170bbd0c6264f99af59edb273c84dbef1a60b48dd6"
+  },
+  "manifest": "fermi-v1 flp-vault/docs/INTEGRATION_GUIDE.md (canonical IDL hash) + mainnet/rc6/devnet/*-runtime-artifact.json"
+}

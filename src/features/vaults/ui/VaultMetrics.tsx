@@ -1,6 +1,6 @@
 /**
  * Phase-aware vault numbers. A vault in pre-deposit has no return yet (shares
- * mint 1:1 until launch), so instead of an APR dash and a flat line it shows
+ * mint 1:1 until graduation), so instead of an APR dash and a flat line it shows
  * what matters then: how full the deposit cap is.
  */
 import { cn } from '@/lib/utils';
@@ -15,16 +15,16 @@ export function AprValue({ vault: v, className }: { vault: Vault; className?: st
     return (
       <span
         className={cn('font-mono text-xs uppercase tracking-[0.12em] text-amber-200/80', className)}
-        title="Earns from launch. Pre-deposits settle 1:1 until then."
+        title="Pre-deposits wait in escrow and earn trading P&L from graduation."
       >
-        Pre-launch
+        Pre-deposit
       </span>
     );
   }
   if (v.apr === null) {
     return (
       <span
-        className={cn('font-mono text-xs uppercase tracking-[0.12em] text-rock/55', className)}
+        className={cn('font-mono text-xs uppercase tracking-[0.12em] text-rock/60', className)}
         title="APR needs a day of history"
       >
         New
@@ -42,14 +42,15 @@ export function CapMeter({
   bare = false,
   className,
 }: {
-  tvl: number;
+  /** Null while the vault can't be valued: the meter shows no fill. */
+  tvl: number | null;
   cap: number;
   width?: number;
   /** Just the bar, for when the percentage is shown elsewhere. */
   bare?: boolean;
   className?: string;
 }) {
-  const used = cap > 0 ? Math.min(1, tvl / cap) : 0;
+  const used = cap > 0 && tvl !== null ? Math.min(1, tvl / cap) : 0;
   const label = capLabel(tvl, cap);
   return (
     <div
@@ -102,12 +103,12 @@ export function TrendCell({
     return (
       <span
         className={cn(
-          'block text-right font-mono text-[10px] uppercase tracking-[0.12em] text-rock/55',
+          'block text-right font-mono text-[10px] uppercase tracking-[0.12em] text-rock/60',
           className
         )}
         style={{ width }}
       >
-        Building history
+        New
       </span>
     );
   }

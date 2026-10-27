@@ -12,8 +12,12 @@
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
     "prepare": "husky install",
-    "typecheck": "tsc --noEmit",
-    "test:trigger-legs": "pnpm dlx tsx --tsconfig tsconfig.app.json scripts/trigger-legs-selftest.ts"
+    "typecheck": "node scripts/typecheck.mjs",
+    "test:trigger-legs": "pnpm dlx tsx --tsconfig tsconfig.app.json scripts/trigger-legs-selftest.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "flp:sync": "node scripts/flp-sync.mjs",
+    "flp:fixtures": "node scripts/flp-fixtures.mjs"
   },
   "dependencies": {
     "@blockworks-foundation/mango-v4": "^0.33.9",
@@ -93,7 +97,8 @@
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.18.2",
     "vite": "^6.0.5",
-    "vite-plugin-node-polyfills": "^0.22.0"
+    "vite-plugin-node-polyfills": "^0.22.0",
+    "vitest": "^3.2.7"
   },
   "overrides": {
     "vite-plugin-node-polyfills": {

@@ -1,57 +1,42 @@
 /**
- * The vaults listing: headline totals, search + network + window controls,
- * then protocol and community vaults in separate tables. Everything is read
- * from the gateway, which syncs the vaults from chain; devnet and mainnet
- * stay apart in every total.
+ * The vaults listing: headline totals, search + window controls, then
+ * protocol and community vaults in separate tables. Mainnet only; the
+ * gateway syncs the vaults from chain.
  */
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import axios from 'axios';
 
-import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { Segmented } from '@/shared/ui/segmented';
 
-import type { Vault, VaultNetwork } from '../../api/vaultsClient';
+import type { Vault } from '../../api/vaultsClient';
 import { timeAgo, tone, usd, usdCompact, usdSigned } from '../../model/format';
 import { useVaults, useWalletAddress } from '../../model/useVaults';
-import { NetworkBadge } from '../VaultBadges';
 import { useWindowParam, WINDOWS } from '../../model/params';
 import { DASH, Eyebrow, Tile } from '../primitives';
 import { VaultsTable } from './VaultsTable';
-
-type NetworkFilter = 'all' | VaultNetwork;
 
 export function VaultsOverview() {
   const { window, setWindow } = useWindowParam();
   const wallet = useWalletAddress();
   const list = useVaults(window);
   const [query, setQuery] = useState('');
-  const [network, setNetwork] = useState<NetworkFilter>('all');
 
   const all = useMemo(() => list.data?.vaults ?? [], [list.data]);
-  const counts = useMemo(
-    () => ({
-      all: all.length,
-      mainnet: all.filter(v => v.network === 'mainnet').length,
-      devnet: all.filter(v => v.network === 'devnet').length,
-    }),
-    [all]
-  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return all.filter(
       v =>
-        (network === 'all' || v.network === network) &&
-        (!q ||
-          v.name.toLowerCase().includes(q) ||
-          v.address.toLowerCase().includes(q) ||
-          v.leader.toLowerCase().includes(q))
+        !q ||
+        v.name.toLowerCase().includes(q) ||
+        v.address.toLowerCase().includes(q) ||
+        v.leader.toLowerCase().includes(q)
     );
-  }, [all, network, query]);
+  }, [all, query]);
 
   const protocol = filtered.filter(v => v.kind === 'protocol');
   const community = filtered.filter(v => v.kind === 'community');
@@ -81,7 +66,7 @@ export function VaultsOverview() {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative sm:w-80">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-rock/55" />
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-rock/60" />
           <Input
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -91,22 +76,6 @@ export function VaultsOverview() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Segmented<NetworkFilter>
-            aria-label="Network"
-            mono
-            value={network}
-            onChange={setNetwork}
-            className="w-max"
-            options={(['all', 'mainnet', 'devnet'] as const).map(n => ({
-              value: n,
-              label: (
-                <span className="flex items-center gap-1.5">
-                  {n === 'all' ? 'All' : n === 'mainnet' ? 'Mainnet' : 'Devnet'}
-                  <span className="text-rock/55 tabular-nums">{counts[n]}</span>
-                </span>
-              ),
-            }))}
-          />
           <Segmented
             aria-label="Return window"
             mono
@@ -128,8 +97,8 @@ export function VaultsOverview() {
             window={window}
             loading={loading}
             empty={
-              query || network !== 'all'
-                ? { title: 'No protocol vaults match', body: 'Try another search or network.' }
+              query
+                ? { title: 'No protocol vaults match', body: 'Try another search.' }
                 : {
                     title: 'No protocol vaults yet',
                     body: 'FLP will appear here once it’s deployed.',
@@ -142,16 +111,25 @@ export function VaultsOverview() {
             window={window}
             loading={loading}
             empty={
-              query || network !== 'all'
-                ? { title: 'No community vaults match', body: 'Try another search or network.' }
+              query
+                ? { title: 'No community vaults match', body: 'Try another search.' }
                 : {
                     title: 'No community vaults yet',
                     body: 'Vaults run by traders will be listed here, with their track record.',
                   }
             }
           />
+          {list.missing > 0 && (
+            <p className="px-1 text-xs text-amber-200">
+              {list.missing === 1 ? 'One vault' : `${list.missing} vaults`} couldn’t be loaded and
+              {list.missing === 1 ? ' is' : ' are'} missing from the list.{' '}
+              <button type="button" className="underline" onClick={() => list.refetch()}>
+                Retry
+              </button>
+            </p>
+          )}
           {list.data && (
-            <p className="px-1 font-mono text-[11px] text-rock/55">
+            <p className="px-1 font-mono text-[11px] text-rock/60">
               Synced from chain · updated {timeAgo(list.data.updated_at_ms)}
             </p>
           )}
@@ -168,56 +146,51 @@ function Totals({
   wallet,
 }: {
   vaults: Vault[];
-  totals?: { network: VaultNetwork; tvl: number; vaults: number }[];
+  totals?: { tvl: number | null; vaults: number }[];
   loading: boolean;
   wallet?: string;
 }) {
   const mine = vaults.filter(v => v.user);
+  // Still loading this wallet's position somewhere: don't total a partial list.
+  const userLoading = !!wallet && vaults.some(v => v.source === 'flp' && v.user === undefined);
   const equity = mine.reduce((a, v) => a + (v.user?.equity ?? 0), 0);
-  const pnl = mine.reduce((a, v) => a + (v.user?.all_time_pnl ?? 0), 0);
-  // One TVL tile per network present, mainnet first; never a cross-network sum.
-  const tvl = [...(totals ?? [])].sort((a, b) => a.network.localeCompare(b.network)).reverse();
+  const pnl = mine.some(v => v.user?.all_time_pnl === null)
+    ? null
+    : mine.reduce((a, v) => a + (v.user?.all_time_pnl ?? 0), 0);
+  const claimable = mine.reduce((a, v) => a + (v.user?.claimable ?? 0), 0);
+  const tvl = totals?.[0];
 
   return (
-    <div
-      className={cn(
-        'grid grid-cols-2 divide-outline border border-outline max-sm:[&>*:nth-child(n+3)]:border-t max-sm:[&>*:nth-child(odd)]:border-r max-sm:[&>*]:border-outline sm:divide-x',
-        tvl.length > 1 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'
-      )}
-    >
+    <div className="grid grid-cols-2 divide-outline border border-outline max-sm:[&>*:nth-child(n+3)]:border-t max-sm:[&>*:nth-child(odd)]:border-r max-sm:[&>*]:border-outline sm:grid-cols-3 sm:divide-x">
       {loading ? (
         <Tile label="Total value locked" value="" loading />
-      ) : tvl.length === 0 ? (
+      ) : !tvl ? (
         <Tile label="Total value locked" value={DASH} />
       ) : (
-        tvl.map(t => (
-          <Tile
-            key={t.network}
-            label={
-              <>
-                TVL <NetworkBadge network={t.network} />
-              </>
-            }
-            value={<span title={usd(t.tvl)}>{usdCompact(t.tvl)}</span>}
-            hint={`${t.vaults} ${t.vaults === 1 ? 'vault' : 'vaults'}`}
-          />
-        ))
+        <Tile
+          label="Total value locked"
+          value={<span title={usd(tvl.tvl)}>{usdCompact(tvl.tvl)}</span>}
+          hint={`${tvl.vaults} ${tvl.vaults === 1 ? 'vault' : 'vaults'}`}
+        />
       )}
       <Tile
-        label="Your deposits"
-        loading={loading && !!wallet}
-        value={
-          !wallet ? (
-            <span className="text-base font-normal text-rock/60">Connect wallet</span>
-          ) : (
-            usd(equity)
-          )
+        label="Your balance"
+        loading={(loading || userLoading) && !!wallet}
+        value={!wallet ? DASH : usd(equity)}
+        hint={
+          !wallet
+            ? 'Connect wallet'
+            : claimable > 0
+              ? `${usd(claimable)} ready to claim`
+              : mine.length
+                ? `in ${mine.length} ${mine.length === 1 ? 'vault' : 'vaults'}`
+                : null
         }
-        hint={wallet && mine.length ? `in ${mine.length}` : null}
+        valueClassName={claimable > 0 ? 'text-amber-200' : undefined}
       />
       <Tile
-        label="Your all-time PnL"
-        loading={loading && !!wallet}
+        label="Your earnings"
+        loading={(loading || userLoading) && !!wallet}
         value={!wallet ? DASH : usdSigned(pnl)}
         valueClassName={wallet ? tone(pnl) : undefined}
       />
@@ -232,10 +205,12 @@ function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void })
       role="alert"
       className="flex flex-col items-center gap-3 border border-outline px-4 py-14 text-center"
     >
-      <p className="text-sm text-rock/75">
-        {status === 404 ? 'Vaults aren’t live on this gateway yet' : 'Couldn’t load vaults'}
+      <p className="text-sm text-rock/75">Couldn’t load vaults</p>
+      <p className="text-xs text-rock/60">
+        {status === 404
+          ? 'The vault data service isn’t available right now.'
+          : 'The vault data service is slow or unreachable. Try again in a moment.'}
       </p>
-      <p className="text-xs text-rock/60">Check your connection and try again.</p>
       <Button variant="outline" size="sm" onClick={onRetry}>
         Retry
       </Button>

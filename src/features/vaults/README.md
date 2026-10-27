@@ -1,0 +1,26 @@
+# vaults
+
+The public vault pages: `/vaults` (list) and `/vaults/:network/:address`
+(detail, with the Deposit / Withdraw dialog), on every host.
+
+## Sources
+
+A page draws `Vault` rows (`api/vaultsClient.ts`) from two sources, merged in
+`model/useVaults.ts`:
+
+- **FLP vaults** — `model/flpSource.ts` adapts the FLP data API
+  (`features/flp-vault`) into `Vault`. These are the vaults users can
+  deposit into. Their detail page adds FLP panels (paused-intake strip, requests,
+  performance, holdings) from `features/flp-vault`.
+- **Gateway vaults** — the gateway's vault sync (`/v2/vaults`) on the build's
+  gateway (`VITE_GATEWAY_URL`: `/staging` on staging, the root on prod), or
+  `VITE_VAULTS_GATEWAY_URL` when set. When it lists an FLP vault, the FLP read
+  wins.
+
+`Vault` numbers are display `number`s. A field that can be unknown is
+`number | null` and the formatters in `model/format.ts` render null as a dash.
+`user` is `undefined` while the wallet's read is loading, `null` when the
+wallet holds nothing.
+
+Other vault code in the repo: `features/vault-deposit` and `/vault` are the
+older `fermi_vault` program, unrelated to FLP.

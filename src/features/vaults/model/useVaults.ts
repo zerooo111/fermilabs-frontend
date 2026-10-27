@@ -1,21 +1,28 @@
 /**
- * Vault queries. Everything reads the gateway's synced copy of chain state;
- * the connected wallet's position comes back inline (`user`) when a wallet is
- * connected. The gateway syncs every ~30s, so data refetches on that rhythm.
+ * Vault queries. Gateway vaults read its synced copy of chain state; the FLP
+ * vaults read the FLP data API (see `flpSource`). The connected wallet's
+ * position comes back inline (`user`) when a wallet is connected.
  */
-import { useInfiniteQuery, useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useInfiniteQuery, useQueries, useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useWallet } from '@solana/wallet-adapter-react';
 import axios from 'axios';
+
+import { FLP_CLUSTER, FLP_VAULTS, devOwner, flpVaultQuery } from '@/features/flp-vault';
 
 import {
   fetchVault,
   fetchVaultActivity,
+  fetchVaultDaily,
   fetchVaultDepositors,
   fetchVaultHistory,
   fetchVaults,
+  type Vault,
+  type VaultList,
   type VaultNetwork,
   type VaultWindow,
 } from '../api/vaultsClient';
+import { flpToVault, isFlpVault } from './flpSource';
 
 const REFRESH_MS = 30_000;
 export const ACTIVITY_PAGE = 25;
@@ -32,36 +39,155 @@ function retry(failures: number, err: unknown): boolean {
   return failures < 1;
 }
 
+/** The connected wallet, or in dev the `?flpOwner=` wallet being viewed read-only. */
 export function useWalletAddress(): string | undefined {
-  return useWallet().publicKey?.toBase58();
+  return useWallet().publicKey?.toBase58() ?? devOwner() ?? undefined;
 }
 
+/** Every mainnet vault: the FLP vaults from the data API, plus whatever the gateway lists. */
 export function useVaults(window: VaultWindow) {
   const wallet = useWalletAddress();
-  return useQuery({
+  const gateway = useQuery({
     queryKey: [...vaultsKey, 'list', window, wallet ?? null],
-    queryFn: ({ signal }) => fetchVaults({ window, wallet }, signal),
+    queryFn: ({ signal }) => fetchVaults({ window, wallet, network: 'mainnet' }, signal),
     refetchInterval: REFRESH_MS,
-    placeholderData: keepPreviousData,
+    // Keep the last list while a new window loads, but never across wallets.
+    placeholderData: (prev, prevQuery) =>
+      prevQuery?.queryKey[3] === (wallet ?? null) ? prev : undefined,
     retry,
   });
+  const flp = useQueries({
+    queries: FLP_VAULTS.map(c => ({
+      ...flpVaultQuery(c.address.toBase58(), wallet ?? null),
+      // The wallet-less read stands in while this wallet's loads; flpToVault
+      // drops its user, so the tiles show loading rather than nobody's position.
+      placeholderData: keepPreviousData,
+    })),
+    combine: results => ({
+      envelopes: results.map(r => r.data),
+      pending: results.some(r => r.isPending),
+      failed: results.filter(r => r.isError).length,
+      error: results.find(r => r.isError)?.error ?? null,
+      refetch: () => results.forEach(r => void r.refetch()),
+    }),
+  });
+
+  const data = useMemo((): VaultList | undefined => {
+    const synced = new Map((gateway.data?.vaults ?? []).map(v => [`${v.network}:${v.address}`, v]));
+    const own: Vault[] = flp.envelopes.flatMap((env, i) =>
+      env
+        ? [
+            withHistory(
+              flpToVault(FLP_VAULTS[i], env, window, wallet),
+              synced.get(key(FLP_VAULTS[i]))
+            ),
+          ]
+        : []
+    );
+    const mine = new Set(own.map(v => `${v.network}:${v.address}`));
+    const vaults = [
+      ...own,
+      ...[...synced.values()].filter(v => !mine.has(`${v.network}:${v.address}`)),
+    ];
+    if (!vaults.length && (flp.pending || gateway.isPending)) return undefined;
+    // A total over a vault that can't be valued is itself unknown.
+    const tvl = vaults.some(v => v.tvl === null)
+      ? null
+      : vaults.reduce((a, v) => a + (v.tvl ?? 0), 0);
+    const totals = vaults.length
+      ? [{ network: 'mainnet' as const, vaults: vaults.length, tvl }]
+      : [];
+    return {
+      window,
+      network: 'mainnet',
+      updated_at_ms: Math.max(gateway.data?.updated_at_ms ?? 0, ...own.map(v => v.synced_at_ms)),
+      totals,
+      total: vaults.length,
+      vaults,
+    };
+  }, [flp.envelopes, flp.pending, gateway.data, gateway.isPending, window, wallet]);
+
+  const failed = flp.failed === FLP_VAULTS.length && gateway.isError;
+  return {
+    data,
+    isPending: !data && !failed,
+    isError: failed && !data?.vaults.length,
+    /** FLP vaults that couldn't be read; the list shows the rest. */
+    missing: flp.failed,
+    error: flp.error ?? gateway.error,
+    refetch: () => {
+      void gateway.refetch();
+      flp.refetch();
+    },
+  };
 }
 
 export function useVault(network: VaultNetwork, address: string, window: VaultWindow) {
   const wallet = useWalletAddress();
-  return useQuery({
+  const flpConfig = isFlpVault(network, address);
+  const gateway = useQuery({
     queryKey: [...vaultsKey, 'detail', network, address, window, wallet ?? null],
     queryFn: ({ signal }) => fetchVault(network, address, { window, wallet }, signal),
     refetchInterval: REFRESH_MS,
-    placeholderData: keepPreviousData,
+    placeholderData: (prev, prevQuery) =>
+      prevQuery?.queryKey[6] === (wallet ?? null) ? prev : undefined,
     retry,
   });
+  const flp = useQuery({
+    ...flpVaultQuery(address, wallet ?? null),
+    placeholderData: keepPreviousData,
+    enabled: !!flpConfig,
+  });
+  const env = flp.data;
+  const synced = gateway.data;
+  const data = useMemo(
+    () =>
+      flpConfig && env
+        ? withHistory(flpToVault(flpConfig, env, window, wallet), synced)
+        : undefined,
+    [flpConfig, env, window, wallet, synced]
+  );
+  if (!flpConfig) return gateway;
+  return { data, isError: flp.isError && !env, error: flp.error, refetch: flp.refetch };
+}
+
+const key = (c: { address: { toBase58(): string } }) => `${FLP_CLUSTER}:${c.address.toBase58()}`;
+
+/**
+ * An FLP vault's live state with the gateway's history-derived numbers (APR,
+ * window return, sparkline), when the gateway has synced it.
+ */
+function withHistory(v: Vault, synced: Vault | undefined): Vault {
+  if (!synced) return v;
+  return {
+    ...v,
+    apr: synced.apr,
+    window_return: synced.window_return,
+    sparkline: synced.sparkline,
+  };
 }
 
 export function useVaultHistory(network: VaultNetwork, address: string, window: VaultWindow) {
   return useQuery({
     queryKey: [...vaultsKey, 'history', network, address, window],
     queryFn: ({ signal }) => fetchVaultHistory(network, address, window, signal),
+    refetchInterval: REFRESH_MS * 2,
+    placeholderData: keepPreviousData,
+    retry,
+  });
+}
+
+/** Daily P&L rows; empty for vaults the gateway has no data API for. */
+export function useVaultDaily(
+  network: VaultNetwork,
+  address: string,
+  window: VaultWindow,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: [...vaultsKey, 'daily', network, address, window],
+    queryFn: ({ signal }) => fetchVaultDaily(network, address, window, signal),
+    enabled,
     refetchInterval: REFRESH_MS * 2,
     placeholderData: keepPreviousData,
     retry,

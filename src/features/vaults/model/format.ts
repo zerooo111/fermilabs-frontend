@@ -1,6 +1,13 @@
-/** Display helpers for vault numbers. */
+/**
+ * Display helpers for vault numbers (plain `number`s from the adapters; exact
+ * amounts for transactions live in flp-vault's bigint `format.ts`). A null
+ * value is unknown and renders as an em dash, never as zero.
+ */
 
-export function usd(n: number, digits = 2): string {
+const UNKNOWN = '—';
+
+export function usd(n: number | null, digits = 2): string {
+  if (n === null) return UNKNOWN;
   return n.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -10,7 +17,8 @@ export function usd(n: number, digits = 2): string {
 }
 
 /** $18.42M, $846.2K, $912.40. */
-export function usdCompact(n: number): string {
+export function usdCompact(n: number | null): string {
+  if (n === null) return UNKNOWN;
   const abs = Math.abs(n);
   if (abs >= 1e9) return `${n < 0 ? '-' : ''}$${(abs / 1e9).toFixed(2)}B`;
   if (abs >= 1e6) return `${n < 0 ? '-' : ''}$${(abs / 1e6).toFixed(2)}M`;
@@ -19,7 +27,8 @@ export function usdCompact(n: number): string {
 }
 
 /** Signed USD, "+$1,204.10" or "-$88.00". */
-export function usdSigned(n: number): string {
+export function usdSigned(n: number | null): string {
+  if (n === null) return UNKNOWN;
   return `${n >= 0 ? '+' : '-'}${usd(Math.abs(n))}`;
 }
 
@@ -69,7 +78,8 @@ export function formatDateTime(unix: number): string {
 }
 
 /** Text color class for a signed number. */
-export function tone(n: number): string {
+export function tone(n: number | null): string {
+  if (n === null) return 'text-fg-secondary';
   if (n > 0) return 'text-positive-fg';
   if (n < 0) return 'text-negative-fg';
   return 'text-fg-secondary';
@@ -93,6 +103,16 @@ export function explorerTxUrl(signature: string, network: 'devnet' | 'mainnet'):
   return `https://explorer.solana.com/tx/${signature}${network === 'devnet' ? '?cluster=devnet' : ''}`;
 }
 
+/** "4m 05s", "3h 12m", "2d 4h": a countdown readable at any epoch length. */
+export function countdown(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
+  if (s < 86_400)
+    return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+  return `${Math.floor(s / 86_400)}d ${Math.floor((s % 86_400) / 3600)}h`;
+}
+
 /** "just now", "4m ago", "3h ago", "2d ago". */
 export function timeAgo(ms: number, now = Date.now()): string {
   const s = Math.max(0, Math.round((now - ms) / 1000));
@@ -111,7 +131,8 @@ export function duration(seconds: number): string {
 }
 
 /** Percent of the deposit cap filled, "<1%" for a sliver. */
-export function capLabel(tvl: number, cap: number): string {
+export function capLabel(tvl: number | null, cap: number): string {
+  if (tvl === null) return UNKNOWN;
   const used = cap > 0 ? Math.min(1, tvl / cap) : 0;
   return used > 0 && used < 0.01 ? '<1%' : `${Math.round(used * 100)}%`;
 }

@@ -23,7 +23,7 @@ import { Bone, DASH, Empty, Eyebrow, PanelBar } from '../primitives';
 type SortKey = 'apr' | 'tvl' | 'deposit' | 'age';
 const SORT_VALUE: Record<SortKey, (v: Vault) => number> = {
   apr: v => v.apr ?? -Infinity,
-  tvl: v => v.tvl,
+  tvl: v => v.tvl ?? -1,
   deposit: v => v.user?.equity ?? -1,
   age: v => v.age_days,
 };
@@ -91,7 +91,7 @@ export function VaultsTable({
                   TVL
                 </SortHead>
                 <SortHead k="deposit" sort={sort} onSort={toggle}>
-                  Your deposit
+                  Your balance
                 </SortHead>
                 <SortHead k="age" sort={sort} onSort={toggle} className="hidden xl:table-cell">
                   Age
@@ -127,6 +127,7 @@ export function VaultsTable({
                             <div className="flex items-center gap-1.5">
                               <NetworkBadge network={v.network} />
                               <ModeBadge mode={v.mode} />
+                              <ClaimChip vault={v} />
                             </div>
                           </div>
                         </div>
@@ -229,9 +230,10 @@ function MobileRow({ vault: v }: { vault: Vault }) {
           <VaultMark vault={v} size="sm" />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="truncate text-sm text-rock">{v.name}</span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <NetworkBadge network={v.network} />
               <ModeBadge mode={v.mode} />
+              <ClaimChip vault={v} />
             </div>
           </div>
           <div className="flex flex-col items-end gap-0.5">
@@ -248,6 +250,17 @@ function MobileRow({ vault: v }: { vault: Vault }) {
         </div>
       </Link>
     </li>
+  );
+}
+
+/** The wallet has something to claim in this vault: say so on the list. */
+function ClaimChip({ vault: v }: { vault: Vault }) {
+  const amount = v.user?.claimable ?? 0;
+  if (amount <= 0) return null;
+  return (
+    <span className="inline-flex h-[18px] items-center border border-amber-200/60 bg-amber-200/10 px-1.5 font-mono text-[10px] uppercase leading-none tracking-[0.12em] text-amber-200">
+      {usdCompact(amount)} to claim
+    </span>
   );
 }
 
@@ -317,7 +330,7 @@ function SortHead({
         onClick={() => onSort(k)}
         className={cn(
           'inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors',
-          active ? 'text-rock/85' : 'text-rock/50 hover:text-rock/85',
+          active ? 'text-rock/85' : 'text-rock/60 hover:text-rock/85',
           FOCUS_RING
         )}
       >

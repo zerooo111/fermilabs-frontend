@@ -10,7 +10,7 @@
  * carries its `network`, and devnet and mainnet are never mixed in a total.
  */
 import axios from 'axios';
-import { API_ROUTES_V2 } from '@/shared/config/constants';
+import { API_ROUTES_V2, config } from '@/shared/config/constants';
 
 export type VaultNetwork = 'devnet' | 'mainnet';
 export type VaultWindow = '7d' | '30d' | '90d' | 'all';
@@ -19,20 +19,35 @@ export type VaultMode = 'pre-deposit' | 'live' | 'unwind' | 'closed';
 
 export interface VaultUser {
   wallet: string;
+  /** Shares owned, including any under a pending withdrawal. */
   shares: number;
+  /**
+   * The wallet's balance in the vault, in USDC: its shares at the share
+   * price, plus a queued deposit (still USDC until the epoch close),
+   * pre-deposit principal and USDC waiting to be claimed.
+   */
   equity: number;
   cost_basis: number;
   total_deposited: number;
   total_withdrawn: number;
-  all_time_pnl: number;
+  /** Null when part of it is unknown (e.g. unrealized PnL the API can't price). */
+  all_time_pnl: number | null;
   realized_pnl: number;
   pending_deposit: number;
   pending_withdraw_shares: number;
+  /** Ready to claim now, in USDC terms (FLP vaults). */
+  claimable?: number;
+  /** Of `shares`, the ones ready to claim (settled deposit, graduation). FLP vaults. */
+  claimable_shares?: number;
+  /** USDC ready to claim: a funded withdrawal or a refunded deposit. FLP vaults. */
+  claimable_quote?: number;
   first_deposit_at_ms: number | null;
   last_action_at_ms: number | null;
 }
 
 export interface Vault {
+  /** Where the row came from: the gateway's synced copy, or the FLP data API. */
+  source?: 'gateway' | 'flp';
   network: VaultNetwork;
   address: string;
   vault_id: number;
@@ -44,6 +59,9 @@ export interface Vault {
   mode: VaultMode;
   deposits_open: boolean;
   withdrawals_open: boolean;
+  /** Why Deposit / Withdraw are unavailable, when they are (FLP vaults). */
+  deposits_reason?: string | null;
+  withdrawals_reason?: string | null;
   breaker_tripped: boolean;
   leader: string;
   delegate: string;
@@ -52,7 +70,8 @@ export interface Vault {
   share_mint: string;
   quote_decimals: number;
   share_decimals: number;
-  tvl: number;
+  /** Null when the vault can't be valued right now. */
+  tvl: number | null;
   share_price: number;
   high_water_mark: number;
   share_supply: number;
@@ -60,7 +79,7 @@ export interface Vault {
   total_deposited: number;
   total_withdrawn: number;
   pre_deposit_total: number;
-  all_time_pnl: number;
+  all_time_pnl: number | null;
   all_time_return: number;
   window: VaultWindow;
   /** Share-price return over the window; null without history. */
@@ -80,6 +99,8 @@ export interface Vault {
   epoch: number;
   epoch_duration_s: number;
   epoch_started_at_ms: number | null;
+  /** When the open epoch settles queued requests (FLP vaults). */
+  next_settlement_ms?: number | null;
   created_at_ms: number;
   live_started_at_ms: number | null;
   age_days: number;
@@ -97,7 +118,7 @@ export interface VaultList {
   window: VaultWindow;
   network: VaultNetwork | 'all';
   updated_at_ms: number;
-  totals: { network: VaultNetwork; vaults: number; tvl: number }[];
+  totals: { network: VaultNetwork; vaults: number; tvl: number | null }[];
   total: number;
   vaults: Vault[];
 }
@@ -116,6 +137,60 @@ export interface VaultHistory {
   window: VaultWindow;
   bucket_s: number;
   points: VaultHistoryPoint[];
+}
+
+/** One UTC day of a vault (the FLP data API's daily rows, synced by the gateway). */
+export interface VaultDay {
+  /** YYYY-MM-DD (UTC). */
+  day: string;
+  /** Today: still being recorded. */
+  partial: boolean;
+  equity_start: number;
+  equity_end: number;
+  deposits: number;
+  withdrawals: number;
+  /** Equity change with deposits and withdrawals taken out. */
+  pnl: number;
+  /** Percent (0.5 = 0.5%). */
+  pnl_pct: number;
+  /** Percent (0.5 = 0.5%). */
+  return_pct: number;
+}
+
+/**
+ * Other accounts' daily history from before the vault existed (the FLP data
+ * API's labelled reference series): show it with its scope and caveats,
+ * never as the vault's returns.
+ */
+export interface VaultReference {
+  series: string;
+  /** Whose accounts these are, in the data API's words. */
+  scope: string;
+  unit: string;
+  note?: string;
+  caveats?: string[];
+  summary?: {
+    period?: string;
+    pnl?: string;
+    pnlPctOfStart?: string;
+    /** The whole system's P&L over the same period, taker included. */
+    makerHedgeAndTakerCombinedPnl?: string;
+    relayFeesDeducted?: boolean;
+  };
+  days: {
+    day: string;
+    partial: boolean;
+    equity_start: number;
+    equity_end: number;
+    pnl: number;
+    pnl_pct: number;
+  }[];
+}
+
+export interface VaultDaily {
+  window: VaultWindow;
+  days: VaultDay[];
+  reference?: VaultReference | null;
 }
 
 export interface VaultDepositors {
@@ -151,11 +226,14 @@ export interface VaultActivity {
   next_before: number | null;
 }
 
-// Vaults are only deployed on the staging gateway for now, so they're read
-// from there regardless of VITE_GATEWAY_URL. Drop this override once the
-// gateway ships to prod.
-const STAGING_GATEWAY_URL = 'https://v1.fermi.trade/staging';
-const GATEWAY = () => import.meta.env.VITE_VAULTS_GATEWAY_URL || STAGING_GATEWAY_URL;
+// The gateway syncs vaults from chain into its database (fermi-api-gateway
+// docs/vaults.md) and keeps their history: one point per epoch close, NAV
+// event and 15-minute sync. It's the build's own gateway (staging builds set
+// VITE_GATEWAY_URL to /staging); VITE_VAULTS_GATEWAY_URL points just the
+// vault pages elsewhere, e.g. local dev at staging. FLP vaults read their live
+// state from the FLP data API (model/flpSource.ts), passed through the same
+// gateway at /v2/flp; the synced copy adds history, APR and sparklines.
+const GATEWAY = () => import.meta.env.VITE_VAULTS_GATEWAY_URL || config.devnet.gatewayUrl;
 
 const vaultPath = (network: VaultNetwork, address: string) =>
   API_ROUTES_V2.vault
@@ -168,7 +246,7 @@ async function get<T>(path: string, params: object, signal?: AbortSignal): Promi
 }
 
 export function fetchVaults(
-  params: { window: VaultWindow; wallet?: string; limit?: number },
+  params: { window: VaultWindow; wallet?: string; network?: VaultNetwork; limit?: number },
   signal?: AbortSignal
 ) {
   return get<VaultList>(API_ROUTES_V2.vaults, { limit: 200, ...params }, signal);
@@ -190,6 +268,15 @@ export function fetchVaultHistory(
   signal?: AbortSignal
 ) {
   return get<VaultHistory>(`${vaultPath(network, address)}/history`, { window }, signal);
+}
+
+export function fetchVaultDaily(
+  network: VaultNetwork,
+  address: string,
+  window: VaultWindow,
+  signal?: AbortSignal
+) {
+  return get<VaultDaily>(`${vaultPath(network, address)}/daily`, { window }, signal);
 }
 
 export function fetchVaultDepositors(

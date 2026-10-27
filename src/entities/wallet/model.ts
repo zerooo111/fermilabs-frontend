@@ -2,7 +2,7 @@
  * Wallet entity model
  * Exports hooks and utilities for wallet interaction
  */
-import { usePrivy, type LinkedAccountWithMetadata } from '@privy-io/react-auth';
+import { useLogin, usePrivy, type LinkedAccountWithMetadata } from '@privy-io/react-auth';
 import { useExportWallet } from '@privy-io/react-auth/solana';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useCallback, useMemo, useRef } from 'react';
@@ -50,8 +50,21 @@ export const useWalletWithErrorHandling = () => {
  * If a Privy session already exists but its wallet isn't connected (e.g. a
  * locked extension after reload), reconnects instead of re-logging in.
  */
+// Privy only shows a generic "could not log in" in its modal. The usual cause
+// is a wallet set to devnet/testnet: say so, and point devnet testers at the
+// vault pages' own wallet button. Solana wallets can't be switched by the app.
+const onLoginError = (code: string) => {
+  if (code === 'exited_auth_flow') return;
+  toast.error('Couldn’t log in with your wallet', {
+    description:
+      'Fermi trades on Solana mainnet. If your wallet is set to devnet or testnet, switch it to mainnet and try again. For the devnet vault, use “Connect devnet wallet” on the vault page.',
+    duration: 10_000,
+  });
+};
+
 const usePrivyWalletLogin = () => {
-  const { ready, authenticated, login, connectWallet } = usePrivy();
+  const { ready, authenticated, connectWallet } = usePrivy();
+  const { login } = useLogin({ onError: onLoginError });
   const { connect } = useWallet();
   // Read at call time: "change wallet" logs out and opens login in one go,
   // and a value captured before the logout would skip the login.

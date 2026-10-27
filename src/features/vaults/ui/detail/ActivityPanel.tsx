@@ -180,7 +180,7 @@ function Depositors({ vault, wallet }: { vault: Vault; wallet?: string }) {
                     <TableCell
                       className={cn(
                         TD,
-                        'hidden text-right font-mono text-xs text-rock/55 md:table-cell'
+                        'hidden text-right font-mono text-xs text-rock/60 md:table-cell'
                       )}
                     >
                       {d.first_deposit_at_ms ? formatDateTime(d.first_deposit_at_ms / 1000) : DASH}
@@ -269,7 +269,7 @@ function Activity({ vault, wallet }: { vault: Vault; wallet?: string }) {
                         target="_blank"
                         rel="noreferrer"
                         aria-label="View transaction"
-                        className="inline-flex text-rock/55 hover:text-rock"
+                        className="inline-flex text-rock/60 hover:text-rock"
                       >
                         <ExternalLink className="size-3.5" />
                       </a>

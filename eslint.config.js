@@ -5,7 +5,8 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist'] },
+  // The vendored FLP SDK must stay byte-for-byte upstream (sdk/VENDOR.json).
+  { ignores: ['dist', 'src/features/flp-vault/sdk/**'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
