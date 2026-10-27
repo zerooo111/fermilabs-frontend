@@ -16,7 +16,6 @@ import {
   LazyPointsDashboardPage,
 } from './LazyRoutes';
 import { isAppHost, redirectOffLanding } from './domains';
-import { showUnlaunched } from '@/shared/lib/domains';
 import { GateScopeSync, gateScopeOf } from '@/features/access-gate';
 import { AnnouncementBar } from '@/features/points/ui/AnnouncementBar';
 // The format module, not the feature index: keeps the points UI out of the main bundle.
@@ -59,12 +58,8 @@ export const AppRouter = () => {
           <Route path="/vault" element={<LazyVaultPage />} />
           <Route path="/referrals" element={<LazyReferralsPage />} />
           <Route path="/dashboard/points" element={<LazyPointsDashboardPage />} />
-          {showUnlaunched && (
-            <>
-              <Route path="/vaults" element={<LazyVaultsPage />} />
-              <Route path="/vaults/:network/:address" element={<LazyVaultDetailPage />} />
-            </>
-          )}
+          <Route path="/vaults" element={<LazyVaultsPage />} />
+          <Route path="/vaults/:network/:address" element={<LazyVaultDetailPage />} />
           <Route path="*" element={<Navigate replace to="/perps" />} />
         </Route>
       </Routes>

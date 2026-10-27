@@ -1,9 +1,7 @@
 # vaults
 
 The public vault pages: `/vaults` (list) and `/vaults/:network/:address`
-(detail, with the Deposit / Withdraw dialog). Both routes sit behind the
-`showUnlaunched` host gate (`shared/lib/domains.ts`): staging and localhost
-only, until vaults launch.
+(detail, with the Deposit / Withdraw dialog), on every host.
 
 ## Sources
 
