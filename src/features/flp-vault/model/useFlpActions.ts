@@ -63,6 +63,10 @@ export class FlpConfirmationTimeout extends Error {
 export const TOLERANCE_BPS = 50n;
 const CU_PRICED = 300_000;
 const CU_DEFAULT = 100_000;
+// A mainnet transaction with no compute-unit price may never land. The fee is
+// the price times the requested limit: 0.00005 SOL at the 100k-CU default,
+// 0.00015 SOL on the 300k-CU priced paths.
+const CU_PRICE_MICROLAMPORTS = 500_000;
 
 export interface FlpActionCtx {
   vault: PublicKey;
@@ -86,12 +90,18 @@ function requireWithdrawals(state: VaultAccount) {
   if (state.status & STATUS.withdrawalsPaused) throw new Error('Withdrawals are paused');
 }
 
+/** The compute budget every user transaction carries, simulated and sent alike. */
+const computeBudgetIxs = (units: number) => [
+  ComputeBudgetProgram.setComputeUnitLimit({ units }),
+  ComputeBudgetProgram.setComputeUnitPrice({ microLamports: CU_PRICE_MICROLAMPORTS }),
+];
+
 async function simulate(ixs: TransactionInstruction[], owner: PublicKey, units: number) {
   const { connection, client } = getFlp();
   const message = new TransactionMessage({
     payerKey: owner,
     recentBlockhash: PublicKey.default.toBase58(),
-    instructions: [ComputeBudgetProgram.setComputeUnitLimit({ units }), ...ixs],
+    instructions: [...computeBudgetIxs(units), ...ixs],
   }).compileToLegacyMessage();
   const sim = await connection.simulateTransaction(new VersionedTransaction(message), {
     sigVerify: false,
@@ -234,7 +244,7 @@ export function useFlpActions(vault: PublicKey) {
           setTxState(vaultKey, { quote: n });
         }
       );
-      const all = [ComputeBudgetProgram.setComputeUnitLimit({ units }), ...ixs];
+      const all = [...computeBudgetIxs(units), ...ixs];
       const size = fitsLegacyPacket(all, owner, false);
       if (!size.fits) throw new Error(`Transaction is ${size.bytes} bytes, over the 1,232 limit`);
 
