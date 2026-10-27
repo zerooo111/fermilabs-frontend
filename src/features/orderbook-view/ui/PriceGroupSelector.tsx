@@ -1,24 +1,24 @@
 import { useAtom } from 'jotai';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { QUANTITY_THRESHOLD_OPTIONS, quantityThresholdAtom } from '../model/orderbook';
+import { PRICE_GROUP_OPTIONS, priceGroupAtom } from '../model/orderbook';
 
-export function QuantityThresholdSelector() {
-  const [threshold, setThreshold] = useAtom(quantityThresholdAtom);
+export function PriceGroupSelector() {
+  const [priceGroup, setPriceGroup] = useAtom(priceGroupAtom);
 
   return (
     <Select
-      value={threshold.toString()}
-      onValueChange={value => setThreshold(Number(value) as typeof threshold)}
+      value={priceGroup.toString()}
+      onValueChange={value => setPriceGroup(Number(value) as typeof priceGroup)}
     >
       <SelectTrigger
         size="sm"
-        aria-label="Size resolution"
+        aria-label="Price grouping"
         className="!h-6 border-none bg-transparent px-2 text-[11px] text-rock/70 hover:text-rock"
       >
-        <SelectValue placeholder="Resolution" />
+        <SelectValue placeholder="Grouping" />
       </SelectTrigger>
       <SelectContent>
-        {QUANTITY_THRESHOLD_OPTIONS.map(option => (
+        {PRICE_GROUP_OPTIONS.map(option => (
           <SelectItem key={option.value} value={option.value.toString()} className="text-xs">
             {option.label}
           </SelectItem>
