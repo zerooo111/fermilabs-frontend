@@ -3,8 +3,7 @@
 export { ActionForm as FlpActionForm, type FlpSide } from './ui/ActionForm';
 export { Holdings as FlpHoldings } from './ui/Holdings';
 export { Requests as FlpRequests } from './ui/Requests';
-export { DevnetStrip as FlpDevnetStrip } from './ui/DevnetStrip';
-export { FlpWalletProvider, DevnetWalletButton } from './ui/DevnetWallet';
+export { LaunchStrip as FlpLaunchStrip } from './ui/LaunchStrip';
 export { FlpPerformance } from './ui/FlpPerformance';
 export { useFlpLiveUpdates, flpVaultQuery } from './model/useFlpVault';
 export { devOwner } from './model/devOwner';

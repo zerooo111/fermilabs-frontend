@@ -8,7 +8,7 @@ export const flpKeys = {
   /** Data API reads; `owner` '' is the wallet-less read. */
   data: (vault: string, owner: string | null) => ['flp', vault, 'data', owner ?? ''] as const,
   dataAll: (vault: string) => ['flp', vault, 'data'] as const,
-  /** RPC wallet balances (SOL, test USDC, FLP). */
+  /** RPC wallet balances (SOL, USDC, FLP). */
   wallet: (vault: string, owner: string) => ['flp', vault, 'wallet', owner] as const,
   walletAll: (vault: string) => ['flp', vault, 'wallet'] as const,
   orders: (vault: string, market: number) => ['flp', vault, 'orders', market] as const,

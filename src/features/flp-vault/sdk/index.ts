@@ -8,6 +8,7 @@ export {
   FlpV4Client,
   FLP_V4_IDL,
   RC6_RELEASE,
+  RC6_MAINNET_RELEASE,
   V4_FUNDING_FAILURE,
   batchPayout,
   deriveFundingWindow,

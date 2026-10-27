@@ -1,6 +1,6 @@
 /**
  * FLP cluster access: one shared Connection and RC6 (version-4) SDK client, and the wallet
- * balances the forms need exact (SOL for fees, test USDC, FLP shares), read
+ * balances the forms need exact (SOL for fees, USDC, FLP shares), read
  * in one getMultipleAccounts call.
  */
 import { Connection, PublicKey } from '@solana/web3.js';
@@ -98,7 +98,7 @@ export interface FlpWallet {
   shareBalance: bigint;
 }
 
-/** The wallet's test-USDC and (Token-2022) FLP share accounts. */
+/** The wallet's USDC and (Token-2022) FLP share accounts. */
 export function walletAtas(owner: PublicKey, quoteMint: PublicKey, shareMint: PublicKey) {
   return {
     quoteAta: getAssociatedTokenAddressSync(quoteMint, owner, true),

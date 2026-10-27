@@ -237,8 +237,7 @@ export function useFlpActions(vault: PublicKey) {
 
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
       setTxState(vaultKey, { phase: 'signing' });
-      // The devnet wallet (DevnetWallet.tsx) signs with the wallet's own
-      // network setting; no Privy, no chain label.
+      // The app's Privy wallet, on the app's (mainnet) chain.
       const signedTx = await wallet.signTransaction(
         new Transaction({ feePayer: owner, blockhash, lastValidBlockHeight }).add(...all)
       );

@@ -26,7 +26,11 @@ export function vaultView(env: FlpEnvelope) {
   const escrow = BigInt(seg.depositEscrowBalance);
   const supply = BigInt(d.shares.pricingSupply);
   const last = d.valuation.lastProgramNav;
-  const lastNavMid = BigInt(last.navMid);
+  // Slot 0: the program hasn't valued the vault yet (no keeper close). Its
+  // zero NAV would price a share at half the seed; use the indicative
+  // current NAV instead, or the seed's 1:1 when that's unknown too.
+  const valued = BigInt(last.slot) > 0n;
+  const unvalued = sharePrice(nav ?? supply, supply);
   const params = d.configuration.params;
   return {
     mode: d.lifecycle.mode,
@@ -49,10 +53,12 @@ export function vaultView(env: FlpEnvelope) {
     tvlCap: BigInt(params.tvlCap),
     supply,
     /** Quote per share at the last keeper close (NAV_mid), scaled by 1e6. */
-    price: sharePrice(lastNavMid, supply),
+    price: valued ? sharePrice(BigInt(last.navMid), supply) : unvalued,
     /** Immediate entry prices at NAV_high, immediate exit at NAV_low (same evidence). */
-    priceHigh: sharePrice(BigInt(last.navHigh), supply),
-    priceLow: sharePrice(BigInt(last.navLow), supply),
+    priceHigh: valued ? sharePrice(BigInt(last.navHigh), supply) : unvalued,
+    priceLow: valued ? sharePrice(BigInt(last.navLow), supply) : unvalued,
+    /** False before the program's first valuation: the prices are indicative. */
+    priceValued: valued,
     priceSlot: last.slot,
     priceStale: last.stale,
     funding: fundingEvidence(env),
@@ -117,7 +123,10 @@ export function depositRoutes(env: FlpEnvelope, user: FlpUser | null | undefined
   const blocks = statusBlocks(env);
   const publicClosed =
     (user?.availability.publicDepositsBlockedByStatus ?? blocks.publicDeposits)
-      ? 'Public deposits are closed'
+      ? // Before launch, public intake is paused while approved wallets deposit.
+        mode === 'pre-deposit' && !blocks.directDeposits
+        ? 'Only approved wallets can deposit before launch'
+        : 'Public deposits are closed'
       : null;
   const routes: RouteState<DepositRoute>[] = [];
   if (mode === 'pre-deposit') routes.push({ route: 'pre-deposit', closed: publicClosed });

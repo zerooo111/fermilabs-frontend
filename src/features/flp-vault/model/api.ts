@@ -1,5 +1,5 @@
 /**
- * FLP data API (the Fermi state harness) and the devnet helper services.
+ * FLP data API (the FLP-only mainnet reader, a Fermi state harness).
  * Display data comes from here, not from account polling; the SDK reads the
  * chain only to build transactions. Field meanings: fermi-v1
  * flp-vault/docs/data-endpoints.md. Native amounts stay decimal strings until
@@ -295,40 +295,4 @@ export async function fetchVaultData(vault: string, owner: string | null): Promi
 export async function fetchOrders(marketIndex: number, owner: string): Promise<FlpOrder[]> {
   const body = await getJson<{ data: FlpOrder[] }>(`/state/orders/${marketIndex}?owner=${owner}`);
   return body.data ?? [];
-}
-
-async function post<T>(path: string, body: unknown, idempotencyKey: string): Promise<T> {
-  const res = await fetch(`${FLP_API_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    const detail = data?.error ?? data?.message;
-    throw new FlpHttpError(
-      res.status,
-      res.status === 429
-        ? 'Rate limited. Try again in a minute.'
-        : detail
-          ? `${detail} (HTTP ${res.status})`
-          : `HTTP ${res.status}`
-    );
-  }
-  return data as T;
-}
-
-/**
- * Mint test USDC to `wallet`. `amount` is a decimal string, max 6 decimals.
- * Reuse `idempotencyKey` to retry the same request (a 409 or 503 must never
- * be resent under a new key); make a new one for each new request.
- */
-export function requestFaucet(wallet: string, amount: string, idempotencyKey: string) {
-  return post<{ state: string; signature?: string }>('/faucet', { wallet, amount }, idempotencyKey);
-}
-
-/** Approve `wallet` for direct deposits on a vault with `whitelist` set in config.ts. */
-export function requestWhitelist(wallet: string) {
-  // One key per wallet, so a retry can't approve twice.
-  return post<{ state: string; signature?: string }>('/whitelist', { wallet }, `wl-${wallet}`);
 }

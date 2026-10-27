@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Check the FLP integration against the protocol team's RC6 devnet records,
+// Check the FLP integration against the protocol team's RC6.1 mainnet records,
 // and optionally re-vendor the SDK.
 //
 //   pnpm flp:sync           report drift (exit 1 if any)
@@ -7,18 +7,20 @@
 //                           from fermi-v1 main, verified against the RC6 IDL hash
 //
 // Sources (fermi-v1 main, kept current by the protocol team):
-// - flp-vault/docs/INTEGRATION_GUIDE.md "Devnet — RC6 vanity deployment" table
-//   (vault program, core program, target vault);
-// - flp-vault/mainnet/rc6/devnet/<date>-runtime-artifact.json (the devnet pins);
+// - flp-vault/docs/INTEGRATION_GUIDE.md "Mainnet — RC6.1" table
+//   (vault program, core program, group, vault);
+// - flp-vault/docs/mainnet-rc6.1.json, also served by the mainnet reader at
+//   /deployment.json (the deployed ELF, markets);
 // - the canonical IDL hash at the top of the guide (RC6_RELEASE.idlSha256).
-// The data API host's /deployment.json is checked too, once it describes RC6.
-// Addresses in config.ts are reported, not rewritten: change them by hand.
+// config.ts takes its addresses from the vendored SDK's RC6_MAINNET_RELEASE,
+// so the checks run against both. Market decimals are reported, not
+// rewritten: change them by hand.
 // Needs `gh` (authenticated); fermi-v1 may be private.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
-const API = process.env.FLP_API_URL ?? 'https://flp.34-116-238-207.sslip.io';
+const API = process.env.FLP_API_URL ?? 'https://flp-mainnet.34-116-238-207.sslip.io';
 const REPO = 'Fermi-DEX/fermi-v1';
 const SDK = 'src/features/flp-vault/sdk';
 const CONFIG = 'src/features/flp-vault/model/config.ts';
@@ -37,7 +39,8 @@ const commit = gh(['api', `repos/${REPO}/commits/main`, '--jq', '.sha'])
   .toString()
   .trim();
 
-const config = readFileSync(CONFIG, 'utf8');
+// The pins config.ts reads (RC6_MAINNET_RELEASE in the vendored v4 entry) count as config.
+const config = readFileSync(CONFIG, 'utf8') + readFileSync(`${SDK}/src/v4.ts`, 'utf8');
 const vendor = JSON.parse(readFileSync(`${SDK}/VENDOR.json`, 'utf8'));
 const drift = [];
 const has = (label, address) => {
@@ -46,47 +49,42 @@ const has = (label, address) => {
     drift.push(`${label}: records have ${address}, not in config.ts`);
 };
 
-// The devnet table of the integration guide.
+// The mainnet section of the integration guide (its first table).
 const guide = raw('flp-vault/docs/INTEGRATION_GUIDE.md').toString();
+const mainnet = guide.slice(guide.indexOf('## Mainnet'), guide.indexOf('## Devnet'));
 const row = name =>
-  guide.match(new RegExp(`\\| ${name} \\| \`([1-9A-HJ-NP-Za-km-z]{32,44})\` \\|`))?.[1];
+  mainnet.match(new RegExp(`\\| ${name}[^|]* \\| \`([1-9A-HJ-NP-Za-km-z]{32,44})\``))?.[1];
 has('vault program', row('Vault program'));
 has('core program', row('Core program'));
-has('RC6 vault', row('Target vault PDA'));
+has('group', row('Group'));
+has('mainnet vault', row('Vault \\(vault ID 1\\)'));
 const idlSha = guide.match(/canonical IDL SHA-256 is `([0-9a-f]{64})`/)?.[1];
 if (!idlSha) drift.push('canonical IDL hash: not found in the integration guide');
 
-// The newest runtime artifact receipt must name the same programs.
-const receipts = JSON.parse(
-  gh(['api', `repos/${REPO}/contents/flp-vault/mainnet/rc6/devnet?ref=main`]).toString()
-)
-  .map(f => f.name)
-  .filter(n => n.endsWith('-runtime-artifact.json'))
-  .sort();
-const receipt = receipts.length
-  ? JSON.parse(raw(`flp-vault/mainnet/rc6/devnet/${receipts.at(-1)}`).toString())
-  : null;
-if (!receipt) drift.push('runtime artifact receipt: none in flp-vault/mainnet/rc6/devnet');
-else {
-  has(`vault program (${receipts.at(-1)})`, receipt.vaultProgram);
-  has(`devnet core program (${receipts.at(-1)})`, receipt.devnetRuntimeCore?.program);
-}
-
-// The data API host's manifest, once it serves this program.
+// The machine-readable deployment record, and the reader's copy of it.
+const record = JSON.parse(raw('flp-vault/docs/mainnet-rc6.1.json').toString());
 const manifest = await fetch(`${API}/deployment.json`, { signal: AbortSignal.timeout(60_000) })
   .then(r => (r.ok ? r.json() : null))
   .catch(() => null);
-const manifestCurrent = manifest?.programs?.vault && config.includes(manifest.programs.vault);
-if (manifestCurrent) {
-  // Every listed market needs base decimals in config.ts; the RC6 manifest
-  // doesn't give them (read them from the PerpMarket), earlier ones did.
-  for (const m of manifest.markets ?? []) {
-    const wanted = m.baseDecimals ?? '\\d+';
-    if (!new RegExp(`\\b${m.index}: ${wanted}\\b`).test(config))
-      drift.push(
-        `market ${m.index} (${m.name}): base decimals ${m.baseDecimals ?? '?'} not in config.ts`
-      );
-  }
+if (!manifest) drift.push(`${API}/deployment.json: unreachable`);
+else if (JSON.stringify(manifest) !== JSON.stringify(record))
+  drift.push(`${API}/deployment.json differs from docs/mainnet-rc6.1.json`);
+has('vault program (record)', record.programs?.vault);
+has('core program (record)', record.programs?.core);
+has('mainnet vault (record)', record.accounts?.vault);
+if (record.programs?.vaultElfSha256 && !config.includes(record.programs.vaultElfSha256))
+  drift.push(`deployed ELF ${record.programs.vaultElfSha256}: not the vendored RC6_MAINNET_RELEASE pin`);
+if (idlSha && record.programs?.idlSha256 !== idlSha)
+  drift.push('the deployment record and the guide name different IDL hashes');
+// Every market needs base decimals in config.ts; the record doesn't give
+// them (they're in each PerpMarket account; the reader's /state/markets has them).
+const markets = await fetch(`${API}/state/markets`, { signal: AbortSignal.timeout(60_000) })
+  .then(r => (r.ok ? r.json() : null))
+  .catch(() => null);
+for (const m of record.markets ?? []) {
+  const decimals = markets?.items?.find(i => Number(i.market) === m.index)?.metadata?.base_decimals;
+  if (!new RegExp(`\\b${m.index}: ${decimals ?? '\\d+'}\\b`).test(config))
+    drift.push(`market ${m.index} (${m.symbol}): base decimals ${decimals ?? '?'} not in config.ts`);
 }
 
 // Vendored files: on disk vs VENDOR.json vs fermi-v1 main.
@@ -129,7 +127,7 @@ if (write && sdkDrift) {
 
 console.log(
   `fermi-v1 main ${commit.slice(0, 8)}; vendored ${vendor.commit.slice(0, 8)} (${vendor.vendoredAt}); ` +
-    `data API manifest ${manifestCurrent ? 'describes this deployment' : 'still describes another deployment'}`
+    `reader ${API}`
 );
 if (!drift.length) {
   console.log('flp:sync: in sync');

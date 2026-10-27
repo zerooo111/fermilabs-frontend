@@ -10,14 +10,28 @@ import { FlpClient, VaultAccount, VaultParamsInput, EpochAccount, DepositorAccou
 
 /** Offline release expectations. A program ID alone does not authenticate deployed ELF bytes. */
 export const RC6_RELEASE = Object.freeze({
-  sourceCommit: 'c19bb5d7ab5f9730fddcc7de88c7a89e39b49959',
+  sourceCommit: 'bbfbff39606ad44c8a36bece3c8a42c9bd1638b2',
   integrationProfile: 'rc6', vaultVersion: 4, fundingWindowVersion: 1,
   vaultProgram: 'FKrm8e4Y8vAXRRGkUtTK7t5d2WdY6pxK6ChMV4KH1F8g',
   coreProgram: 'FRMiX94PWHbndvySq8xyRx185GvPeggUeKaLmZgVdd4',
-  vaultElfBytes: 1776520,
-  vaultElfSha256: '20db94b5f0eecf3a3827a9191f9512ff12b36a31ab5f08fb731d77c08b1e3748',
+  vaultElfBytes: 1776216,
+  vaultElfSha256: '1fb228a921a9fb6b6227e3df3cc1123c76eb1b41a266a8ccf22afb8b02dde92a',
   coreElfSha256: '29c6167e1e0eb4577215cf5a85a9646ed36b97c479ace0a71631b7fe71358aa9',
   idlSha256: '58eac53814dad683186097170bbd0c6264f99af59edb273c84dbef1a60b48dd6',
+});
+/** The deployed mainnet artifact (flp-vault/mainnet/rc6/mainnet-runtime.json): the RC6.1 source built
+ * with the final vault ID. RC6_RELEASE above stays the canonical baseline (placeholder ID). */
+export const RC6_MAINNET_RELEASE = Object.freeze({
+  sourceCommit: 'bbfbff39606ad44c8a36bece3c8a42c9bd1638b2',
+  integrationProfile: 'rc6', vaultVersion: 4, fundingWindowVersion: 1, cluster: 'mainnet-beta',
+  vaultProgram: 'FLPRrDPN5tJpLx6wY6FUiGFN5Kws8gHUCYMCcs6Goa9Q',
+  coreProgram: 'FRMiX94PWHbndvySq8xyRx185GvPeggUeKaLmZgVdd4',
+  vaultElfBytes: 1776216,
+  vaultElfSha256: '4cd0f7787be53a52195ff21bc34797f3eb40de1810d17443d883f1533f59f36e',
+  coreElfSha256: '29c6167e1e0eb4577215cf5a85a9646ed36b97c479ace0a71631b7fe71358aa9',
+  idlSha256: '58eac53814dad683186097170bbd0c6264f99af59edb273c84dbef1a60b48dd6',
+  group: '2mDvxS4A6bJyR3RjLwvBWeNuFvCAaQ26ss7w1jUChRse',
+  vault: '8aHdjxJzec6CfBngSFZYQvqZsBtXWXG6j1C3rW799pbP', vaultId: 1,
 });
 export const FLP_V4_IDL = schema as Idl;
 export type V4Accounts = Record<string, PublicKey>;
@@ -34,6 +48,9 @@ export function fundingWindowIsOpen(window: FundingWindowAccount, now: BN | bigi
   const time = new BN(now.toString());
   return window.eligible && time.gte(window.scheduledStart) && time.lte(window.deadline);
 }
+/** `extendPartialUnwindV2` reduction bounds in bps: the program cuts each remaining
+ * target by at least half (`recovery.rs` extend_targets). `triggerPartialUnwind` takes 1 to 10,000. */
+export const PARTIAL_EXTENSION_BPS = Object.freeze({ min: 5000, max: 10000 });
 /** RC6 has no numerical Init-health breaker or pending-settlement skip reason. */
 export const V4_FUNDING_FAILURE = { fundable: 0, nonpositiveNav: 1, cashShortage: 2, bankLiquidity: 4, coreFundingRequired: 6 } as const;
 /** Only a current cash-shortage failure opens the public recovery clock. */
@@ -363,7 +380,8 @@ export class FlpV4Client {
     return this.instruction('abortUnwind', { vault, admin }, {}, this.recoveryMetas(vault, true));
   }
   async extendPartialUnwind(vault: PublicKey, state: VaultAccount, accounts: V4Accounts, health: AccountMeta[], reductionBps: number) {
-    if (reductionBps < 1 || reductionBps > 10000) throw new Error('Invalid reduction');
+    if (!Number.isInteger(reductionBps) || reductionBps < PARTIAL_EXTENSION_BPS.min || reductionBps > PARTIAL_EXTENSION_BPS.max)
+      throw new Error(`Invalid reduction: extendPartialUnwindV2 takes ${PARTIAL_EXTENSION_BPS.min} to ${PARTIAL_EXTENSION_BPS.max} bps`);
     return this.instruction('extendPartialUnwindV2', this.flowAccounts(vault, state, accounts), { reductionBps: uint(reductionBps, 16).toNumber() },
       [...await this.withEventQueues(health), ...this.recoveryMetas(vault, true)]);
   }

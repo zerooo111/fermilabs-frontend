@@ -52,7 +52,11 @@ export function FlpPerformance({ vault }: { vault: PublicKey }) {
           label="Share price"
           value={`$${formatPrice(v.price, PRICE_DECIMALS)}`}
           // NAV_mid, with the entry (NAV_high) and exit (NAV_low) prices of the same evidence.
-          title={`At the vault's last on-chain valuation (slot ${v.priceSlot}${v.priceStale ? ', stale' : ''}): mid $${formatPrice(v.price, PRICE_DECIMALS)}, instant entry $${formatPrice(v.priceHigh, PRICE_DECIMALS)}, instant exit $${formatPrice(v.priceLow, PRICE_DECIMALS)}.`}
+          title={
+            v.priceValued
+              ? `At the vault's last on-chain valuation (slot ${v.priceSlot}${v.priceStale ? ', stale' : ''}): mid $${formatPrice(v.price, PRICE_DECIMALS)}, instant entry $${formatPrice(v.priceHigh, PRICE_DECIMALS)}, instant exit $${formatPrice(v.priceLow, PRICE_DECIMALS)}.`
+              : `The vault hasn't been valued on chain yet. Indicative, from its current NAV: $${formatPrice(v.price, PRICE_DECIMALS)}.`
+          }
         />
         <Stat
           label="Vault PnL"

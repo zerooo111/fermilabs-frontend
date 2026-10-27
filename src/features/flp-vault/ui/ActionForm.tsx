@@ -12,12 +12,13 @@ import type { PublicKey } from '@solana/web3.js';
 import { Check, ExternalLink } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { ConnectWallet } from '@/features/wallet-connect';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Segmented } from '@/shared/ui/segmented';
 
 import type { FlpTicket } from '../model/api';
-import { FLP_CLUSTER, flpExplorerTxUrl } from '../model/config';
+import { flpExplorerTxUrl } from '../model/config';
 import {
   formatDuration,
   formatTime,
@@ -47,7 +48,6 @@ import {
   type VaultView,
   type WithdrawRoute,
 } from '../model/view';
-import { DevnetWalletButton } from './DevnetWallet';
 import { PHASE_LABEL } from './phase';
 
 export type FlpSide = 'deposit' | 'withdraw';
@@ -100,11 +100,8 @@ export function ActionForm({
   if (!owner) {
     return (
       <div className="flex flex-col items-start gap-3 p-4">
-        <p className="text-sm text-rock/70">
-          Connect a devnet wallet to {side}. This vault is on devnet, so it uses your wallet
-          extension directly, not your Fermi login.
-        </p>
-        <DevnetWalletButton size="default" />
+        <p className="text-sm text-rock/70">Connect a wallet to {side}.</p>
+        <ConnectWallet />
       </div>
     );
   }
@@ -224,7 +221,7 @@ function Form({
     amountProblem = true;
     problem = `The minimum is ${formatUnits(v.minWithdrawShares, decimals)} FLP, or all of it`;
   } else if (wallet && wallet.lamports === 0n)
-    problem = `You need a little ${FLP_CLUSTER} SOL for fees. Use “Get devnet SOL” above.`;
+    problem = 'You need a little SOL in this wallet for fees.';
 
   const waiting = readOnly
     ? 'Read-only dev view'
@@ -363,7 +360,7 @@ function Form({
 
       {side === 'deposit' && wallet && wallet.quoteBalance === 0n && (
         <p className="border border-outline bg-card px-3 py-2 text-xs text-rock/70">
-          This wallet has no test USDC. Use “Get test USDC” above the vault stats.
+          This wallet has no USDC.
         </p>
       )}
 
@@ -736,7 +733,7 @@ function Loading() {
       <span className="skeleton-bone block h-24 w-full motion-reduce:animate-none!" />
       {slow && (
         <p className="text-xs text-rock/60">
-          Fetching the latest vault state. On devnet this can take up to 40 seconds.
+          Fetching the latest vault state. This can take a few seconds.
         </p>
       )}
     </div>

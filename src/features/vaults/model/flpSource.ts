@@ -21,7 +21,7 @@ import {
 import type { Vault, VaultNetwork, VaultUser, VaultWindow } from '../api/vaultsClient';
 
 const DESCRIPTION =
-  'Fermi’s protocol vault. It makes markets on Fermi perps and earns the spread and trading fees for depositors. This is the devnet test deployment, using synthetic USDC.';
+  'Fermi’s protocol vault. It makes markets on Fermi perps and earns the spread and trading fees for depositors.';
 
 /** Native units to a display number. Display only: never fed back into a transaction. */
 const ui = (native: bigint | string, decimals: number) => Number(BigInt(native)) / 10 ** decimals;

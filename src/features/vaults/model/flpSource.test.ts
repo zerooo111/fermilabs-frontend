@@ -7,14 +7,12 @@ import { edit, fixtures } from '@/features/flp-vault/model/fixtures';
 
 import { flpToVault } from './flpSource';
 
-// The fixtures' vaults (fixtures.ts): the RC6 vault, and RC4 vault 3 for the
-// pre-deposit phase RC6 hasn't run.
+// The fixtures' vaults (fixtures.ts): the RC6 devnet vault, and RC4 vault 3
+// for an approved wallet holding both principal and shares.
 const config = (id: number, address: string): FlpVaultConfig => ({
   id,
   address: new PublicKey(address),
   name: `Vault ${id}`,
-  faucet: false,
-  whitelist: false,
 });
 const live = config(1, 'DSF7hKayWatQyRhuyr4UkrG3zUuNW6b1Q5VhW7BzrUhu');
 const pre = config(3, '8fAqhdnBWnCN2nkkkX4qhU316bhhsvAtKRfoCAv1Hmgo');

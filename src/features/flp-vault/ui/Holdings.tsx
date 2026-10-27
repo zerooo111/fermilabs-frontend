@@ -152,9 +152,7 @@ function Orders({
   const portfolio = portfolioOf(envelope);
   const markets = new Map(portfolio?.positions.map(p => [p.marketIndex, p]) ?? []);
   if (!orders.length)
-    return (
-      <Message>No open orders right now. The devnet market maker quotes during test runs.</Message>
-    );
+    return <Message>No open orders right now. The vault’s market maker isn’t quoting yet.</Message>;
   return (
     <Table className="min-w-[32rem]">
       <TableHeader>

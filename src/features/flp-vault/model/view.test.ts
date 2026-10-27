@@ -27,13 +27,15 @@ describe('schema', () => {
     expect(() => parseEnvelope(broken)).toThrow(/data\.lifecycle\.mode/);
   });
 
-  it('takes a vault read only from the RC6 reader for that vault', () => {
+  it('takes a vault read only from the mainnet reader for that vault', () => {
     const vault = FLP_VAULTS[0].address.toBase58();
-    expect(() => parseEnvelope(fixtures.live(), vault)).not.toThrow();
-    // An RC4 reader (profile rc2-pr29) must not stand in for RC6.
+    expect(() => parseEnvelope(fixtures.mainnet(), vault)).not.toThrow();
+    // The devnet reader serves the same program ID, but must not stand in for mainnet.
+    expect(() => parseEnvelope(fixtures.live(), vault)).toThrow(/rc6-devnet/);
+    // Nor an RC4 reader (profile rc2-pr29).
     expect(() => parseEnvelope(fixtures.pre(), vault)).toThrow(/rc2-pr29/);
     expect(() => parseEnvelope(rc6(fixtures.pre()), vault)).not.toThrow();
-    expect(() => parseEnvelope(fixtures.live(), fixtures.pre().vault)).toThrow(
+    expect(() => parseEnvelope(fixtures.mainnet(), fixtures.pre().vault)).toThrow(
       /another program or vault/
     );
   });
@@ -75,6 +77,20 @@ describe('vaultView', () => {
     expect(v.price > 900_000n && v.price < 1_100_000n).toBe(true);
   });
 
+  it('prices a share from the current NAV before the first on-chain valuation', () => {
+    // Mainnet before its first close: last program NAV 0 at slot 0, 1 USDC seed, 1 dead share.
+    const v = vaultView(fixtures.mainnet());
+    expect(v.priceValued).toBe(false);
+    expect(v.price).toBe(1_000_000n);
+    const unknown = vaultView(
+      edit(fixtures.mainnet(), e => {
+        e.data.valuation.currentNav.value = null;
+      })
+    );
+    expect(unknown.price).toBe(1_000_000n);
+    expect(vaultView(fixtures.live()).priceValued).toBe(true);
+  });
+
   it('counts a queued deposit in TVL but not as profit', () => {
     const before = vaultView(fixtures.live());
     const queued = vaultView(
@@ -105,6 +121,22 @@ describe('deposit routes', () => {
 
   it('live: a queued request', () => {
     expect(routes(depositRoutes(fixtures.live(), undefined))).toEqual(['queued']);
+  });
+
+  it('mainnet before launch: approved wallets only', () => {
+    const anon = fixtures.mainnet();
+    expect(depositRoutes(anon, undefined)).toEqual([
+      { route: 'pre-deposit', closed: 'Only approved wallets can deposit before launch' },
+    ]);
+    expect(availability(anon, undefined, 0n).canDeposit).toBe(false);
+    const nobody = fixtures.mainnetNoUser();
+    expect(availability(nobody, nobody.data.user, 0n).canDeposit).toBe(false);
+    const approved = fixtures.mainnetUser();
+    expect(routes(depositRoutes(approved, approved.data.user))).toEqual([
+      'pre-deposit(closed)',
+      'direct',
+    ]);
+    expect(availability(approved, approved.data.user, 0n).canDeposit).toBe(true);
   });
 
   it('a public-only pause keeps direct deposits open (guide B.2 rule 19)', () => {

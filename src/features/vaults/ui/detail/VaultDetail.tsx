@@ -9,9 +9,9 @@ import axios from 'axios';
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
 import {
-  FlpDevnetStrip,
   FlpHoldings,
   FlpHttpError,
+  FlpLaunchStrip,
   FlpPerformance,
   FlpRequests,
   useFlpLiveUpdates,
@@ -62,7 +62,7 @@ export function VaultDetail({ network, address }: { network: VaultNetwork; addre
     <div className="flex flex-col gap-5">
       {flp && <FlpLive config={flp} />}
       <Header vault={v} network={network} address={address} />
-      {flp && <FlpDevnetStrip vault={flp.address} />}
+      {flp && <FlpLaunchStrip vault={flp.address} />}
       <Stats vault={v} />
       {flp && <FlpRequests vault={flp.address} />}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
@@ -437,8 +437,8 @@ function Settlement({ endsAtMs }: { endsAtMs: number }) {
 function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   const status = axios.isAxiosError(error) ? error.response?.status : undefined;
   const missing = status === 404 || status === 400;
-  // The FLP data service doesn't read this deployment yet (an RC6 vault before
-  // the protocol team hosts its reader): a retry won't help.
+  // The FLP data service doesn't read this deployment (a reader on another
+  // profile or vault): a retry won't help.
   const unread = error instanceof FlpHttpError && error.status === 422;
   return (
     <div
@@ -456,7 +456,7 @@ function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => void })
         {missing
           ? 'Check the link, or pick a vault from the list.'
           : unread
-            ? 'Fermi is upgrading the devnet vault data service. Check back soon.'
+            ? 'Fermi is upgrading the vault data service. Check back soon.'
             : 'Check your connection and try again.'}
       </p>
       <div className="flex gap-2">

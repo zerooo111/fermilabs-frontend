@@ -1,12 +1,9 @@
 /**
  * Single vault page, addressed by network and vault address in the URL
- * (`/vaults/devnet/<address>`), so devnet and mainnet links never collide.
- * Devnet vaults use a direct wallet connection (FlpWalletProvider), not the
- * app's Privy login.
+ * (`/vaults/mainnet/<address>`), so devnet and mainnet links never collide.
  */
 import { Navigate, useParams } from 'react-router-dom';
 
-import { FlpWalletProvider } from '@/features/flp-vault';
 import { VaultDetail } from '@/features/vaults';
 
 function VaultDetailPage() {
@@ -17,10 +14,7 @@ function VaultDetailPage() {
   return (
     <div className="flex min-h-[calc(100vh-60px)] flex-col px-3 py-6 md:px-6 md:py-10">
       <div className="mx-auto w-full max-w-7xl">
-        {/* TODO(remove): temporary devnet wallet for FLP testing; drop on mainnet (see DevnetWallet.tsx). */}
-        <FlpWalletProvider>
-          <VaultDetail key={`${network}:${address}`} network={network} address={address} />
-        </FlpWalletProvider>
+        <VaultDetail key={`${network}:${address}`} network={network} address={address} />
       </div>
     </div>
   );

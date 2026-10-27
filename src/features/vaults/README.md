@@ -12,7 +12,7 @@ A page draws `Vault` rows (`api/vaultsClient.ts`) from two sources, merged in
 
 - **FLP vaults** — `model/flpSource.ts` adapts the FLP data API
   (`features/flp-vault`) into `Vault`. These are the vaults users can
-  deposit into. Their detail page adds FLP panels (devnet strip, requests,
+  deposit into. Their detail page adds FLP panels (pre-launch strip, requests,
   performance, holdings) from `features/flp-vault`.
 - **Gateway vaults** — the gateway's vault sync (`/v2/vaults`), only called
   when `VITE_VAULTS_GATEWAY_URL` is set. It isn't deployed anywhere yet; when

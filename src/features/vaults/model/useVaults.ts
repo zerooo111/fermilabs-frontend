@@ -8,7 +8,7 @@ import { useInfiniteQuery, useQueries, useQuery, keepPreviousData } from '@tanst
 import { useWallet } from '@solana/wallet-adapter-react';
 import axios from 'axios';
 
-import { FLP_VAULTS, devOwner, flpVaultQuery } from '@/features/flp-vault';
+import { FLP_CLUSTER, FLP_VAULTS, devOwner, flpVaultQuery } from '@/features/flp-vault';
 
 import {
   fetchVault,
@@ -151,7 +151,7 @@ export function useVault(network: VaultNetwork, address: string, window: VaultWi
   return { data, isError: flp.isError && !env, error: flp.error, refetch: flp.refetch };
 }
 
-const key = (c: { address: { toBase58(): string } }) => `devnet:${c.address.toBase58()}`;
+const key = (c: { address: { toBase58(): string } }) => `${FLP_CLUSTER}:${c.address.toBase58()}`;
 
 /**
  * An FLP vault's live state with the gateway's history-derived numbers (APR,
