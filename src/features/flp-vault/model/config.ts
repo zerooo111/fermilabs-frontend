@@ -53,6 +53,18 @@ export function flpVaultConfig(address: string): FlpVaultConfig | undefined {
 }
 
 /**
+ * Announced graduation date (UTC), when every pre-deposit moves into the main
+ * pool at one NAV per share. Not on chain: graduation is admin-triggered and
+ * `lifecycle.graduation.scheduledAt` is null, so this is shown as an estimate.
+ */
+export const FLP_GRADUATION_ESTIMATE_MS = Date.UTC(2026, 10, 10);
+
+/** "10 Nov", for copy that names the estimate. */
+export const FLP_GRADUATION_ESTIMATE_LABEL = new Date(
+  FLP_GRADUATION_ESTIMATE_MS
+).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/**
  * Base decimals of the r9 perp markets (SOL, ETH, BTC), from their PerpMarket
  * accounts; the data API gives lot sizes only.
  */

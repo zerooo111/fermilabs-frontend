@@ -23,8 +23,8 @@ export function LaunchStrip({ vault }: { vault: PublicKey }) {
 
   return (
     <p className="border border-outline bg-card px-4 py-2.5 text-xs text-rock/70">
-      <span className="text-rock">Pre-launch.</span> Deposits are open to approved wallets only;
-      public deposits open at launch.{wallet && ` ${wallet}`}
+      <span className="text-rock">Public pre-deposits are paused.</span> Only whitelisted wallets
+      can deposit right now.{wallet && ` ${wallet}`}
     </p>
   );
 }

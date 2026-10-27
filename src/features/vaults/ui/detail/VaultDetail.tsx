@@ -11,6 +11,7 @@ import { Button } from '@/shared/ui/button';
 import {
   FlpHoldings,
   FlpHttpError,
+  FLP_GRADUATION_ESTIMATE_MS,
   FlpLaunchStrip,
   FlpPerformance,
   FlpRequests,
@@ -329,6 +330,7 @@ function Stats({ vault: v }: { vault?: Vault }) {
 type OverviewTab = 'about' | 'parameters';
 
 function OverviewPanel({ vault: v }: { vault: Vault }) {
+  const flp = isFlpVault(v.network, v.address);
   const [tab, setTab] = useState<OverviewTab>('about');
 
   return (
@@ -346,7 +348,11 @@ function OverviewPanel({ vault: v }: { vault: Vault }) {
       {tab === 'about' ? (
         <>
           <p className="px-4 py-3.5 text-sm leading-relaxed text-rock/75">{v.description}</p>
-          <Lifecycle vault={v} />
+          <Lifecycle
+            vault={v}
+            graduationEstimateMs={flp ? FLP_GRADUATION_ESTIMATE_MS : undefined}
+            whitelistTrading={!!flp}
+          />
           <dl className="divide-y divide-outline border-t border-outline">
             <Row label="Leader">
               {v.kind === 'protocol' ? (

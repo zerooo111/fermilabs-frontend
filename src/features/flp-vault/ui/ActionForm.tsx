@@ -19,7 +19,7 @@ import { Input } from '@/shared/ui/input';
 import { Segmented } from '@/shared/ui/segmented';
 
 import type { FlpTicket } from '../model/api';
-import { flpExplorerTxUrl } from '../model/config';
+import { FLP_GRADUATION_ESTIMATE_LABEL, flpExplorerTxUrl } from '../model/config';
 import {
   formatDuration,
   formatTime,
@@ -446,9 +446,9 @@ function Summary({
     case 'pre-deposit':
       rows.push(
         ['You pay', usd(a)],
-        ['Held', 'In escrow until launch'],
-        ['Withdraw', 'Any time before launch'],
-        ['Earnings', 'Start at launch (date set by Fermi)']
+        ['Held', `In escrow until graduation (est. ${FLP_GRADUATION_ESTIMATE_LABEL})`],
+        ['Withdraw', 'Any time, in one transaction'],
+        ['Earnings', 'ALIEN pre-deposit points; trading P&L from graduation']
       );
       break;
     case 'queued':
@@ -688,8 +688,8 @@ function Success({
         </ol>
       ) : route === 'pre-deposit' ? (
         <p className="text-xs leading-relaxed text-rock/70">
-          Your USDC is in escrow and counts toward the vault at launch. You can withdraw it any time
-          before then.
+          Your USDC is in escrow and earns ALIEN pre-deposit points. It graduates into the main pool
+          (est. {FLP_GRADUATION_ESTIMATE_LABEL}); you can withdraw it any time before then.
         </p>
       ) : null}
 

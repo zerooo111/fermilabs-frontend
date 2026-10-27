@@ -1,6 +1,6 @@
 /**
  * Phase-aware vault numbers. A vault in pre-deposit has no return yet (shares
- * mint 1:1 until launch), so instead of an APR dash and a flat line it shows
+ * mint 1:1 until graduation), so instead of an APR dash and a flat line it shows
  * what matters then: how full the deposit cap is.
  */
 import { cn } from '@/lib/utils';
@@ -15,9 +15,9 @@ export function AprValue({ vault: v, className }: { vault: Vault; className?: st
     return (
       <span
         className={cn('font-mono text-xs uppercase tracking-[0.12em] text-amber-200/80', className)}
-        title="Earns from launch. Pre-deposits wait in escrow until then."
+        title="Pre-deposits wait in escrow and earn trading P&L from graduation."
       >
-        Pre-launch
+        Pre-deposit
       </span>
     );
   }

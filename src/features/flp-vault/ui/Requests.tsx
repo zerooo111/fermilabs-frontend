@@ -142,10 +142,10 @@ function requestItems(user: FlpUser, v: VaultView, now: number): Item[] {
   if (graduated > 0n) {
     items.push({
       key: 'graduated',
-      title: `Launch shares · ${flp(graduated)}`,
+      title: `Graduated shares · ${flp(graduated)}`,
       status: 'Ready',
       tone: 'ready',
-      detail: 'FLP launched and your pre-deposit became shares.',
+      detail: 'Your pre-deposit graduated into the main pool as FLP shares.',
       action: {
         kind: 'claim-graduated',
         label: 'Claim FLP',

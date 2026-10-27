@@ -10,7 +10,13 @@ export { devOwner } from './model/devOwner';
 export { useFlpActions } from './model/useFlpActions';
 export { availability, vaultView } from './model/view';
 export { PRICE_DECIMALS } from './model/format';
-export { FLP_CLUSTER, FLP_PROGRAM_ID, FLP_VAULTS, flpVaultConfig } from './model/config';
+export {
+  FLP_CLUSTER,
+  FLP_GRADUATION_ESTIMATE_MS,
+  FLP_PROGRAM_ID,
+  FLP_VAULTS,
+  flpVaultConfig,
+} from './model/config';
 export type { FlpVaultConfig } from './model/config';
 export { FlpHttpError } from './model/api';
 export type { FlpEnvelope } from './model/api';
