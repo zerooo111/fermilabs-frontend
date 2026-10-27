@@ -13,6 +13,7 @@ import { Check, ExternalLink } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { ConnectWallet } from '@/features/wallet-connect';
+import { hasEnoughSol, insufficientSolText, solFromLamports } from '@/shared/lib/solana/gas';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Segmented } from '@/shared/ui/segmented';
@@ -220,8 +221,13 @@ function Form({
   ) {
     amountProblem = true;
     problem = `The minimum is ${formatUnits(v.minWithdrawShares, decimals)} FLP, or all of it`;
-  } else if (wallet && wallet.lamports === 0n)
-    problem = 'You need a little SOL in this wallet for fees.';
+  } else if (wallet && !hasEnoughSol(wallet.lamports, { needsAccountCreation: false }))
+    // Blocks the button: too little SOL for the fee makes the wallet reject the
+    // transaction on simulation, which Phantom shows as an unsafe-dApp warning.
+    problem = insufficientSolText({
+      needsAccountCreation: false,
+      balanceSol: solFromLamports(wallet.lamports),
+    });
 
   const waiting = readOnly
     ? 'Read-only dev view'

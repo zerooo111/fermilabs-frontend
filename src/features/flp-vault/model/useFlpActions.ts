@@ -5,7 +5,8 @@
  * permissioned users"), has the wallet sign, then sends and confirms on the
  * FLP cluster, whatever cluster the rest of the app uses. Direct deposits and
  * instant withdrawals are simulated first to set their slippage bound; a
- * failed simulation stops before the wallet prompt.
+ * failed simulation, or a wallet with too little SOL for the fee, stops before
+ * the wallet prompt.
  */
 import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -21,6 +22,8 @@ import {
 import bs58 from 'bs58';
 import { toast } from 'sonner';
 
+import { assertEnoughSol } from '@/shared/lib/solana/gas';
+
 import {
   fitsLegacyPacket,
   NONE_EPOCH,
@@ -29,7 +32,7 @@ import {
   type FlpV4Client,
   type VaultAccount,
 } from '../sdk';
-import { confirmSignature, FlpTxFailed, getFlp, withSendLogs } from './chain';
+import { COMMITMENT, confirmSignature, FlpTxFailed, getFlp, withSendLogs } from './chain';
 import { flpExplorerTxUrl } from './config';
 import { describeFlpError, isWalletRejection } from './format';
 import { API_CACHE_MS, flpKeys } from './keys';
@@ -234,6 +237,13 @@ export function useFlpActions(vault: PublicKey) {
       const all = [ComputeBudgetProgram.setComputeUnitLimit({ units }), ...ixs];
       const size = fitsLegacyPacket(all, owner, false);
       if (!size.fits) throw new Error(`Transaction is ${size.bytes} bytes, over the 1,232 limit`);
+
+      // A wallet that can't pay the fee fails simulation inside the wallet, and
+      // Phantom shows that as an "this dApp may be unsafe" warning: never let
+      // the prompt open in that state.
+      assertEnoughSol(await connection.getBalance(owner, COMMITMENT), {
+        needsAccountCreation: false,
+      });
 
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
       setTxState(vaultKey, { phase: 'signing' });
