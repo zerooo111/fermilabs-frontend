@@ -22,6 +22,8 @@ import {
   type DepositContextResponse,
   type DepositPhase,
 } from '@/shared/hooks/useMangoMarginDeposit';
+import { useSolBalance } from '@/shared/hooks/useSolBalance';
+import { hasEnoughSol, InsufficientSolError, insufficientSolText } from '@/shared/lib/solana/gas';
 import { fetchTokenBalance } from '@/shared/lib/solana/helpers';
 import { API_ROUTES, config, solanaExplorerTxUrl } from '@/shared/config/constants';
 
@@ -39,6 +41,9 @@ export function DepositModal({ open, onClose }: Props) {
   const wallet = useAnchorWallet();
   const { connection } = useConnection();
   const { depositMargin } = useMangoMarginDeposit();
+  // The deposit needs SOL for fees (and account rent on the first one). Read it
+  // here so the button is disabled before the wallet is ever prompted.
+  const { lamports: solLamports, sol: solBalance, refetch: refetchSol } = useSolBalance();
 
   const [step, setStep] = useState<Step>('loading');
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
@@ -69,6 +74,8 @@ export function DepositModal({ open, onClose }: Props) {
     setPhase('preparing');
     setTxSignature(null);
 
+    void refetchSol();
+
     const load = async () => {
       try {
         const url = `${config.devnet.gatewayUrl}${API_ROUTES.deposit_context.replace('{pubkey}', publicKey.toBase58())}`;
@@ -94,7 +101,7 @@ export function DepositModal({ open, onClose }: Props) {
     };
 
     void load();
-  }, [open, publicKey, wallet, connection]);
+  }, [open, publicKey, wallet, connection, refetchSol]);
 
   const handleDeposit = async () => {
     const parsed = parseFloat(amount);
@@ -158,7 +165,11 @@ export function DepositModal({ open, onClose }: Props) {
   const parsedAmount = parseFloat(amount) || 0;
   const exceedsBalance = walletBalance !== null && parsedAmount > walletBalance;
   const exceedsMax = parsedAmount > MAX_DEPOSIT_UI;
-  const canDeposit = parsedAmount > 0 && !exceedsBalance && !exceedsMax;
+  // Unknown (a failed read) never blocks: the error path still catches it.
+  const needsAccountCreation = !mangoAccountExists;
+  const insufficientSol =
+    solLamports !== null && !hasEnoughSol(solLamports, { needsAccountCreation });
+  const canDeposit = parsedAmount > 0 && !exceedsBalance && !exceedsMax && !insufficientSol;
 
   return (
     <Dialog open={open} onOpenChange={v => !v && handleClose()}>
@@ -248,7 +259,17 @@ export function DepositModal({ open, onClose }: Props) {
                 </p>
               )}
 
-              {!mangoAccountExists && (
+              {insufficientSol && (
+                <div className="flex gap-2.5 border border-destructive/40 bg-destructive/5 px-3 py-2.5">
+                  <Info weight="duotone" className="size-3.5 shrink-0 mt-0.5 text-destructive" />
+                  <p className="text-xs text-destructive leading-relaxed">
+                    {insufficientSolText({ needsAccountCreation, balanceSol: solBalance ?? 0 })} Add
+                    SOL to your wallet, then try again.
+                  </p>
+                </div>
+              )}
+
+              {!mangoAccountExists && !insufficientSol && (
                 <div className="flex gap-2.5 border border-outline bg-card px-3 py-2.5">
                   <Info weight="duotone" className="size-3.5 shrink-0 mt-0.5 text-rock/50" />
                   <p className="text-xs text-rock/50 leading-relaxed">
@@ -494,6 +515,11 @@ type DepositErrorKind =
   | 'unknown';
 
 function friendlyDepositError(err: unknown): { kind: DepositErrorKind; message: string } {
+  // Thrown by the hook before signing; its message is already user-facing.
+  if (err instanceof InsufficientSolError) {
+    return { kind: 'insufficient_sol', message: err.message };
+  }
+
   const raw = err instanceof Error ? err.message : String(err ?? '');
   const code = (err as { code?: number | string } | null)?.code;
   const lower = raw.toLowerCase();

@@ -5,6 +5,7 @@ import bs58 from 'bs58';
 import { ComputeBudgetProgram, PublicKey, Transaction } from '@solana/web3.js';
 import { useCallback } from 'react';
 import { API_ROUTES, config } from '@/shared/config/constants';
+import { assertEnoughSol } from '@/shared/lib/solana/gas';
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   fetchTokenBalance,
@@ -183,6 +184,13 @@ export function useMangoMarginDeposit() {
       const owner = wallet.publicKey;
       const contextUrl = `${config.devnet.gatewayUrl}${API_ROUTES.deposit_context.replace('{pubkey}', owner.toBase58())}`;
       const { data: depositContext } = await axios.get<DepositContextResponse>(contextUrl);
+
+      // Before anything is built or signed: a wallet that can't pay the fee
+      // fails simulation inside the wallet, and Phantom shows that as an
+      // "this dApp may be unsafe" warning rather than a missing-fee error.
+      assertEnoughSol(await connection.getBalance(owner, config.devnet.commitment), {
+        needsAccountCreation: !depositContext.mango_account_exists,
+      });
 
       const [{ AnchorProvider, BN, Program }, { IDL: MANGO_V4_IDL }] = await Promise.all([
         import('@coral-xyz/anchor'),
@@ -411,6 +419,12 @@ export function useMangoMarginDeposit() {
       if (!depositContext.mango_account_exists) {
         throw new Error('no margin account found — deposit first to create one');
       }
+
+      // sendAndConfirm below signs: check the fee first, for the same reason as
+      // in depositMargin.
+      assertEnoughSol(await connection.getBalance(owner, config.devnet.commitment), {
+        needsAccountCreation: false,
+      });
 
       const [{ AnchorProvider, BN, Program }, { IDL: MANGO_V4_IDL }] = await Promise.all([
         import('@coral-xyz/anchor'),

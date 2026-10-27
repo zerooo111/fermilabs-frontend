@@ -26,6 +26,7 @@ import { serverConfigAtom } from '@/entities/server';
 import { useAccountMangoAccount } from '@/shared/hooks/useAccount';
 import { enrichSendError, pollForConfirmation } from '@/shared/hooks/useMangoMarginDeposit';
 import { fetchFermiAccountDelegates, getMangoClientAndGroup } from '@/shared/lib/mango-client';
+import { requiredLamports } from '@/shared/lib/solana/gas';
 import {
   createSessionKey,
   deleteSessionKey,
@@ -69,10 +70,6 @@ interface DelegateState {
 export class OneClickError extends Error {
   name = 'OneClickError';
 }
-
-// Fee plus wallet-added priority fees; generous so the check never blocks a
-// wallet that could actually pay.
-const FEE_BUFFER_LAMPORTS = 100_000;
 
 const solAmount = (lamports: number) => `${(lamports / 1e9).toFixed(4)} SOL`;
 
@@ -278,10 +275,13 @@ export function useOneClick() {
     const previous = key;
     // Before a fresh key replaces the stored one, so a failed check keeps it.
     const lamports = await fundingLamports(connection);
+    // The session key's rent on top of the shared fee headroom, checked before
+    // the wallet prompt (shared/lib/solana/gas.ts).
+    const needed = lamports + requiredLamports({ needsAccountCreation: false });
     const balance = await connection.getBalance(publicKey, config.devnet.commitment);
-    if (balance < lamports + FEE_BUFFER_LAMPORTS) {
+    if (balance < needed) {
       throw new OneClickError(
-        `One-click trading needs about ${solAmount(lamports + FEE_BUFFER_LAMPORTS)} in your wallet (returned when you turn it off).`
+        `One-click trading needs about ${solAmount(needed)} in your wallet (returned when you turn it off).`
       );
     }
     // A fresh key every time, so an old key (e.g. from a shared machine) is never reused.
