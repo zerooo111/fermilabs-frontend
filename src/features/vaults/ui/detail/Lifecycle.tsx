@@ -1,5 +1,6 @@
 /**
- * Where the vault is in its life: pre-deposits → main pool → closed. Each
+ * Where the vault is in its life: pre-deposits → main pool (→ unwinding or
+ * closed, shown only once the vault gets there). Each
  * phase says what a deposit does in it, so "pre-deposit" isn't a mystery word.
  * Graduation isn't a launch event of its own: pre-deposits move into the main
  * pool, so it's the main pool's start, with the announced date as an estimate.
@@ -31,7 +32,7 @@ type Props = {
 
 function steps({ vault: v, graduationEstimateMs, whitelistTrading }: Props): Step[] {
   const epoch = duration(v.epoch_duration_s);
-  return [
+  const list: Step[] = [
     {
       key: 'pre-deposit',
       title: 'Pre-deposits open',
@@ -54,7 +55,10 @@ function steps({ vault: v, graduationEstimateMs, whitelistTrading }: Props): Ste
       at: v.live_started_at_ms,
       estimate: graduationEstimateMs,
     },
-    {
+  ];
+  // The end of a vault's life isn't a step ahead of it: shown only once it's here.
+  if (v.mode === 'unwind' || v.mode === 'closed') {
+    list.push({
       key: 'closed',
       title: v.mode === 'unwind' ? 'Unwinding' : 'Closed',
       body:
@@ -62,25 +66,27 @@ function steps({ vault: v, graduationEstimateMs, whitelistTrading }: Props): Ste
           ? 'Positions are being wound down. New requests wait; open deposits can be refunded.'
           : 'Holders redeem shares at the final price.',
       at: null,
-    },
-  ];
+    });
+  }
+  return list;
 }
 
 const ORDER: Record<Vault['mode'], number> = { 'pre-deposit': 0, live: 1, unwind: 2, closed: 2 };
 
 export function Lifecycle(props: Props) {
   const current = ORDER[props.vault.mode];
+  const list = steps(props);
   return (
     <div className="flex flex-col gap-3 border-t border-outline px-4 py-3.5">
       <Eyebrow>Lifecycle</Eyebrow>
       <ol className="flex flex-col">
-        {steps(props).map((s, i) => {
+        {list.map((s, i) => {
           const done = i < current;
           const now = i === current;
           return (
             <li key={s.key} className="relative flex gap-3 pb-3 last:pb-0">
               {/* Rail between steps: solid once passed, dotted ahead. */}
-              {i < 2 && (
+              {i < list.length - 1 && (
                 <span
                   aria-hidden
                   className={cn(
