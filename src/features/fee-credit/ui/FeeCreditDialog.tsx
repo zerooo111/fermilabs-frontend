@@ -24,7 +24,12 @@ import { NumberInput } from '@/shared/ui/number-input';
 import { createFeeClient, depositFeeCreditWithWallet } from '@/shared/api/fees';
 import { config } from '@/shared/config/constants';
 import { useAccountMangoAccount } from '@/shared/hooks/useAccount';
-import { formatSol, requiredLamports, solFromLamports } from '@/shared/lib/solana/gas';
+import {
+  formatSol,
+  readLamports,
+  requiredLamports,
+  solFromLamports,
+} from '@/shared/lib/solana/gas';
 import { useFeeStatus, formatSolFromLamports, FEE_STATUS_QUERY_KEY } from '../model/useFeeStatus';
 import { feeCreditDialogOpenAtom } from '../model/feeCreditAtoms';
 
@@ -60,18 +65,22 @@ export function FeeCreditDialog() {
     }
     const lamports = Math.floor(sol * LAMPORTS_PER_SOL);
 
+    // Disabled before the balance read, so a double click can't open two prompts.
+    setIsDepositing(true);
+
     // The top-up plus the fee to send it. Without this the wallet prompt opens
     // on a transaction that can't pay, which Phantom flags as an unsafe dApp.
+    // A failed read (null) skips the check rather than blocking.
     const needed = lamports + requiredLamports({ needsAccountCreation: false });
-    const balance = await connection.getBalance(publicKey, config.devnet.commitment);
-    if (balance < needed) {
+    const balance = await readLamports(connection, publicKey, config.devnet.commitment);
+    if (balance !== null && balance < needed) {
       toast.error(
         `This top-up needs about ${formatSol(solFromLamports(needed))} SOL with network fees. You have ${formatSol(solFromLamports(balance))} SOL.`
       );
+      setIsDepositing(false);
       return;
     }
 
-    setIsDepositing(true);
     const promise = depositFeeCreditWithWallet({
       connection,
       wallet: anchorWallet,

@@ -5,7 +5,7 @@ import bs58 from 'bs58';
 import { ComputeBudgetProgram, PublicKey, Transaction } from '@solana/web3.js';
 import { useCallback } from 'react';
 import { API_ROUTES, config } from '@/shared/config/constants';
-import { assertEnoughSol } from '@/shared/lib/solana/gas';
+import { assertEnoughSol, readLamports } from '@/shared/lib/solana/gas';
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   fetchTokenBalance,
@@ -188,7 +188,7 @@ export function useMangoMarginDeposit() {
       // Before anything is built or signed: a wallet that can't pay the fee
       // fails simulation inside the wallet, and Phantom shows that as an
       // "this dApp may be unsafe" warning rather than a missing-fee error.
-      assertEnoughSol(await connection.getBalance(owner, config.devnet.commitment), {
+      assertEnoughSol(await readLamports(connection, owner, config.devnet.commitment), {
         needsAccountCreation: !depositContext.mango_account_exists,
       });
 
@@ -422,7 +422,7 @@ export function useMangoMarginDeposit() {
 
       // sendAndConfirm below signs: check the fee first, for the same reason as
       // in depositMargin.
-      assertEnoughSol(await connection.getBalance(owner, config.devnet.commitment), {
+      assertEnoughSol(await readLamports(connection, owner, config.devnet.commitment), {
         needsAccountCreation: false,
       });
 

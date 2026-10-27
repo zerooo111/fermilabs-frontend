@@ -4,6 +4,7 @@ import {
   assertEnoughSol,
   hasEnoughSol,
   InsufficientSolError,
+  readLamports,
   requiredLamports,
   SOL_FEE_BUFFER,
   SOL_FOR_NEW_ACCOUNT,
@@ -38,5 +39,14 @@ describe('gas', () => {
         'You need about 0.04 SOL in your wallet to create your margin account and cover network fees. You have 0 SOL.'
       );
     }
+  });
+
+  it('lets an unknown balance through, and reads a failed RPC as unknown', async () => {
+    expect(() => assertEnoughSol(null, newAccount)).not.toThrow();
+    const failing = { getBalance: () => Promise.reject(new Error('429')) };
+    const owner = {} as Parameters<typeof readLamports>[1];
+    await expect(readLamports(failing as never, owner)).resolves.toBeNull();
+    const ok = { getBalance: () => Promise.resolve(5) };
+    await expect(readLamports(ok as never, owner)).resolves.toBe(5);
   });
 });

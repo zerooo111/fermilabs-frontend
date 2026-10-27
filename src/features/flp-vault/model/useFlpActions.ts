@@ -22,7 +22,7 @@ import {
 import bs58 from 'bs58';
 import { toast } from 'sonner';
 
-import { assertEnoughSol } from '@/shared/lib/solana/gas';
+import { assertEnoughSol, readLamports } from '@/shared/lib/solana/gas';
 
 import {
   fitsLegacyPacket,
@@ -241,7 +241,7 @@ export function useFlpActions(vault: PublicKey) {
       // A wallet that can't pay the fee fails simulation inside the wallet, and
       // Phantom shows that as an "this dApp may be unsafe" warning: never let
       // the prompt open in that state.
-      assertEnoughSol(await connection.getBalance(owner, COMMITMENT), {
+      assertEnoughSol(await readLamports(connection, owner, COMMITMENT), {
         needsAccountCreation: false,
       });
 

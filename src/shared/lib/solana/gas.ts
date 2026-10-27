@@ -7,7 +7,12 @@
  * first and throws `InsufficientSolError` instead of opening the popup, and the
  * forms show the same wording up front so the user never gets that far.
  */
-import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import {
+  LAMPORTS_PER_SOL,
+  type Commitment,
+  type Connection,
+  type PublicKey,
+} from '@solana/web3.js';
 
 /** Rent for the margin account a first deposit creates, plus its fees. */
 export const SOL_FOR_NEW_ACCOUNT = 0.04;
@@ -59,8 +64,24 @@ export class InsufficientSolError extends Error {
   }
 }
 
-/** Stops a signing path that the wallet can't pay for. */
-export function assertEnoughSol(balanceLamports: number | bigint, need: GasNeed): void {
-  if (hasEnoughSol(balanceLamports, need)) return;
+/**
+ * The wallet's lamports, or null when the read fails. An RPC hiccup must never
+ * block a wallet that could pay, so a null balance skips the check.
+ */
+export async function readLamports(
+  connection: Connection,
+  owner: PublicKey,
+  commitment?: Commitment
+): Promise<number | null> {
+  try {
+    return await connection.getBalance(owner, commitment);
+  } catch {
+    return null;
+  }
+}
+
+/** Stops a signing path that the wallet can't pay for; an unknown balance passes. */
+export function assertEnoughSol(balanceLamports: number | bigint | null, need: GasNeed): void {
+  if (balanceLamports === null || hasEnoughSol(balanceLamports, need)) return;
   throw new InsufficientSolError({ ...need, balanceSol: solFromLamports(balanceLamports) });
 }
