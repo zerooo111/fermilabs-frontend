@@ -17,7 +17,6 @@ import { TabStrip, TabStripItem } from '@/shared/ui/tab-strip';
 import type {
   VaultDay,
   VaultHistoryPoint,
-  VaultMode,
   VaultNetwork,
   VaultReference,
 } from '../../api/vaultsClient';
@@ -159,26 +158,16 @@ function formatDay(day: string): string {
   });
 }
 
-export function PerformancePanel({
-  network,
-  address,
-  mode,
-}: {
-  network: VaultNetwork;
-  address: string;
-  mode?: VaultMode;
-}) {
+export function PerformancePanel({ network, address }: { network: VaultNetwork; address: string }) {
   const { window, setWindow } = useWindowParam();
-  // Before launch the share price is pinned at 1, so every return series is
-  // flat zero: chart deposits (TVL) only.
-  const preLaunch = mode === 'pre-deposit';
   const history = useVaultHistory(network, address, window);
   const daily = useVaultDaily(network, address, window);
   const days = daily.data?.days;
   const hasDaily = !!days?.length;
   // Daily P&L replaces the per-period returns where the vault has daily rows.
-  const shown = METRICS.filter(x => (hasDaily ? x.value !== 'periods' : x.value !== 'daily'));
-  const metrics = preLaunch ? shown.filter(x => x.value === 'tvl' || x.value === 'daily') : shown;
+  // Every tab in pre-deposit too: whitelisted capital already trades, so the
+  // share price moves (the gateway prices it at the current NAV).
+  const metrics = METRICS.filter(x => (hasDaily ? x.value !== 'periods' : x.value !== 'daily'));
   const [picked, setMetric] = useState<Metric>('return');
   const metric = metrics.some(x => x.value === picked) ? picked : metrics[0].value;
   const m = METRICS.find(x => x.value === metric)!;

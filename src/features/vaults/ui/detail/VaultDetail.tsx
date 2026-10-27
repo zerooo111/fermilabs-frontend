@@ -69,9 +69,9 @@ export function VaultDetail({ network, address }: { network: VaultNetwork; addre
       <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         {v ? <OverviewPanel vault={v} /> : <Bone className="min-h-[22rem] w-full" />}
         {flp ? (
-          <FlpChart config={flp} network={network} address={address} mode={v?.mode} />
+          <FlpChart config={flp} network={network} address={address} />
         ) : (
-          <PerformancePanel network={network} address={address} mode={v?.mode} />
+          <PerformancePanel network={network} address={address} />
         )}
       </div>
       {flp ? <FlpHoldings vault={flp.address} /> : v && <ActivityPanel vault={v} />}
@@ -88,17 +88,15 @@ function FlpChart({
   config,
   network,
   address,
-  mode,
 }: {
   config: FlpVaultConfig;
   network: VaultNetwork;
   address: string;
-  mode?: Vault['mode'];
 }) {
   const { window } = useWindowParam();
   const history = useVaultHistory(network, address, window);
   const points = history.data?.points.length ?? 0;
-  if (points >= 2) return <PerformancePanel network={network} address={address} mode={mode} />;
+  if (points >= 2) return <PerformancePanel network={network} address={address} />;
   return <FlpPerformance vault={config.address} />;
 }
 
