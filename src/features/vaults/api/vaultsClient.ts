@@ -10,7 +10,7 @@
  * carries its `network`, and devnet and mainnet are never mixed in a total.
  */
 import axios from 'axios';
-import { API_ROUTES_V2 } from '@/shared/config/constants';
+import { API_ROUTES_V2, config } from '@/shared/config/constants';
 
 export type VaultNetwork = 'devnet' | 'mainnet';
 export type VaultWindow = '7d' | '30d' | '90d' | 'all';
@@ -228,11 +228,12 @@ export interface VaultActivity {
 
 // The gateway syncs vaults from chain into its database (fermi-api-gateway
 // docs/vaults.md) and keeps their history: one point per epoch close, NAV
-// event and 15-minute sync. Vault pages only exist where `showUnlaunched` is
-// on, so the staging gateway is the default. FLP vaults read their live
+// event and 15-minute sync. It's the build's own gateway (staging builds set
+// VITE_GATEWAY_URL to /staging); VITE_VAULTS_GATEWAY_URL points just the
+// vault pages elsewhere, e.g. local dev at staging. FLP vaults read their live
 // state from the FLP data API (model/flpSource.ts), passed through the same
 // gateway at /v2/flp; the synced copy adds history, APR and sparklines.
-const GATEWAY = () => import.meta.env.VITE_VAULTS_GATEWAY_URL || 'https://v1.fermi.trade/staging';
+const GATEWAY = () => import.meta.env.VITE_VAULTS_GATEWAY_URL || config.devnet.gatewayUrl;
 
 const vaultPath = (network: VaultNetwork, address: string) =>
   API_ROUTES_V2.vault

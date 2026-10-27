@@ -22,10 +22,10 @@ export const FLP_RPC_URL: string = config.devnet.rpcUrl;
 /**
  * The FLP-only mainnet reader (flp-mainnet.34-116-238-207.sslip.io), through
  * the gateway's `/v2/flp/mainnet` pass-through (same paths, status and body).
- * Same gateway as the vault history (vaultsClient.ts): staging by default,
- * since vault pages only exist where `showUnlaunched` is on.
+ * Same gateway as the vault history (vaultsClient.ts): the build's own, unless
+ * VITE_VAULTS_GATEWAY_URL overrides it for the vault pages.
  */
-export const FLP_API_URL = `${import.meta.env.VITE_VAULTS_GATEWAY_URL || 'https://v1.fermi.trade/staging'}/v2/flp/${FLP_CLUSTER}`;
+export const FLP_API_URL = `${import.meta.env.VITE_VAULTS_GATEWAY_URL || config.devnet.gatewayUrl}/v2/flp/${FLP_CLUSTER}`;
 /** Reader profile a data API response must carry for this deployment. */
 export const FLP_API_PROFILE = RC6_MAINNET_RELEASE.integrationProfile;
 
