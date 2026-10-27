@@ -95,8 +95,10 @@ function FlpChart({
 }) {
   const { window } = useWindowParam();
   const history = useVaultHistory(network, address, window);
-  const points = history.data?.points.length ?? 0;
-  if (points >= 2) return <PerformancePanel network={network} address={address} />;
+  // The chart (with its own skeleton) while history loads; the stats panel
+  // only once the gateway has answered with too little history to draw.
+  if (history.isPending || (history.data?.points.length ?? 0) >= 2)
+    return <PerformancePanel network={network} address={address} />;
   return <FlpPerformance vault={config.address} />;
 }
 

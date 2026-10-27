@@ -17,6 +17,7 @@ import {
   formatUnits,
   PRICE_DECIMALS,
 } from '../model/format';
+import { FLP_GRADUATION_ESTIMATE_LABEL } from '../model/config';
 import { useFlpVault } from '../model/useFlpVault';
 import { useNow } from '../model/useNow';
 import { upnlRisk, vaultView } from '../model/view';
@@ -42,9 +43,13 @@ export function FlpPerformance({ vault }: { vault: PublicKey }) {
 
       <dl className="grid grid-cols-2 divide-outline border-b border-outline sm:grid-cols-4 sm:divide-x max-sm:[&>*:nth-child(odd)]:border-r max-sm:[&>*:nth-child(n+3)]:border-t max-sm:[&>*]:border-outline">
         <Stat
-          label={live ? 'Next settlement' : 'Launch'}
+          label={live ? 'Next settlement' : 'Graduation'}
           value={
-            live ? (left > 0 ? `in ${formatDuration(left)}` : 'Settling') : 'Date set by Fermi'
+            live
+              ? left > 0
+                ? `in ${formatDuration(left)}`
+                : 'Settling'
+              : `Est. ${FLP_GRADUATION_ESTIMATE_LABEL}`
           }
           small={!live}
         />

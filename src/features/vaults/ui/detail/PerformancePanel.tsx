@@ -163,7 +163,9 @@ export function PerformancePanel({ network, address }: { network: VaultNetwork; 
   const history = useVaultHistory(network, address, window);
   const daily = useVaultDaily(network, address, window);
   const days = daily.data?.days;
-  const hasDaily = !!days?.length;
+  // Until the daily rows arrive, assume they will (FLP vaults have them): the
+  // tab row and the selected tab then stay put instead of reshuffling on load.
+  const hasDaily = daily.isPending || !!days?.length;
   // Daily P&L replaces the per-period returns where the vault has daily rows.
   // Every tab in pre-deposit too: whitelisted capital already trades, so the
   // share price moves (the gateway prices it at the current NAV).
