@@ -197,43 +197,60 @@ export type ProcessedOrderbook = {
   lastUpdated: Date;
 };
 
+/** Snaps a price down to the multiple of `tickRaw` at or below it (bids). */
+const floorToTick = (price: number, tickRaw: number): number => price - (price % tickRaw);
+
+/** Snaps a price up to the multiple of `tickRaw` at or above it (asks). */
+const ceilToTick = (price: number, tickRaw: number): number => {
+  const remainder = price % tickRaw;
+  return remainder === 0 ? price : price + (tickRaw - remainder);
+};
+
 /**
  * Converts one side of the book (best price first) into display levels.
- * `minLevelQuantity` is a size resolution: consecutive levels are merged,
- * walking away from the best price, until a row holds at least that much.
- * A merged row sits at its worst (last) price, the price you'd reach filling it.
+ * `tickRaw` is a price grouping: every quote is snapped onto a multiple of it
+ * — down for bids, up for asks, so a row is never labelled with a better price
+ * than the orders inside it — and quotes landing on the same multiple are
+ * merged into one row with their sizes summed. A tick of 0 or 1 raw unit keeps
+ * one row per price level. Notional always uses each order's own price, so
+ * Total stays accurate regardless of grouping.
  * In cumulative mode per-level sizes come from differencing the server's
- * running totals, and the displayed quantity stays the cumulative value.
+ * running totals; the displayed quantity is re-accumulated so it stays the
+ * total resting through the end of that row's bucket.
  */
 const buildSide = (
   orders: OrderbookItem[],
   sortFn: (a: number, b: number) => number,
+  roundToTick: (price: number, tickRaw: number) => number,
   depthMode: OrderbookDepthMode,
   maxRows: number,
-  minLevelQuantity: number
+  tickRaw: number
 ): AggregatedOrder[] => {
   const sorted = [...orders].sort((a, b) => sortFn(a.price, b.price));
   const cumulative = depthMode === 'cumulative';
+  const grouped = tickRaw > 1;
 
   let prevCumulative = 0;
+  let runningQuantity = 0;
   let runningNotional = new BN(0);
+  let bucketPrice: number | null = null;
   let bucketQuantity = 0;
   let bucketNotional = new BN(0);
   const levels: AggregatedOrder[] = [];
 
-  const flush = (price: number, cumulativeQuantity: number) => {
+  const flush = (price: number) => {
     levels.push({
       price,
-      quantity: cumulative ? cumulativeQuantity : bucketQuantity,
+      quantity: cumulative ? runningQuantity : bucketQuantity,
       levelQuantity: bucketQuantity,
       total: cumulative ? runningNotional : bucketNotional,
       depth: 0,
     });
+    bucketPrice = null;
     bucketQuantity = 0;
     bucketNotional = new BN(0);
   };
 
-  let last: OrderbookItem | null = null;
   for (const order of sorted) {
     const levelQuantity = cumulative
       ? Math.max(0, order.quantity - prevCumulative)
@@ -241,20 +258,24 @@ const buildSide = (
     prevCumulative = order.quantity;
     if (levelQuantity === 0) continue;
 
-    const levelNotional = new BN(order.price).mul(new BN(levelQuantity));
-    runningNotional = runningNotional.add(levelNotional);
-    bucketQuantity += levelQuantity;
-    bucketNotional = bucketNotional.add(levelNotional);
-    last = order;
-
-    if (bucketQuantity >= minLevelQuantity) {
-      flush(order.price, order.quantity);
+    // Sorted away from the best price, so bucket prices move monotonically:
+    // a different bucket price means the previous one is complete.
+    const price = grouped ? roundToTick(order.price, tickRaw) : order.price;
+    if (bucketPrice !== null && price !== bucketPrice) {
+      flush(bucketPrice);
       if (levels.length >= maxRows) return levels;
     }
+
+    const levelNotional = new BN(order.price).mul(new BN(levelQuantity));
+    runningQuantity += levelQuantity;
+    runningNotional = runningNotional.add(levelNotional);
+    bucketPrice = price;
+    bucketQuantity += levelQuantity;
+    bucketNotional = bucketNotional.add(levelNotional);
   }
 
   // The book ran out mid-bucket: show the remainder rather than hide it.
-  if (bucketQuantity > 0 && last) flush(last.price, last.quantity);
+  if (bucketPrice !== null) flush(bucketPrice);
 
   return levels;
 };
@@ -264,14 +285,14 @@ const buildSide = (
  *
  * @param orderbook The order book; `orderbook.depthMode` says how its quantities are expressed.
  * @param maxRows The maximum number of rows to display per side (bids/asks).
- * @param quantityThreshold Size resolution per row (normalized). Use 0 to show every level.
- * @param baseDecimals Base token decimals, used to normalize the threshold.
+ * @param priceGroup Price grouping tick (normalized quote units). Use 0 to show every level.
+ * @param quoteDecimals Quote token decimals, used to scale the tick to raw units.
  */
 export const processOrderbook = (
   orderbook: Orderbook | null,
   maxRows: number = DEFAULT_ORDERBOOK_ROWS,
-  quantityThreshold: number = 0,
-  baseDecimals: number = 0
+  priceGroup: number = 0,
+  quoteDecimals: number = 0
 ): ProcessedOrderbook => {
   if (!orderbook || !orderbook.asks || !orderbook.bids) {
     return {
@@ -282,20 +303,22 @@ export const processOrderbook = (
     };
   }
 
-  const minLevelQuantity = quantityThreshold * Math.pow(10, baseDecimals);
+  const tickRaw = Math.round(priceGroup * Math.pow(10, quoteDecimals));
   const bids = buildSide(
     orderbook.bids,
     (a, b) => b - a,
+    floorToTick,
     orderbook.depthMode,
     maxRows,
-    minLevelQuantity
+    tickRaw
   );
   const asks = buildSide(
     orderbook.asks,
     (a, b) => a - b,
+    ceilToTick,
     orderbook.depthMode,
     maxRows,
-    minLevelQuantity
+    tickRaw
   );
 
   const maxQuantity = Math.max(0, ...bids.map(o => o.quantity), ...asks.map(o => o.quantity));
@@ -303,9 +326,16 @@ export const processOrderbook = (
     order.depth = maxQuantity > 0 ? (order.quantity / maxQuantity) * 100 : 0;
   }
 
-  const bestAsk = asks[0]?.price;
-  const bestBid = bids[0]?.price;
-  const spread = bestAsk !== undefined && bestBid !== undefined ? bestAsk - bestBid : 0;
+  // Taken from the raw book, not the built rows: a grouped row is labelled with
+  // its bucket, which is not the real best price.
+  const best = (items: OrderbookItem[], better: (a: number, b: number) => boolean) =>
+    items.reduce<number | null>(
+      (acc, item) => (acc === null || better(item.price, acc) ? item.price : acc),
+      null
+    );
+  const bestAsk = best(orderbook.asks, (a, b) => a < b);
+  const bestBid = best(orderbook.bids, (a, b) => a > b);
+  const spread = bestAsk !== null && bestBid !== null ? bestAsk - bestBid : 0;
 
   return {
     buys: [...bids, ...Array(Math.max(0, maxRows - bids.length)).fill(null)],

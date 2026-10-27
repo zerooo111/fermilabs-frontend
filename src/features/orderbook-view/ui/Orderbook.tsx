@@ -11,11 +11,11 @@ import { orderbookConnectionStateAtom } from '@/shared/api/sse-atoms';
 import { useSelectedMarket } from '@/entities/market';
 import { useOrderbook } from '@/entities/orderbook';
 import { processOrderbook, formatPrice } from '../lib/processOrderbook';
-import { quantityThresholdAtom } from '../model/orderbook';
+import { priceGroupAtom } from '../model/orderbook';
 
 import { OrderbookRow } from './OrderbookRow';
 import { DepthModeSelector } from './DepthModeSelector';
-import { QuantityThresholdSelector } from './QuantityThresholdSelector';
+import { PriceGroupSelector } from './PriceGroupSelector';
 import { Trades } from './Trades';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { ConnectionIndicator } from '@/shared/ui/ConnectionIndicator';
@@ -25,7 +25,7 @@ import { ConnectionIndicator } from '@/shared/ui/ConnectionIndicator';
 const TAB_TRIGGER_CLASS = 'flex-1';
 
 const ROW_HEIGHT_PX = 22;
-const TOOLBAR_PX = 28; // depth-mode / size-filter bar (h-7, border inside)
+const TOOLBAR_PX = 28; // depth-mode / price-grouping bar (h-7, border inside)
 const HEADER_PX = 28; // column headers row (h-7, border inside)
 const SPREAD_PX = 28; // spread bar between asks and bids (h-7, borders inside)
 const MIN_ROWS_PER_SIDE = 5;
@@ -40,7 +40,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
   const { orderbook } = useOrderbook();
   const { publicKey } = useWallet();
   const connectionState = useAtomValue(orderbookConnectionStateAtom);
-  const quantityThreshold = useAtomValue(quantityThresholdAtom);
+  const priceGroup = useAtomValue(priceGroupAtom);
   const lastProcessedRef = useRef<ReturnType<typeof processOrderbook> | null>(null);
   const showTradesTab = !!publicKey;
   const isLoading =
@@ -87,8 +87,8 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
     const processed = processOrderbook(
       orderbook,
       orderbookRows,
-      quantityThreshold,
-      selectedMarket?.baseDecimals
+      priceGroup,
+      selectedMarket?.quoteDecimals
     );
 
     // Only update if the data has actually changed
@@ -97,7 +97,7 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
     }
 
     return lastProcessedRef.current;
-  }, [orderbook, orderbookRows, quantityThreshold, selectedMarket?.baseDecimals]);
+  }, [orderbook, orderbookRows, priceGroup, selectedMarket?.quoteDecimals]);
 
   const ROW_HEIGHT_CLASS = 'h-[22px]';
 
@@ -144,10 +144,10 @@ export function Orderbook({ standalone = false }: { standalone?: boolean } = {})
 
   const orderbookContent = (
     <>
-      {/* Depth mode + min size */}
+      {/* Depth mode + price grouping */}
       <div className="flex items-center justify-between h-7 px-1 border-b border-outline shrink-0 text-rock/70">
         <DepthModeSelector />
-        <QuantityThresholdSelector />
+        <PriceGroupSelector />
       </div>
 
       {/* Column Headers */}
