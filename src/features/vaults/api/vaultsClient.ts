@@ -245,7 +245,7 @@ async function get<T>(path: string, params: object, signal?: AbortSignal): Promi
 }
 
 export function fetchVaults(
-  params: { window: VaultWindow; wallet?: string; limit?: number },
+  params: { window: VaultWindow; wallet?: string; network?: VaultNetwork; limit?: number },
   signal?: AbortSignal
 ) {
   return get<VaultList>(API_ROUTES_V2.vaults, { limit: 200, ...params }, signal);

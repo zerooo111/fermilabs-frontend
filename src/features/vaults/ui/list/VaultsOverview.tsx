@@ -1,57 +1,42 @@
 /**
- * The vaults listing: headline totals, search + network + window controls,
- * then protocol and community vaults in separate tables. Everything is read
- * from the gateway, which syncs the vaults from chain; devnet and mainnet
- * stay apart in every total.
+ * The vaults listing: headline totals, search + window controls, then
+ * protocol and community vaults in separate tables. Mainnet only; the
+ * gateway syncs the vaults from chain.
  */
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import axios from 'axios';
 
-import { cn } from '@/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { DitherRidge } from '@/shared/ui/dither-ridge';
 import { Segmented } from '@/shared/ui/segmented';
 
-import type { Vault, VaultNetwork } from '../../api/vaultsClient';
+import type { Vault } from '../../api/vaultsClient';
 import { timeAgo, tone, usd, usdCompact, usdSigned } from '../../model/format';
 import { useVaults, useWalletAddress } from '../../model/useVaults';
-import { NetworkBadge } from '../VaultBadges';
 import { useWindowParam, WINDOWS } from '../../model/params';
 import { DASH, Eyebrow, Tile } from '../primitives';
 import { VaultsTable } from './VaultsTable';
-
-type NetworkFilter = 'all' | VaultNetwork;
 
 export function VaultsOverview() {
   const { window, setWindow } = useWindowParam();
   const wallet = useWalletAddress();
   const list = useVaults(window);
   const [query, setQuery] = useState('');
-  const [network, setNetwork] = useState<NetworkFilter>('all');
 
   const all = useMemo(() => list.data?.vaults ?? [], [list.data]);
-  const counts = useMemo(
-    () => ({
-      all: all.length,
-      mainnet: all.filter(v => v.network === 'mainnet').length,
-      devnet: all.filter(v => v.network === 'devnet').length,
-    }),
-    [all]
-  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return all.filter(
       v =>
-        (network === 'all' || v.network === network) &&
-        (!q ||
-          v.name.toLowerCase().includes(q) ||
-          v.address.toLowerCase().includes(q) ||
-          v.leader.toLowerCase().includes(q))
+        !q ||
+        v.name.toLowerCase().includes(q) ||
+        v.address.toLowerCase().includes(q) ||
+        v.leader.toLowerCase().includes(q)
     );
-  }, [all, network, query]);
+  }, [all, query]);
 
   const protocol = filtered.filter(v => v.kind === 'protocol');
   const community = filtered.filter(v => v.kind === 'community');
@@ -91,22 +76,6 @@ export function VaultsOverview() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Segmented<NetworkFilter>
-            aria-label="Network"
-            mono
-            value={network}
-            onChange={setNetwork}
-            className="w-max"
-            options={(['all', 'mainnet', 'devnet'] as const).map(n => ({
-              value: n,
-              label: (
-                <span className="flex items-center gap-1.5">
-                  {n === 'all' ? 'All' : n === 'mainnet' ? 'Mainnet' : 'Devnet'}
-                  <span className="text-rock/60 tabular-nums">{counts[n]}</span>
-                </span>
-              ),
-            }))}
-          />
           <Segmented
             aria-label="Return window"
             mono
@@ -128,8 +97,8 @@ export function VaultsOverview() {
             window={window}
             loading={loading}
             empty={
-              query || network !== 'all'
-                ? { title: 'No protocol vaults match', body: 'Try another search or network.' }
+              query
+                ? { title: 'No protocol vaults match', body: 'Try another search.' }
                 : {
                     title: 'No protocol vaults yet',
                     body: 'FLP will appear here once it’s deployed.',
@@ -142,8 +111,8 @@ export function VaultsOverview() {
             window={window}
             loading={loading}
             empty={
-              query || network !== 'all'
-                ? { title: 'No community vaults match', body: 'Try another search or network.' }
+              query
+                ? { title: 'No community vaults match', body: 'Try another search.' }
                 : {
                     title: 'No community vaults yet',
                     body: 'Vaults run by traders will be listed here, with their track record.',
@@ -177,7 +146,7 @@ function Totals({
   wallet,
 }: {
   vaults: Vault[];
-  totals?: { network: VaultNetwork; tvl: number | null; vaults: number }[];
+  totals?: { tvl: number | null; vaults: number }[];
   loading: boolean;
   wallet?: string;
 }) {
@@ -189,33 +158,20 @@ function Totals({
     ? null
     : mine.reduce((a, v) => a + (v.user?.all_time_pnl ?? 0), 0);
   const claimable = mine.reduce((a, v) => a + (v.user?.claimable ?? 0), 0);
-  // One TVL tile per network present, mainnet first; never a cross-network sum.
-  const tvl = [...(totals ?? [])].sort((a, b) => a.network.localeCompare(b.network)).reverse();
+  const tvl = totals?.[0];
 
   return (
-    <div
-      className={cn(
-        'grid grid-cols-2 divide-outline border border-outline max-sm:[&>*:nth-child(n+3)]:border-t max-sm:[&>*:nth-child(odd)]:border-r max-sm:[&>*]:border-outline sm:divide-x',
-        tvl.length > 1 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'
-      )}
-    >
+    <div className="grid grid-cols-2 divide-outline border border-outline max-sm:[&>*:nth-child(n+3)]:border-t max-sm:[&>*:nth-child(odd)]:border-r max-sm:[&>*]:border-outline sm:grid-cols-3 sm:divide-x">
       {loading ? (
         <Tile label="Total value locked" value="" loading />
-      ) : tvl.length === 0 ? (
+      ) : !tvl ? (
         <Tile label="Total value locked" value={DASH} />
       ) : (
-        tvl.map(t => (
-          <Tile
-            key={t.network}
-            label={
-              <>
-                TVL <NetworkBadge network={t.network} />
-              </>
-            }
-            value={<span title={usd(t.tvl)}>{usdCompact(t.tvl)}</span>}
-            hint={`${t.vaults} ${t.vaults === 1 ? 'vault' : 'vaults'}`}
-          />
-        ))
+        <Tile
+          label="Total value locked"
+          value={<span title={usd(tvl.tvl)}>{usdCompact(tvl.tvl)}</span>}
+          hint={`${tvl.vaults} ${tvl.vaults === 1 ? 'vault' : 'vaults'}`}
+        />
       )}
       <Tile
         label="Your balance"

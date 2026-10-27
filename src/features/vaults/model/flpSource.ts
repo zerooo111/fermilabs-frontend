@@ -43,7 +43,7 @@ export function flpToVault(
   const sd = v.shareDecimals;
   const l = d.lifecycle;
   const tvl = v.tvl === null ? null : ui(v.tvl, qd);
-  const sharePrice = Number(v.price) / 10 ** PRICE_DECIMALS;
+  const sharePrice = Number(v.markPrice) / 10 ** PRICE_DECIMALS;
   // With the deposits waiting in escrow, as TVL has them (vaultView.netIn).
   const netDeposits = ui(v.netIn, qd);
   const createdMs = Number(d.flows.inceptionTs) * 1000;

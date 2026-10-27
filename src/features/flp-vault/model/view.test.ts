@@ -91,6 +91,26 @@ describe('vaultView', () => {
     expect(vaultView(fixtures.live()).priceValued).toBe(true);
   });
 
+  it('marks a trading pre-deposit share at the current NAV, not the stale program NAV', () => {
+    // Staging, 27 Oct: 842.47 NAV over 817.17 shares; the program's last NAV (821.11) is hours old.
+    const v = vaultView(
+      edit(fixtures.mainnet(), e => {
+        const d = e.data;
+        d.shares.pricingSupply = '817174093';
+        d.valuation.lastProgramNav.slot = '462055598';
+        d.valuation.lastProgramNav.navMid = '821105326';
+        d.valuation.currentNav.value = {
+          raw: (842_467_000n << 48n).toString(),
+          fractionalBits: 48,
+        };
+      })
+    );
+    expect(v.mode).toBe('pre-deposit');
+    expect(v.price / 1000n).toBe(1004n);
+    expect(v.markPrice / 1000n).toBe(1030n);
+    expect(vaultView(fixtures.live()).markPrice).toBe(vaultView(fixtures.live()).price);
+  });
+
   it('counts a queued deposit in TVL but not as profit', () => {
     const before = vaultView(fixtures.live());
     const queued = vaultView(

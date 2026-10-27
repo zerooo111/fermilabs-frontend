@@ -44,12 +44,12 @@ export function useWalletAddress(): string | undefined {
   return useWallet().publicKey?.toBase58() ?? devOwner() ?? undefined;
 }
 
-/** Every vault: the FLP vaults from the data API, plus whatever the gateway lists. */
+/** Every mainnet vault: the FLP vaults from the data API, plus whatever the gateway lists. */
 export function useVaults(window: VaultWindow) {
   const wallet = useWalletAddress();
   const gateway = useQuery({
     queryKey: [...vaultsKey, 'list', window, wallet ?? null],
-    queryFn: ({ signal }) => fetchVaults({ window, wallet }, signal),
+    queryFn: ({ signal }) => fetchVaults({ window, wallet, network: 'mainnet' }, signal),
     refetchInterval: REFRESH_MS,
     // Keep the last list while a new window loads, but never across wallets.
     placeholderData: (prev, prevQuery) =>
@@ -90,16 +90,16 @@ export function useVaults(window: VaultWindow) {
       ...[...synced.values()].filter(v => !mine.has(`${v.network}:${v.address}`)),
     ];
     if (!vaults.length && (flp.pending || gateway.isPending)) return undefined;
-    const totals = (['mainnet', 'devnet'] as const).flatMap(network => {
-      const of = vaults.filter(v => v.network === network);
-      if (!of.length) return [];
-      // A total over a vault that can't be valued is itself unknown.
-      const tvl = of.some(v => v.tvl === null) ? null : of.reduce((a, v) => a + (v.tvl ?? 0), 0);
-      return [{ network, vaults: of.length, tvl }];
-    });
+    // A total over a vault that can't be valued is itself unknown.
+    const tvl = vaults.some(v => v.tvl === null)
+      ? null
+      : vaults.reduce((a, v) => a + (v.tvl ?? 0), 0);
+    const totals = vaults.length
+      ? [{ network: 'mainnet' as const, vaults: vaults.length, tvl }]
+      : [];
     return {
       window,
-      network: 'all',
+      network: 'mainnet',
       updated_at_ms: Math.max(gateway.data?.updated_at_ms ?? 0, ...own.map(v => v.synced_at_ms)),
       totals,
       total: vaults.length,

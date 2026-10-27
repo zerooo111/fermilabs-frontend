@@ -57,6 +57,17 @@ export function vaultView(env: FlpEnvelope) {
     /** Immediate entry prices at NAV_high, immediate exit at NAV_low (same evidence). */
     priceHigh: valued ? sharePrice(BigInt(last.navHigh), supply) : unvalued,
     priceLow: valued ? sharePrice(BigInt(last.navLow), supply) : unvalued,
+    /**
+     * What a share is worth now, on the NAV TVL uses. Before launch no close
+     * has priced a share, but the seed and approved deposits already trade,
+     * so it's the current NAV over the supply; once live, the last close.
+     */
+    markPrice:
+      d.lifecycle.mode === 'pre-deposit' && nav !== null
+        ? sharePrice(nav, supply)
+        : valued
+          ? sharePrice(BigInt(last.navMid), supply)
+          : unvalued,
     /** False before the program's first valuation: the prices are indicative. */
     priceValued: valued,
     priceSlot: last.slot,
