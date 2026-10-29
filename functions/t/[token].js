@@ -3,13 +3,13 @@
  * Like /s/<token> for points, it returns a page that only carries the card
  * as its link preview, then sends visitors on to the app.
  *
- * The token comes from the gateway (POST /v2/pnl/share), which seals the
- * position into it; the gateway also draws the card at
- * /v2/pnl/share/<token>.png. Staging pages use the staging gateway.
+ * The token is a card id from the gateway (POST /v2/pnl/share), which keeps
+ * the card and draws it at /v2/pnl/share/<id>.png. Staging pages use the
+ * staging gateway.
  */
 
-// base64url of the sealed position (nonce + wallet + prices + name + tag): ~165 characters.
-const TOKEN = /^[A-Za-z0-9_-]{40,260}$/;
+// The card's id: 8 bytes of base64url.
+const TOKEN = /^[A-Za-z0-9_-]{11}$/;
 
 const gateway = host =>
   host === 'staging.fermi.trade' ? 'https://v1.fermi.trade/staging' : 'https://v1.fermi.trade';

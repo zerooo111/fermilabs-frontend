@@ -1,7 +1,8 @@
 /**
  * REST client for /v2/pnl/share: share cards for an open position. The page
- * sends the numbers it shows and the gateway seals them into the token, so
- * the card shows the trade as it was shared. It's a social card, not proof.
+ * sends the numbers it shows and the gateway keeps them under a short card
+ * id, so the card shows the trade as it was shared. It's a social card, not
+ * proof.
  */
 import axios from 'axios';
 import { API_ROUTES_V2, config } from '@/shared/config/constants';
@@ -59,7 +60,7 @@ export async function createPnlShare(
   return res.data;
 }
 
-/** A PnL card as a PNG; every number on it comes from the token. */
+/** A PnL card as a PNG, drawn from what was shared under its id. */
 export function pnlCardUrl(token: string): string {
   return `${baseUrl()}${API_ROUTES_V2.pnl_share_card.replace('{token}', token)}`;
 }
