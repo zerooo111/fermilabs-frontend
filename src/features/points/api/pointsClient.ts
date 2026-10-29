@@ -5,7 +5,7 @@
  */
 import axios from 'axios';
 import { API_ROUTES_V2, config } from '@/shared/config/constants';
-import type { ShareCardStyle } from '@/shared/ui/share-cards';
+import type { ShareCardStyle } from '@/shared/lib/share-cards';
 
 export type PointsCategory =
   | 'flp_vault'

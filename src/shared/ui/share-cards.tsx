@@ -5,31 +5,29 @@
  * Pages Function under `functions/`). Copy and Download are there for anyone
  * who'd rather attach the image itself. Points and PnL cards both use it.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Check, Copy, Download } from 'lucide-react';
 import { XLogo } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils';
+import {
+  CAN_COPY_IMAGE,
+  CARDS,
+  copyImage,
+  download,
+  useShareCards,
+  type LoadShareTokens,
+  type ShareCardStyle,
+} from '@/shared/lib/share-cards';
 
-/** The card styles, in the order the gateway draws them. */
-export type ShareCardStyle = 'abduction' | 'specimen' | 'homeworld' | 'print';
-
-const CARDS: { id: ShareCardStyle; name: string }[] = [
-  { id: 'abduction', name: 'Abduction' },
-  { id: 'specimen', name: 'Specimen' },
-  { id: 'homeworld', name: 'Homeworld' },
-  { id: 'print', name: 'Field print' },
-];
+export type { ShareCardStyle };
 
 /** A checkbox under the card, like "Hide my address". */
 export type ShareOption = { id: string; label: string };
 
 export type ShareCardsProps = {
   /** A token per style for the options picked; refetched when they change. */
-  load: (
-    options: Record<string, boolean>,
-    signal: AbortSignal
-  ) => Promise<Record<ShareCardStyle, string>>;
+  load: LoadShareTokens;
   cardUrl: (token: string) => string;
   /** The link the post carries: the card's own link, or a fallback without one. */
   linkUrl: (token: string | null) => string;
@@ -42,84 +40,6 @@ export type ShareCardsProps = {
   /** Called with `x` or `copy` and the picked card and options, for analytics. */
   onShare?: (via: 'x' | 'copy', card: ShareCardStyle, options: Record<string, boolean>) => void;
 };
-
-type Card = { token: string; blob: Blob; url: string };
-type Cards = Record<ShareCardStyle, Card>;
-
-const revoke = (cards: Cards | null) =>
-  Object.values(cards ?? {}).forEach(c => URL.revokeObjectURL(c.url));
-
-/**
- * Every card for the options picked, with its share token, fetched as PNGs so
- * they can be copied and downloaded. The last set stays up while the next loads.
- */
-function useCards(
-  load: ShareCardsProps['load'],
-  cardUrl: ShareCardsProps['cardUrl'],
-  options: Record<string, boolean>
-): { cards: Cards | null; failed: boolean } {
-  const [cards, setCards] = useState<Cards | null>(null);
-  const [failed, setFailed] = useState(false);
-  const latest = useRef(cards);
-  latest.current = cards;
-  // Callers pass fresh functions each render; only the options refetch.
-  const fns = useRef({ load, cardUrl });
-  fns.current = { load, cardUrl };
-  const key = JSON.stringify(options);
-
-  useEffect(() => {
-    const abort = new AbortController();
-    const { signal } = abort;
-    setFailed(false);
-    fns.current
-      .load(JSON.parse(key) as Record<string, boolean>, signal)
-      .then(tokens =>
-        Promise.all(
-          CARDS.map(async c => {
-            const res = await fetch(fns.current.cardUrl(tokens[c.id]), { signal });
-            if (!res.ok) throw new Error(`card ${c.id}: ${res.status}`);
-            const blob = await res.blob();
-            return [c.id, { token: tokens[c.id], blob, url: URL.createObjectURL(blob) }] as const;
-          })
-        )
-      )
-      .then(entries => {
-        const next = Object.fromEntries(entries) as Cards;
-        if (signal.aborted) return revoke(next);
-        revoke(latest.current);
-        setCards(next);
-      })
-      .catch(error => {
-        if (signal.aborted) return;
-        console.error('Failed to load share cards:', error);
-        setFailed(true);
-      });
-    return () => abort.abort();
-  }, [key]);
-
-  useEffect(() => () => revoke(latest.current), []);
-  return { cards, failed };
-}
-
-async function copyImage(blob: Blob): Promise<boolean> {
-  if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) return false;
-  try {
-    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function download(url: string, name: string) {
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-}
-
-/** Some browsers (older Firefox, in-app webviews) can't put an image on the clipboard. */
-const CAN_COPY_IMAGE = typeof ClipboardItem !== 'undefined' && !!navigator.clipboard?.write;
 
 const CTA =
   'inline-flex items-center justify-center gap-2 bg-amber-200 px-5 py-2.5 font-medium text-dark-forest transition-colors duration-150 hover:bg-amber-100 disabled:opacity-50';
@@ -145,7 +65,7 @@ export function ShareCards({
   const [options, setOptions] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(optionList.map(o => [o.id, false]))
   );
-  const { cards, failed } = useCards(load, cardUrl, options);
+  const { cards, failed } = useShareCards(load, cardUrl, options);
   const card = cards?.[cardId];
   const [copied, setCopied] = useState(false);
 

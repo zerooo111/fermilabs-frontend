@@ -6,7 +6,7 @@
  */
 import axios from 'axios';
 import { API_ROUTES_V2, config } from '@/shared/config/constants';
-import type { ShareCardStyle } from '@/shared/ui/share-cards';
+import type { ShareCardStyle } from '@/shared/lib/share-cards';
 
 /** A position to share, in UI units, as the positions table shows it. */
 export type ShareablePosition = {
