@@ -1,15 +1,26 @@
 /**
- * REST client for /v2/pnl/share: share cards for an open position. Making a
- * link has the gateway read the position and the market's mark price and
- * seal them into the token, so the card shows the trade as it was shared.
+ * REST client for /v2/pnl/share: share cards for an open position. The page
+ * sends the numbers it shows and the gateway seals them into the token, so
+ * the card shows the trade as it was shared. It's a social card, not proof.
  */
 import axios from 'axios';
 import { API_ROUTES_V2, config } from '@/shared/config/constants';
 import type { ShareCardStyle } from '@/shared/ui/share-cards';
 
+/** A position to share, in UI units, as the positions table shows it. */
+export type ShareablePosition = {
+  /** The market index, for analytics. */
+  market: number;
+  marketName: string;
+  side: 'long' | 'short';
+  entry: number;
+  mark: number;
+  /** Base units, unsigned. */
+  size: number;
+};
+
 /** The position as the cards show it, in UI units. */
 export type SharedPosition = {
-  market: number;
   market_name: string;
   side: 'long' | 'short';
   entry: number;
@@ -27,13 +38,22 @@ const baseUrl = (): string => config.devnet.gatewayUrl;
 
 export async function createPnlShare(
   wallet: string,
-  market: number,
+  position: ShareablePosition,
   options: { hideAddress: boolean; hidePnl: boolean },
   signal?: AbortSignal
 ): Promise<PnlShare> {
   const res = await axios.post<PnlShare>(
     `${baseUrl()}${API_ROUTES_V2.pnl_share}`,
-    { wallet, market, hide_address: options.hideAddress, hide_pnl: options.hidePnl },
+    {
+      wallet,
+      market_name: position.marketName,
+      side: position.side,
+      entry: position.entry,
+      mark: position.mark,
+      size: position.size,
+      hide_address: options.hideAddress,
+      hide_pnl: options.hidePnl,
+    },
     { signal }
   );
   return res.data;

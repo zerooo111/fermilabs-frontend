@@ -26,7 +26,7 @@ import {
 import { legTriggerPrice, toNative } from '@/features/trigger-orders/lib/display';
 import { PositionTriggerEditor } from './PositionTriggerEditor';
 import { EmptyState } from '@/shared/ui/empty-state';
-import { PnlShareDialog } from '@/features/pnl-share';
+import { PnlShareDialog, type ShareablePosition } from '@/features/pnl-share';
 
 type CloseDraft = {
   positionKey: string;
@@ -60,11 +60,7 @@ export function MyPositions() {
   const sltpAvailable = useTriggerOrdersEnabled();
   const [closingPositionKey, setClosingPositionKey] = useState<string | null>(null);
   const [closeDraft, setCloseDraft] = useState<CloseDraft | null>(null);
-  const [sharing, setSharing] = useState<{
-    market: number;
-    marketName: string;
-    side: 'long' | 'short';
-  } | null>(null);
+  const [sharing, setSharing] = useState<ShareablePosition | null>(null);
 
   // Create a map of market_id to market data for quick lookup
   const marketsMap = useMemo(() => {
@@ -291,6 +287,10 @@ export function MyPositions() {
                     market: marketIndex,
                     marketName: position.market_name,
                     side: positionSide,
+                    // UI units, as this row shows them
+                    entry: averageEntryPrice / 10 ** quoteDecimals,
+                    mark: markPrice / 10 ** quoteDecimals,
+                    size: Math.abs(basePosition) / 10 ** baseDecimals,
                   })
                 }
               >
@@ -546,7 +546,7 @@ export function MyPositions() {
           open
           onOpenChange={open => !open && setSharing(null)}
           wallet={publicKey.toBase58()}
-          {...sharing}
+          position={sharing}
         />
       )}
     </>

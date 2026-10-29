@@ -14,7 +14,12 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog';
 import { ShareCards, type ShareOption } from '@/shared/ui/share-cards';
-import { createPnlShare, pnlCardUrl, type SharedPosition } from '../api/pnlShareClient';
+import {
+  createPnlShare,
+  pnlCardUrl,
+  type ShareablePosition,
+  type SharedPosition,
+} from '../api/pnlShareClient';
 
 const OPTIONS: ShareOption[] = [
   { id: 'hide_pnl', label: 'Hide PnL amount' },
@@ -24,30 +29,21 @@ const OPTIONS: ShareOption[] = [
 const pct = (v: number) => `${Math.abs(v).toFixed(2)}%`;
 
 /** The post's text, from the position as the gateway sealed it. */
-function postText(p: SharedPosition | null, marketName: string, side: 'long' | 'short'): string {
-  const trade = `my ${p?.market_name ?? marketName} ${p?.side ?? side}`;
-  if (!p) return `Trading ${trade} on @FermiTrade`;
-  return `${p.return_pct >= 0 ? 'Up' : 'Down'} ${pct(p.return_pct)} on ${trade} on @FermiTrade`;
+function postText(shared: SharedPosition | null, position: ShareablePosition): string {
+  const trade = `my ${position.marketName} ${position.side}`;
+  if (!shared) return `Trading ${trade} on @FermiTrade`;
+  return `${shared.return_pct >= 0 ? 'Up' : 'Down'} ${pct(shared.return_pct)} on ${trade} on @FermiTrade`;
 }
 
-function PnlShareCards({
-  wallet,
-  market,
-  marketName,
-  side,
-}: {
-  wallet: string;
-  market: number;
-  marketName: string;
-  side: 'long' | 'short';
-}) {
+function PnlShareCards({ wallet, position }: { wallet: string; position: ShareablePosition }) {
   const [shared, setShared] = useState<SharedPosition | null>(null);
+  const { market, marketName, side } = position;
   return (
     <ShareCards
       load={async (o, signal) => {
         const share = await createPnlShare(
           wallet,
-          market,
+          position,
           { hideAddress: o.hide_address, hidePnl: o.hide_pnl },
           signal
         );
@@ -56,7 +52,7 @@ function PnlShareCards({
       }}
       cardUrl={pnlCardUrl}
       linkUrl={token => `${window.location.origin}${token ? `/t/${token}` : '/perps'}`}
-      text={postText(shared, marketName, side)}
+      text={postText(shared, position)}
       options={OPTIONS}
       fileName={`fermi-${marketName.toLowerCase()}-${side}.png`}
       alt={`Your ${marketName} ${side} PnL card`}
@@ -78,31 +74,28 @@ export function PnlShareDialog({
   open,
   onOpenChange,
   wallet,
-  market,
-  marketName,
-  side,
+  position,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   wallet: string;
-  market: number;
-  marketName: string;
-  side: 'long' | 'short';
+  /** Taken when Share was clicked, so the cards don't move with the mark. */
+  position: ShareablePosition;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-3xl gap-5 overflow-y-auto p-5 md:p-6">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl font-light">
-            Share your {marketName} {side}
+            Share your {position.marketName} {position.side}
           </DialogTitle>
           <DialogDescription className="text-sm">
             Pick a card. It shows the position as it is right now, and the link never shows your
             address.
           </DialogDescription>
         </DialogHeader>
-        {/* Mounted only while open, so the cards load (and snapshot the position) when asked. */}
-        <PnlShareCards wallet={wallet} market={market} marketName={marketName} side={side} />
+        {/* Mounted only while open, so the cards load when they're needed. */}
+        <PnlShareCards wallet={wallet} position={position} />
       </DialogContent>
     </Dialog>
   );
