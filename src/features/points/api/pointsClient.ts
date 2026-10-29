@@ -5,6 +5,7 @@
  */
 import axios from 'axios';
 import { API_ROUTES_V2, config } from '@/shared/config/constants';
+import type { ShareCardStyle } from '@/shared/lib/share-cards';
 
 export type PointsCategory =
   | 'flp_vault'
@@ -218,8 +219,7 @@ export function claimProofUrl(id: number): string {
   return `${baseUrl()}${API_ROUTES_V2.points_claim_proof.replace('{id}', String(id))}`;
 }
 
-/** The share card styles, in the order the share dialog shows them. */
-export type ShareCardStyle = 'abduction' | 'specimen' | 'homeworld' | 'print';
+export type { ShareCardStyle };
 
 /**
  * A share token per card style. Each one seals the wallet, the style and

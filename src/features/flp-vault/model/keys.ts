@@ -12,6 +12,8 @@ export const flpKeys = {
   wallet: (vault: string, owner: string) => ['flp', vault, 'wallet', owner] as const,
   walletAll: (vault: string) => ['flp', vault, 'wallet'] as const,
   orders: (vault: string, market: number) => ['flp', vault, 'orders', market] as const,
+  /** The vault's Fermi account's fills, from the gateway. */
+  trades: (vault: string) => ['flp', vault, 'trades'] as const,
   /** Mutation key of the vault's user transactions: one in flight at a time. */
   tx: (vault: string) => ['flp', vault, 'tx'] as const,
 };

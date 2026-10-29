@@ -11,7 +11,7 @@ import { Badge } from '@/shared/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { NumberInput } from '@/shared/ui/number-input';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Share2 } from 'lucide-react';
 import { useSelectedMarket, marketsAtom } from '@/entities/market/model';
 import { usePositions } from '@/shared/hooks/usePositions';
 import { usePerps } from '@/features/order-placement/lib/usePerps';
@@ -26,6 +26,7 @@ import {
 import { legTriggerPrice, toNative } from '@/features/trigger-orders/lib/display';
 import { PositionTriggerEditor } from './PositionTriggerEditor';
 import { EmptyState } from '@/shared/ui/empty-state';
+import { PnlShareDialog, type ShareablePosition } from '@/features/pnl-share';
 
 type CloseDraft = {
   positionKey: string;
@@ -59,6 +60,7 @@ export function MyPositions() {
   const sltpAvailable = useTriggerOrdersEnabled();
   const [closingPositionKey, setClosingPositionKey] = useState<string | null>(null);
   const [closeDraft, setCloseDraft] = useState<CloseDraft | null>(null);
+  const [sharing, setSharing] = useState<ShareablePosition | null>(null);
 
   // Create a map of market_id to market data for quick lookup
   const marketsMap = useMemo(() => {
@@ -275,6 +277,25 @@ export function MyPositions() {
           </TableCell>
           <TableCell className="text-center">
             <div className="flex justify-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label={`Share ${position.market_name} ${positionSide}`}
+                title="Share"
+                onClick={() =>
+                  setSharing({
+                    market: marketIndex,
+                    marketName: position.market_name,
+                    side: positionSide,
+                    // UI units, as this row shows them
+                    entry: averageEntryPrice / 10 ** quoteDecimals,
+                    mark: markPrice / 10 ** quoteDecimals,
+                    size: Math.abs(basePosition) / 10 ** baseDecimals,
+                  })
+                }
+              >
+                <Share2 className="size-3.5" aria-hidden />
+              </Button>
               {sltpAvailable && legMarket && (
                 <PositionTriggerEditor
                   marketIndex={marketIndex}
@@ -503,21 +524,31 @@ export function MyPositions() {
   };
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="text-center">Side</TableHead>
-          <TableHead>Market</TableHead>
-          <TableHead className="text-center">Size</TableHead>
-          <TableHead className="text-center">Entry Price</TableHead>
-          <TableHead className="text-center">Current Price</TableHead>
-          <TableHead className="text-center">PnL</TableHead>
-          <TableHead className="text-center">Stop Loss</TableHead>
-          <TableHead className="text-center">Take Profit</TableHead>
-          <TableHead className="text-center">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>{renderTableContent()}</TableBody>
-    </Table>
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="text-center">Side</TableHead>
+            <TableHead>Market</TableHead>
+            <TableHead className="text-center">Size</TableHead>
+            <TableHead className="text-center">Entry Price</TableHead>
+            <TableHead className="text-center">Current Price</TableHead>
+            <TableHead className="text-center">PnL</TableHead>
+            <TableHead className="text-center">Stop Loss</TableHead>
+            <TableHead className="text-center">Take Profit</TableHead>
+            <TableHead className="text-center">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>{renderTableContent()}</TableBody>
+      </Table>
+      {publicKey && sharing && (
+        <PnlShareDialog
+          open
+          onOpenChange={open => !open && setSharing(null)}
+          wallet={publicKey.toBase58()}
+          position={sharing}
+        />
+      )}
+    </>
   );
 }

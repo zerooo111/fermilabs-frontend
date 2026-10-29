@@ -12,6 +12,7 @@ import { useEffect, useMemo } from 'react';
 import { queryOptions, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
+import { fetchWalletTrades } from '@/shared/api/walletTrades';
 
 import { deriveDepositor } from '../sdk';
 import { fetchOrders, fetchVaultData, FlpHttpError, type FlpEnvelope, type FlpOrder } from './api';
@@ -148,6 +149,24 @@ export function useFlpLiveUpdates(vault: PublicKey) {
 }
 
 /** Price and size of the vault's resting orders, for markets where it has any. */
+/** Fills listed at once; the vault trades rarely enough that this is its history. */
+const TRADES_LIMIT = 200;
+
+/**
+ * The vault's completed trades: the gateway's fills for its Fermi account,
+ * newest first. The trade log only names takers, so fills of the vault's
+ * resting orders aren't listed.
+ */
+export function useFlpTrades(vault: PublicKey, envelope: FlpEnvelope | undefined) {
+  const account = envelope?.data.addresses.fermiAccount;
+  return useQuery({
+    queryKey: flpKeys.trades(vault.toBase58()),
+    queryFn: ({ signal }) => fetchWalletTrades(account!, { limit: TRADES_LIMIT, signal }),
+    enabled: !!account,
+    refetchInterval: 30_000,
+  });
+}
+
 export function useFlpOrders(vault: PublicKey, envelope: FlpEnvelope | undefined) {
   const vaultKey = vault.toBase58();
   const authority = useMemo(() => getFlp().client.authority(vault).toBase58(), [vault]);

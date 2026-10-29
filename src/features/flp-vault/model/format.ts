@@ -83,6 +83,16 @@ export function formatPeriod(seconds: number): string {
   return `${seconds} s`;
 }
 
+/** "Oct 29, 06:20", local time, from unix ms. */
+export function formatTradeTime(ms: number): string {
+  return new Date(ms).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function formatTime(unixSeconds: number): string {
   return new Date(unixSeconds * 1000).toLocaleTimeString('en-US', {
     hour: '2-digit',
