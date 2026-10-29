@@ -1,8 +1,8 @@
 /**
  * What the vault holds on Fermi, as tabbed tables under the vault page:
- * perp positions with their unsettled PnL, resting orders, and collateral
- * with account health. All indicative: none of it is a deposit or
- * withdrawal price.
+ * perp positions with their unsettled PnL, resting orders, collateral with
+ * account health, and the trades it has made. All indicative: none of it is
+ * a deposit or withdrawal price.
  */
 import { useState, type ReactNode } from 'react';
 import type { PublicKey } from '@solana/web3.js';
@@ -12,13 +12,21 @@ import { Eyebrow } from '@/shared/ui/panel';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { TabStrip, TabStripItem } from '@/shared/ui/tab-strip';
 
+import type { SSETrade } from '@/shared/api/sse-types';
+
 import type { FlpEnvelope, FlpPosition } from '../model/api';
-import { FLP_MARKET_BASE_DECIMALS } from '../model/config';
-import { fixedScaled, fixedToNative, formatSigned, formatUnits } from '../model/format';
-import { useFlpOrders, useFlpVault } from '../model/useFlpVault';
+import { FLP_MARKET_BASE_DECIMALS, flpExplorerTxUrl } from '../model/config';
+import {
+  fixedScaled,
+  fixedToNative,
+  formatSigned,
+  formatTradeTime,
+  formatUnits,
+} from '../model/format';
+import { useFlpOrders, useFlpTrades, useFlpVault } from '../model/useFlpVault';
 import { portfolioOf, portfolioUnavailable } from '../model/view';
 
-type Tab = 'positions' | 'orders' | 'balances';
+type Tab = 'positions' | 'orders' | 'balances' | 'trades';
 const TH = 'h-9 px-2 sm:px-4';
 const TD = 'px-2 py-2.5 sm:px-4 font-mono text-xs tabular-nums';
 
@@ -27,6 +35,7 @@ export function Holdings({ vault }: { vault: PublicKey }) {
   const [tab, setTab] = useState<Tab>('positions');
   const portfolio = envelope ? portfolioOf(envelope) : null;
   const { orders, loading } = useFlpOrders(vault, envelope);
+  const trades = useFlpTrades(vault, envelope);
   const open = portfolio?.positions.filter(p => p.baseLots !== '0') ?? [];
 
   return (
@@ -53,6 +62,10 @@ export function Holdings({ vault }: { vault: PublicKey }) {
           <TabStripItem value="balances" onSelect={() => setTab('balances')} className="h-9">
             Balances
           </TabStripItem>
+          <TabStripItem value="trades" onSelect={() => setTab('trades')} className="h-9 gap-2">
+            Trades
+            <Count n={trades.data?.length} />
+          </TabStripItem>
         </TabStrip>
         <span className="hidden font-mono text-[10px] uppercase tracking-[0.12em] text-rock/60 sm:block">
           Indicative
@@ -67,6 +80,8 @@ export function Holdings({ vault }: { vault: PublicKey }) {
         <Positions positions={portfolio.positions} qd={envelope.data.units.quoteDecimals} />
       ) : tab === 'orders' ? (
         <Orders envelope={envelope} orders={orders} />
+      ) : tab === 'trades' ? (
+        <Trades envelope={envelope} query={trades} />
       ) : (
         <Balances envelope={envelope} />
       )}
@@ -189,6 +204,98 @@ function Orders({
         })}
       </TableBody>
     </Table>
+  );
+}
+
+/** Trades shown before "Show more". */
+const TRADES_PAGE = 25;
+
+/** Two decimals always, so prices and values line up down the column. */
+const cents = (value: bigint, decimals: number) => {
+  const [whole, frac = ''] = formatUnits(value, decimals, 2).split('.');
+  return `${whole}.${frac.padEnd(2, '0')}`;
+};
+
+function Trades({
+  envelope,
+  query,
+}: {
+  envelope: FlpEnvelope;
+  query: ReturnType<typeof useFlpTrades>;
+}) {
+  const [shown, setShown] = useState(TRADES_PAGE);
+  if (query.isPending) return <Message>Loading…</Message>;
+  if (query.isError) return <Message>Couldn’t load the vault’s trades.</Message>;
+  if (!query.data.length) return <Message>No trades yet.</Message>;
+  const qd = envelope.data.units.quoteDecimals;
+  const portfolio = portfolioOf(envelope);
+  const markets = new Map(portfolio?.positions.map(p => [p.marketIndex, p]) ?? []);
+  const rest = query.data.length - shown;
+  return (
+    <>
+      <Table className="min-w-[44rem]">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <Head left>Time</Head>
+            <Head left>Market</Head>
+            <Head>Side</Head>
+            <Head>Price</Head>
+            <Head>Size</Head>
+            <Head>Value</Head>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {query.data.slice(0, shown).map((t: SSETrade) => {
+            const index = Number(t.market);
+            const p = markets.get(index);
+            const bd = FLP_MARKET_BASE_DECIMALS[index] ?? qd;
+            const baseLot = BigInt(p?.baseLotSize ?? '1');
+            const quoteLot = BigInt(p?.quoteLotSize ?? '1');
+            // As for orders: price_lots × quote lot / base lot, per native base.
+            const price = (BigInt(t.price_lots) * quoteLot * 10n ** BigInt(bd)) / baseLot;
+            const buy = t.wallet_side ? t.wallet_side === 'buy' : t.taker_side === 'bid';
+            // Trade ids start with the transaction's signature.
+            const signature = t.trade_id.split(':')[0];
+            return (
+              <TableRow key={t.trade_id}>
+                <TableCell className={cn(TD, 'text-rock/70')}>
+                  <a
+                    href={flpExplorerTxUrl(signature)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline-offset-2 hover:text-rock hover:underline"
+                  >
+                    {formatTradeTime(t.ts_ms)}
+                  </a>
+                </TableCell>
+                <TableCell className={cn(TD, 'font-sans text-sm text-rock')}>
+                  {p?.name ?? `Market ${index}`}
+                </TableCell>
+                <TableCell className={cn(TD, 'text-right', buy ? 'text-success' : 'text-danger')}>
+                  {buy ? 'Buy' : 'Sell'}
+                </TableCell>
+                <TableCell className={cn(TD, 'text-right')}>{cents(price, qd)}</TableCell>
+                <TableCell className={cn(TD, 'text-right')}>
+                  {formatUnits(BigInt(t.base_lots) * baseLot, bd, 4)}
+                </TableCell>
+                <TableCell className={cn(TD, 'text-right')}>
+                  {cents(BigInt(t.quote_lots) * quoteLot, qd)} USDC
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+      {rest > 0 && (
+        <button
+          type="button"
+          onClick={() => setShown(n => n + TRADES_PAGE)}
+          className="border-t border-outline py-2.5 text-xs text-rock/70 transition-colors hover:bg-rock/5 hover:text-rock"
+        >
+          Show {Math.min(rest, TRADES_PAGE)} more
+        </button>
+      )}
+    </>
   );
 }
 
