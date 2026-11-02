@@ -253,7 +253,9 @@ function Trades({
             const quoteLot = BigInt(p?.quoteLotSize ?? '1');
             // As for orders: price_lots × quote lot / base lot, per native base.
             const price = (BigInt(t.price_lots) * quoteLot * 10n ** BigInt(bd)) / baseLot;
-            const buy = t.wallet_side ? t.wallet_side === 'buy' : t.taker_side === 'bid';
+            // `wallet_side` is the only direction the server resolves for the vault. No
+            // fallback: `taker_side` is the aggressor's side, not the vault's on a maker fill.
+            const side = t.wallet_side === 'buy' ? 'buy' : t.wallet_side === 'sell' ? 'sell' : null;
             // Trade ids start with the transaction's signature.
             const signature = t.trade_id.split(':')[0];
             return (
@@ -271,8 +273,21 @@ function Trades({
                 <TableCell className={cn(TD, 'font-sans text-sm text-rock')}>
                   {p?.name ?? `Market ${index}`}
                 </TableCell>
-                <TableCell className={cn(TD, 'text-right', buy ? 'text-success' : 'text-danger')}>
-                  {buy ? 'Buy' : 'Sell'}
+                <TableCell
+                  className={cn(
+                    TD,
+                    'text-right',
+                    side === 'buy' && 'text-success',
+                    side === 'sell' && 'text-danger'
+                  )}
+                >
+                  {side === 'buy' ? (
+                    'Buy'
+                  ) : side === 'sell' ? (
+                    'Sell'
+                  ) : (
+                    <span title="Direction not reported for this fill">—</span>
+                  )}
                 </TableCell>
                 <TableCell className={cn(TD, 'text-right')}>{cents(price, qd)}</TableCell>
                 <TableCell className={cn(TD, 'text-right')}>
