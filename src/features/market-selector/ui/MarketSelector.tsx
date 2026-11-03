@@ -1,7 +1,7 @@
 /**
  * Market selector
  * Trigger in the chart header that opens a searchable market table with
- * live stats, favourites and keyboard control (⌘K open, ↑↓ move, Enter pick,
+ * live stats, favourites and keyboard control (⌘/ open, ↑↓ move, Enter pick,
  * ⌘S favourite, Esc close).
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -116,10 +116,11 @@ function MarketSelectorBase({
   // Reset the cursor whenever the visible list changes shape
   useEffect(() => setActiveIndex(0), [query, tab, sort]);
 
-  // ⌘K / Ctrl+K toggles the selector from anywhere on the page
+  // ⌘/ toggles the selector from anywhere on the page. ⌘K belongs to the
+  // quick-order palette (features/quick-order), which opens over the terminal.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key === '/') {
         e.preventDefault();
         setOpen(o => !o);
       }
@@ -329,7 +330,7 @@ function MarketSelectorBase({
           {/* Shortcuts */}
           <div className="hidden items-center gap-4 border-t border-outline px-3 py-2 text-[11px] text-rock/50 md:flex">
             <span className="flex items-center gap-1.5">
-              <Kbd>⌘K</Kbd> Open
+              <Kbd>⌘/</Kbd> Open
             </span>
             <span className="flex items-center gap-1.5">
               <Kbd>↑↓</Kbd> Navigate
