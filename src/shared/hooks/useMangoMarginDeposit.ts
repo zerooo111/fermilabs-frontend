@@ -2,10 +2,17 @@ import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import bs58 from 'bs58';
-import { ComputeBudgetProgram, PublicKey, Transaction } from '@solana/web3.js';
+import {
+  ComputeBudgetProgram,
+  PublicKey,
+  Transaction,
+  VersionedTransaction,
+} from '@solana/web3.js';
 import { useCallback } from 'react';
+import posthog from 'posthog-js';
 import { API_ROUTES, config } from '@/shared/config/constants';
 import { assertEnoughSol, readLamports } from '@/shared/lib/solana/gas';
+import { decodeMangoError, insufficientFundsMessage } from '@/shared/lib/solana/mangoErrors';
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   fetchTokenBalance,
@@ -36,6 +43,73 @@ export class DepositConfirmationTimeoutError extends Error {
     this.name = 'DepositConfirmationTimeoutError';
     this.txSignature = txSignature;
   }
+}
+
+/**
+ * Thrown when our own simulation named a reason the deposit can't land, before
+ * the wallet was ever asked to sign. The message is user-facing and nothing was
+ * signed or sent, so there is no signature to show.
+ */
+export class DepositSimulationError extends Error {
+  name = 'DepositSimulationError';
+  /** The Mango error code, when the failure was a program error. */
+  readonly errorCode: number | null;
+  readonly simulationError: unknown;
+  readonly logs: string[];
+
+  constructor(message: string, detail: { code?: number | null; error: unknown; logs: string[] }) {
+    super(message);
+    this.errorCode = detail.code ?? null;
+    this.simulationError = detail.error;
+    this.logs = detail.logs;
+  }
+}
+
+/**
+ * Simulates the built deposit before the wallet popup opens.
+ *
+ * A deposit that would fail on-chain also fails simulation inside the wallet,
+ * where Phantom reports it as "this dApp may be unsafe" instead of the program
+ * error it is (the report that prompted this: an account with negative health
+ * hitting `DepositsIntoLiquidatingMustRecover`). When we can name the failure,
+ * we throw it here and never sign. Anything we can't attribute — a stale
+ * blockhash, a node behind, an RPC hiccup — must never block a deposit that
+ * would have worked, so it's only logged and the flow continues, the same way
+ * `readLamports` returning null skips the SOL check.
+ */
+async function assertDepositSimulates(
+  connection: import('@solana/web3.js').Connection,
+  tx: Transaction,
+  owner: PublicKey
+): Promise<void> {
+  let sim: Awaited<ReturnType<typeof connection.simulateTransaction>>;
+  try {
+    sim = await connection.simulateTransaction(new VersionedTransaction(tx.compileMessage()), {
+      sigVerify: false,
+      replaceRecentBlockhash: true,
+      commitment: config.devnet.commitment,
+    });
+  } catch {
+    // Couldn't simulate at all: carry on and let the real send decide.
+    return;
+  }
+
+  const simError = sim.value.err;
+  if (!simError) return;
+
+  const logs = sim.value.logs ?? [];
+  const decoded = await decodeMangoError(simError, logs);
+  const message = decoded?.message ?? insufficientFundsMessage(simError, logs);
+
+  if (!message) {
+    posthog.capture('margin_deposit_simulation_inconclusive', {
+      error: typeof simError === 'string' ? simError : JSON.stringify(simError),
+      wallet: owner.toBase58(),
+    });
+    return;
+  }
+
+  throw new DepositSimulationError(message, { code: decoded?.code, error: simError, logs });
 }
 
 const DEFAULT_ACCOUNT_NAME = 'frontend';
@@ -319,6 +393,10 @@ export function useMangoMarginDeposit() {
       tx.recentBlockhash = blockhash;
       tx.feePayer = owner;
 
+      // Still 'preparing': a failure we can name stops here, with the reason,
+      // instead of becoming an "unsafe dApp" warning in the wallet.
+      await assertDepositSimulates(connection, tx, owner);
+
       reportPhase('awaiting-signature');
       const signedTx = await wallet.signTransaction(tx);
 
@@ -426,7 +504,7 @@ export function useMangoMarginDeposit() {
         needsAccountCreation: false,
       });
 
-      const [{ AnchorProvider, BN, Program }, { IDL: MANGO_V4_IDL }] = await Promise.all([
+      const [{ AnchorProvider, Program }, { IDL: MANGO_V4_IDL }] = await Promise.all([
         import('@coral-xyz/anchor'),
         import('@/shared/lib/mango-v4-idl'),
       ]);
