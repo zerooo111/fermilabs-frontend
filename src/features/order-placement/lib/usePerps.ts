@@ -71,6 +71,25 @@ interface PerpsMarketOrderParams {
   reduceOnly?: boolean;
 }
 
+export interface PerpsTakerOrderParams {
+  /** Market index, as the relay's `target_index` expects it. */
+  marketId: string;
+  side: OrderSide;
+  /** Base size in UI units. */
+  size: number;
+  markPrice: number;
+  /** Worst fill accepted, against the mark price. */
+  maxSlippageBps: number;
+  /**
+   * On chain `Market` ignores the price limit — PlaceOrderType::Market is
+   * documented as "IOC with price = i64::MAX" — so slippage only binds through
+   * the quote cap. `ImmediateOrCancel` turns mark ± slippage into a real
+   * limit, at the cost of filling less (or nothing) in a fast market.
+   */
+  orderType: QueuePlaceOrderType.Market | QueuePlaceOrderType.ImmediateOrCancel;
+  reduceOnly?: boolean;
+}
+
 interface PerpsClosePositionParams {
   /** The position's own market; the positions table lists every market. */
   marketId: string;
@@ -293,7 +312,6 @@ export function usePerps() {
 
     const startedAt = performance.now();
     const adapterAny = wallet?.adapter as any;
-    const maybeWindow = globalThis as any;
     const intentHex = Buffer.from(message).toString('hex');
     const intentBase58 = bs58.encode(message);
     const intentHexUtf8Bytes = new TextEncoder().encode(intentHex);
@@ -1069,6 +1087,63 @@ export function usePerps() {
     }
   };
 
+  /**
+   * One taker order in any market, with no toast and no analytics: the caller
+   * reports. A quick-order basket sends several legs across markets and
+   * reports once for all of them, so it drives this directly.
+   */
+  const placeTakerOrder = async ({
+    marketId,
+    side,
+    size,
+    markPrice,
+    maxSlippageBps,
+    orderType,
+    reduceOnly = false,
+  }: PerpsTakerOrderParams): Promise<{
+    txSignature?: string;
+    acceptedLatencyMs?: number;
+  }> => {
+    if (!publicKey || !signMessage) {
+      throw new Error('Wallet not connected');
+    }
+    if (!Number.isFinite(size) || size <= 0) {
+      throw new Error('Invalid size');
+    }
+    if (!Number.isFinite(markPrice) || markPrice <= 0) {
+      throw new Error('Mark price unavailable');
+    }
+    const targetIndex = Number(marketId);
+    if (!Number.isInteger(targetIndex) || targetIndex < 0) {
+      throw new Error(`Market ${marketId} not found`);
+    }
+
+    const [marketMeta, canonical] = await Promise.all([
+      resolveExecutionMarketParams(marketId),
+      resolveCanonicalAccountsForMarket(targetIndex),
+    ]);
+
+    const slippageFraction = Math.max(0, maxSlippageBps) / 10_000;
+    const slippageMultiplier = side === 'Buy' ? 1 + slippageFraction : 1 - slippageFraction;
+    const payloadBytes = buildPlacePayload({
+      side,
+      price: markPrice * slippageMultiplier,
+      size,
+      reduceOnly,
+      orderType,
+      clientOrderId: randomU64(),
+      marketMeta,
+    });
+
+    return submitIntent({
+      payloadBytes,
+      remainingAccounts: canonical.remainingAccounts,
+      group: canonical.group,
+      market: marketId,
+      mangoAccount: canonical.mangoAccount,
+    });
+  };
+
   const openMarketPosition = async ({
     side,
     size,
@@ -1084,38 +1159,15 @@ export function usePerps() {
       if (!selectedMarket) {
         throw new Error('Selected market not found');
       }
-      if (!Number.isFinite(sizeValue) || sizeValue <= 0) {
-        throw new Error('Invalid size');
-      }
-      if (!Number.isFinite(markPrice) || markPrice <= 0) {
-        throw new Error('Mark price unavailable');
-      }
 
-      const targetIndex = Number(selectedMarketId);
-      const [marketMeta, canonical] = await Promise.all([
-        resolveExecutionMarketParams(),
-        resolveCanonicalAccountsForMarket(targetIndex),
-      ]);
-
-      const slippageFraction = Math.max(0, maxSlippageBps) / 10_000;
-      const slippageMultiplier = side === 'Buy' ? 1 + slippageFraction : 1 - slippageFraction;
-      const effectivePrice = markPrice * slippageMultiplier;
-      const payloadBytes = buildPlacePayload({
+      const result = await placeTakerOrder({
+        marketId: selectedMarketId,
         side,
-        price: effectivePrice,
         size: sizeValue,
-        reduceOnly,
+        markPrice,
+        maxSlippageBps,
         orderType: QueuePlaceOrderType.Market,
-        clientOrderId: randomU64(),
-        marketMeta,
-      });
-
-      const result = await submitIntent({
-        payloadBytes,
-        remainingAccounts: canonical.remainingAccounts,
-        group: canonical.group,
-        market: selectedMarketId,
-        mangoAccount: canonical.mangoAccount,
+        reduceOnly,
       });
 
       showOrderToast(`Market ${side} order placed`, result.txSignature, result.acceptedLatencyMs);
@@ -1439,6 +1491,7 @@ export function usePerps() {
   return {
     openPosition,
     openMarketPosition,
+    placeTakerOrder,
     closePosition,
     cancelOrder,
     placeTriggerLegs,
