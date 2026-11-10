@@ -18,6 +18,7 @@ import {
 } from '@/shared/ui/dialog';
 import {
   DepositConfirmationTimeoutError,
+  DepositSimulationError,
   useMangoMarginDeposit,
   type DepositContextResponse,
   type DepositPhase,
@@ -508,6 +509,7 @@ function ExplorerLink({
 type DepositErrorKind =
   | 'user_rejected'
   | 'insufficient_sol'
+  | 'simulation_blocked'
   | 'simulation_failed'
   | 'rpc_unreachable'
   | 'on_chain_error'
@@ -518,6 +520,11 @@ function friendlyDepositError(err: unknown): { kind: DepositErrorKind; message: 
   // Thrown by the hook before signing; its message is already user-facing.
   if (err instanceof InsufficientSolError) {
     return { kind: 'insufficient_sol', message: err.message };
+  }
+
+  // Our own pre-flight simulation named the reason; nothing was signed or sent.
+  if (err instanceof DepositSimulationError) {
+    return { kind: 'simulation_blocked', message: err.message };
   }
 
   const raw = err instanceof Error ? err.message : String(err ?? '');
