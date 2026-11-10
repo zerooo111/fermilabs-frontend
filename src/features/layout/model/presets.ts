@@ -39,7 +39,7 @@ function size(api: DockviewApi, id: WidgetId, dims: { width?: number; height?: n
 
 /**
  * The default. Mirrors the original CSS-grid layout and its sizes (520px chart
- * row, 360px orderbook, 320px ticket column):
+ * row, 300px orderbook, 320px ticket column):
  *   [ chart | orderbook ] [ ticket  ]
  *   [ portfolio tabs    ] [ account ]
  */
@@ -52,7 +52,7 @@ function applyClassic(api: DockviewApi) {
   add(api, 'assets', { position: { referencePanel: 'positions', direction: 'within' } });
   add(api, 'orderbook', {
     position: { referencePanel: 'chart', direction: 'right' },
-    initialWidth: 360,
+    initialWidth: 300,
   });
   add(api, 'trades', { position: { referencePanel: 'orderbook', direction: 'within' } });
   // Absolute position: a full-height column on the right edge of the whole dock.
@@ -62,7 +62,7 @@ function applyClassic(api: DockviewApi) {
     initialHeight: 260,
   });
   size(api, 'ticket', { width: 320 });
-  size(api, 'orderbook', { width: 360 });
+  size(api, 'orderbook', { width: 300 });
   size(api, 'chart', { height: 520 });
   size(api, 'account', { height: 260 });
   api.getPanel('positions')?.api.setActive();
