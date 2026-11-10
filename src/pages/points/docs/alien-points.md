@@ -71,7 +71,7 @@ _Figure 1. Weekly points in three illustrative growth paths. These paths are exa
 
 ### The floor
 
-The floor is guaranteed. Fermi releases the floor in each epoch, also when volume is low. All floor points go to liquidity: the FLP vault and resting depth.
+The floor is guaranteed. Fermi releases the floor in each epoch, also when volume is low. Liquidity (the FLP vault and resting depth) gets 90% of the floor. Volume and open interest get 5% each. Thus traders get points in each epoch, also when volume is low.
 
 The floor decreases by the same quantity each epoch:
 
@@ -134,9 +134,9 @@ Season 1 cannot release more than 5,260,000 points.
 
 | Category                                | Share of the floor | Share of the curve |
 | --------------------------------------- | ------------------ | ------------------ |
-| Liquidity (FLP vault and resting depth) | 100%               | 20%                |
-| Volume                                  | 0%                 | 37.5%              |
-| Open interest                           | 0%                 | 37.5%              |
+| Liquidity (FLP vault and resting depth) | 90%                | 20%                |
+| Volume                                  | 5%                 | 37.5%              |
+| Open interest                           | 5%                 | 37.5%              |
 | Referrals                               | 0%                 | 5%                 |
 
 ### Division of liquidity points
@@ -168,10 +168,10 @@ In the Base growth path, the mix is:
 
 | Epoch | FLP vault | Resting depth | Volume | Open interest | Referrals |
 | ----- | --------- | ------------- | ------ | ------------- | --------- |
-| 1     | 58.4%     | 25.0%         | 7.8%   | 7.8%          | 1.0%      |
-| 8     | 38.7%     | 28.7%         | 15.3%  | 15.3%         | 2.0%      |
-| 13    | 24.9%     | 26.5%         | 22.8%  | 22.8%         | 3.0%      |
-| 26    | 7.3%      | 21.8%         | 33.3%  | 33.3%         | 4.4%      |
+| 1     | 52.8%     | 22.6%         | 11.8%  | 11.8%         | 1.0%      |
+| 8     | 35.3%     | 26.2%         | 18.2%  | 18.2%         | 2.0%      |
+| 13    | 23.0%     | 24.5%         | 24.7%  | 24.7%         | 3.0%      |
+| 26    | 7.0%      | 20.9%         | 33.8%  | 33.8%         | 4.4%      |
 
 The real mix depends on real qualified volume.
 
@@ -275,6 +275,7 @@ Fermi uses proprietary anti-sybil and anti-abuse checks. Fermi does not publish 
 | Epoch close                         | Sunday, 00:00 UTC                                              |
 | Points unit                         | Each wallet                                                    |
 | Floor                               | 50,000 to 20,000 points for each epoch                         |
+| Floor division                      | 90% liquidity, 5% volume, 5% open interest                     |
 | Curve maximum (Pmax)                | 3,600,000 points                                               |
 | Curve scale (Xs)                    | $12,000,000,000 of cumulative qualified volume                 |
 | Curve rate at start                 | 300 points for each $1M                                        |
